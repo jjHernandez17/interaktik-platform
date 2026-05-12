@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contador de puntos TikTok Live</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body>
+    <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+    <main class="app-shell">
+        <section class="hero">
+          <div>
+            <p class="eyebrow">TikTok Live • Contador interactivo</p>
+            <h1>Contador de puntos por regalos</h1>
+            <p class="subtitle">
+            Personaliza equipos, regalos y puntos. Cuando llegue un regalo,
+            selecciona su equivalencia y suma puntos al equipo configurado.
+          </p>
+        </div>
+        <div class="hero-card">
+          <span class="hero-card-label">Estado</span>
+          <strong id="totalsSummary">0 equipos • 0 regalos</strong>
+          <small>Los datos se guardan automáticamente en el navegador.</small>
+        </div>
+      </section>
+
+      <section class="card connection-card">
+        <div class="connection-header">
+          <h3>Conexión TikTok Live</h3>
+          <span id="appConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+        </div>
+
+        <form id="connectionForm" class="connection-form">
+          <input id="tiktokUsername" type="text" placeholder="@usuario_en_vivo" required />
+          <button id="loadCatalogBtn" class="btn accent" type="button">Cargar catalogo</button>
+          <button id="linkBtn" class="btn primary" type="button">Vincular TikTok</button>
+          <button id="connectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+          <button id="disconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+
+        <p id="connectionDetails" class="hint">
+          Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.
+        </p>
+      </section>
+
+      <section class="grid scoreboard-section">
+        <article id="scoreboardCard" class="card">
+          <div class="card-header">
+            <h2>Marcador</h2>
+            <div class="scoreboard-header-actions">
+              <span class="muted">Actualización en tiempo real</span>
+              <button id="toggleScoreboardFullscreenBtn" class="btn ghost small" type="button">Pantalla completa</button>
+              <button id="resetScoresBtn" class="btn ghost small" type="button">Reiniciar puntos</button>
+            </div>
+          </div>
+          <div id="scoreboard" class="scoreboard"></div>
+        </article>
+      </section>
+
+      <section class="grid two-columns">
+        <article class="card">
+          <div class="card-header">
+            <h2>Equipos</h2>
+            <button id="clearTeamsBtn" class="btn ghost" type="button">Borrar equipos</button>
+          </div>
+
+          <form id="teamForm" class="form-row">
+            <input id="teamName" type="text" placeholder="Nombre del equipo" required />
+            <input id="teamColor" type="color" value="#7c3aed" aria-label="Color del equipo" />
+            <button class="btn primary" type="submit">Agregar</button>
+          </form>
+
+          <div id="teamsList" class="stack"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <h2>Regalos y reglas</h2>
+            <button id="clearGiftsBtn" class="btn ghost" type="button">Borrar reglas</button>
+          </div>
+
+          <form id="giftForm" class="gift-form">
+            <div class="gift-catalog-shell">
+              <label class="field-label">Regalo de TikTok</label>
+              <div id="giftCatalogPreview" class="gift-preview">
+                <img id="giftCatalogPreviewImage" alt="Vista previa del regalo" />
+                <div>
+                  <strong id="giftCatalogPreviewName">Selecciona un regalo</strong>
+                  <div id="giftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+                </div>
+              </div>
+              <button id="giftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="giftCatalogToggleName">Selecciona un regalo</span>
+                <span class="gift-dropdown-caret">▾</span>
+              </button>
+              <div id="giftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
+                <div class="gift-catalog-filters">
+                  <input id="giftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
+                  <input id="giftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
+                </div>
+                <div id="giftCatalogOptions" class="gift-catalog-options"></div>
+              </div>
+              <p id="giftCatalogHint" class="hint">Conéctate a TikTok Live para cargar el catálogo de regalos disponibles.</p>
+            </div>
+
+            <div class="form-grid gift-rule-grid">
+              <input id="giftPoints" type="number" min="1" value="1" required />
+              <select id="giftTeam" required></select>
+              <button class="btn primary full" type="submit">Crear regla</button>
+            </div>
+          </form>
+
+          <div class="subsection">
+            <div class="card-header compact">
+              <h3>Reglas creadas</h3>
+            </div>
+            <div id="giftRulesList" class="stack"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid bottom-grid">
+        <article class="card">
+          <div class="card-header">
+            <h2>Registro reciente</h2>
+            <button id="clearHistoryBtn" class="btn ghost" type="button">Limpiar registro</button>
+          </div>
+          <div id="historyList" class="history"></div>
+        </article>
+      </section>
+      </section>
+    </main>
+
+    <template id="teamItemTemplate">
+      <div class="team-item">
+        <div class="team-main">
+          <span class="team-dot"></span>
+          <div>
+            <strong class="team-name"></strong>
+            <small class="team-meta"></small>
+          </div>
+        </div>
+        <div class="team-actions">
+          <button class="btn ghost small decrement" type="button">Quitar puntos</button>
+          <button class="btn ghost small increment" type="button">Agregar puntos</button>
+          <button class="btn danger small remove" type="button">Eliminar</button>
+        </div>
+      </div>
+    </template>
+
+    <div id="scoreAdjustModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="scoreAdjustModalTitle">
+        <h3 id="scoreAdjustModalTitle">Ajustar puntos</h3>
+        <p id="scoreAdjustModalDescription" class="hint">Indica la cantidad de puntos a aplicar.</p>
+        <form id="scoreAdjustForm" class="modal-form">
+          <input
+            id="scoreAdjustAmountInput"
+            type="number"
+            min="1"
+            step="1"
+            value="1"
+            required
+            aria-label="Cantidad de puntos"
+          />
+          <div class="modal-actions">
+            <button id="scoreAdjustCancelBtn" class="btn ghost" type="button">Cancelar</button>
+            <button class="btn primary" type="submit">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="js/runtime.js"></script>
+    <script src="js/dialog.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

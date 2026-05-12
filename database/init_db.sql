@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS app_users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(190) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  sid VARCHAR NOT NULL PRIMARY KEY,
+  sess JSON NOT NULL,
+  expire TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS IDX_user_sessions_expire ON user_sessions (expire);

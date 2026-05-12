@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carrera de Colegas | PlayTik Live</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/race.css" />
+</head>
+
+<body>
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="race-shell">
+    <section class="race-hero">
+      <div>
+        <p class="eyebrow">PlayTik Live • Juego interactivo</p>
+        <h1>Carrera de Colegas</h1>
+        <p class="subtitle">
+          Crea participantes y corre contra ellos. Los regalos de TikTok avanzan a los carritos en la pista.
+          El primero en cruzar la meta múltiples veces gana.
+        </p>
+      </div>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="raceConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+      </div>
+
+      <form id="raceConnectionForm" class="connection-form">
+        <input id="raceUsername" type="text" placeholder="@usuario_en_vivo" required />
+        <button id="raceLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
+        <button id="raceLinkBtn" class="btn primary" type="button">Vincular TikTok</button>
+        <button id="raceConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="raceDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="raceConnectionDetails" class="hint">Los regalos recibidos harán avanzar a los carritos según su configuración.</p>
+    </section>
+
+    <section id="trackSection" class="track-section">
+      <div class="track-header">
+        <span class="track-label">SALIDA</span>
+      </div>
+      <div id="raceTrack" class="race-track">
+        <!-- Carriles generados dinámicamente -->
+      </div>
+      <div class="track-footer">
+        <span class="track-label">META</span>
+        <div class="finish-info">
+          <p id="finishCountsLabel"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="race-controls" aria-label="Controles del juego">
+      <div class="control-panel">
+        <div class="panel-section">
+          <h3>Participantes</h3>
+          <div class="participants-list-container">
+            <div id="participantsList" class="participants-list"></div>
+          </div>
+          <div class="add-participant-form">
+            <input id="participantNameInput" type="text" placeholder="Nombre del participante" maxlength="24" />
+            <button id="addParticipantBtn" class="btn primary" type="button">Agregar (+)</button>
+          </div>
+          <p class="hint" id="participantsHint">0 / 20 participantes</p>
+        </div>
+
+        <div class="panel-section">
+          <h3>Acciones</h3>
+          <button id="resetRaceBtn" class="btn ghost" type="button">Reiniciar carrera</button>
+          <button id="clearParticipantsBtn" class="btn ghost" type="button">Limpiar participantes</button>
+          <button id="raceFullscreenBtn" class="btn ghost" type="button">Pantalla completa</button>
+        </div>
+
+        <div class="panel-section">
+          <h3>Meta de vueltas</h3>
+          <input id="raceLapsLimit" type="number" min="1" max="999" step="1" value="5" />
+          <p class="hint">El primer participante que alcance este número de vueltas gana la carrera.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Registro reciente</h2>
+          <span class="pill">Movimientos</span>
+        </div>
+        <div id="raceHistoryList" class="history-list"></div>
+      </article>
+    </section>
+  </main>
+
+  <div id="raceWinnerModal" class="winner-modal hidden" aria-hidden="true">
+    <div class="winner-card" role="dialog" aria-modal="true" aria-labelledby="raceWinnerName">
+      <p class="winner-eyebrow">Ganador de la carrera</p>
+      <div class="winner-media">
+        <img id="raceWinnerAvatar" alt="Imagen del ganador" />
+      </div>
+      <h2 id="raceWinnerName"></h2>
+      <button id="raceWinnerCloseBtn" class="btn primary winner-close-btn" type="button">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/race.js"></script>
+</body>
+
+</html>

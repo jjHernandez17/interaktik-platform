@@ -1,0 +1,137 @@
+:root {
+  --bg: #09131f;
+  --bg-accent: #13263b;
+  --card: #102134;
+  --text: #e8f3ff;
+  --muted: #9fb7d1;
+  --line: rgba(159, 183, 209, 0.2);
+  --accent: #f97316;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.22), transparent 35%),
+    radial-gradient(circle at 100% 20%, rgba(20, 184, 166, 0.2), transparent 35%),
+    linear-gradient(180deg, var(--bg) 0%, #07101a 100%);
+}
+
+.landing-shell {
+  width: min(1120px, 92vw);
+  margin: 0 auto;
+  padding: 24px 0 44px;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 36px;
+}
+
+.brand {
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+
+.landing-nav-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.hero {
+  background: linear-gradient(160deg, rgba(16, 33, 52, 0.95), rgba(19, 38, 59, 0.85));
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: clamp(22px, 4vw, 42px);
+  margin-bottom: 20px;
+}
+
+.tag {
+  margin: 0 0 10px;
+  color: #6ee7b7;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  line-height: 1.15;
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+.hero-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 11px 16px;
+  border: 1px solid transparent;
+  color: var(--text);
+}
+
+.btn.solid {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  color: #1f1306;
+  font-weight: 700;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--line);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.info-card {
+  background: rgba(16, 33, 52, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.info-card h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.info-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-nav,
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

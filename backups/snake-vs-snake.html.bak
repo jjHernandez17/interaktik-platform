@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake Vs Snake | PlayTik Live</title>
+  <link rel="stylesheet" href="snake-vs-snake.css" />
+</head>
+
+<body>
+  <a class="back-menu-btn" href="/platform">← Volver</a>
+
+  <main class="snake-shell">
+    <section class="snake-hero">
+      <div>
+        <p class="eyebrow">PlayTik Live • Juego interactivo</p>
+        <h1>Snake Vs Snake</h1>
+        <p class="subtitle">
+          Dos serpientes avanzan por un trazado fijo y crecen con manzanas activadas por regalos.
+          Cada regalo configurable puede enviar manzanas a la serpiente izquierda o derecha.
+        </p>
+      </div>
+    </section>
+
+    <section class="top-controls" aria-label="Controles del juego">
+      <div class="speed-sidebar">
+        <div class="speed-sidebar-header">
+          <span class="stat-label">Velocidad global</span>
+          <strong id="snakeSpeedLabel">Normal</strong>
+          <small id="snakeSpeedValue">450 ms por movimiento</small>
+        </div>
+        <div class="speed-controls">
+          <input id="snakeSpeedSlider" class="speed-slider" type="range" min="60" max="3000" step="10" value="450"
+            aria-label="Velocidad de las serpientes" />
+        </div>
+      </div>
+
+      <div class="actions-sidebar">
+        <div class="actions-header">
+          <span class="stat-label">Acciones</span>
+          <strong>Control de partida</strong>
+        </div>
+        <div class="action-buttons">
+          <button id="snakePauseBtn" class="btn ghost" type="button">Pausar</button>
+          <button id="snakeResumeBtn" class="btn ghost" type="button">Reanudar</button>
+          <button id="snakeResetBtn" class="btn primary" type="button">Reiniciar</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="board-grid">
+      <div class="board-slot">
+        <article class="board-card">
+          <div class="card-header">
+            <div class="snake-header-main">
+              <h2 id="leftSnakeTitle">Serpiente1</h2>
+              <p class="muted wins-text" id="leftWins">Wins: 0</p>
+            </div>
+
+          </div>
+          <div class="board-tab-row">
+            <button id="leftAddAppleBtn" class="btn board-tab" type="button" aria-label="Añadir manzana a serpiente izquierda">+</button>
+          </div>
+          <div class="board-counter" id="leftBoardCounter">0</div>
+          <canvas id="leftBoard" class="snake-board" aria-label="Tablero de la serpiente izquierda"></canvas>
+        </article>
+
+        <article class="snake-config-card" aria-label="Configuración serpiente izquierda">
+          <h3>Configuración Serpiente 1</h3>
+          <div class="snake-config-grid">
+            <input id="leftSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
+              aria-label="Nombre serpiente 1" />
+            <input id="leftSnakeColorInput" type="color" value="#8b5cf6" aria-label="Color serpiente 1" />
+            <input id="leftBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 1" />
+            <p id="leftConfigStatus" class="config-status">Sin configuración guardada.</p>
+            <div class="gift-catalog-shell">
+              <label class="field-label">Regalo de TikTok</label>
+              <div id="leftGiftCatalogPreview" class="gift-preview">
+                <img id="leftGiftCatalogPreviewImage" alt="Vista previa del regalo" />
+                <div>
+                  <strong id="leftGiftCatalogPreviewName">Selecciona un regalo</strong>
+                  <div id="leftGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+                </div>
+              </div>
+              <button id="leftGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="leftGiftCatalogToggleName">Selecciona un regalo</span>
+                <span class="gift-dropdown-caret">▾</span>
+              </button>
+              <div id="leftGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
+                <div class="gift-catalog-filters">
+                  <input id="leftGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
+                  <input id="leftGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
+                </div>
+                <div id="leftGiftCatalogOptions" class="gift-catalog-options"></div>
+              </div>
+            </div>
+            <div class="rule-inline">
+              <input id="leftRuleGiftInput" type="text" placeholder="Regalo ID/nombre" aria-label="Regalo para serpiente 1" />
+              <input id="leftRuleApplesInput" type="number" min="1" value="1" aria-label="Manzanas por regalo serpiente 1" />
+              <button id="leftRuleSaveBtn" class="btn ghost" type="button">Guardar regla</button>
+            </div>
+            <datalist id="leftRuleGiftOptions"></datalist>
+            <div id="leftRulesContainer" class="stack"></div>
+            <button id="leftConfigSaveBtn" class="btn primary" type="button"
+              style="grid-column: 1 / -1; margin-top: 8px;">Guardar configuración</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="board-slot">
+        <article class="board-card">
+          <div class="card-header">
+            <div class="snake-header-main">
+              <h2 id="rightSnakeTitle">Serpiente2</h2>
+              <p class="muted wins-text" id="rightWins">Wins: 0</p>
+            </div>
+
+          </div>
+          <div class="board-tab-row">
+            <button id="rightAddAppleBtn" class="btn board-tab" type="button" aria-label="Añadir manzana a serpiente derecha">Añadir manzana</button>
+          </div>
+          <div class="board-tab-row">
+            <button id="rightAddAppleBtn" class="btn board-tab" type="button" aria-label="Añadir manzana a serpiente derecha">+</button>
+          </div>
+          <div class="board-counter" id="rightBoardCounter">0</div>
+          <canvas id="rightBoard" class="snake-board" aria-label="Tablero de la serpiente derecha"></canvas>
+          <div class="board-counter" id="rightBoardCounter">0</div>
+        </article>
+        <article class="snake-config-card" aria-label="Configuración serpiente derecha">
+          <h3>Configuración Serpiente 2</h3>
+          <div class="snake-config-grid">
+            <input id="rightSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
+              aria-label="Nombre serpiente 2" />
+            <input id="rightSnakeColorInput" type="color" value="#06b6d4" aria-label="Color serpiente 2" />
+            <input id="rightBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 2" />
+            <p id="rightConfigStatus" class="config-status">Sin configuración guardada.</p>
+            <div class="gift-catalog-shell">
+              <label class="field-label">Regalo de TikTok</label>
+              <div id="rightGiftCatalogPreview" class="gift-preview">
+                <img id="rightGiftCatalogPreviewImage" alt="Vista previa del regalo" />
+                <div>
+                  <strong id="rightGiftCatalogPreviewName">Selecciona un regalo</strong>
+                  <div id="rightGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+                </div>
+              </div>
+              <button id="rightGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="rightGiftCatalogToggleName">Selecciona un regalo</span>
+                <span class="gift-dropdown-caret">▾</span>
+              </button>
+              <div id="rightGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
+                <div class="gift-catalog-filters">
+                  <input id="rightGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
+                  <input id="rightGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
+                </div>
+                <div id="rightGiftCatalogOptions" class="gift-catalog-options"></div>
+              </div>
+            </div>
+            <div class="rule-inline">
+              <input id="rightRuleGiftInput" type="text" placeholder="Regalo ID/nombre" aria-label="Regalo para serpiente 2" />
+              <input id="rightRuleApplesInput" type="number" min="1" value="1" aria-label="Manzanas por regalo serpiente 2" />
+              <button id="rightRuleSaveBtn" class="btn ghost" type="button">Guardar regla</button>
+            </div>
+            <datalist id="rightRuleGiftOptions"></datalist>
+            <div id="rightRulesContainer" class="stack"></div>
+            <button id="rightConfigSaveBtn" class="btn primary" type="button"
+              style="grid-column: 1 / -1; margin-top: 8px;">Guardar configuración </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Conexión TikTok Live</h2>
+        </div>
+
+        <form id="snakeConnectionForm" class="form-row">
+          <input id="snakeUsername" type="text" placeholder="@usuario_en_vivo" required />
+          <button id="snakeLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
+          <button class="btn primary" type="submit">Conectar</button>
+          <button id="snakeDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+
+        <div class="connection-status-row">
+          <span id="snakeStatusBadge" class="status-badge">Desconectado</span>
+          <div id="snakeLiveDetails" class="muted">Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.</div>
+        </div>
+
+        <p class="hint" id="snakeConnectionHint">
+          Los regalos recibidos se aplicarán a la serpiente configurada.
+        </p>
+        <div id="liveIndicator" class="live-indicator hidden">
+          🔴 Conectado en vivo
+        </div>
+      </article>
+
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Reglas activas</h2>
+          <span class="pill">Autoguardado</span>
+        </div>
+        <div id="snakeRulesList" class="stack"></div>
+      </article>
+
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Registro reciente</h2>
+          <span class="pill">Eventos y manzanas</span>
+        </div>
+        <div id="snakeHistoryList" class="history-list"></div>
+      </article>
+    </section>
+  </main>
+
+  <div id="winnerOverlay" class="winner-overlay" hidden>
+    <div class="winner-card">
+      <div class="winner-crown" aria-hidden="true">👑</div>
+      <div class="winner-text">GANADOR</div>
+      <div id="winnerName" class="winner-name">Serpiente1</div>
+    </div>
+  </div>
+
+  <script src="snake-vs-snake.js"></script>
+</body>
+
+</html>
+<BACKUP>

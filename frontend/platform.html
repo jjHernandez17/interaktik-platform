@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel | PlayTik Live</title>
+    <link rel="stylesheet" href="assets/css/platform.css" />
+  </head>
+  <body>
+    <main class="platform-shell">
+      <aside class="platform-sidebar">
+        <div class="brand">
+          <p class="eyebrow">PlayTik Live</p>
+          <h1>Panel</h1>
+        </div>
+
+        <nav class="platform-nav" aria-label="Menu principal">
+          <button class="nav-item" type="button" data-section="accountSection">Configuracion de cuenta</button>
+          <button class="nav-item active" type="button" data-section="gamesSection">Juegos</button>
+        </nav>
+
+        <button id="logoutBtn" class="logout-btn" type="button">Cerrar sesion</button>
+      </aside>
+
+      <section class="platform-content">
+        <section id="accountSection" class="content-card hidden">
+          <div class="card-header">
+            <h2>Configuracion de cuenta</h2>
+          </div>
+          <p class="muted">Informacion de la sesion actual.</p>
+          <div class="account-grid">
+            <article>
+              <span class="label">Nombre</span>
+              <strong id="userName">-</strong>
+            </article>
+            <article>
+              <span class="label">Correo</span>
+              <strong id="userEmail">-</strong>
+            </article>
+            <article>
+              <span class="label">Estado</span>
+              <strong>Sesion activa</strong>
+            </article>
+          </div>
+        </section>
+
+        <section id="gamesSection" class="content-card">
+          <div class="card-header">
+            <h2>Juegos</h2>
+          </div>
+          <p class="muted">Selecciona un juego para comenzar.</p>
+
+          <div class="games-grid">
+            <article class="game-card">
+              <img src="/assets/images/ContadorPuntos.png" alt="Contador de Puntos" class="game-card-image" />
+              <h3>Contador de puntos</h3>
+              <p>Equipos, reglas de regalos y marcador en tiempo real para TikTok Live.</p>
+              <a class="start-btn" href="app.html">Iniciar juego</a>
+            </article>
+
+            <article class="game-card">
+              <img src="/assets/images/SnakeVsSnake.png" alt="Snake Vs Snake" class="game-card-image" />
+              <h3>Snake Vs Snake</h3>
+              <p>Dos serpientes avanzan por el mismo trazado y crecen con manzanas activadas por regalos.</p>
+              <a class="start-btn" href="snake-vs-snake.html">Iniciar juego</a>
+            </article>
+
+            <article class="game-card">
+              <img src="/assets/images/Carrera%20de%20Colegas.png" alt="Carrera de Colegas" class="game-card-image" />
+              <h3>Carrera de Colegas</h3>
+              <p>Crea participantes y corre contra ellos. Los regalos avanzan a los carritos.</p>
+              <a class="start-btn" href="race.html">Iniciar juego</a>
+            </article>
+
+            <article class="game-card disabled">
+              <h3>Batalla por rondas</h3>
+              <p>Juego competitivo por rondas con bonus y penalizaciones.</p>
+              <span class="coming-soon">Proximamente</span>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="js/runtime.js"></script>
+    <script src="js/dialog.js"></script>
+    <script src="js/platform.js"></script>
+  </body>
+</html>

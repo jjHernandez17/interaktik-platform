@@ -22,6 +22,27 @@ async function injectApiBaseUrl(filePath, apiBaseUrl) {
   return html;
 }
 
+// Helper to get API base URL based on request origin
+function getApiBaseUrl(req) {
+  const origin = req.headers.origin;
+  let apiBaseUrl = 'http://localhost:3000'; // default
+
+  if (origin) {
+    // Lista de origins permitidos
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://interaktik-platform.vercel.app'
+    ];
+
+    if (allowedOrigins.includes(origin)) {
+      apiBaseUrl = origin;
+    }
+  }
+
+  return apiBaseUrl;
+}
+
 // Static files
 router.get('/', (req, res) => {
   if (req.session.user) {
@@ -32,7 +53,7 @@ router.get('/', (req, res) => {
 
 router.get('/index.html', async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/index.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -60,7 +81,7 @@ router.get('/dialog.js', (req, res) => {
 // Auth pages
 router.get('/login', requireGuestPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -71,7 +92,7 @@ router.get('/login', requireGuestPage, async (req, res) => {
 
 router.get('/login.html', requireGuestPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -82,7 +103,7 @@ router.get('/login.html', requireGuestPage, async (req, res) => {
 
 router.get('/register', requireGuestPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -93,7 +114,7 @@ router.get('/register', requireGuestPage, async (req, res) => {
 
 router.get('/register.html', requireGuestPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -105,7 +126,7 @@ router.get('/register.html', requireGuestPage, async (req, res) => {
 // Platform
 router.get('/platform', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -116,7 +137,7 @@ router.get('/platform', requireAuthPage, async (req, res) => {
 
 router.get('/platform.html', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -136,7 +157,7 @@ router.get('/platform.js', requireAuthPage, (req, res) => {
 // App (Contador)
 router.get('/app', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -147,7 +168,7 @@ router.get('/app', requireAuthPage, async (req, res) => {
 
 router.get('/app.html', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -167,7 +188,7 @@ router.get('/styles.css', requireAuthPage, (req, res) => {
 // Snake vs Snake
 router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -178,7 +199,7 @@ router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
 
 router.get('/snake-vs-snake.html', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -198,7 +219,7 @@ router.get('/snake-vs-snake.js', requireAuthPage, (req, res) => {
 // Race
 router.get('/race', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -209,7 +230,7 @@ router.get('/race', requireAuthPage, async (req, res) => {
 
 router.get('/race.html', requireAuthPage, async (req, res) => {
   try {
-    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -232,7 +253,7 @@ router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));
 
 // Config endpoint
 router.get('/api/config.js', (req, res) => {
-  const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+  const apiBaseUrl = getApiBaseUrl(req);
   res.setHeader('Content-Type', 'application/javascript');
   res.send(`window.__INTERAKTIK_API_BASE_URL__ = "${apiBaseUrl}";`);
 });

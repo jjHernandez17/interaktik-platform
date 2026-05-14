@@ -32,7 +32,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     setMessage("Autenticacion correcta. Redirigiendo...");
-    window.location.href = "/platform";
+    redirectWithLog("/platform.html", `Login exitoso para ${payload.email}`);
   } catch (error) {
     setMessage(error.message, true);
   }

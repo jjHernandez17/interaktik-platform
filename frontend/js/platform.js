@@ -18,7 +18,7 @@ async function loadMe() {
   try {
     const response = await fetch('/api/auth/me');
     if (!response.ok) {
-      window.location.href = '/login';
+      redirectWithLog('/login.html', 'Usuario no autenticado en /api/auth/me');
       return;
     }
 
@@ -26,7 +26,7 @@ async function loadMe() {
     userName.textContent = data.user?.name || '-';
     userEmail.textContent = data.user?.email || '-';
   } catch (_error) {
-    window.location.href = '/login';
+    redirectWithLog('/login.html', 'Error al cargar datos de usuario');
   }
 }
 
@@ -43,7 +43,7 @@ logoutBtn.addEventListener('click', async () => {
   try {
     await fetch('/api/auth/logout', { method: 'POST' });
   } finally {
-    window.location.href = '/login';
+    redirectWithLog('/login.html', 'Logout exitoso');
   }
 });
 

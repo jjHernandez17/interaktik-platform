@@ -4,6 +4,8 @@ const connectPgSimple = require('connect-pg-simple');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const http = require('http');
+const { Server } = require('socket.io');
 
 // Config
 const env = require('./src/config/env');
@@ -80,6 +82,33 @@ app.use('/api', gameRouter);
 app.use('/api', tiktokRouter);
 app.use('/', pagesRouter);
 
+// Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
+app.get('/events', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': env.CORS_ORIGIN,
+    'Access-Control-Allow-Credentials': 'true',
+  });
+
+  logger.success('Cliente conectado a /events (EventSource)');
+
+  // Enviar un evento inicial
+  res.write('data: {"type": "connected"}\n\n');
+
+  // Mantener la conexión viva
+  const keepAlive = setInterval(() => {
+    res.write('data: {"type": "ping"}\n\n');
+  }, 30000);
+
+  // Limpiar cuando se desconecte
+  req.on('close', () => {
+    logger.info('Cliente desconectado de /events (EventSource)');
+    clearInterval(keepAlive);
+  });
+});
+
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -89,13 +118,51 @@ function start() {
   const PORT = process.env.PORT || env.PORT || 3000;
   logger.info(`Starting server in ${env.NODE_ENV} mode...`);
 
-  // 1. Iniciamos el servidor EXPRESS primero para no bloquear a Railway / Render
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    logger.success(`Servidor iniciado correctamente`);
-    logger.success(`Escuchando en el puerto: ${PORT}`);
+  // 1. Crear servidor HTTP con Express
+  const server = http.createServer(app);
+  logger.success('Servidor HTTP creado correctamente');
+
+  // 2. Inicializar Socket.IO con el servidor HTTP
+  const io = new Server(server, {
+    cors: {
+      origin: env.CORS_ORIGIN,
+      credentials: true,
+    },
+    transports: ['websocket', 'polling'],
+  });
+  logger.success('Socket.IO inicializado correctamente');
+
+  // 3. Configurar eventos de Socket.IO
+  io.on('connection', (socket) => {
+    logger.success(`Cliente Socket.IO conectado: ${socket.id}`);
+
+    socket.on('disconnect', (reason) => {
+      logger.info(`Cliente Socket.IO desconectado: ${socket.id} (razón: ${reason})`);
+    });
+
+    // Aquí puedes agregar más eventos específicos de tu aplicación
+    socket.on('join-room', (roomId) => {
+      socket.join(roomId);
+      logger.info(`Cliente ${socket.id} se unió a la sala: ${roomId}`);
+    });
+
+    socket.on('leave-room', (roomId) => {
+      socket.leave(roomId);
+      logger.info(`Cliente ${socket.id} salió de la sala: ${roomId}`);
+    });
   });
 
-  // 2. Inicializamos base de datos (PostgreSQL) sin bloquear el arranque del puerto
+  // 4. Hacer io disponible globalmente para las rutas
+  global.io = io;
+
+  // 5. Iniciar el servidor HTTP (esto es lo que Railway espera)
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.success(`Servidor Express iniciado correctamente`);
+    logger.success(`Escuchando en el puerto: ${PORT}`);
+    logger.success(`Socket.IO listo para conexiones`);
+  });
+
+  // 6. Inicializar base de datos (PostgreSQL) sin bloquear el arranque del puerto
   bootstrapDatabase()
     .then(() => {
       logger.success('Database bootstrap completed successfully');
@@ -104,14 +171,14 @@ function start() {
       logger.error('No se pudo inicializar la base de datos PostgreSQL', error);
     });
 
-  // 3. Verificación de Redis (si se utiliza más adelante, dejamos el log de si está configurado)
+  // 7. Verificación de Redis (si se utiliza más adelante)
   if (process.env.REDIS_URL || env.REDIS_URL) {
-    logger.success(`Conexión Redis configurada`);
+    logger.success('Conexión Redis configurada');
   } else {
-    logger.info(`No se configuró REDIS_URL. Se continuará sin Redis.`);
+    logger.info('No se configuró REDIS_URL. Se continuará sin Redis.');
   }
 
-  // Capturadores de errores a nivel global para que no muera en promesas infinitas
+  // 8. Capturadores de errores a nivel global
   process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
   });
@@ -119,8 +186,30 @@ function start() {
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception thrown:', error);
   });
+
+  // 9. Manejar señales de terminación correctamente (importante para Railway)
+  process.on('SIGTERM', () => {
+    logger.info('Recibida señal SIGTERM, cerrando servidor...');
+    server.close(() => {
+      logger.success('Servidor cerrado correctamente');
+      process.exit(0);
+    });
+  });
+
+  process.on('SIGINT', () => {
+    logger.info('Recibida señal SIGINT, cerrando servidor...');
+    server.close(() => {
+      logger.success('Servidor cerrado correctamente');
+      process.exit(0);
+    });
+  });
+
+  // 10. Mantener el proceso vivo (importante para Railway)
+  setInterval(() => {
+    // Ping silencioso para mantener el proceso vivo
+  }, 30000);
 }
 
 start();
 
-module.exports = app;
+module.exports = { app, io: global.io };

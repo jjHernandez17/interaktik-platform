@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 // Config
 const env = require('./src/config/env');
 const logger = require('./src/config/logger');
+const { getCorsConfig, getSocketCorsConfig, isOriginAllowed } = require('./src/config/cors');
 
 // Database
 const pool = require('./src/database/pool');
@@ -46,10 +47,10 @@ app.use(helmet({
   referrerPolicy: { policy: "no-referrer" },
 }));
 app.use(compression());
-app.use(cors({
-  origin: env.CORS_ORIGIN,
-  credentials: true,
-}));
+app.use(cors(getCorsConfig()));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors(getCorsConfig()));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -84,15 +85,24 @@ app.use('/', pagesRouter);
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {
+  const origin = req.headers.origin;
+
+  // Verificar CORS dinámicamente
+  if (!isOriginAllowed(origin)) {
+    logger.error(`CORS bloqueado en /events para origin: ${origin}`);
+    return res.status(403).json({ error: 'CORS not allowed' });
+  }
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': env.CORS_ORIGIN,
+    'Access-Control-Allow-Origin': origin || '*', // Usar origin específico o * si no hay origin
     'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Cache-Control',
   });
 
-  logger.success('Cliente conectado a /events (EventSource)');
+  logger.success(`Cliente conectado a /events (EventSource) desde origin: ${origin || 'sin origin'}`);
 
   // Enviar un evento inicial
   res.write('data: {"type": "connected"}\n\n');
@@ -124,10 +134,7 @@ function start() {
 
   // 2. Inicializar Socket.IO con el servidor HTTP
   const io = new Server(server, {
-    cors: {
-      origin: env.CORS_ORIGIN,
-      credentials: true,
-    },
+    cors: getSocketCorsConfig(),
     transports: ['websocket', 'polling'],
   });
   logger.success('Socket.IO inicializado correctamente');

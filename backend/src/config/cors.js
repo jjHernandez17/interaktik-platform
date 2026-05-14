@@ -1,0 +1,70 @@
+// Configuración CORS centralizada
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://interaktik-platform.vercel.app'
+];
+
+const logger = require('./logger');
+
+function isOriginAllowed(origin) {
+  // Permitir requests sin origin (como mobile apps, curl, etc.)
+  if (!origin) {
+    logger.info('CORS: Request sin origin permitido (mobile/curl)');
+    return true;
+  }
+
+  const allowed = ALLOWED_ORIGINS.includes(origin);
+  if (allowed) {
+    logger.success(`CORS: Origin permitido - ${origin}`);
+  } else {
+    logger.error(`CORS: Origin bloqueado - ${origin}`);
+  }
+
+  return allowed;
+}
+
+function getCorsConfig() {
+  return {
+    origin: function (origin, callback) {
+      if (isOriginAllowed(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Cache-Control'
+    ],
+    optionsSuccessStatus: 200 // Para legacy browsers
+  };
+}
+
+function getSocketCorsConfig() {
+  return {
+    origin: function (origin, callback) {
+      if (isOriginAllowed(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Authorization', 'Content-Type']
+  };
+}
+
+module.exports = {
+  ALLOWED_ORIGINS,
+  isOriginAllowed,
+  getCorsConfig,
+  getSocketCorsConfig
+};

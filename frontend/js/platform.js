@@ -16,7 +16,9 @@ function showSection(sectionId) {
 
 async function loadMe() {
   try {
-    const response = await fetch('/api/auth/me');
+    const response = await fetch('/api/auth/me', {
+      credentials: 'include'
+    });
     if (!response.ok) {
       redirectWithLog('/login.html', 'Usuario no autenticado en /api/auth/me');
       return;
@@ -41,7 +43,10 @@ logoutBtn.addEventListener('click', async () => {
   logoutBtn.textContent = 'Cerrando...';
 
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
   } finally {
     redirectWithLog('/login.html', 'Logout exitoso');
   }

@@ -56,6 +56,9 @@ app.options('*', cors(getCorsConfig()));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Trust proxy for secure cookies behind reverse proxies (Railway, Render, etc.)
+app.set('trust proxy', 1);
+
 // Session configuration
 const PgSession = connectPgSimple(session);
 app.use(
@@ -70,7 +73,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: env.NODE_ENV === 'production',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },

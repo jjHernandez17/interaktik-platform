@@ -21,7 +21,10 @@
   }
 
   const originalFetch = window.fetch.bind(window);
-  window.fetch = function fetchWithApiBase(input, init) {
+  window.fetch = function fetchWithApiBase(input, init = {}) {
+    // Asegurarnos de que enviamos cookies cross-origin en todas las peticiones a la API
+    init.credentials = init.credentials || 'include';
+
     if (typeof input === 'string') {
       return originalFetch(withBase(input), init);
     }
@@ -35,7 +38,8 @@
   };
 
   const OriginalEventSource = window.EventSource;
-  window.EventSource = function EventSourceWithApiBase(url, config) {
+  window.EventSource = function EventSourceWithApiBase(url, config = {}) {
+    config.withCredentials = true;
     return new OriginalEventSource(withBase(url), config);
   };
 

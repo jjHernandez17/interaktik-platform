@@ -14,7 +14,7 @@ function requireAuthPage(req, res, next) {
 
 function requireGuestPage(req, res, next) {
   if (req.session.user) {
-    return res.redirect('/platform');
+    return res.redirect('/platform.html');
   }
   return next();
 }

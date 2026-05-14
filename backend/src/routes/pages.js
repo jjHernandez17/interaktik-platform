@@ -1,9 +1,26 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs').promises;
 const { requireAuth, requireAuthPage, requireGuestPage, getSessionUserId } = require('../middleware/auth');
 const { normalizeError } = require('../utils/normalize');
+const env = require('../config/env');
 
 const router = express.Router();
+
+// Helper to inject API base URL into HTML
+async function injectApiBaseUrl(filePath, apiBaseUrl) {
+  let html = await fs.readFile(filePath, 'utf-8');
+  const scriptTag = `<script src="/api/config.js"></script>`;
+  
+  // Insertar script tag antes del cierre de </head> o al inicio de </body>
+  if (html.includes('</head>')) {
+    html = html.replace('</head>', `${scriptTag}\n  </head>`);
+  } else if (html.includes('<body')) {
+    html = html.replace(/<body[^>]*>/i, (match) => `${match}\n  ${scriptTag}`);
+  }
+  
+  return html;
+}
 
 // Static files
 router.get('/', (req, res) => {
@@ -13,8 +30,15 @@ router.get('/', (req, res) => {
   return res.sendFile(path.join(__dirname, '../../../frontend/index.html'));
 });
 
-router.get('/index.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/index.html'));
+router.get('/index.html', async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/index.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
 });
 
 router.get('/landing.css', (req, res) => {
@@ -34,29 +58,71 @@ router.get('/dialog.js', (req, res) => {
 });
 
 // Auth pages
-router.get('/login', requireGuestPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/login.html'));
+router.get('/login', requireGuestPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading login');
+  }
 });
 
-router.get('/login.html', requireGuestPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/login.html'));
+router.get('/login.html', requireGuestPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading login');
+  }
 });
 
-router.get('/register', requireGuestPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/register.html'));
+router.get('/register', requireGuestPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading register');
+  }
 });
 
-router.get('/register.html', requireGuestPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/register.html'));
+router.get('/register.html', requireGuestPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading register');
+  }
 });
 
 // Platform
-router.get('/platform', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/platform.html'));
+router.get('/platform', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading platform');
+  }
 });
 
-router.get('/platform.html', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/platform.html'));
+router.get('/platform.html', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading platform');
+  }
 });
 
 router.get('/platform.css', requireAuthPage, (req, res) => {
@@ -68,12 +134,26 @@ router.get('/platform.js', requireAuthPage, (req, res) => {
 });
 
 // App (Contador)
-router.get('/app', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/app.html'));
+router.get('/app', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading app');
+  }
 });
 
-router.get('/app.html', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/app.html'));
+router.get('/app.html', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading app');
+  }
 });
 
 router.get('/app.js', requireAuthPage, (req, res) => {
@@ -85,12 +165,26 @@ router.get('/styles.css', requireAuthPage, (req, res) => {
 });
 
 // Snake vs Snake
-router.get('/snake-vs-snake', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/snake-vs-snake.html'));
+router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
 });
 
-router.get('/snake-vs-snake.html', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/snake-vs-snake.html'));
+router.get('/snake-vs-snake.html', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
 });
 
 router.get('/snake-vs-snake.css', requireAuthPage, (req, res) => {
@@ -102,12 +196,26 @@ router.get('/snake-vs-snake.js', requireAuthPage, (req, res) => {
 });
 
 // Race
-router.get('/race', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/race.html'));
+router.get('/race', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
 });
 
-router.get('/race.html', requireAuthPage, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../frontend/race.html'));
+router.get('/race.html', requireAuthPage, async (req, res) => {
+  try {
+    const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
 });
 
 router.get('/race.css', requireAuthPage, (req, res) => {
@@ -121,6 +229,13 @@ router.get('/race.js', requireAuthPage, (req, res) => {
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
 router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));
+
+// Config endpoint
+router.get('/api/config.js', (req, res) => {
+  const apiBaseUrl = env.CORS_ORIGIN || 'http://localhost:3000';
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(`window.__INTERAKTIK_API_BASE_URL__ = "${apiBaseUrl}";`);
+});
 
 // Fallback
 router.get('*', (req, res) => {

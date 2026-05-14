@@ -26,7 +26,23 @@ const tiktokRouter = require('./src/routes/tiktok');
 const app = express();
 
 // Security and compression middleware
-app.use(helmet());
+app.use(helmet({
+  hsts: false, // <-- IMPORTANTE: Desactivar Strict-Transport-Security (fuerza HTTPS)
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: ["'self'", "http://localhost:*", "https://localhost:*"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      upgradeInsecureRequests: null, // <-- IMPORTANTE: Evita que el navegador convierta HTTP a HTTPS automáticamente
+    },
+  },
+  referrerPolicy: { policy: "no-referrer" },
+}));
 app.use(compression());
 app.use(cors({
   origin: env.CORS_ORIGIN,

@@ -198,21 +198,36 @@ function start() {
   });
 
   // 9. Manejar señales de terminación correctamente (importante para Railway)
-  process.on('SIGTERM', () => {
-    logger.info('Recibida señal SIGTERM, cerrando servidor...');
-    server.close(() => {
-      logger.success('Servidor cerrado correctamente');
-      process.exit(0);
-    });
-  });
+  const gracefulShutdown = () => {
+    logger.info('Iniciando cierre graceful...');
 
-  process.on('SIGINT', () => {
-    logger.info('Recibida señal SIGINT, cerrando servidor...');
+    // Cerrar Socket.IO
+    if (global.io) {
+      global.io.close(() => {
+        logger.success('Socket.IO cerrado correctamente');
+      });
+    }
+
+    // Cerrar pool de PostgreSQL
+    pool.end(() => {
+      logger.success('Pool de PostgreSQL cerrado correctamente');
+    });
+
+    // Cerrar servidor HTTP
     server.close(() => {
       logger.success('Servidor cerrado correctamente');
       process.exit(0);
     });
-  });
+
+    // Timeout de seguridad
+    setTimeout(() => {
+      logger.error('Cierre forzado por timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
 
   // 10. Mantener el proceso vivo (importante para Railway)
   setInterval(() => {

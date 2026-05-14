@@ -15,19 +15,26 @@ function showSection(sectionId) {
 }
 
 async function loadMe() {
+  console.log('🔍 Verificando autenticación...');
   try {
     const response = await fetch('/api/auth/me', {
       credentials: 'include'
     });
+
+    console.log('🔍 Respuesta de /api/auth/me:', response.status, response.statusText);
+
     if (!response.ok) {
+      console.log('❌ Autenticación fallida, redirigiendo a login');
       redirectWithLog('/login.html', 'Usuario no autenticado en /api/auth/me');
       return;
     }
 
     const data = await response.json();
+    console.log('✅ Autenticación exitosa:', data.user?.email);
     userName.textContent = data.user?.name || '-';
     userEmail.textContent = data.user?.email || '-';
   } catch (_error) {
+    console.log('❌ Error al verificar autenticación:', _error);
     redirectWithLog('/login.html', 'Error al cargar datos de usuario');
   }
 }

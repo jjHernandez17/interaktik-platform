@@ -17,6 +17,7 @@ router.post('/auth/register', async (req, res, next) => {
     req.session.user = user;
     req.session.userId = user.id;
 
+    logger.success(`Usuario registrado exitosamente: ${user.email}, Session ID: ${req.session.id}`);
     return res.status(201).json({ user });
   } catch (error) {
     logger.error('Register error', error);
@@ -53,10 +54,17 @@ router.post('/auth/logout', (req, res, next) => {
 });
 
 router.get('/auth/me', (req, res) => {
+  logger.info(`Auth check - Session exists: ${!!req.session}, User: ${!!req.session?.user}`);
+  logger.info(`Auth check - Session ID: ${req.session?.id}`);
+  logger.info(`Auth check - Origin: ${req.headers.origin}`);
+  logger.info(`Auth check - Cookies: ${!!req.headers.cookie}`);
+
   if (!req.session.user) {
+    logger.warn('Auth check failed - No user in session');
     return res.status(401).json({ error: 'No autenticado' });
   }
 
+  logger.success(`Auth check successful - User: ${req.session.user.email}`);
   return res.json({ user: req.session.user });
 });
 

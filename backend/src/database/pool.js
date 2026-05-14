@@ -13,11 +13,11 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  logger.error('Pool error', err);
+  logger.error('Error inesperado en PostgreSQL', err);
 });
 
 pool.on('connect', () => {
-  logger.info('✅ Database connected');
+  logger.success('Conexión PostgreSQL establecida satisfactoriamente');
 });
 
 module.exports = pool;

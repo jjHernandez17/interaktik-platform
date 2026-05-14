@@ -17,21 +17,15 @@ function timestamp() {
 
 module.exports = {
   info: (msg, data) => {
-    if (isDev) {
-      console.log(`${colors.blue}[${timestamp()}] INFO${colors.reset}`, msg, data || '');
-    }
+    console.log(`${colors.blue}[${timestamp()}] INFO${colors.reset}`, msg, data || '');
   },
 
   success: (msg, data) => {
-    if (isDev) {
-      console.log(`${colors.green}[${timestamp()}] ✅ ${msg}${colors.reset}`, data || '');
-    }
+    console.log(`${colors.green}[${timestamp()}] ✅ ${msg}${colors.reset}`, data || '');
   },
 
   warn: (msg, data) => {
-    if (isDev) {
-      console.warn(`${colors.yellow}[${timestamp()}] ⚠️  ${msg}${colors.reset}`, data || '');
-    }
+    console.warn(`${colors.yellow}[${timestamp()}] ⚠️  ${msg}${colors.reset}`, data || '');
   },
 
   error: (msg, error) => {
@@ -40,13 +34,11 @@ module.exports = {
       console.error('Message:', error.message);
       if (error.code) console.error('Code:', error.code);
       if (error.detail) console.error('Detail:', error.detail);
-      if (isDev && error.stack) console.error('Stack:', error.stack);
+      if (error.stack) console.error('Stack:', error.stack);
     }
   },
 
   debug: (msg, data) => {
-    if (isDev) {
-      console.log(`${colors.cyan}[${timestamp()}] DEBUG${colors.reset}`, msg, data || '');
-    }
+    console.log(`${colors.cyan}[${timestamp()}] DEBUG${colors.reset}`, msg, data || '');
   },
 };

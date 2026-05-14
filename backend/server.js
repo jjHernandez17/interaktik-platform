@@ -85,22 +85,40 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-async function start() {
-  try {
-    logger.info(`Starting server in ${env.NODE_ENV} mode...`);
+function start() {
+  const PORT = process.env.PORT || env.PORT || 3000;
+  logger.info(`Starting server in ${env.NODE_ENV} mode...`);
 
-    // Bootstrap database
-    await bootstrapDatabase();
+  // 1. Iniciamos el servidor EXPRESS primero para no bloquear a Railway / Render
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    logger.success(`Servidor iniciado correctamente`);
+    logger.success(`Escuchando en el puerto: ${PORT}`);
+  });
 
-    // Start listening
-    app.listen(env.PORT, () => {
-      logger.success(`Servidor listo en http://localhost:${env.PORT}`);
-      console.log(`Servidor listo en http://localhost:${env.PORT}`);
+  // 2. Inicializamos base de datos (PostgreSQL) sin bloquear el arranque del puerto
+  bootstrapDatabase()
+    .then(() => {
+      logger.success('Database bootstrap completed successfully');
+    })
+    .catch((error) => {
+      logger.error('No se pudo inicializar la base de datos PostgreSQL', error);
     });
-  } catch (error) {
-    logger.error('No se pudo iniciar el servidor', error);
-    process.exit(1);
+
+  // 3. Verificación de Redis (si se utiliza más adelante, dejamos el log de si está configurado)
+  if (process.env.REDIS_URL || env.REDIS_URL) {
+    logger.success(`Conexión Redis configurada`);
+  } else {
+    logger.info(`No se configuró REDIS_URL. Se continuará sin Redis.`);
   }
+
+  // Capturadores de errores a nivel global para que no muera en promesas infinitas
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception thrown:', error);
+  });
 }
 
 start();

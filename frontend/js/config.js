@@ -1,0 +1,7 @@
+// Configuración global para URLs de API
+const API_BASE_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://interaktik-platform-production.up.railway.app';
+
+// Exportar para uso en otros archivos
+window.API_BASE_URL = API_BASE_URL;

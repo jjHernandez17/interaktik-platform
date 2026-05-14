@@ -1,5 +1,12 @@
 (function () {
-  const apiBaseUrl = window.__INTERAKTIK_API_BASE_URL__ || '';
+  let apiBaseUrl = window.API_BASE_URL || window.__INTERAKTIK_API_BASE_URL__ || '';
+
+  // Si no está definida o está vacía, construir dinámicamente
+  if (!apiBaseUrl) {
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const host = window.location.host;
+    apiBaseUrl = `${protocol}//${host}`;
+  }
 
   function withBase(url) {
     if (typeof url !== 'string') {

@@ -650,7 +650,7 @@ async function connectToTikTok() {
     if (!response.ok) {
       if (response.status === 405) {
         throw new Error(
-          "La app no está corriendo con el servidor local. Debes iniciar server.js con Node.js y abrir http://localhost:3000.",
+          `La app no está corriendo con el servidor. Asegúrate de que el servidor esté ejecutándose en ${window.API_BASE_URL}.`,
         );
       }
       throw new Error(payload.error || "No se pudo conectar.");

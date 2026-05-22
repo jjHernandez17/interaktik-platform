@@ -74,7 +74,11 @@ router.get('/gifts', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error getting gifts catalog', error);
-    return res.status(500).json({ error: normalizeError(error) });
+    return res.status(500).json({
+      error: normalizeError(error),
+      route: '/api/gifts',
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 
@@ -94,7 +98,59 @@ router.post('/catalog', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error getting catalog', error);
-    return res.status(500).json({ error: normalizeError(error) });
+    return res.status(500).json({
+      error: normalizeError(error),
+      route: '/api/catalog',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+router.post('/connect', async (req, res) => {
+  try {
+    const uniqueId = String(req.body?.uniqueId || '').trim().replace(/^@/, '');
+
+    if (!uniqueId) {
+      return res.status(400).json({ error: 'Debes proporcionar uniqueId.' });
+    }
+
+    logger.info(`API connect request for @${uniqueId}`);
+
+    return res.json({
+      status: 'connected',
+      message: `Conexión preparada para @${uniqueId}.`,
+      uniqueId,
+      roomId: '',
+      error: '',
+    });
+  } catch (error) {
+    logger.error('Error in /api/connect', error);
+    return res.status(500).json({
+      error: normalizeError(error),
+      route: '/api/connect',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+router.post('/disconnect', async (req, res) => {
+  try {
+    logger.info('API disconnect request received');
+
+    return res.json({
+      status: 'disconnected',
+      message: 'Conexión cerrada correctamente.',
+      uniqueId: '',
+      roomId: '',
+      error: '',
+    });
+  } catch (error) {
+    logger.error('Error in /api/disconnect', error);
+    return res.status(500).json({
+      error: normalizeError(error),
+      route: '/api/disconnect',
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

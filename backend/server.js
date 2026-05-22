@@ -84,7 +84,6 @@ app.use(
 app.use('/api', authRouter);
 app.use('/api', gameRouter);
 app.use('/api', tiktokRouter);
-app.use('/', pagesRouter);
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {
@@ -129,6 +128,8 @@ app.get('/events', (req, res) => {
     clearInterval(keepAlive);
   });
 });
+
+app.use('/', pagesRouter);
 
 // Error handling
 app.use(notFoundHandler);

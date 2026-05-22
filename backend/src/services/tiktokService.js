@@ -1,18 +1,38 @@
 const pool = require('../database/pool');
 const fs = require('fs').promises;
 const path = require('path');
+const logger = require('../config/logger');
+const env = require('../config/env');
 
-const GIFT_CACHE_PATH = path.join(__dirname, '../../../gifts-cache.json');
+const GIFT_CACHE_CANDIDATES = [
+  path.join(__dirname, '../../../gifts-cache.json'),
+  path.join(process.cwd(), 'gifts-cache.json'),
+  path.join(process.cwd(), 'backend', 'gifts-cache.json'),
+];
+
 let giftCachePromise = null;
 
 async function loadGiftCache() {
   if (!giftCachePromise) {
-    giftCachePromise = fs.readFile(GIFT_CACHE_PATH, 'utf-8')
-      .then((content) => JSON.parse(content))
-      .catch((error) => {
-        giftCachePromise = null;
-        throw error;
-      });
+    giftCachePromise = (async () => {
+      let lastError = null;
+
+      for (const candidatePath of GIFT_CACHE_CANDIDATES) {
+        try {
+          const content = await fs.readFile(candidatePath, 'utf-8');
+          logger.success(`Gift cache loaded from ${candidatePath}`);
+          return JSON.parse(content);
+        } catch (error) {
+          lastError = error;
+          logger.warn(`Gift cache path unavailable: ${candidatePath}`);
+        }
+      }
+
+      throw lastError || new Error('No se encontró gifts-cache.json');
+    })().catch((error) => {
+      giftCachePromise = null;
+      throw error;
+    });
   }
 
   return giftCachePromise;
@@ -55,26 +75,48 @@ async function deleteTiktokConnection(userId, gameType) {
 }
 
 async function getGiftCatalog() {
-  const cached = await loadGiftCache();
-  const gifts = Array.isArray(cached?.gifts) ? cached.gifts : [];
+  try {
+    const cached = await loadGiftCache();
+    const gifts = Array.isArray(cached?.gifts) ? cached.gifts : [];
 
-  return {
-    gifts,
-    total: gifts.length,
-    source: 'file-cache',
-    updated_at: null,
-  };
+    return {
+      gifts,
+      total: gifts.length,
+      source: 'file-cache',
+      updated_at: null,
+    };
+  } catch (error) {
+    logger.error('Gift catalog load failed, falling back to empty list', error);
+
+    const fallback = { gifts: [], total: 0, source: 'fallback-empty', updated_at: null };
+
+    return fallback;
+  }
 }
 
 async function getStatus(userId = null) {
-  const poolResult = await pool.query('SELECT 1 as ok');
+  try {
+    const poolResult = await pool.query('SELECT 1 as ok');
 
-  return {
-    status: 'ok',
-    backend: 'railway',
-    database: poolResult.rowCount > 0 ? 'connected' : 'unknown',
-    hasUser: Boolean(userId),
-  };
+    return {
+      status: 'ok',
+      backend: 'railway',
+      database: poolResult.rowCount > 0 ? 'connected' : 'unknown',
+      redis: env.REDIS_URL ? 'configured' : 'disabled',
+      hasUser: Boolean(userId),
+    };
+  } catch (error) {
+    logger.error('Status check database probe failed', error);
+
+    return {
+      status: 'degraded',
+      backend: 'railway',
+      database: 'error',
+      redis: env.REDIS_URL ? 'configured' : 'disabled',
+      hasUser: Boolean(userId),
+      error: error.message,
+    };
+  }
 }
 
 module.exports = {

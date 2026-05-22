@@ -28,7 +28,7 @@ function getCorsConfig() {
   return {
     origin: function (origin, callback) {
       if (isOriginAllowed(origin)) {
-        callback(null, origin);
+        callback(null, origin || false);
       } else {
         callback(new Error('Not allowed by CORS'));
       }
@@ -51,7 +51,7 @@ function getSocketCorsConfig() {
   return {
     origin: function (origin, callback) {
       if (isOriginAllowed(origin)) {
-        callback(null, origin);
+        callback(null, origin || false);
       } else {
         callback(new Error('Not allowed by CORS'));
       }

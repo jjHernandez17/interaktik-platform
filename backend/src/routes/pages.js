@@ -335,6 +335,7 @@ router.get('/api/config.js', (req, res) => {
 // Fallback
 router.get('*', (req, res) => {
   if (req.originalUrl.startsWith('/api/')) {
+    logger.warn(`[pages] API endpoint inexistente: ${req.originalUrl}`);
     return res.status(404).json({ error: 'Not found' });
   }
 

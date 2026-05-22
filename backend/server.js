@@ -96,23 +96,31 @@ app.get('/events', (req, res) => {
     return res.status(403).json({ error: 'CORS not allowed' });
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
+  const headers = {
+    'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': origin || '*', // Usar origin específico o * si no hay origin
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'Cache-Control',
-  });
+    'X-Accel-Buffering': 'no',
+  };
+
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers.Vary = 'Origin';
+  }
+
+  res.writeHead(200, headers);
 
   logger.success(`Cliente conectado a /events (EventSource) desde origin: ${origin || 'sin origin'}`);
 
-  // Enviar un evento inicial
-  res.write('data: {"type": "connected"}\n\n');
+  res.write('retry: 3000\n\n');
+  res.write('event: status\n');
+  res.write('data: {"status":"connected","message":"SSE conectado correctamente"}\n\n');
 
   // Mantener la conexión viva
   const keepAlive = setInterval(() => {
-    res.write('data: {"type": "ping"}\n\n');
+    res.write(': ping\n\n');
   }, 30000);
 
   // Limpiar cuando se desconecte

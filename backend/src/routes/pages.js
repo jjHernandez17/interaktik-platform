@@ -4,8 +4,26 @@ const fs = require('fs').promises;
 const { requireAuth, requireAuthPage, requireGuestPage, getSessionUserId } = require('../middleware/auth');
 const { normalizeError } = require('../utils/normalize');
 const env = require('../config/env');
+const logger = require('../config/logger');
 
 const router = express.Router();
+const isProduction = env.NODE_ENV === 'production';
+
+function getFrontendUrl(pathname) {
+  return `${env.FRONTEND_URL}${pathname}`;
+}
+
+function redirectFrontendPage(res, pathname, reason) {
+  const target = getFrontendUrl(pathname);
+  if (reason) {
+    logger.info(`[pages] ${reason} -> ${target}`);
+  }
+  return res.redirect(target);
+}
+
+function shouldServeBackendPages() {
+  return !isProduction;
+}
 
 // Helper to inject API base URL into HTML
 async function injectApiBaseUrl(filePath, apiBaseUrl) {
@@ -45,6 +63,10 @@ function getApiBaseUrl(req) {
 
 // Static files
 router.get('/', (req, res) => {
+  if (isProduction) {
+    return redirectFrontendPage(res, req.session.user ? '/platform.html' : '/index.html', 'Root request in production');
+  }
+
   if (req.session.user) {
     return res.redirect('/platform.html');
   }
@@ -53,6 +75,10 @@ router.get('/', (req, res) => {
 
 router.get('/index.html', async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/index.html', 'Index page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/index.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -81,6 +107,10 @@ router.get('/dialog.js', (req, res) => {
 // Auth pages
 router.get('/login', requireGuestPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/login.html', 'Login page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -92,6 +122,10 @@ router.get('/login', requireGuestPage, async (req, res) => {
 
 router.get('/login.html', requireGuestPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/login.html', 'Login HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/login.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -103,6 +137,10 @@ router.get('/login.html', requireGuestPage, async (req, res) => {
 
 router.get('/register', requireGuestPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/register.html', 'Register page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -114,6 +152,10 @@ router.get('/register', requireGuestPage, async (req, res) => {
 
 router.get('/register.html', requireGuestPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/register.html', 'Register HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/register.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -126,6 +168,10 @@ router.get('/register.html', requireGuestPage, async (req, res) => {
 // Platform
 router.get('/platform', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/platform.html', 'Platform page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -137,6 +183,10 @@ router.get('/platform', requireAuthPage, async (req, res) => {
 
 router.get('/platform.html', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/platform.html', 'Platform HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/platform.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -157,6 +207,10 @@ router.get('/platform.js', requireAuthPage, (req, res) => {
 // App (Contador)
 router.get('/app', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/app.html', 'App page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -168,6 +222,10 @@ router.get('/app', requireAuthPage, async (req, res) => {
 
 router.get('/app.html', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/app.html', 'App HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/app.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -188,6 +246,10 @@ router.get('/styles.css', requireAuthPage, (req, res) => {
 // Snake vs Snake
 router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -199,6 +261,10 @@ router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
 
 router.get('/snake-vs-snake.html', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/snake-vs-snake.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -219,6 +285,10 @@ router.get('/snake-vs-snake.js', requireAuthPage, (req, res) => {
 // Race
 router.get('/race', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/race.html', 'Race page request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -230,6 +300,10 @@ router.get('/race', requireAuthPage, async (req, res) => {
 
 router.get('/race.html', requireAuthPage, async (req, res) => {
   try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/race.html', 'Race HTML request in production');
+    }
+
     const apiBaseUrl = getApiBaseUrl(req);
     const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/race.html'), apiBaseUrl);
     res.setHeader('Content-Type', 'text/html');
@@ -260,6 +334,14 @@ router.get('/api/config.js', (req, res) => {
 
 // Fallback
 router.get('*', (req, res) => {
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  if (isProduction) {
+    return redirectFrontendPage(res, '/index.html', 'Fallback page request in production');
+  }
+
   res.redirect('/');
 });
 

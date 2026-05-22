@@ -8,4 +8,5 @@ module.exports = {
   DATABASE_SSL: process.env.DATABASE_SSL === 'true',
   REDIS_URL: process.env.REDIS_URL || null,
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'https://interaktik-platform.vercel.app',
 };

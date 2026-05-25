@@ -488,15 +488,28 @@ function handleLiveGift(payload) {
 
   const giftRule = giftId ? findGiftRuleById(giftId) : findGiftRuleByName(giftName);
   if (!giftRule || !giftRule.teamId) {
-    pushHistoryEntry({
-      giftName,
-      points: 0,
-      teamId: null,
-      teamName: "Sin regla",
-      source: "live",
-      note: `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces, pero no existe una regla asignada.`,
-    });
-    render();
+    const fallbackTeam = state.teams[0] || null;
+
+    if (!fallbackTeam) {
+      pushHistoryEntry({
+        giftName,
+        points: 0,
+        teamId: null,
+        teamName: "Sin regla",
+        source: "live",
+        note: `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces, pero no existe una regla asignada.`,
+      });
+      render();
+      return;
+    }
+
+    applyGiftToTeam(
+      { name: giftName, points: appliedCount },
+      fallbackTeam,
+      appliedCount,
+      "live",
+      `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces y se aplicó al primer equipo porque no había regla asignada.`,
+    );
     return;
   }
 

@@ -448,9 +448,13 @@ function updateTeamScore(teamId, points, reason, source = "manual") {
 }
 
 function applyGiftToTeam(gift, team, points, source = "live", note = "") {
+  console.log("[APP] applyGiftToTeam ANTES:", { teamId: team.id, teamName: team.name, scoreAntes: team.score, pointsAdd: points });
   team.score += points;
+  console.log("[APP] applyGiftToTeam DESPUES:", { teamId: team.id, teamName: team.name, scoreAhora: team.score });
   addHistoryEntry(gift, team.id, team.name, source, note);
+  console.log("[APP] Historia agregada. Llamando render()");
   render();
+  console.log("[APP] render() completado");
 }
 
 function handleLiveGift(payload) {
@@ -466,7 +470,15 @@ function handleLiveGift(payload) {
   const senderId = String(payload.userId || payload.uniqueId || payload.nickname || "anonimo");
   const receivedAt = Date.now();
 
-  pruneLiveGiftProgress(receivedAt);
+  console.log("[APP] handleLiveGift iniciado:", {
+    giftId,
+    giftName,
+    repeatCount,
+    repeatEnd,
+    senderId,
+    equipos: state.teams.length,
+    reglas: state.gifts.length,
+  });
 
   let appliedCount = repeatCount;
   const progressKey = getLiveGiftProgressKey(payload, giftId, giftName, senderId);
@@ -503,8 +515,12 @@ function handleLiveGift(payload) {
   }
 
   const giftRule = giftId ? findGiftRuleById(giftId) : findGiftRuleByName(giftName);
+  console.log("[APP] Búsqueda de regla:", { giftId, giftName, encontrado: !!giftRule, rule: giftRule });
+
   if (!giftRule || !giftRule.teamId) {
+    console.log("[APP] Sin regla o sin teamId, usando fallback");
     const fallbackTeam = ensureLiveScoringTeam();
+    console.log("[APP] Equipo fallback:", { teamId: fallbackTeam.id, teamName: fallbackTeam.name, score: fallbackTeam.score });
 
     applyGiftToTeam(
       { name: giftName, points: appliedCount },
@@ -513,10 +529,13 @@ function handleLiveGift(payload) {
       "live",
       `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces y se aplicó al primer equipo porque no había regla asignada.`,
     );
+    console.log("[APP] Gift aplicado al fallback team. Score ahora:", fallbackTeam.score);
     return;
   }
 
   const team = findTeam(giftRule.teamId);
+  console.log("[APP] Team buscado por regla:", { teamId: giftRule.teamId, encontrado: !!team, teamName: team?.name });
+
   if (!team) {
     pushHistoryEntry({
       giftName,
@@ -526,11 +545,14 @@ function handleLiveGift(payload) {
       source: "live",
       note: "La regla existe, pero el equipo ya no está disponible.",
     });
+    console.log("[APP] Team no existe, solo historial");
     render();
     return;
   }
 
   const appliedPoints = giftRule.points * appliedCount;
+  console.log("[APP] Aplicando puntos:", { giftRulePoints: giftRule.points, appliedCount, totalPoints: appliedPoints, teamId: team.id, teamScore: team.score });
+
   applyGiftToTeam(
     { name: giftRule.name || giftName, points: appliedPoints },
     team,
@@ -538,6 +560,7 @@ function handleLiveGift(payload) {
     "live",
     appliedCount > 1 ? `Aplicado ${appliedCount} vez/veces.` : "Aplicado automáticamente desde TikTok Live.",
   );
+  console.log("[APP] Gift aplicado. Team score ahora:", team.score);
 }
 
 async function fetchStatus() {
@@ -632,6 +655,7 @@ function startEventStream() {
 
   liveEventsSource.addEventListener("gift", (event) => {
     const payload = JSON.parse(event.data);
+    console.log("[APP] Gift evento recibido:", payload);
     handleLiveGift(payload);
   });
 

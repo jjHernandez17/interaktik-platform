@@ -130,6 +130,13 @@ app.get('/events', (req, res) => {
       return;
     }
 
+    if (eventName === 'gift') {
+      logger.info(`[SSE-PUSH] Enviando gift al cliente (${gameType}):`, {
+        giftName: payload?.giftName,
+        timestamp: payload?.timestamp,
+      });
+    }
+
     res.write(`event: ${eventName}\n`);
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
   };

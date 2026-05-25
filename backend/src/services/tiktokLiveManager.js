@@ -1,8 +1,23 @@
-const { WebcastPushConnection } = require('tiktok-live-connector/legacy');
-const { WebcastEvent, ControlEvent } = require('tiktok-live-connector');
 const logger = require('../config/logger');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
+
+let TikTokLiveConnection = null;
+let WebcastEvent = null;
+let ControlEvent = null;
+
+try {
+  const tiktokLiveConnector = require('tiktok-live-connector');
+  TikTokLiveConnection = tiktokLiveConnector.TikTokLiveConnection || null;
+  WebcastEvent = tiktokLiveConnector.WebcastEvent || null;
+  ControlEvent = tiktokLiveConnector.ControlEvent || null;
+
+  if (!TikTokLiveConnection || !WebcastEvent || !ControlEvent) {
+    throw new Error('La librería tiktok-live-connector no expone la API moderna esperada.');
+  }
+} catch (error) {
+  logger.warn('TikTok Live no disponible al iniciar el backend. Se continuará sin conexión live.', error);
+}
 
 const connections = new Map();
 
@@ -174,7 +189,20 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     });
   }
 
-  const connection = new WebcastPushConnection(normalizedUniqueId, {
+  if (!TikTokLiveConnection || !WebcastEvent || !ControlEvent) {
+    const unavailableState = {
+      ...getEmptyState(normalizedGameType),
+      uniqueId: normalizedUniqueId,
+      status: 'error',
+      message: 'TikTok Live no está disponible en este entorno.',
+      error: 'La librería tiktok-live-connector no pudo cargarse.',
+    };
+
+    logger.warn(`TikTok Live deshabilitado para ${normalizedGameType} @${normalizedUniqueId}`);
+    return unavailableState;
+  }
+
+  const connection = new TikTokLiveConnection(normalizedUniqueId, {
     processInitialData: true,
     fetchRoomInfoOnConnect: true,
     enableExtendedGiftInfo: true,

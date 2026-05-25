@@ -24,6 +24,8 @@ const pagesRouter = require('./src/routes/pages');
 const authRouter = require('./src/routes/auth');
 const gameRouter = require('./src/routes/gameRoutes');
 const tiktokRouter = require('./src/routes/tiktok');
+const { hub } = require('./src/services/liveHub');
+const { getConnectionState, inferGameTypeFromRequest } = require('./src/services/tiktokLiveManager');
 
 // Initialize Express app
 const app = express();
@@ -88,6 +90,7 @@ app.use('/api', tiktokRouter);
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {
   const origin = req.headers.origin;
+  const gameType = inferGameTypeFromRequest(req);
 
   // Verificar CORS dinámicamente
   if (!isOriginAllowed(origin)) {
@@ -111,11 +114,27 @@ app.get('/events', (req, res) => {
 
   res.writeHead(200, headers);
 
-  logger.success(`Cliente conectado a /events (EventSource) desde origin: ${origin || 'sin origin'}`);
+  logger.success(`Cliente conectado a /events (${gameType}) desde origin: ${origin || 'sin origin'}`);
 
   res.write('retry: 3000\n\n');
   res.write('event: status\n');
-  res.write('data: {"status":"connected","message":"SSE conectado correctamente"}\n\n');
+  res.write(`data: ${JSON.stringify({
+    status: 'connected',
+    message: 'SSE conectado correctamente',
+    gameType,
+    live: getConnectionState(gameType),
+  })}\n\n`);
+
+  const pushEvent = ({ eventName, payload }) => {
+    if (!payload || payload.gameType !== gameType) {
+      return;
+    }
+
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  hub.on('live-event', pushEvent);
 
   // Mantener la conexión viva
   const keepAlive = setInterval(() => {
@@ -124,8 +143,9 @@ app.get('/events', (req, res) => {
 
   // Limpiar cuando se desconecte
   req.on('close', () => {
-    logger.info('Cliente desconectado de /events (EventSource)');
+    logger.info(`Cliente desconectado de /events (${gameType})`);
     clearInterval(keepAlive);
+    hub.off('live-event', pushEvent);
   });
 });
 

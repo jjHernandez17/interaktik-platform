@@ -926,7 +926,8 @@ if (raceLoadCatalogBtn) {
     try {
       const response = await fetch('/api/gifts');
       if (!response.ok) throw new Error('No se pudo cargar el catálogo');
-      const gifts = await response.json();
+      const payload = await response.json();
+      const gifts = Array.isArray(payload) ? payload : (Array.isArray(payload.gifts) ? payload.gifts : []);
       addHistoryEntry(`Catálogo cargado: ${gifts.length} regalos disponibles`);
       showAppAlert(`Se cargaron ${gifts.length} regalos de TikTok.`, 'Catálogo actualizado');
     } catch (error) {

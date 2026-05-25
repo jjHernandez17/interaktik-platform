@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
 const tiktokService = require('../services/tiktokService');
+const tiktokLiveManager = require('../services/tiktokLiveManager');
 const { normalizeError } = require('../utils/normalize');
 const logger = require('../config/logger');
 
@@ -34,6 +35,9 @@ async function deleteConnectionByGameType(req, res, gameType) {
   }
 
   await tiktokService.deleteTiktokConnection(userId, gameType);
+  await tiktokLiveManager.disconnectGame(gameType).catch((error) => {
+    logger.warn(`No se pudo desconectar la sesión live al borrar la conexión ${gameType}`, error);
+  });
 
   return res.json({
     success: true,
@@ -43,11 +47,14 @@ async function deleteConnectionByGameType(req, res, gameType) {
 
 router.get('/status', async (req, res) => {
   try {
+    const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
     const status = await tiktokService.getStatus(req.session?.user?.id || null);
     logger.info(`API status request from ${req.headers.origin || 'no-origin'}`);
 
     return res.json({
       ...status,
+      gameType,
+      tiktokLive: tiktokLiveManager.getConnectionState(gameType),
       timestamp: new Date().toISOString(),
       sessionUser: req.session?.user ? {
         id: req.session.user.id,
@@ -63,14 +70,16 @@ router.get('/status', async (req, res) => {
 
 router.get('/gifts', async (req, res) => {
   try {
-    const catalog = await tiktokService.getGiftCatalog();
-    logger.info(`API gifts request served (${catalog.total} gifts)`);
+    const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
+    const catalog = await tiktokLiveManager.getGiftCatalog(gameType);
+    logger.info(`API gifts request served (${catalog.total} gifts) for ${gameType}`);
 
     return res.json({
       gifts: catalog.gifts,
       total: catalog.total,
       source: catalog.source,
       updated_at: catalog.updated_at,
+      gameType,
     });
   } catch (error) {
     logger.error('Error getting gifts catalog', error);
@@ -85,16 +94,21 @@ router.get('/gifts', async (req, res) => {
 router.post('/catalog', async (req, res) => {
   try {
     const uniqueId = String(req.body?.uniqueId || '').trim().replace(/^@/, '');
-    const catalog = await tiktokService.getGiftCatalog();
+    const explicitGameType = String(req.body?.gameType || req.query?.gameType || '').trim();
+    const gameType = explicitGameType
+      ? tiktokLiveManager.normalizeGameType(explicitGameType)
+      : tiktokLiveManager.inferGameTypeFromRequest(req);
+    const catalog = await tiktokLiveManager.getGiftCatalog(gameType);
 
-    logger.info(`API catalog request for @${uniqueId || 'unknown'} served (${catalog.total} gifts)`);
+    logger.info(`API catalog request for @${uniqueId || 'unknown'} served (${catalog.total} gifts) for ${gameType}`);
 
     return res.json({
       uniqueId,
       gifts: catalog.gifts,
       total: catalog.total,
-      fromCache: true,
-      warning: 'Se devolvió el catálogo desde cache local en producción.',
+      source: catalog.source,
+      gameType,
+      warning: catalog.source === 'live' ? null : 'Se devolvió el catálogo desde cache local en producción.',
     });
   } catch (error) {
     logger.error('Error getting catalog', error);
@@ -109,19 +123,28 @@ router.post('/catalog', async (req, res) => {
 router.post('/connect', async (req, res) => {
   try {
     const uniqueId = String(req.body?.uniqueId || '').trim().replace(/^@/, '');
+    const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
 
     if (!uniqueId) {
       return res.status(400).json({ error: 'Debes proporcionar uniqueId.' });
     }
 
-    logger.info(`API connect request for @${uniqueId}`);
+    if (req.session?.user?.id) {
+      await tiktokService.saveTiktokConnection(req.session.user.id, gameType, uniqueId);
+    }
+
+    const state = await tiktokLiveManager.connectGame({
+      gameType,
+      uniqueId,
+      userId: req.session?.user?.id || null,
+    });
+
+    logger.info(`API connect request for @${uniqueId} in ${gameType}`);
 
     return res.json({
-      status: 'connected',
-      message: `Conexión preparada para @${uniqueId}.`,
-      uniqueId,
-      roomId: '',
-      error: '',
+      ...state,
+      status: state.status || 'connected',
+      message: state.message || `Conexión preparada para @${uniqueId}.`,
     });
   } catch (error) {
     logger.error('Error in /api/connect', error);
@@ -135,14 +158,12 @@ router.post('/connect', async (req, res) => {
 
 router.post('/disconnect', async (req, res) => {
   try {
-    logger.info('API disconnect request received');
+    const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
+    const state = await tiktokLiveManager.disconnectGame(gameType);
+    logger.info(`API disconnect request received for ${gameType}`);
 
     return res.json({
-      status: 'disconnected',
-      message: 'Conexión cerrada correctamente.',
-      uniqueId: '',
-      roomId: '',
-      error: '',
+      ...state,
     });
   } catch (error) {
     logger.error('Error in /api/disconnect', error);

@@ -251,6 +251,22 @@ function findTeam(teamId) {
   return state.teams.find((team) => team.id === teamId);
 }
 
+function ensureLiveScoringTeam() {
+  if (state.teams.length > 0) {
+    return state.teams[0];
+  }
+
+  const fallbackTeam = {
+    id: crypto.randomUUID(),
+    name: "Equipo TikTok",
+    color: "#06b6d4",
+    score: 0,
+  };
+
+  state.teams.push(fallbackTeam);
+  return fallbackTeam;
+}
+
 function findGiftRuleById(giftId) {
   return state.gifts.find((gift) => gift.giftId && String(gift.giftId) === String(giftId));
 }
@@ -488,20 +504,7 @@ function handleLiveGift(payload) {
 
   const giftRule = giftId ? findGiftRuleById(giftId) : findGiftRuleByName(giftName);
   if (!giftRule || !giftRule.teamId) {
-    const fallbackTeam = state.teams[0] || null;
-
-    if (!fallbackTeam) {
-      pushHistoryEntry({
-        giftName,
-        points: 0,
-        teamId: null,
-        teamName: "Sin regla",
-        source: "live",
-        note: `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces, pero no existe una regla asignada.`,
-      });
-      render();
-      return;
-    }
+    const fallbackTeam = ensureLiveScoringTeam();
 
     applyGiftToTeam(
       { name: giftName, points: appliedCount },

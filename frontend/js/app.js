@@ -644,7 +644,7 @@ function startEventStream() {
     liveEventsSource.close();
   }
 
-  liveEventsSource = new EventSource("/events");
+  liveEventsSource = new EventSource("/events?gameType=app");
 
   liveEventsSource.addEventListener("status", (event) => {
     const payload = JSON.parse(event.data);

@@ -13,7 +13,7 @@
       return url;
     }
 
-    if (url.startsWith('/api/') || url === '/events') {
+    if (url.startsWith('/api/') || url.startsWith('/events')) {
       return `${apiBaseUrl}${url}`;
     }
 

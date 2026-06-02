@@ -48,7 +48,15 @@ app.use(helmet({
   },
   referrerPolicy: { policy: "no-referrer" },
 }));
-app.use(compression());
+app.use(compression({
+  filter(req, res) {
+    if (req.path === '/events' || req.originalUrl.startsWith('/events')) {
+      return false;
+    }
+
+    return compression.filter(req, res);
+  },
+}));
 app.use(cors(getCorsConfig()));
 
 // Handle preflight OPTIONS requests
@@ -113,6 +121,7 @@ app.get('/events', (req, res) => {
   }
 
   res.writeHead(200, headers);
+  res.flushHeaders();
 
   logger.success(`Cliente conectado a /events (${gameType}) desde origin: ${origin || 'sin origin'}`);
 

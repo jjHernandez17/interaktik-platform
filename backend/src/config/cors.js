@@ -1,8 +1,15 @@
 // Configuración CORS centralizada
+const env = require('./env');
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://interaktik-platform.vercel.app'
+  'https://interaktik-platform.vercel.app',
+  'https://interaktik-platform-git-main-juan-jose-hernandez-s-projects.vercel.app',
+  env.FRONTEND_URL,
+  ...String(env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 ];
 
 const logger = require('./logger');

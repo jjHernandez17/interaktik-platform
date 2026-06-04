@@ -7,9 +7,11 @@ if (!env.DATABASE_URL) {
   throw new Error('[FATAL] DATABASE_URL no definido. Crea .env usando .env.example y vuelve a iniciar.');
 }
 
+const shouldUseSsl = env.DATABASE_SSL || /(?:\.rlwy\.net|\.railway\.app)/i.test(env.DATABASE_URL);
+
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : false,
+  ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
   max: 5, // Reducir conexiones máximas para Railway
   min: 1, // Mantener solo 1 conexión mínima
   idleTimeoutMillis: 15000, // Cerrar conexiones idle más rápido (15s)

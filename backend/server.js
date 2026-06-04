@@ -25,7 +25,7 @@ const authRouter = require('./src/routes/auth');
 const gameRouter = require('./src/routes/gameRoutes');
 const tiktokRouter = require('./src/routes/tiktok');
 const { hub } = require('./src/services/liveHub');
-const { getConnectionState, inferGameTypeFromRequest } = require('./src/services/tiktokLiveManager');
+const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest } = require('./src/services/tiktokLiveManager');
 
 // Initialize Express app
 const app = express();
@@ -99,6 +99,7 @@ app.use('/api', tiktokRouter);
 app.get('/events', (req, res) => {
   const origin = req.headers.origin;
   const gameType = inferGameTypeFromRequest(req);
+  const ownerKey = getOwnerKeyFromRequest(req, gameType);
 
   // Verificar CORS dinámicamente
   if (!isOriginAllowed(origin)) {
@@ -131,11 +132,14 @@ app.get('/events', (req, res) => {
     status: 'connected',
     message: 'SSE conectado correctamente',
     gameType,
-    live: getConnectionState(gameType),
+    live: getConnectionState(gameType, {
+      userId: req.session?.user?.id || req.session?.userId || null,
+      sessionId: req.sessionID,
+    }),
   })}\n\n`);
 
   const pushEvent = ({ eventName, payload }) => {
-    if (!payload || payload.gameType !== gameType) {
+    if (!payload || payload.gameType !== gameType || payload.ownerKey !== ownerKey) {
       return;
     }
 

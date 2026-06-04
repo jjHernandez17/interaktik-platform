@@ -518,18 +518,16 @@ function handleLiveGift(payload) {
   console.log("[APP] Búsqueda de regla:", { giftId, giftName, encontrado: !!giftRule, rule: giftRule });
 
   if (!giftRule || !giftRule.teamId) {
-    console.log("[APP] Sin regla o sin teamId, usando fallback");
-    const fallbackTeam = ensureLiveScoringTeam();
-    console.log("[APP] Equipo fallback:", { teamId: fallbackTeam.id, teamName: fallbackTeam.name, score: fallbackTeam.score });
-
-    applyGiftToTeam(
-      { name: giftName, points: appliedCount },
-      fallbackTeam,
-      appliedCount,
-      "live",
-      `${giftId ? `Gift ID ${giftId}` : giftName} llegó ${appliedCount} vez/veces y se aplicó al primer equipo porque no había regla asignada.`,
-    );
-    console.log("[APP] Gift aplicado al fallback team. Score ahora:", fallbackTeam.score);
+    console.log("[APP] Sin regla o sin teamId, se descarta el regalo:", { giftId, giftName, appliedCount });
+    pushHistoryEntry({
+      giftName,
+      points: 0,
+      teamId: null,
+      teamName: null,
+      source: 'live',
+      note: `Regalo descartado: no existe una regla activa para ${giftName}.`,
+    });
+    render();
     return;
   }
 
@@ -683,7 +681,7 @@ async function connectToTikTok() {
     const response = await fetch("/api/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uniqueId }),
+      body: JSON.stringify({ uniqueId, gameType: 'app' }),
     });
 
     const payload = await response.json();

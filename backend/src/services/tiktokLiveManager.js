@@ -21,6 +21,93 @@ try {
 
 const connections = new Map();
 
+const STALE_CONNECTION_CHECK_INTERVAL_MS = 30000;
+
+function buildConnectionKey({ userId = null, sessionId = null, gameType = 'app' }) {
+  const normalizedGameType = normalizeGameType(gameType);
+
+  if (Number(userId) > 0) {
+    return `user:${Number(userId)}:${normalizedGameType}`;
+  }
+
+  if (!sessionId) {
+    throw new Error('sessionId es requerido para la clave de conexión.');
+  }
+
+  return `session:${String(sessionId)}:${normalizedGameType}`;
+}
+
+function getOwnerKeyFromRequest(req, gameType) {
+  return buildConnectionKey({
+    userId: req.session?.user?.id || req.session?.userId || null,
+    sessionId: req.sessionID,
+    gameType,
+  });
+}
+
+async function isConnectionStillLinked(entry) {
+  if (!entry || !entry.userId) {
+    return true;
+  }
+
+  try {
+    const storedConnection = await tiktokService.getTiktokConnection(entry.userId, entry.gameType);
+    if (!storedConnection) {
+      return false;
+    }
+
+    if (!storedConnection.is_linked) {
+      return false;
+    }
+
+    if (storedConnection.tiktok_username?.trim().replace(/^@/, '') !== entry.uniqueId?.trim().replace(/^@/, '')) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logger.warn(`No se pudo validar el estado de conexión para ${entry.gameType}`, error);
+    return true;
+  }
+}
+
+async function cleanupStaleConnection({ ownerKey = null, userId = null, sessionId = null, gameType = 'app' } = {}) {
+  let key = ownerKey;
+
+  if (!key) {
+    if (!userId && !sessionId) {
+      return;
+    }
+
+    key = buildConnectionKey({ userId, sessionId, gameType });
+  }
+
+  const entry = connections.get(key);
+  if (!entry) {
+    return;
+  }
+
+  const stillValid = await isConnectionStillLinked(entry);
+  if (!stillValid) {
+    logger.warn(`Conexión TikTok Live detectada como obsoleta para ${entry.gameType}. Desconectando.`);
+    await disconnectGame(entry.gameType, { userId: entry.userId, sessionId: entry.sessionId }).catch((error) => {
+      logger.error(`Error desconectando conexión obsoleta para ${entry.gameType}`, error);
+    });
+  }
+}
+
+function scheduleConnectionCleanup() {
+  const interval = setInterval(async () => {
+    for (const ownerKey of Array.from(connections.keys())) {
+      await cleanupStaleConnection({ ownerKey });
+    }
+  }, STALE_CONNECTION_CHECK_INTERVAL_MS);
+
+  interval.unref();
+}
+
+scheduleConnectionCleanup();
+
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
@@ -126,9 +213,10 @@ function publish(gameType, eventName, payload) {
   }
 }
 
-function getConnectionState(gameType) {
+function getConnectionState(gameType, { userId = null, sessionId = null } = {}) {
   const normalized = normalizeGameType(gameType);
-  const entry = connections.get(normalized);
+  const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalized });
+  const entry = connections.get(ownerKey);
 
   if (!entry) {
     return getEmptyState(normalized);
@@ -148,17 +236,23 @@ function getConnectionState(gameType) {
   };
 }
 
-async function getGiftCatalog(gameType = 'app') {
+async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = null } = {}) {
   const normalized = normalizeGameType(gameType);
-  const entry = connections.get(normalized);
+  const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalized });
+  const entry = connections.get(ownerKey);
 
-  if (entry?.connection && Array.isArray(entry.availableGifts) && entry.availableGifts.length > 0) {
+  if (entry) {
+    await cleanupStaleConnection({ ownerKey });
+  }
+
+  const freshEntry = connections.get(ownerKey);
+  if (freshEntry?.connection && Array.isArray(freshEntry.availableGifts) && freshEntry.availableGifts.length > 0) {
     return {
-      gifts: entry.availableGifts,
-      total: entry.availableGifts.length,
+      gifts: freshEntry.availableGifts,
+      total: freshEntry.availableGifts.length,
       source: 'live',
       gameType: normalized,
-      updated_at: entry.updatedAt,
+      updated_at: freshEntry.updatedAt,
     };
   }
 
@@ -169,22 +263,23 @@ async function getGiftCatalog(gameType = 'app') {
   };
 }
 
-async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
+async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionId = null }) {
   const normalizedGameType = normalizeGameType(gameType);
   const normalizedUniqueId = String(uniqueId || '').trim().replace(/^@/, '');
+  const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalizedGameType });
 
   if (!normalizedUniqueId) {
     throw new Error('Debes proporcionar uniqueId.');
   }
 
-  const existing = connections.get(normalizedGameType);
+  const existing = connections.get(ownerKey);
   if (existing?.connection && existing.uniqueId === normalizedUniqueId && existing.status === 'connected') {
     logger.info(`Reutilizando conexión TikTok Live activa para ${normalizedGameType} @${normalizedUniqueId}`);
-    return getConnectionState(normalizedGameType);
+    return getConnectionState(normalizedGameType, { userId, sessionId });
   }
 
   if (existing?.connection) {
-    await disconnectGame(normalizedGameType).catch((error) => {
+    await disconnectGame(normalizedGameType, { userId, sessionId }).catch((error) => {
       logger.warn(`No se pudo cerrar la conexión previa de ${normalizedGameType}`, error);
     });
   }
@@ -209,9 +304,11 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
   });
 
   const entry = {
+    ownerKey,
     gameType: normalizedGameType,
     uniqueId: normalizedUniqueId,
     userId,
+    sessionId,
     status: 'connecting',
     message: `Conectando a @${normalizedUniqueId}...`,
     error: '',
@@ -223,8 +320,8 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     connection,
   };
 
-  connections.set(normalizedGameType, entry);
-  publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+  connections.set(ownerKey, entry);
+  publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
 
   logger.info(`Iniciando TikTok Live para ${normalizedGameType} @${normalizedUniqueId}`);
 
@@ -237,19 +334,20 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     });
     const payload = simplifyGiftEvent(data);
     logger.info(`[GIFT PAYLOAD] Publicando a SSE para ${normalizedGameType}:`, payload);
-    publish(normalizedGameType, 'gift', payload);
+    publish(normalizedGameType, 'gift', { ownerKey, ...payload });
   });
 
   connection.on(WebcastEvent.CHAT, (data) => {
-    publish(normalizedGameType, 'comment', simplifyChatEvent(data));
+    publish(normalizedGameType, 'comment', { ownerKey, ...simplifyChatEvent(data) });
   });
 
   connection.on(WebcastEvent.MEMBER, (data) => {
-    publish(normalizedGameType, 'member', simplifyMemberEvent(data));
+    publish(normalizedGameType, 'member', { ownerKey, ...simplifyMemberEvent(data) });
   });
 
   connection.on(WebcastEvent.LIKE, (data) => {
     publish(normalizedGameType, 'like', {
+      ownerKey,
       likeCount: data?.likeCount || data?.totalLikeCount || 1,
       user: {
         uniqueId: data?.user?.uniqueId || '',
@@ -260,6 +358,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
 
   connection.on(WebcastEvent.SHARE, (data) => {
     publish(normalizedGameType, 'share', {
+      ownerKey,
       user: {
         uniqueId: data?.user?.uniqueId || '',
         nickname: data?.user?.nickname || '',
@@ -269,6 +368,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
 
   connection.on(WebcastEvent.FOLLOW, (data) => {
     publish(normalizedGameType, 'follow', {
+      ownerKey,
       user: {
         uniqueId: data?.user?.uniqueId || '',
         nickname: data?.user?.nickname || '',
@@ -277,7 +377,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
   });
 
   connection.on(WebcastEvent.STREAM_END, (data) => {
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     if (!current) return;
 
     current.status = 'disconnected';
@@ -286,11 +386,12 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     current.updatedAt = new Date().toISOString();
 
     publish(normalizedGameType, 'streamEnd', {
+      ownerKey,
       action: data?.action || null,
-      ...getConnectionState(normalizedGameType),
+      ...getConnectionState(normalizedGameType, { userId, sessionId }),
     });
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
     logger.info(`TikTok Live terminó para ${normalizedGameType} @${normalizedUniqueId}`);
   });
 
@@ -318,8 +419,9 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
       }
     }
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
     publish(normalizedGameType, 'giftCatalog', {
+      ownerKey,
       gifts: current.availableGifts || [],
       total: (current.availableGifts || []).length,
       source: 'live',
@@ -330,7 +432,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
   });
 
   connection.on(ControlEvent.DISCONNECTED, ({ code, reason }) => {
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     if (!current) return;
 
     current.status = 'disconnected';
@@ -338,7 +440,8 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     current.error = '';
     current.updatedAt = new Date().toISOString();
     publish(normalizedGameType, 'status', {
-      ...getConnectionState(normalizedGameType),
+      ownerKey,
+      ...getConnectionState(normalizedGameType, { userId, sessionId }),
       status: 'disconnected',
       message: 'Conexión cerrada.',
       error: '',
@@ -347,7 +450,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
   });
 
   connection.on(ControlEvent.ERROR, (error) => {
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     if (!current) return;
 
     current.status = 'error';
@@ -355,7 +458,10 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
     current.message = 'Error en conexión TikTok Live.';
     current.updatedAt = new Date().toISOString();
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+    publish(normalizedGameType, 'status', {
+      ownerKey,
+      ...getConnectionState(normalizedGameType, { userId, sessionId }),
+    });
     logger.error(`TikTok Live error en ${normalizedGameType}`, error);
   });
 
@@ -386,40 +492,52 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null }) {
       logger.warn(`No se pudo refrescar catálogo de gifts para ${normalizedGameType}`, giftError);
     }
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
     publish(normalizedGameType, 'giftCatalog', {
-      gifts: (connections.get(normalizedGameType)?.availableGifts) || [],
-      total: (connections.get(normalizedGameType)?.availableGifts || []).length,
+      ownerKey,
+      gifts: (connections.get(ownerKey)?.availableGifts) || [],
+      total: (connections.get(ownerKey)?.availableGifts || []).length,
       source: 'live',
-      updated_at: connections.get(normalizedGameType)?.updatedAt || new Date().toISOString(),
+      updated_at: connections.get(ownerKey)?.updatedAt || new Date().toISOString(),
     });
 
     return getConnectionState(normalizedGameType);
   } catch (error) {
     const current = connections.get(normalizedGameType);
+    const normalizedError = error?.message || String(error || 'Error desconocido');
+
     if (current) {
       current.status = 'error';
-      current.error = error?.message || String(error || 'Error desconocido');
+      current.error = normalizedError;
       current.message = 'No se pudo conectar a TikTok Live.';
       current.updatedAt = new Date().toISOString();
     }
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType));
+    const errorState = {
+      ...getEmptyState(normalizedGameType),
+      uniqueId: normalizedUniqueId,
+      status: 'error',
+      message: 'No se pudo conectar a TikTok Live. Verifica que el canal esté en vivo y que el nombre sea correcto.',
+      error: normalizedError,
+    };
+
+    publish(normalizedGameType, 'status', errorState);
     logger.error(`No se pudo conectar TikTok Live para ${normalizedGameType} @${normalizedUniqueId}`, error);
-    throw error;
+    return errorState;
   }
 }
 
-async function disconnectGame(gameType = 'app') {
+async function disconnectGame(gameType = 'app', { userId = null, sessionId = null } = {}) {
   const normalizedGameType = normalizeGameType(gameType);
-  const entry = connections.get(normalizedGameType);
+  const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalizedGameType });
+  const entry = connections.get(ownerKey);
 
   if (!entry) {
     return getEmptyState(normalizedGameType);
   }
 
   const connection = entry.connection;
-  connections.delete(normalizedGameType);
+  connections.delete(ownerKey);
 
   if (connection) {
     try {
@@ -430,6 +548,7 @@ async function disconnectGame(gameType = 'app') {
   }
 
   publish(normalizedGameType, 'status', {
+    ownerKey,
     ...getEmptyState(normalizedGameType),
     message: 'Conexión cerrada.',
   });
@@ -445,4 +564,6 @@ module.exports = {
   getGiftCatalog,
   inferGameTypeFromRequest,
   normalizeGameType,
+  getOwnerKeyFromRequest,
+  cleanupStaleConnection,
 };

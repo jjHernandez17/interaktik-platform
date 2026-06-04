@@ -26,7 +26,21 @@ function clampNumber(value, min, max, fallback) {
 function normalizeError(error) {
   if (!error) return 'Error desconocido';
   if (typeof error === 'string') return error;
-  if (error.message || error.info) return error.message || error.info;
+
+  const message = String(error.message || error.info || '').trim();
+  if (message) {
+    if (message.startsWith('{') || message.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(message);
+        if (parsed?.message) return String(parsed.message);
+        if (parsed?.name) return String(parsed.name);
+        return JSON.stringify(parsed);
+      } catch {
+        return message;
+      }
+    }
+    return message;
+  }
 
   try {
     return JSON.stringify(error);

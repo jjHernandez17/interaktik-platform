@@ -1764,7 +1764,7 @@ function connectLiveEvents() {
     liveEventsSource.close();
   }
 
-  liveEventsSource = new EventSource('/events');
+  liveEventsSource = new EventSource('/events?gameType=snake');
   liveEventsSource.addEventListener('status', (event) => {
     try {
       const payload = JSON.parse(event.data);
@@ -1817,7 +1817,7 @@ async function connectTikTok() {
     const response = await fetch('/api/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uniqueId }),
+      body: JSON.stringify({ uniqueId, gameType: 'snake' }),
     });
 
     const payload = await response.json();
@@ -1948,7 +1948,7 @@ async function connectSnakeLiveFromSavedUsername() {
     const response = await fetch('/api/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uniqueId }),
+      body: JSON.stringify({ uniqueId, gameType: 'snake' }),
     });
 
     const payload = await response.json();

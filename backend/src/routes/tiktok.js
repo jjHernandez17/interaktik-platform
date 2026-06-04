@@ -35,7 +35,10 @@ async function deleteConnectionByGameType(req, res, gameType) {
   }
 
   await tiktokService.deleteTiktokConnection(userId, gameType);
-  await tiktokLiveManager.disconnectGame(gameType).catch((error) => {
+  await tiktokLiveManager.disconnectGame(gameType, {
+    userId,
+    sessionId: req.sessionID,
+  }).catch((error) => {
     logger.warn(`No se pudo desconectar la sesión live al borrar la conexión ${gameType}`, error);
   });
 
@@ -48,13 +51,21 @@ async function deleteConnectionByGameType(req, res, gameType) {
 router.get('/status', async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
+    await tiktokLiveManager.cleanupStaleConnection({
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
+      gameType,
+    });
     const status = await tiktokService.getStatus(req.session?.user?.id || null);
     logger.info(`API status request from ${req.headers.origin || 'no-origin'}`);
 
     return res.json({
       ...status,
       gameType,
-      tiktokLive: tiktokLiveManager.getConnectionState(gameType),
+      tiktokLive: tiktokLiveManager.getConnectionState(gameType, {
+        userId: getSessionUserId(req),
+        sessionId: req.sessionID,
+      }),
       timestamp: new Date().toISOString(),
       sessionUser: req.session?.user ? {
         id: req.session.user.id,
@@ -71,7 +82,10 @@ router.get('/status', async (req, res) => {
 router.get('/gifts', async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
-    const catalog = await tiktokLiveManager.getGiftCatalog(gameType);
+    const catalog = await tiktokLiveManager.getGiftCatalog(gameType, {
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
+    });
     logger.info(`API gifts request served (${catalog.total} gifts) for ${gameType}`);
 
     return res.json({
@@ -98,7 +112,10 @@ router.post('/catalog', async (req, res) => {
     const gameType = explicitGameType
       ? tiktokLiveManager.normalizeGameType(explicitGameType)
       : tiktokLiveManager.inferGameTypeFromRequest(req);
-    const catalog = await tiktokLiveManager.getGiftCatalog(gameType);
+    const catalog = await tiktokLiveManager.getGiftCatalog(gameType, {
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
+    });
 
     logger.info(`API catalog request for @${uniqueId || 'unknown'} served (${catalog.total} gifts) for ${gameType}`);
 
@@ -136,7 +153,8 @@ router.post('/connect', async (req, res) => {
     const state = await tiktokLiveManager.connectGame({
       gameType,
       uniqueId,
-      userId: req.session?.user?.id || null,
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
     });
 
     logger.info(`API connect request for @${uniqueId} in ${gameType}`);
@@ -159,7 +177,10 @@ router.post('/connect', async (req, res) => {
 router.post('/disconnect', async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
-    const state = await tiktokLiveManager.disconnectGame(gameType);
+    const state = await tiktokLiveManager.disconnectGame(gameType, {
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
+    });
     logger.info(`API disconnect request received for ${gameType}`);
 
     return res.json({

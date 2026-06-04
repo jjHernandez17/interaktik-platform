@@ -884,7 +884,7 @@ if (raceConnectLiveBtn) {
       const response = await fetch('/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uniqueId }),
+        body: JSON.stringify({ uniqueId, gameType: 'race' }),
       });
 
       const payload = await response.json();
@@ -997,7 +997,7 @@ function connectToEvents() {
     liveEventsSource.close();
   }
 
-  liveEventsSource = new EventSource('/events');
+  liveEventsSource = new EventSource('/events?gameType=race');
 
   liveEventsSource.addEventListener('status', (event) => {
     const payload = JSON.parse(event.data);

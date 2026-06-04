@@ -480,6 +480,11 @@ select:focus {
   background: rgba(239, 68, 68, 0.12);
 }
 
+.status-badge.unlinked {
+  color: #9ca3af;
+  background: rgba(107, 114, 128, 0.12);
+}
+
 .status-badge.connecting {
   color: #fcd34d;
   background: rgba(245, 158, 11, 0.14);

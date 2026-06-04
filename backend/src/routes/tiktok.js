@@ -56,16 +56,19 @@ router.get('/status', async (req, res) => {
       sessionId: req.sessionID,
       gameType,
     });
-    const status = await tiktokService.getStatus(req.session?.user?.id || null);
+    const serverStatus = await tiktokService.getStatus(req.session?.user?.id || null);
+    const tiktokLiveState = tiktokLiveManager.getConnectionState(gameType, {
+      userId: getSessionUserId(req),
+      sessionId: req.sessionID,
+    });
     logger.info(`API status request from ${req.headers.origin || 'no-origin'}`);
 
     return res.json({
-      ...status,
+      // Campos de TikTok Live (principales para el frontend)
+      ...tiktokLiveState,
+      // Detalles del servidor
+      server: serverStatus,
       gameType,
-      tiktokLive: tiktokLiveManager.getConnectionState(gameType, {
-        userId: getSessionUserId(req),
-        sessionId: req.sessionID,
-      }),
       timestamp: new Date().toISOString(),
       sessionUser: req.session?.user ? {
         id: req.session.user.id,

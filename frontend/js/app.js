@@ -354,22 +354,35 @@ function setConnectionStatus(status, details = "", error = "") {
   connectionState.status = status;
   connectionState.lastError = error;
 
+  // Determinar el estado visual real (desvinculado, desconectado, conectando, conectado, error)
+  let displayStatus = status;
+
   if (status === "connected") {
     connectionStatusBadge.textContent = "Conectado";
   } else if (status === "connecting") {
     connectionStatusBadge.textContent = "Conectando...";
   } else if (status === "error") {
     connectionStatusBadge.textContent = "Error";
+  } else if (!connectionState.uniqueId) {
+    // Si no hay uniqueId, está desvinculado
+    displayStatus = "unlinked";
+    connectionStatusBadge.textContent = "Desvinculado";
   } else {
+    // Si hay uniqueId pero no está conectado, está desconectado
+    displayStatus = "disconnected";
     connectionStatusBadge.textContent = "Desconectado";
   }
 
-  connectionStatusBadge.className = `status-badge ${status}`;
+  connectionStatusBadge.className = `status-badge ${displayStatus}`;
 
   if (details) {
     connectionDetails.textContent = details;
   } else if (status === "connected" && connectionState.uniqueId) {
     connectionDetails.textContent = `Conectado a @${connectionState.uniqueId}${connectionState.roomId ? ` • Room ${connectionState.roomId}` : ""}.`;
+  } else if (displayStatus === "unlinked") {
+    connectionDetails.textContent = "Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.";
+  } else if (displayStatus === "disconnected" && connectionState.uniqueId) {
+    connectionDetails.textContent = `Cuenta vinculada: @${connectionState.uniqueId}. Presiona conectar para iniciar el live.`;
   } else if (status === "error" && error) {
     connectionDetails.textContent = error;
   } else {
@@ -784,12 +797,14 @@ async function restoreTiktokConnection() {
 
     const data = await response.json();
     if (data.connected && data.tiktok_username) {
+      connectionState.uniqueId = data.tiktok_username;
       tiktokUsernameInput.value = `@${data.tiktok_username}`;
       tiktokUsernameInput.disabled = true;
       if (linkBtn) linkBtn.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = false;
       setConnectionStatus("disconnected", `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
     } else {
+      connectionState.uniqueId = "";
       tiktokUsernameInput.disabled = false;
       if (linkBtn) linkBtn.disabled = false;
       if (connectLiveBtn) connectLiveBtn.disabled = true;

@@ -506,8 +506,11 @@ h1 {
 }
 
 .status-badge.connected { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.25); }
+.status-badge.linked { background: rgba(6,182,212,0.12); color: #67e8f9; border: 1px solid rgba(6,182,212,0.25); }
+.status-badge.unlinked { background: rgba(107,114,128,0.12); color: #9ca3af; border: 1px solid rgba(107,114,128,0.25); }
 .status-badge.connecting { background: rgba(245,158,11,0.06); color: #f59e0b; border: 1px solid rgba(245,158,11,0.12); }
 .status-badge.error { background: rgba(239,68,68,0.06); color: #ef4444; border: 1px solid rgba(239,68,68,0.12); }
+.status-badge.live_off { background: rgba(249,115,22,0.10); color: #fdba74; border: 1px solid rgba(249,115,22,0.18); }
 .connection-status-row { margin-top: 12px; }
 
 .snake-config-card h3 {

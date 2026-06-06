@@ -133,6 +133,57 @@ router.put('/admin/users/:id', requireAuth, requireSuperUser, async (req, res) =
   }
 });
 
+router.get('/games/availability', requireAuth, async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT game_type, is_enabled, updated_at
+      FROM game_availability
+      ORDER BY game_type ASC
+    `);
+
+    return res.json({
+      games: result.rows.reduce((accumulator, row) => {
+        accumulator[row.game_type] = {
+          gameType: row.game_type,
+          isEnabled: row.is_enabled,
+          updatedAt: row.updated_at,
+        };
+        return accumulator;
+      }, {}),
+    });
+  } catch (error) {
+    logger.error('Game availability list error', error);
+    return res.status(500).json({ error: 'No se pudo cargar la disponibilidad de juegos.' });
+  }
+});
+
+router.put('/admin/games/:gameType/availability', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const gameType = String(req.params.gameType || '').trim();
+    const isEnabled = Boolean(req.body?.isEnabled);
+
+    if (!EDITABLE_GAME_TYPES.includes(gameType)) {
+      return res.status(400).json({ error: 'Juego invalido.' });
+    }
+
+    const result = await pool.query(
+      `
+        INSERT INTO game_availability (game_type, is_enabled, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (game_type)
+        DO UPDATE SET is_enabled = EXCLUDED.is_enabled, updated_at = NOW()
+        RETURNING game_type, is_enabled, updated_at
+      `,
+      [gameType, isEnabled],
+    );
+
+    return res.json({ game: result.rows[0] });
+  } catch (error) {
+    logger.error('Game availability update error', error);
+    return res.status(500).json({ error: 'No se pudo actualizar el juego.' });
+  }
+});
+
 router.delete('/admin/users/:id', requireAuth, requireSuperUser, async (req, res) => {
   try {
     const userId = Number(req.params.id);

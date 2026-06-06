@@ -29,6 +29,143 @@ let adminUsers = [];
 let adminUsersLoaded = false;
 let adminEditAccountName = null;
 let adminEditAccountEmail = null;
+let adminSearchInput = null;
+let adminEmailFilter = '';
+let gameAvailability = {};
+
+function setupAdminSearch() {
+  if (!adminUsersList || document.getElementById('adminEmailSearch')) {
+    adminSearchInput = document.getElementById('adminEmailSearch');
+    return;
+  }
+
+  const searchBox = document.createElement('label');
+  searchBox.className = 'admin-search';
+  searchBox.innerHTML = `
+    <span>Buscar por correo electronico</span>
+    <input id="adminEmailSearch" type="search" placeholder="correo@ejemplo.com" autocomplete="off" />
+  `;
+
+  adminUsersList.before(searchBox);
+  adminSearchInput = document.getElementById('adminEmailSearch');
+  adminSearchInput.addEventListener('input', () => {
+    adminEmailFilter = adminSearchInput.value.trim().toLowerCase();
+    renderAdminUsers();
+  });
+}
+
+function gameTypeFromHref(href = '') {
+  if (href.includes('snake-vs-snake')) return 'snake';
+  if (href.includes('race')) return 'race';
+  if (href.includes('app')) return 'app';
+  return '';
+}
+
+function applyGameAvailabilityToCards() {
+  document.querySelectorAll('.game-card').forEach((card) => {
+    const link = card.querySelector('a.start-btn');
+    if (!link) return;
+
+    const gameType = gameTypeFromHref(link.getAttribute('href') || '');
+    const availability = gameAvailability[gameType];
+    const disabled = availability && availability.isEnabled === false && !currentUser?.isSuperUser;
+
+    card.classList.toggle('game-disabled-by-admin', Boolean(disabled));
+    let message = card.querySelector('.game-disabled-message');
+
+    if (disabled) {
+      if (!message) {
+        message = document.createElement('p');
+        message.className = 'game-disabled-message';
+        card.appendChild(message);
+      }
+      message.textContent = 'estamos trabajando para darte el mejor servicio, pronto volveremos a activar este juego';
+      link.setAttribute('aria-disabled', 'true');
+      link.tabIndex = -1;
+    } else {
+      if (message) message.remove();
+      link.removeAttribute('aria-disabled');
+      link.tabIndex = 0;
+    }
+  });
+}
+
+function setupAdminGameAvailabilityControls() {
+  if (!currentUser?.isSuperUser || document.getElementById('adminGameAvailability')) {
+    return;
+  }
+
+  const adminSection = document.getElementById('adminSection');
+  const adminMeta = document.getElementById('adminUsersMeta');
+  if (!adminSection || !adminMeta) return;
+
+  const panel = document.createElement('div');
+  panel.id = 'adminGameAvailability';
+  panel.className = 'admin-games-panel';
+  panel.innerHTML = `
+    <h3>Disponibilidad de juegos</h3>
+    <div class="admin-games-grid">
+      ${Object.entries(GAME_LABELS).map(([gameType, label]) => `
+        <label class="admin-game-toggle">
+          <span>${escapeHtml(label)}</span>
+          <input type="checkbox" data-game-availability="${escapeHtml(gameType)}" />
+        </label>
+      `).join('')}
+    </div>
+  `;
+
+  adminMeta.before(panel);
+
+  panel.querySelectorAll('[data-game-availability]').forEach((input) => {
+    input.addEventListener('change', async () => {
+      const gameType = input.dataset.gameAvailability;
+      const previousValue = !input.checked;
+      try {
+        const response = await fetch(`/api/admin/games/${gameType}/availability`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isEnabled: input.checked }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'No se pudo actualizar el juego.');
+        }
+        gameAvailability[gameType] = {
+          gameType,
+          isEnabled: data.game?.is_enabled ?? input.checked,
+          updatedAt: data.game?.updated_at || null,
+        };
+        syncAdminGameAvailabilityControls();
+        applyGameAvailabilityToCards();
+      } catch (error) {
+        input.checked = previousValue;
+        await showAlert(error.message, 'Error');
+      }
+    });
+  });
+}
+
+function syncAdminGameAvailabilityControls() {
+  document.querySelectorAll('[data-game-availability]').forEach((input) => {
+    const availability = gameAvailability[input.dataset.gameAvailability];
+    input.checked = availability ? availability.isEnabled !== false : true;
+  });
+}
+
+async function loadGameAvailability() {
+  try {
+    const response = await fetch('/api/games/availability');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar la disponibilidad de juegos.');
+
+    gameAvailability = data.games || {};
+    setupAdminGameAvailabilityControls();
+    syncAdminGameAvailabilityControls();
+    applyGameAvailabilityToCards();
+  } catch (error) {
+    console.warn('[PLATFORM] Game availability unavailable:', error.message);
+  }
+}
 
 function setupAdminEditModal() {
   const nameField = adminEditName?.closest('.field');
@@ -156,14 +293,26 @@ function renderEditConnections(connections = {}) {
 }
 
 function renderAdminUsers() {
-  adminUsersMeta.textContent = `${adminUsers.length} cuenta(s) registrada(s).`;
+  const filteredUsers = adminEmailFilter
+    ? adminUsers.filter((user) => String(user.email || '').toLowerCase().includes(adminEmailFilter))
+    : adminUsers;
+
+  adminUsersMeta.textContent = adminEmailFilter
+    ? `${filteredUsers.length} coincidencia(s) de ${adminUsers.length} cuenta(s).`
+    : `${adminUsers.length} cuenta(s) registrada(s).`;
 
   if (adminUsers.length === 0) {
     adminUsersList.innerHTML = '<div class="admin-user-card muted">No hay cuentas registradas.</div>';
     return;
   }
 
+  if (filteredUsers.length === 0) {
+    adminUsersList.innerHTML = '<div class="admin-user-card muted">No hay cuentas que coincidan con ese correo.</div>';
+    return;
+  }
+
   adminUsersList.innerHTML = adminUsers
+    .filter((user) => filteredUsers.includes(user))
     .map((user) => `
       <article class="admin-user-card" data-user-id="${user.id}">
         <div class="admin-user-top">
@@ -199,6 +348,7 @@ async function loadAdminUsers({ force = false } = {}) {
     return;
   }
 
+  setupAdminSearch();
   adminUsersMeta.textContent = 'Cargando cuentas...';
   adminUsersList.innerHTML = '';
   if (refreshUsersBtn) refreshUsersBtn.disabled = true;
@@ -363,6 +513,8 @@ async function loadMe() {
         showSection('gamesSection');
       }
     }
+
+    await loadGameAvailability();
   } catch (_error) {
     console.log('Error al verificar autenticacion:', _error);
     redirectWithLog('/login.html', 'Error al cargar datos de usuario');
@@ -372,6 +524,14 @@ async function loadMe() {
 navButtons.forEach((button) => {
   button.addEventListener('click', () => {
     showSection(button.dataset.section);
+  });
+});
+
+document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
+  link.addEventListener('click', (event) => {
+    if (link.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+    }
   });
 });
 

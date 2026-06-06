@@ -467,39 +467,53 @@ async function loadStateFromServer() {
   }
 }
 
-function setLiveStatus(status, message, error = '') {
+function setLiveStatus(status, message = '', error = '') {
   state.live = {
     status,
-    uniqueId: state.live.uniqueId || '',
+    uniqueId: state.live.uniqueId || snakeUsernameInput?.value?.trim?.().replace(/^@/, '') || '',
     roomId: state.live.roomId || '',
     message,
     error,
   };
-  // Badge text
-  if (status === 'connected') {
-    snakeConnectionStatus.textContent = 'Conectado';
-  } else if (status === 'connecting') {
-    snakeConnectionStatus.textContent = 'Conectando...';
-  } else if (status === 'error') {
-    snakeConnectionStatus.textContent = 'Error';
+
+  let displayStatus = status === 'disconnected' ? 'linked' : status;
+  if (!state.live.uniqueId) displayStatus = 'unlinked';
+
+  if (displayStatus === 'unlinked') {
+    snakeConnectionStatus.textContent = 'Desvinculado';
+  } else if (displayStatus === 'linked') {
+    snakeConnectionStatus.textContent = 'Vinculado';
+  } else if (displayStatus === 'connecting') {
+    snakeConnectionStatus.textContent = 'cargando...';
+  } else if (displayStatus === 'connected') {
+    snakeConnectionStatus.textContent = 'conectado';
+  } else if (displayStatus === 'live_off') {
+    snakeConnectionStatus.textContent = 'live apagado';
   } else {
-    snakeConnectionStatus.textContent = 'Desconectado';
+    displayStatus = 'error';
+    snakeConnectionStatus.textContent = 'error al conectar live';
   }
 
-  snakeConnectionStatus.className = `status-badge ${status}`;
+  snakeConnectionStatus.className = `status-badge ${displayStatus}`;
 
-  // Details/hint text
-  if (message) {
+  if (displayStatus === 'live_off') {
+    setText(snakeConnectionDetails, 'live apagado');
+  } else if (displayStatus === 'error') {
+    setText(snakeConnectionDetails, 'error al conectar live, por favor contactate con un desarrollador');
+  } else if (message) {
     setText(snakeConnectionDetails, message);
-  } else if (status === 'connected' && state.live.uniqueId) {
-    setText(snakeConnectionDetails, `Conectado a @${state.live.uniqueId}${state.live.roomId ? ` • Room ${state.live.roomId}` : ''}.`);
-  } else if (status === 'error' && error) {
-    setText(snakeConnectionDetails, error);
+  } else if (displayStatus === 'unlinked') {
+    setText(snakeConnectionDetails, 'No has vinculado un ID de TikTok Live.');
+  } else if (displayStatus === 'linked') {
+    setText(snakeConnectionDetails, `Cuenta vinculada: @${state.live.uniqueId}.`);
+  } else if (displayStatus === 'connecting') {
+    setText(snakeConnectionDetails, 'cargando...');
+  } else if (displayStatus === 'connected') {
+    setText(snakeConnectionDetails, `Conectado a @${state.live.uniqueId}${state.live.roomId ? ` - Room ${state.live.roomId}` : ''}.`);
   } else {
-    setText(snakeConnectionDetails, 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.');
+    setText(snakeConnectionDetails, 'No has vinculado un ID de TikTok Live.');
   }
 }
-
 function lockUsernameInput() {
   snakeUsernameInput.disabled = true;
   if (snakeLinkBtn) snakeLinkBtn.disabled = true;
@@ -1826,17 +1840,17 @@ async function connectTikTok() {
     }
 
     updateConnectionState({
-      status: 'connected',
-      uniqueId: payload.uniqueId,
+      status: payload.status || 'connected',
+      uniqueId: payload.uniqueId || uniqueId,
       roomId: payload.roomId || '',
-      message: payload.message || `Conectado a @${payload.uniqueId}.`,
-      error: '',
+      message: payload.message || '',
+      error: payload.error || '',
     });
 
-    if (liveIndicator) {
+    if (payload.status === 'connected' && liveIndicator) {
       liveIndicator.classList.remove("hidden");
     }
-    connectLiveEvents();
+    if (payload.status === 'connected') connectLiveEvents();
   } catch (error) {
     setLiveStatus('error', error.message || 'No se pudo conectar.');
   } finally {
@@ -1957,17 +1971,17 @@ async function connectSnakeLiveFromSavedUsername() {
     }
 
     updateConnectionState({
-      status: 'connected',
-      uniqueId: payload.uniqueId,
+      status: payload.status || 'connected',
+      uniqueId: payload.uniqueId || uniqueId,
       roomId: payload.roomId || '',
-      message: payload.message || `Conectado a @${payload.uniqueId}.`,
-      error: '',
+      message: payload.message || '',
+      error: payload.error || '',
     });
 
-    if (liveIndicator) {
+    if (payload.status === 'connected' && liveIndicator) {
       liveIndicator.classList.remove('hidden');
     }
-    connectLiveEvents();
+    if (payload.status === 'connected') connectLiveEvents();
   } catch (error) {
     setLiveStatus('error', error.message || 'No se pudo conectar.');
   } finally {

@@ -1,10 +1,11 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
-const { requireAuth, requireAuthPage, requireGuestPage, getSessionUserId } = require('../middleware/auth');
+const { requireAuth, requireAuthPage, requireGuestPage, getSessionUserId, isSuperUserEmail } = require('../middleware/auth');
 const { normalizeError } = require('../utils/normalize');
 const env = require('../config/env');
 const logger = require('../config/logger');
+const pool = require('../database/pool');
 
 const router = express.Router();
 const isProduction = env.NODE_ENV === 'production';
@@ -23,6 +24,33 @@ function redirectFrontendPage(res, pathname, reason) {
 
 function shouldServeBackendPages() {
   return !isProduction;
+}
+
+async function isGameEnabled(gameType) {
+  const result = await pool.query(
+    'SELECT is_enabled FROM game_availability WHERE game_type = $1',
+    [gameType],
+  );
+
+  return result.rowCount === 0 ? true : result.rows[0].is_enabled;
+}
+
+async function requireEnabledGame(req, res, gameType) {
+  if (isSuperUserEmail(req.session?.user?.email)) {
+    return true;
+  }
+
+  if (await isGameEnabled(gameType)) {
+    return true;
+  }
+
+  if (req.originalUrl.startsWith('/api/')) {
+    res.status(403).json({ error: 'Juego deshabilitado.' });
+  } else {
+    res.redirect('/platform.html');
+  }
+
+  return false;
 }
 
 // Helper to inject API base URL into HTML
@@ -207,6 +235,7 @@ router.get('/platform.js', requireAuthPage, (req, res) => {
 // App (Contador)
 router.get('/app', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'app'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/app.html', 'App page request in production');
     }
@@ -222,6 +251,7 @@ router.get('/app', requireAuthPage, async (req, res) => {
 
 router.get('/app.html', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'app'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/app.html', 'App HTML request in production');
     }
@@ -246,6 +276,7 @@ router.get('/styles.css', requireAuthPage, (req, res) => {
 // Snake vs Snake
 router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'snake'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake page request in production');
     }
@@ -261,6 +292,7 @@ router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
 
 router.get('/snake-vs-snake.html', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'snake'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake HTML request in production');
     }
@@ -285,6 +317,7 @@ router.get('/snake-vs-snake.js', requireAuthPage, (req, res) => {
 // Race
 router.get('/race', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'race'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/race.html', 'Race page request in production');
     }
@@ -300,6 +333,7 @@ router.get('/race', requireAuthPage, async (req, res) => {
 
 router.get('/race.html', requireAuthPage, async (req, res) => {
   try {
+    if (!(await requireEnabledGame(req, res, 'race'))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/race.html', 'Race HTML request in production');
     }

@@ -243,6 +243,19 @@ function getOwnedConnectionState(gameType, { userId = null, sessionId = null, ow
   };
 }
 
+function isLiveOffError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('not live') ||
+    message.includes('offline') ||
+    message.includes('live has ended') ||
+    message.includes('user_not_found') ||
+    message.includes('room_id') ||
+    message.includes('roomid') ||
+    message.includes('failed to retrieve room')
+  );
+}
+
 async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = null } = {}) {
   const normalized = normalizeGameType(gameType);
   const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalized });
@@ -259,6 +272,7 @@ async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = nul
       total: freshEntry.availableGifts.length,
       source: 'live',
       gameType: normalized,
+      
       updated_at: freshEntry.updatedAt,
     };
   }
@@ -512,19 +526,24 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
   } catch (error) {
     const current = connections.get(ownerKey);
     const normalizedError = error?.message || String(error || 'Error desconocido');
+    const liveOff = isLiveOffError(error);
 
     if (current) {
-      current.status = 'error';
+      current.status = liveOff ? 'live_off' : 'error';
       current.error = normalizedError;
-      current.message = 'No se pudo conectar a TikTok Live.';
+      current.message = liveOff
+        ? 'live apagado'
+        : 'error al conectar live, por favor contactate con un desarrollador';
       current.updatedAt = new Date().toISOString();
     }
 
     const errorState = {
       ...getEmptyState(normalizedGameType),
       uniqueId: normalizedUniqueId,
-      status: 'error',
-      message: 'No se pudo conectar a TikTok Live. Verifica que el canal esté en vivo y que el nombre sea correcto.',
+      status: liveOff ? 'live_off' : 'error',
+      message: liveOff
+        ? 'live apagado'
+        : 'error al conectar live, por favor contactate con un desarrollador',
       error: normalizedError,
     };
 

@@ -881,6 +881,7 @@ if (raceConnectLiveBtn) {
     }
 
     try {
+      setRaceConnectionStatus('connecting', 'cargando...');
       const response = await fetch('/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -892,13 +893,15 @@ if (raceConnectLiveBtn) {
         throw new Error(payload.error || 'No se pudo conectar a TikTok Live');
       }
 
-      isConnected = true;
-      if (raceLiveIndicator) raceLiveIndicator.classList.remove('hidden');
-      setRaceConnectionStatus('connected', `Conectado a @${uniqueId}. Comenta el nombre exacto del carro para vincular espectadores.`);
-      addHistoryEntry(`Conectado a TikTok Live: @${uniqueId}`);
-      connectToEvents();
+      isConnected = payload.status === 'connected';
+      if (raceLiveIndicator) raceLiveIndicator.classList.toggle('hidden', !isConnected);
+      setRaceConnectionStatus(payload.status || 'connected', payload.message || '', payload.error || '');
+      if (isConnected) {
+        addHistoryEntry(`Conectado a TikTok Live: @${uniqueId}`);
+        connectToEvents();
+      }
     } catch (error) {
-      showAppAlert(error.message, 'Error de conexión');
+      setRaceConnectionStatus('error', '', error.message);
     }
   });
 }
@@ -1036,47 +1039,43 @@ function connectToEvents() {
 function setRaceConnectionStatus(status, details = '', error = '') {
   if (!raceConnectionStatus) return;
 
-  if (status === 'connected') {
-    raceConnectionStatus.textContent = 'Conectado';
-  } else if (status === 'connecting') {
-    raceConnectionStatus.textContent = 'Conectando...';
-  } else if (status === 'error') {
-    raceConnectionStatus.textContent = 'Error';
+  const uniqueId = raceUsername ? raceUsername.value.trim().replace(/^@/, '') : '';
+  let displayStatus = status === 'disconnected' ? 'linked' : status;
+  if (!uniqueId) displayStatus = 'unlinked';
+
+  if (displayStatus === 'unlinked') {
+    raceConnectionStatus.textContent = 'Desvinculado';
+  } else if (displayStatus === 'linked') {
+    raceConnectionStatus.textContent = 'Vinculado';
+  } else if (displayStatus === 'connecting') {
+    raceConnectionStatus.textContent = 'cargando...';
+  } else if (displayStatus === 'connected') {
+    raceConnectionStatus.textContent = 'conectado';
+  } else if (displayStatus === 'live_off') {
+    raceConnectionStatus.textContent = 'live apagado';
   } else {
-    raceConnectionStatus.textContent = 'Desconectado';
+    displayStatus = 'error';
+    raceConnectionStatus.textContent = 'error al conectar live';
   }
 
-  raceConnectionStatus.className = `status-badge ${status}`;
+  raceConnectionStatus.className = `status-badge ${displayStatus}`;
 
-  if (raceConnectionDetails) {
-    if (details) {
-      raceConnectionDetails.textContent = details;
-    } else if (status === 'connected' && raceUsername && raceUsername.value) {
-      raceConnectionDetails.textContent = `Conectado a @${raceUsername.value.replace(/^@/, '')}.`;
-    } else if (status === 'error' && error) {
-      raceConnectionDetails.textContent = error;
-    } else {
-      raceConnectionDetails.textContent = 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.';
-    }
+  if (!raceConnectionDetails) return;
+  if (displayStatus === 'live_off') {
+    raceConnectionDetails.textContent = 'live apagado';
+  } else if (displayStatus === 'error') {
+    raceConnectionDetails.textContent = 'error al conectar live, por favor contactate con un desarrollador';
+  } else if (details) {
+    raceConnectionDetails.textContent = details;
+  } else if (displayStatus === 'unlinked') {
+    raceConnectionDetails.textContent = 'No has vinculado un ID de TikTok Live.';
+  } else if (displayStatus === 'linked') {
+    raceConnectionDetails.textContent = `Cuenta vinculada: @${uniqueId}.`;
+  } else if (displayStatus === 'connecting') {
+    raceConnectionDetails.textContent = 'cargando...';
+  } else if (displayStatus === 'connected') {
+    raceConnectionDetails.textContent = `Conectado a @${uniqueId}.`;
+  } else {
+    raceConnectionDetails.textContent = 'No has vinculado un ID de TikTok Live.';
   }
 }
-
-// Initialize
-(async () => {
-  await loadState();
-  await restoreTiktokConnectionRace();
-  renderHistory();
-  updateTrackSizing();
-  if (raceLapsLimitInput) {
-    raceLapsLimitInput.value = String(raceLapsLimit || 5);
-    raceLapsLimitInput.addEventListener('change', (e) => {
-      raceLapsLimit = Math.max(1, Number(e.target.value) || 5);
-      saveState();
-      maybeDeclareWinner();
-    });
-  }
-
-  if (raceWinnerCloseBtn) {
-    raceWinnerCloseBtn.addEventListener('click', hideWinnerModal);
-  }
-})();

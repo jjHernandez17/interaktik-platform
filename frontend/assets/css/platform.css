@@ -152,6 +152,23 @@ a {
   gap: 12px;
 }
 
+.game-card.game-disabled-by-admin {
+  filter: grayscale(1);
+  opacity: 0.58;
+}
+
+.game-card.game-disabled-by-admin .start-btn {
+  pointer-events: none;
+  background: rgba(148, 163, 184, 0.24);
+  color: var(--muted);
+}
+
+.game-disabled-message {
+  margin: 10px 0 0;
+  color: #e5eefc;
+  font-weight: 700;
+}
+
 .admin-header {
   display: flex;
   align-items: center;
@@ -202,6 +219,61 @@ a {
 
 .admin-meta {
   margin-top: 12px;
+}
+
+.admin-games-panel {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.36);
+}
+
+.admin-games-panel h3 {
+  margin: 0 0 12px;
+}
+
+.admin-games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.admin-game-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.admin-game-toggle input {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-search {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-search span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-search input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(2, 6, 23, 0.52);
+  color: var(--text);
+  padding: 12px 14px;
 }
 
 .admin-users-list {

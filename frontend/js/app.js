@@ -354,49 +354,49 @@ function setConnectionStatus(status, details = "", error = "") {
   connectionState.status = status;
   connectionState.lastError = error;
 
-  // Determinar el estado visual real (desvinculado, desconectado, conectando, conectado, error)
-  let displayStatus = status;
-
-  // PRIMERO: Validar si hay uniqueId vinculado
+  let displayStatus = status === "disconnected" ? "linked" : status;
   if (!connectionState.uniqueId) {
-    // Si no hay uniqueId, SIEMPRE está desvinculado, sin importar el status
     displayStatus = "unlinked";
     connectionStatusBadge.textContent = "Desvinculado";
+  } else if (displayStatus === "linked") {
+    connectionStatusBadge.textContent = "Vinculado";
   } else if (status === "error") {
-    // Si hay error, mostrar error
     displayStatus = "error";
-    connectionStatusBadge.textContent = "Error";
+    connectionStatusBadge.textContent = "error al conectar live";
+  } else if (status === "live_off") {
+    displayStatus = "live_off";
+    connectionStatusBadge.textContent = "live apagado";
   } else if (status === "connected") {
-    // Si hay uniqueId y status es connected, mostrar conectado
     displayStatus = "connected";
-    connectionStatusBadge.textContent = "Conectado";
+    connectionStatusBadge.textContent = "conectado";
   } else if (status === "connecting") {
-    // Si hay uniqueId y está conectando, mostrar conectando
     displayStatus = "connecting";
-    connectionStatusBadge.textContent = "Conectando...";
+    connectionStatusBadge.textContent = "cargando...";
   } else {
-    // Si hay uniqueId pero ninguno de los anteriores, está desconectado
-    displayStatus = "disconnected";
-    connectionStatusBadge.textContent = "Desconectado";
+    displayStatus = "linked";
+    connectionStatusBadge.textContent = "Vinculado";
   }
 
   connectionStatusBadge.className = `status-badge ${displayStatus}`;
 
-  if (details) {
+  if (displayStatus === "live_off") {
+    connectionDetails.textContent = "live apagado";
+  } else if (displayStatus === "error") {
+    connectionDetails.textContent = "error al conectar live, por favor contactate con un desarrollador";
+  } else if (details) {
     connectionDetails.textContent = details;
   } else if (displayStatus === "unlinked") {
-    connectionDetails.textContent = "Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.";
-  } else if (displayStatus === "disconnected" && connectionState.uniqueId) {
-    connectionDetails.textContent = `Cuenta vinculada: @${connectionState.uniqueId}. Presiona conectar para iniciar el live.`;
+    connectionDetails.textContent = "No has vinculado un ID de TikTok Live.";
+  } else if (displayStatus === "linked" && connectionState.uniqueId) {
+    connectionDetails.textContent = `Cuenta vinculada: @${connectionState.uniqueId}.`;
+  } else if (displayStatus === "connecting") {
+    connectionDetails.textContent = "cargando...";
   } else if (displayStatus === "connected" && connectionState.uniqueId) {
-    connectionDetails.textContent = `Conectado a @${connectionState.uniqueId}${connectionState.roomId ? ` • Room ${connectionState.roomId}` : ""}.`;
-  } else if (displayStatus === "error" && error) {
-    connectionDetails.textContent = error;
+    connectionDetails.textContent = `Conectado a @${connectionState.uniqueId}${connectionState.roomId ? ` - Room ${connectionState.roomId}` : ""}.`;
   } else {
-    connectionDetails.textContent = "Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.";
+    connectionDetails.textContent = "No has vinculado un ID de TikTok Live.";
   }
 }
-
 function sanitizeGiftCatalog(rawGifts) {
   return (Array.isArray(rawGifts) ? rawGifts : []).map((gift) => ({
     id: String(gift.id),

@@ -145,6 +145,21 @@ async function bootstrapDatabase() {
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS idx_user_tiktok_connections_game_type ON user_tiktok_connections (user_id, game_type)');
 
+    // Disponibilidad de juegos controlada por superusuario
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS game_availability (
+        game_type VARCHAR(50) PRIMARY KEY,
+        is_enabled BOOLEAN NOT NULL DEFAULT true,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      INSERT INTO game_availability (game_type, is_enabled)
+      VALUES ('app', true), ('snake', true), ('race', true)
+      ON CONFLICT (game_type) DO NOTHING
+    `);
+
     logger.success('Database initialized successfully');
   } catch (error) {
     logger.error('Database initialization failed', error);

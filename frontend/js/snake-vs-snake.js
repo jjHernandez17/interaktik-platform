@@ -21,6 +21,8 @@ let gameRunning = false;
 let historyRenderScheduled = false;
 let isHydratingState = false;
 let winnerOverlayTimer = null;
+let lastProcessedGiftSignature = '';
+let lastProcessedGiftAt = 0;
 const boardImageCache = { left: null, right: null };
 const carryOverApples = { left: 0, right: 0 };
 
@@ -1747,6 +1749,28 @@ function applyRuleToSnake(rule, payload) {
 
 function handleLiveGift(payload) {
   console.log("🎁 Gift recibido:", payload);
+
+  const giftSignature = [
+    String(payload?.giftId || '').trim(),
+    normalizeText(payload?.giftName || '').toLowerCase(),
+    String(payload?.user?.uniqueId || '').trim().toLowerCase(),
+    String(payload?.repeatCount ?? payload?.giftCount ?? 1),
+    String(Boolean(payload?.repeatEnd)),
+  ].join('|');
+
+  const now = Date.now();
+  if (giftSignature === lastProcessedGiftSignature && now - lastProcessedGiftAt < 1200) {
+    console.log("⏭️ Gift duplicado ignorado:", giftSignature);
+    return;
+  }
+
+  if (Number(payload?.repeatCount || payload?.giftCount || 1) > 1 && !payload?.repeatEnd) {
+    console.log("⏭️ Gift repetido intermedio ignorado hasta repeatEnd:", giftSignature);
+    return;
+  }
+
+  lastProcessedGiftSignature = giftSignature;
+  lastProcessedGiftAt = now;
 
   const rule = findRuleForGift(payload);
 

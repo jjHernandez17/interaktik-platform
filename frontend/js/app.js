@@ -817,14 +817,15 @@ async function restoreTiktokConnection() {
       return;
     }
 
-    const data = await response.json();
-    if (data.connected && data.tiktok_username) {
-      connectionState.uniqueId = data.tiktok_username;
-      tiktokUsernameInput.value = `@${data.tiktok_username}`;
+  const data = await response.json();
+    const storedUniqueId = normalizeText(data.tiktok_username || '').replace(/^@/, '');
+    if (storedUniqueId) {
+      connectionState.uniqueId = storedUniqueId;
+      tiktokUsernameInput.value = `@${storedUniqueId}`;
       tiktokUsernameInput.disabled = true;
       if (linkBtn) linkBtn.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = false;
-      setConnectionStatus('linked', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      setConnectionStatus('linked', `Cuenta vinculada a @${storedUniqueId}. Ahora puedes conectar el live.`);
     } else {
       connectionState.uniqueId = '';
       tiktokUsernameInput.disabled = false;

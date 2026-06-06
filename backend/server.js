@@ -22,6 +22,7 @@ const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler
 // Routes
 const pagesRouter = require('./src/routes/pages');
 const authRouter = require('./src/routes/auth');
+const adminRouter = require('./src/routes/admin');
 const gameRouter = require('./src/routes/gameRoutes');
 const tiktokRouter = require('./src/routes/tiktok');
 const { hub } = require('./src/services/liveHub');
@@ -92,6 +93,7 @@ app.use(
 
 // Routes
 app.use('/api', authRouter);
+app.use('/api', adminRouter);
 app.use('/api', gameRouter);
 app.use('/api', tiktokRouter);
 

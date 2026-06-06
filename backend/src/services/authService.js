@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../database/pool');
 const { normalizeEmail, normalizeError } = require('../utils/normalize');
+const { attachAuthFlags } = require('../middleware/auth');
 
 async function register(name, email, password) {
   const normalizedEmail = normalizeEmail(email);
@@ -21,7 +22,7 @@ async function register(name, email, password) {
       [name, normalizedEmail, passwordHash],
     );
 
-    return result.rows[0];
+    return attachAuthFlags(result.rows[0]);
   } catch (error) {
     throw error;
   }
@@ -46,7 +47,7 @@ async function login(email, password) {
       throw new Error('Credenciales invalidas.');
     }
 
-    return { id: user.id, name: user.name, email: user.email };
+    return attachAuthFlags({ id: user.id, name: user.name, email: user.email });
   } catch (error) {
     throw error;
   }

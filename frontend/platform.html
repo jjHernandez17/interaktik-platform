@@ -17,6 +17,7 @@
         <nav class="platform-nav" aria-label="Menu principal">
           <button class="nav-item" type="button" data-section="accountSection">Configuracion de cuenta</button>
           <button class="nav-item active" type="button" data-section="gamesSection">Juegos</button>
+          <button id="adminNavItem" class="nav-item hidden" type="button" data-section="adminSection">Cuentas registradas</button>
         </nav>
 
         <button id="logoutBtn" class="logout-btn" type="button">Cerrar sesion</button>
@@ -79,8 +80,52 @@
             </article>
           </div>
         </section>
+
+        <section id="adminSection" class="content-card hidden">
+          <div class="card-header admin-header">
+            <div>
+              <h2>Cuentas registradas</h2>
+              <p class="muted">Acceso exclusivo para superusuario.</p>
+            </div>
+            <button id="refreshUsersBtn" class="btn secondary" type="button">Actualizar</button>
+          </div>
+
+          <div id="adminUsersMeta" class="admin-meta muted">Cargando cuentas...</div>
+          <div id="adminUsersList" class="admin-users-list"></div>
+        </section>
       </section>
     </main>
+
+    <div id="adminEditModal" class="modal-overlay" hidden>
+      <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminEditModalTitle">
+        <div class="card-header">
+          <h3 id="adminEditModalTitle">Editar cuenta</h3>
+          <button id="adminEditCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <form id="adminEditForm" class="modal-form admin-edit-form">
+          <input type="hidden" id="adminEditUserId" />
+          <label class="field">
+            <span>Nombre</span>
+            <input id="adminEditName" type="text" required />
+          </label>
+          <label class="field">
+            <span>Correo electrónico</span>
+            <input id="adminEditEmail" type="email" required />
+          </label>
+
+          <div class="admin-connections-box">
+            <h4>TikTok vinculados por juego</h4>
+            <div id="adminEditConnections" class="admin-connections-grid"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="adminEditCancelBtn" class="btn ghost" type="button">Cancelar</button>
+            <button id="adminEditSaveBtn" class="btn primary" type="submit">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <script src="js/config.js"></script>
     <script src="js/runtime.js"></script>

@@ -64,6 +64,11 @@ router.get('/auth/me', (req, res) => {
     return res.status(401).json({ error: 'No autenticado' });
   }
 
+  req.session.user = {
+    ...req.session.user,
+    isSuperUser: String(req.session.user.email || '').trim().toLowerCase() === 'juanjohervar1708@gmail.com',
+  };
+
   logger.success(`Auth check successful - User: ${req.session.user.email}`);
   return res.json({ user: req.session.user });
 });

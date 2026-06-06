@@ -1,6 +1,23 @@
 const env = require('../config/env');
 const logger = require('../config/logger');
 
+const SUPER_USER_EMAIL = 'juanjohervar1708@gmail.com';
+
+function isSuperUserEmail(email) {
+  return String(email || '').trim().toLowerCase() === SUPER_USER_EMAIL;
+}
+
+function attachAuthFlags(user) {
+  if (!user) {
+    return user;
+  }
+
+  return {
+    ...user,
+    isSuperUser: isSuperUserEmail(user.email),
+  };
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.user) {
     logger.warn(`Auth API denied for ${req.originalUrl} from ${req.headers.origin || 'no-origin'}`);
@@ -43,9 +60,21 @@ function getSessionUserId(req) {
   return Number(req.session?.userId || req.session?.user?.id || 0) || null;
 }
 
+function requireSuperUser(req, res, next) {
+  if (!req.session?.user || !isSuperUserEmail(req.session.user.email)) {
+    logger.warn(`Admin API denied for ${req.originalUrl} from ${req.headers.origin || 'no-origin'}`);
+    return res.status(403).json({ error: 'No autorizado.' });
+  }
+
+  return next();
+}
+
 module.exports = {
   requireAuth,
   requireAuthPage,
   requireGuestPage,
   getSessionUserId,
+  requireSuperUser,
+  isSuperUserEmail,
+  attachAuthFlags,
 };

@@ -47,6 +47,10 @@ a {
 }
 
 .platform-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -148,6 +152,273 @@ a {
   gap: 12px;
 }
 
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.btn.small {
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: #fff;
+}
+
+.btn.secondary {
+  border: 1px solid var(--line);
+  background: rgba(2, 6, 23, 0.55);
+  color: var(--text);
+}
+
+.btn.ghost {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.btn.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+}
+
+.btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.admin-meta {
+  margin-top: 12px;
+}
+
+.admin-users-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-user-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.45);
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-user-name {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-user-email,
+.admin-user-info {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.admin-connections {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-connection-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.64);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.admin-connection-label {
+  color: var(--muted);
+}
+
+.admin-connection-value {
+  text-align: right;
+  word-break: break-word;
+}
+
+.admin-user-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
+  padding: 20px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+}
+
+.admin-modal-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-edit-form {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-account-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-account-summary div {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.admin-account-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.admin-account-summary strong {
+  word-break: break-word;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span,
+.admin-connections-box h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.field input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(2, 6, 23, 0.52);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+.admin-connections-box {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.admin-connections-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-connection-readonly {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.admin-connection-readonly small {
+  color: var(--muted);
+}
+
+.admin-connection-readonly strong {
+  word-break: break-word;
+}
+
+.admin-connection-edit {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.admin-connection-edit span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-connection-edit input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(2, 6, 23, 0.52);
+  color: var(--text);
+  padding: 11px 12px;
+}
+
+.admin-connection-edit small {
+  color: var(--muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .game-card {
   display: flex;
   flex-direction: column;
@@ -215,12 +486,32 @@ a {
   }
 
   .platform-sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
     min-height: auto;
     border-right: 0;
   }
 
   .account-grid,
-  .games-grid {
+  .games-grid,
+  .admin-account-summary {
     grid-template-columns: 1fr;
+  }
+
+  .admin-header,
+  .admin-user-top,
+  .admin-connection-item {
+    flex-direction: column;
+  }
+
+  .admin-user-actions,
+  .modal-actions {
+    justify-content: stretch;
+  }
+
+  .admin-user-actions .btn,
+  .modal-actions .btn {
+    width: 100%;
   }
 }

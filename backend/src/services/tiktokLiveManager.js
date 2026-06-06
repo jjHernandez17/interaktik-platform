@@ -236,6 +236,13 @@ function getConnectionState(gameType, { userId = null, sessionId = null } = {}) 
   };
 }
 
+function getOwnedConnectionState(gameType, { userId = null, sessionId = null, ownerKey = null } = {}) {
+  return {
+    ownerKey,
+    ...getConnectionState(gameType, { userId, sessionId }),
+  };
+}
+
 async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = null } = {}) {
   const normalized = normalizeGameType(gameType);
   const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalized });
@@ -321,7 +328,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
   };
 
   connections.set(ownerKey, entry);
-  publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
+  publish(normalizedGameType, 'status', getOwnedConnectionState(normalizedGameType, { userId, sessionId, ownerKey }));
 
   logger.info(`Iniciando TikTok Live para ${normalizedGameType} @${normalizedUniqueId}`);
 
@@ -391,12 +398,12 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
       ...getConnectionState(normalizedGameType, { userId, sessionId }),
     });
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
+    publish(normalizedGameType, 'status', getOwnedConnectionState(normalizedGameType, { userId, sessionId, ownerKey }));
     logger.info(`TikTok Live terminó para ${normalizedGameType} @${normalizedUniqueId}`);
   });
 
   connection.on(ControlEvent.CONNECTED, async (state) => {
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     if (!current) return;
 
     current.status = 'connected';
@@ -419,7 +426,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
       }
     }
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
+    publish(normalizedGameType, 'status', getOwnedConnectionState(normalizedGameType, { userId, sessionId, ownerKey }));
     publish(normalizedGameType, 'giftCatalog', {
       ownerKey,
       gifts: current.availableGifts || [],
@@ -467,7 +474,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
 
   try {
     const connectedState = await connection.connect();
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     if (current) {
       current.roomId = connectedState?.roomId || connection.roomId || current.roomId || '';
       current.roomInfo = connectedState?.roomInfo || connection.roomInfo || current.roomInfo || null;
@@ -483,7 +490,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
 
     try {
       const gifts = await connection.fetchAvailableGifts();
-      const current = connections.get(normalizedGameType);
+      const current = connections.get(ownerKey);
       if (current) {
         current.availableGifts = Array.isArray(gifts) ? gifts : [];
         current.updatedAt = new Date().toISOString();
@@ -492,7 +499,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
       logger.warn(`No se pudo refrescar catálogo de gifts para ${normalizedGameType}`, giftError);
     }
 
-    publish(normalizedGameType, 'status', getConnectionState(normalizedGameType, { userId, sessionId }));
+    publish(normalizedGameType, 'status', getOwnedConnectionState(normalizedGameType, { userId, sessionId, ownerKey }));
     publish(normalizedGameType, 'giftCatalog', {
       ownerKey,
       gifts: (connections.get(ownerKey)?.availableGifts) || [],
@@ -501,9 +508,9 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
       updated_at: connections.get(ownerKey)?.updatedAt || new Date().toISOString(),
     });
 
-    return getConnectionState(normalizedGameType);
+    return getConnectionState(normalizedGameType, { userId, sessionId });
   } catch (error) {
-    const current = connections.get(normalizedGameType);
+    const current = connections.get(ownerKey);
     const normalizedError = error?.message || String(error || 'Error desconocido');
 
     if (current) {
@@ -521,7 +528,10 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
       error: normalizedError,
     };
 
-    publish(normalizedGameType, 'status', errorState);
+    publish(normalizedGameType, 'status', {
+      ownerKey,
+      ...errorState,
+    });
     logger.error(`No se pudo conectar TikTok Live para ${normalizedGameType} @${normalizedUniqueId}`, error);
     return errorState;
   }

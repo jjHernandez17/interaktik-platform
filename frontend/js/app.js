@@ -354,24 +354,24 @@ function setConnectionStatus(status, details = "", error = "") {
   connectionState.status = status;
   connectionState.lastError = error;
 
-  let displayStatus = status === "disconnected" ? "linked" : status;
-  if (!connectionState.uniqueId) {
+  const hasLinkedId = Boolean(connectionState.uniqueId);
+  let displayStatus = "unlinked";
+
+  if (!hasLinkedId) {
     displayStatus = "unlinked";
     connectionStatusBadge.textContent = "Desvinculado";
-  } else if (displayStatus === "linked") {
-    connectionStatusBadge.textContent = "Vinculado";
-  } else if (status === "error") {
-    displayStatus = "error";
-    connectionStatusBadge.textContent = "error al conectar live";
-  } else if (status === "live_off") {
-    displayStatus = "live_off";
-    connectionStatusBadge.textContent = "live apagado";
-  } else if (status === "connected") {
-    displayStatus = "connected";
-    connectionStatusBadge.textContent = "conectado";
   } else if (status === "connecting") {
     displayStatus = "connecting";
     connectionStatusBadge.textContent = "cargando...";
+  } else if (status === "connected") {
+    displayStatus = "connected";
+    connectionStatusBadge.textContent = "conectado";
+  } else if (status === "live_off") {
+    displayStatus = "live_off";
+    connectionStatusBadge.textContent = "live apagado";
+  } else if (status === "error") {
+    displayStatus = "error";
+    connectionStatusBadge.textContent = "error al conectar live";
   } else {
     displayStatus = "linked";
     connectionStatusBadge.textContent = "Vinculado";
@@ -383,8 +383,6 @@ function setConnectionStatus(status, details = "", error = "") {
     connectionDetails.textContent = "live apagado";
   } else if (displayStatus === "error") {
     connectionDetails.textContent = "error al conectar live, por favor contactate con un desarrollador";
-  } else if (details) {
-    connectionDetails.textContent = details;
   } else if (displayStatus === "unlinked") {
     connectionDetails.textContent = "No has vinculado un ID de TikTok Live.";
   } else if (displayStatus === "linked" && connectionState.uniqueId) {
@@ -393,6 +391,8 @@ function setConnectionStatus(status, details = "", error = "") {
     connectionDetails.textContent = "cargando...";
   } else if (displayStatus === "connected" && connectionState.uniqueId) {
     connectionDetails.textContent = `Conectado a @${connectionState.uniqueId}${connectionState.roomId ? ` - Room ${connectionState.roomId}` : ""}.`;
+  } else if (details) {
+    connectionDetails.textContent = details;
   } else {
     connectionDetails.textContent = "No has vinculado un ID de TikTok Live.";
   }
@@ -695,7 +695,7 @@ async function connectToTikTok() {
   const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
   if (!uniqueId) return;
 
-  setConnectionStatus("connecting", `Conectando a @${uniqueId}...`);
+  setConnectionStatus("connecting", `cargando...`);
 
   try {
     const response = await fetch("/api/connect", {
@@ -704,32 +704,39 @@ async function connectToTikTok() {
       body: JSON.stringify({ uniqueId, gameType: 'app' }),
     });
 
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 405) {
         throw new Error(
           `La app no está corriendo con el servidor. Asegúrate de que el servidor esté ejecutándose en ${window.API_BASE_URL}.`,
         );
       }
-      throw new Error(payload.error || "No se pudo conectar.");
+
+      if (response.status === 503 || payload.status === 'live_off') {
+        setConnectionStatus('live_off', 'live apagado', payload.error || '');
+        return;
+      }
+
+      throw new Error(payload.error || 'No se pudo conectar.');
     }
 
     connectionState.uniqueId = payload.uniqueId || uniqueId;
     connectionState.roomId = payload.roomId || "";
     setConnectionStatus(
-      payload.status || "connecting",
-      payload.message || `Conectando a @${connectionState.uniqueId}...`,
+      payload.status || 'connected',
+      payload.message || `Conectado a @${connectionState.uniqueId}.`,
       payload.error || "",
     );
 
-    if (payload.status === "connected") {
+    if (payload.status === 'connected') {
       await loadGiftCatalog();
+    } else if (payload.status === 'live_off') {
+      setConnectionStatus('live_off', 'live apagado', payload.error || '');
     }
   } catch (error) {
-    setConnectionStatus("error", "No se pudo iniciar la conexión con TikTok Live.", error.message);
+    setConnectionStatus('error', 'error al conectar live, por favor contactate con un desarrollador', error.message);
   }
 }
-
 async function saveLinkedTiktokUsername() {
   const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
   if (!uniqueId) return;
@@ -800,7 +807,14 @@ async function saveTiktokConnectionToDB() {
 async function restoreTiktokConnection() {
   try {
     const response = await fetch("/api/tiktok-connection/app");
-    if (!response.ok) return;
+    if (!response.ok) {
+      connectionState.uniqueId = "";
+      tiktokUsernameInput.disabled = false;
+      if (linkBtn) linkBtn.disabled = false;
+      if (connectLiveBtn) connectLiveBtn.disabled = true;
+      setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
+      return;
+    }
 
     const data = await response.json();
     if (data.connected && data.tiktok_username) {
@@ -809,19 +823,23 @@ async function restoreTiktokConnection() {
       tiktokUsernameInput.disabled = true;
       if (linkBtn) linkBtn.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = false;
-      setConnectionStatus("disconnected", `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      setConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
     } else {
-      connectionState.uniqueId = "";
+      connectionState.uniqueId = '';
       tiktokUsernameInput.disabled = false;
       if (linkBtn) linkBtn.disabled = false;
       if (connectLiveBtn) connectLiveBtn.disabled = true;
-      setConnectionStatus("disconnected", "Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.");
+      setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
     }
   } catch (error) {
-    console.error("[APP] Error restoring TikTok connection from DB:", error.message);
+    console.error('[APP] Error restoring TikTok connection from DB:', error.message);
+    connectionState.uniqueId = '';
+    tiktokUsernameInput.disabled = false;
+    if (linkBtn) linkBtn.disabled = false;
+    if (connectLiveBtn) connectLiveBtn.disabled = true;
+    setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
   }
 }
-
 async function deleteTiktokConnectionFromDB() {
   try {
     await fetch("/api/tiktok-connection/app", { method: "DELETE" });

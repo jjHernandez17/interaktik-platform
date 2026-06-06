@@ -95,9 +95,6 @@ const rightBoardGifts = document.getElementById('rightBoardGifts');
 const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
 const boardGrid = document.getElementById('boardGrid');
 
-// Restaurar estado de bloqueo del input al cargar
-restoreUsernameInputState();
-
 // LEFT gift catalog elements
 const leftGiftCatalogToggle = document.getElementById('leftGiftCatalogToggle');
 const leftGiftCatalogMenu = document.getElementById('leftGiftCatalogMenu');

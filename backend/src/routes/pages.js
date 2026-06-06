@@ -27,10 +27,20 @@ function shouldServeBackendPages() {
 }
 
 async function isGameEnabled(gameType) {
-  const result = await pool.query(
-    'SELECT is_enabled FROM game_availability WHERE game_type = $1',
-    [gameType],
-  );
+  let result;
+
+  try {
+    result = await pool.query(
+      'SELECT is_enabled FROM game_availability WHERE game_type = $1',
+      [gameType],
+    );
+  } catch (error) {
+    if (error?.code === '42P01') {
+      logger.warn('game_availability table does not exist yet; allowing game page temporarily.');
+      return true;
+    }
+    throw error;
+  }
 
   return result.rowCount === 0 ? true : result.rows[0].is_enabled;
 }
@@ -71,7 +81,9 @@ async function injectApiBaseUrl(filePath, apiBaseUrl) {
 // Helper to get API base URL based on request origin
 function getApiBaseUrl(req) {
   const origin = req.headers.origin;
-  let apiBaseUrl = 'http://localhost:3000'; // default
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const protocol = forwardedProto || req.protocol || 'http';
+  let apiBaseUrl = `${protocol}://${req.get('host')}`;
 
   if (origin) {
     // Lista de origins permitidos

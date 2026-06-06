@@ -95,9 +95,9 @@ function setupAdminGameAvailabilityControls() {
     return;
   }
 
-  const adminSection = document.getElementById('adminSection');
-  const adminMeta = document.getElementById('adminUsersMeta');
-  if (!adminSection || !adminMeta) return;
+  const gamesSection = document.getElementById('gamesSection');
+  const gamesGrid = gamesSection?.querySelector('.games-grid');
+  if (!gamesGrid) return;
 
   const panel = document.createElement('div');
   panel.id = 'adminGameAvailability';
@@ -114,7 +114,7 @@ function setupAdminGameAvailabilityControls() {
     </div>
   `;
 
-  adminMeta.before(panel);
+  gamesGrid.before(panel);
 
   panel.querySelectorAll('[data-game-availability]').forEach((input) => {
     input.addEventListener('change', async () => {

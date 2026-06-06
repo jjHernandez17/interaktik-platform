@@ -1906,9 +1906,15 @@ async function saveTiktokConnectionSnakeToDB() {
 }
 
 async function restoreTiktokConnectionSnake() {
+  unlockUsernameInput();
+
   try {
     const response = await fetch('/api/tiktok-connection/snake');
-    if (!response.ok) return;
+    if (!response.ok) {
+      snakeUsernameInput.value = '';
+      setLiveStatus('disconnected', 'No has vinculado un ID de TikTok Live.');
+      return;
+    }
 
     const data = await response.json();
     if (data.connected && data.tiktok_username) {
@@ -1921,6 +1927,9 @@ async function restoreTiktokConnectionSnake() {
       setLiveStatus('disconnected', 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.');
     }
   } catch (error) {
+    snakeUsernameInput.value = '';
+    unlockUsernameInput();
+    setLiveStatus('disconnected', 'No has vinculado un ID de TikTok Live.');
     console.error('[SNAKE] Error restoring TikTok connection from DB:', error.message);
   }
 }

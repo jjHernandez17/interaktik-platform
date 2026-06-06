@@ -12,11 +12,11 @@ function resolveApiBaseUrl() {
     return queryOverride;
   }
 
-  if (storedOverride) {
+  if (storedOverride && queryOverride) {
     return storedOverride;
   }
 
-  return 'https://interaktik-platform-production.up.railway.app';
+  return window.location.origin;
 }
 
 const API_BASE_URL = resolveApiBaseUrl();

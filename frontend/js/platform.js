@@ -91,32 +91,26 @@ function applyGameAvailabilityToCards() {
 }
 
 function setupAdminGameAvailabilityControls() {
-  if (!currentUser?.isSuperUser || document.getElementById('adminGameAvailability')) {
+  if (!currentUser?.isSuperUser) {
     return;
   }
 
-  const gamesSection = document.getElementById('gamesSection');
-  const gamesGrid = gamesSection?.querySelector('.games-grid');
-  if (!gamesGrid) return;
+  document.querySelectorAll('.game-card').forEach((card) => {
+    const link = card.querySelector('a.start-btn');
+    if (!link) return;
 
-  const panel = document.createElement('div');
-  panel.id = 'adminGameAvailability';
-  panel.className = 'admin-games-panel';
-  panel.innerHTML = `
-    <h3>Disponibilidad de juegos</h3>
-    <div class="admin-games-grid">
-      ${Object.entries(GAME_LABELS).map(([gameType, label]) => `
-        <label class="admin-game-toggle">
-          <span>${escapeHtml(label)}</span>
-          <input type="checkbox" data-game-availability="${escapeHtml(gameType)}" />
-        </label>
-      `).join('')}
-    </div>
-  `;
+    const gameType = gameTypeFromHref(link.getAttribute('href') || '');
+    if (!gameType || card.querySelector('[data-game-availability]')) return;
 
-  gamesGrid.before(panel);
+    const toggle = document.createElement('label');
+    toggle.className = 'admin-game-toggle in-card';
+    toggle.innerHTML = `
+      <span>Juego habilitado</span>
+      <input type="checkbox" data-game-availability="${escapeHtml(gameType)}" />
+    `;
+    card.appendChild(toggle);
 
-  panel.querySelectorAll('[data-game-availability]').forEach((input) => {
+    const input = toggle.querySelector('input');
     input.addEventListener('change', async () => {
       const gameType = input.dataset.gameAvailability;
       const previousValue = !input.checked;

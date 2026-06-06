@@ -255,6 +255,10 @@ a {
   height: 20px;
 }
 
+.admin-game-toggle.in-card {
+  margin-top: 12px;
+}
+
 .admin-search {
   margin-top: 16px;
   display: grid;

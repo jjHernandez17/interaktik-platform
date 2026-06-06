@@ -361,8 +361,17 @@ function normalizeSnakeState(side) {
   snake.length = clamp(snake.length, 3, pathLength, 3);
   snake.prevLength = clamp(snake.prevLength, 3, pathLength, snake.length);
 
+  const usedAppleCells = new Set();
   snake.apples = snake.apples
     .filter((apple) => apple && Number.isFinite(apple.index) && apple.index >= 0 && apple.index < pathLength)
+    .filter((apple) => {
+      if (usedAppleCells.has(apple.index)) {
+        return false;
+      }
+
+      usedAppleCells.add(apple.index);
+      return true;
+    })
     .slice(0, 100);
 
   if (snake.length >= pathLength) {
@@ -1510,27 +1519,25 @@ function spawnApples(side, amount, source = 'manual', gift = null) {
   }
 
   const candidates = shuffle(getFreeFutureCells(side));
-  const qty = Math.max(1, Number(amount || 1) || 1);
-  let created = 0;
+  const appleValue = Math.max(1, Number(amount || 1) || 1);
+  const index = candidates[0];
 
-  for (const index of candidates) {
-    if (created >= qty) {
-      break;
-    }
-
-    snake.apples.push({
-      id: crypto.randomUUID(),
-      index,
-      value: 1,
-      source,
-      giftId: gift?.giftId || null,
-      giftName: gift?.giftName || 'Manzana',
-    });
-    created += 1;
+  if (!Number.isFinite(index)) {
+    scheduleSaveState();
+    return 0;
   }
 
+  snake.apples.push({
+    id: crypto.randomUUID(),
+    index,
+    value: appleValue,
+    source,
+    giftId: gift?.giftId || null,
+    giftName: gift?.giftName || 'Manzana',
+  });
+
   scheduleSaveState();
-  return created;
+  return appleValue;
 }
 
 function pushGiftActionToHistory(text, side, apples, source = 'manual') {

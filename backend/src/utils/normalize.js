@@ -143,6 +143,7 @@ function sanitizeSnakePlayer(player, fallbackSide) {
     direction: player?.direction === 'left' ? 'left' : 'right',
     label: String(player?.label || defaultPlayer.label).trim().slice(0, 80),
     color: normalizeColor(player?.color, defaultPlayer.color),
+    boardImage: player?.boardImage ? String(player.boardImage).slice(0, 5000000) : null,
     headIndex: Math.max(0, Number(player?.headIndex || defaultPlayer.headIndex) || defaultPlayer.headIndex),
     length: Math.max(3, Number(player?.length || defaultPlayer.length) || defaultPlayer.length),
     applesEaten: Math.max(0, Number(player?.applesEaten || defaultPlayer.applesEaten) || defaultPlayer.applesEaten),

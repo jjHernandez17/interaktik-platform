@@ -743,11 +743,12 @@ async function saveLinkedTiktokUsername() {
 
   try {
     await saveTiktokConnectionToDB();
+    connectionState.uniqueId = uniqueId;
     tiktokUsernameInput.value = `@${uniqueId}`;
     tiktokUsernameInput.disabled = true;
     if (linkBtn) linkBtn.disabled = true;
     if (connectLiveBtn) connectLiveBtn.disabled = false;
-    setConnectionStatus("disconnected", `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
+    setConnectionStatus("linked", `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
   } catch (error) {
     setConnectionStatus("error", error.message || "No se pudo guardar la cuenta.");
     throw error;
@@ -823,7 +824,7 @@ async function restoreTiktokConnection() {
       tiktokUsernameInput.disabled = true;
       if (linkBtn) linkBtn.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = false;
-      setConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      setConnectionStatus('linked', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
     } else {
       connectionState.uniqueId = '';
       tiktokUsernameInput.disabled = false;

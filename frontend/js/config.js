@@ -3,6 +3,8 @@ function resolveApiBaseUrl() {
   const params = new URLSearchParams(window.location.search);
   const queryOverride = params.get('apiBaseUrl');
   const storedOverride = window.localStorage.getItem('interaktik.apiBaseUrl');
+  const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  const prodFallback = 'https://interaktik-platform-production.up.railway.app';
 
   if (window.__INTERAKTIK_API_BASE_URL__) {
     return window.__INTERAKTIK_API_BASE_URL__;
@@ -12,11 +14,11 @@ function resolveApiBaseUrl() {
     return queryOverride;
   }
 
-  if (storedOverride && queryOverride) {
+  if (storedOverride) {
     return storedOverride;
   }
 
-  return window.location.origin;
+  return isLocalhost ? window.location.origin : prodFallback;
 }
 
 const API_BASE_URL = resolveApiBaseUrl();

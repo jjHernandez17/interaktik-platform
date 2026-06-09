@@ -52,6 +52,8 @@ const connectionState = {
   roomId: "",
   lastError: "",
 };
+
+const APP_API_BASE_URL = window.API_BASE_URL || '';
 const scoreAdjustState = {
   teamId: null,
   direction: "add",
@@ -789,7 +791,7 @@ async function saveTiktokConnectionToDB() {
     const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
     if (!uniqueId) return;
 
-    const response = await fetch("/api/tiktok-connection", {
+    const response = await fetch(`${APP_API_BASE_URL}/api/tiktok-connection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameType: "app", tiktokUsername: uniqueId }),
@@ -807,9 +809,10 @@ async function saveTiktokConnectionToDB() {
 
 async function restoreTiktokConnection() {
   try {
-    const response = await fetch("/api/tiktok-connection/app");
+    const response = await fetch(`${APP_API_BASE_URL}/api/tiktok-connection/app`);
     if (!response.ok) {
       connectionState.uniqueId = "";
+      tiktokUsernameInput.value = "";
       tiktokUsernameInput.disabled = false;
       if (linkBtn) linkBtn.disabled = false;
       if (connectLiveBtn) connectLiveBtn.disabled = true;
@@ -817,8 +820,14 @@ async function restoreTiktokConnection() {
       return;
     }
 
-  const data = await response.json();
-    const storedUniqueId = normalizeText(data.tiktok_username || '').replace(/^@/, '');
+    const data = await response.json();
+    const storedUniqueId = String(data?.tiktok_username || '')
+      .trim()
+      .replace(/^@/, '');
+
+    console.log('[APP] TikTok connection API response:', data);
+    console.log('[APP] Stored TikTok username:', storedUniqueId);
+
     if (storedUniqueId) {
       connectionState.uniqueId = storedUniqueId;
       tiktokUsernameInput.value = `@${storedUniqueId}`;
@@ -828,6 +837,7 @@ async function restoreTiktokConnection() {
       setConnectionStatus('linked', `Cuenta vinculada a @${storedUniqueId}. Ahora puedes conectar el live.`);
     } else {
       connectionState.uniqueId = '';
+      tiktokUsernameInput.value = "";
       tiktokUsernameInput.disabled = false;
       if (linkBtn) linkBtn.disabled = false;
       if (connectLiveBtn) connectLiveBtn.disabled = true;
@@ -836,6 +846,7 @@ async function restoreTiktokConnection() {
   } catch (error) {
     console.error('[APP] Error restoring TikTok connection from DB:', error.message);
     connectionState.uniqueId = '';
+    tiktokUsernameInput.value = "";
     tiktokUsernameInput.disabled = false;
     if (linkBtn) linkBtn.disabled = false;
     if (connectLiveBtn) connectLiveBtn.disabled = true;
@@ -844,7 +855,7 @@ async function restoreTiktokConnection() {
 }
 async function deleteTiktokConnectionFromDB() {
   try {
-    await fetch("/api/tiktok-connection/app", { method: "DELETE" });
+    await fetch(`${APP_API_BASE_URL}/api/tiktok-connection/app`, { method: "DELETE" });
   } catch (error) {
     console.error("[APP] Error deleting TikTok connection from DB:", error.message);
   }
@@ -1435,7 +1446,7 @@ resetScoresBtn.addEventListener("click", async () => {
 async function initializeApp() {
   await loadStateFromServer();
   await restoreTiktokConnection();
-  
+
   await fetchStatus();
   await loadGiftCatalog();
   startEventStream();

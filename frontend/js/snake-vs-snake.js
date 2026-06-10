@@ -405,6 +405,7 @@ async function saveStateToServer(force = false) {
     return;
   }
 
+  console.log("GUARDANDO", payload);
   const response = await fetch('/api/snake-vs-snake/state', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -1518,37 +1519,41 @@ function shuffle(array) {
 
 function spawnApples(side, amount, source = 'manual', gift = null) {
 
-  // console.log("SPAWN APPLES", {
-  //   side,
-  //   amount,
-  //   applesActuales: snake.apples.length
-  // });
-
   const snake = getSnake(side);
+
   if (snake.finished) {
     return 0;
   }
 
   const candidates = shuffle(getFreeFutureCells(side));
-  const appleValue = Math.max(1, Number(amount || 1) || 1);
-  const index = candidates[0];
 
-  if (!Number.isFinite(index)) {
-    scheduleSaveState();
-    return 0;
+  const quantity = Math.max(1, Number(amount || 1) || 1);
+
+  let created = 0;
+
+  for (let i = 0; i < quantity; i++) {
+
+    const index = candidates[i];
+
+    if (!Number.isFinite(index)) {
+      break;
+    }
+
+    snake.apples.push({
+      id: crypto.randomUUID(),
+      index,
+      value: 1,
+      source,
+      giftId: gift?.giftId || null,
+      giftName: gift?.giftName || 'Manzana',
+    });
+
+    created++;
   }
 
-  snake.apples.push({
-    id: crypto.randomUUID(),
-    index,
-    value: appleValue,
-    source,
-    giftId: gift?.giftId || null,
-    giftName: gift?.giftName || 'Manzana',
-  });
-
   scheduleSaveState();
-  return appleValue;
+
+  return created;
 }
 
 function pushGiftActionToHistory(text, side, apples, source = 'manual') {

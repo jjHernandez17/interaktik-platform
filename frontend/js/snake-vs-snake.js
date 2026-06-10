@@ -10,6 +10,8 @@ const SPEED_MAX_MS = 3000;
 const SPEED_STEP_MS = 10;
 
 const state = createDefaultState();
+
+let liveEventsConnected = false;
 let liveEventsSource = null;
 let selectedGiftId = '';
 let giftSearchTerm = '';
@@ -1515,6 +1517,13 @@ function shuffle(array) {
 }
 
 function spawnApples(side, amount, source = 'manual', gift = null) {
+
+  // console.log("SPAWN APPLES", {
+  //   side,
+  //   amount,
+  //   applesActuales: snake.apples.length
+  // });
+
   const snake = getSnake(side);
   if (snake.finished) {
     return 0;
@@ -1728,6 +1737,14 @@ function getGiftRepeatCount(payload) {
 }
 
 function applyRuleToSnake(rule, payload) {
+
+  console.log("APLICANDO REGLA", {
+    regalo: payload?.giftName,
+    lado: rule.side,
+    manzanas: rule.apples
+  });
+
+
   const totalApples = Math.max(1, Number(rule.apples || 1) || 1);
   const snakeLabel = getSnake(rule.side).label;
   const created = spawnApples(rule.side, totalApples, 'live', {
@@ -1749,6 +1766,7 @@ function applyRuleToSnake(rule, payload) {
 
 function handleLiveGift(payload) {
   console.log("🎁 Gift recibido:", payload);
+  console.log("REGLAS ACTIVAS:", state.rules);
 
   const giftSignature = [
     String(payload?.giftId || '').trim(),
@@ -1802,11 +1820,22 @@ function handleLiveGift(payload) {
 }
 
 function connectLiveEvents() {
+
+  if (liveEventsConnected) {
+    console.log("⚠️ SSE ya conectado");
+    return;
+  }
+
+  liveEventsConnected = true;
+
+  console.log("🔥 NUEVA CONEXION SSE");
+
   if (liveEventsSource) {
     liveEventsSource.close();
   }
 
   liveEventsSource = new EventSource('/events?gameType=snake');
+
   liveEventsSource.addEventListener('status', (event) => {
     try {
       const payload = JSON.parse(event.data);
@@ -1820,9 +1849,11 @@ function connectLiveEvents() {
     try {
       const payload = JSON.parse(event.data);
       state.catalog = sanitizeCatalog(payload.gifts || []);
+
       if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
         selectedGiftId = state.catalog[0]?.id || '';
       }
+
       if (snakeGiftList) {
         renderCatalog();
       }
@@ -1832,6 +1863,9 @@ function connectLiveEvents() {
   });
 
   liveEventsSource.addEventListener('gift', (event) => {
+
+    console.log("🎯 LISTENER GIFT EJECUTADO");
+
     try {
       const payload = JSON.parse(event.data);
       handleLiveGift(payload);
@@ -1841,10 +1875,16 @@ function connectLiveEvents() {
   });
 
   liveEventsSource.addEventListener('error', () => {
-    setText(snakeConnectionStatus, 'La conexion en vivo se interrumpio.');
+    console.log("❌ ERROR SSE");
+
+    liveEventsConnected = false;
+
+    setText(
+      snakeConnectionStatus,
+      'La conexion en vivo se interrumpio.'
+    );
   });
 }
-
 async function connectTikTok() {
   const uniqueId = normalizeText(snakeUsernameInput.value).replace(/^@/, '');
   if (!uniqueId) {
@@ -1889,9 +1929,21 @@ async function connectTikTok() {
 }
 
 async function disconnectTikTok() {
+
+  if (liveEventsSource) {
+    liveEventsSource.close();
+    liveEventsSource = null;
+  }
+
+  liveEventsConnected = false;
+
   snakeDisconnectBtn.disabled = true;
+
   try {
-    await fetch('/api/disconnect', { method: 'POST' });
+    await fetch('/api/disconnect', {
+      method: 'POST'
+    });
+
     updateConnectionState({
       status: 'disconnected',
       uniqueId: '',
@@ -1899,9 +1951,11 @@ async function disconnectTikTok() {
       message: 'Conexion cerrada.',
       error: '',
     });
+
   } finally {
     snakeDisconnectBtn.disabled = false;
   }
+
   if (liveIndicator) {
     liveIndicator.classList.add("hidden");
   }
@@ -2077,11 +2131,11 @@ function syncSelectedGiftSelection() {
 
 function pickFirstUrl(value) {
   if (!value) return "";
-  
+
   if (typeof value === "string") {
     return value;
   }
-  
+
   if (Array.isArray(value)) {
     for (const item of value) {
       const picked = pickFirstUrl(item);
@@ -2089,7 +2143,7 @@ function pickFirstUrl(value) {
     }
     return "";
   }
-  
+
   if (typeof value === "object") {
     return (
       pickFirstUrl(value.url) ||
@@ -2100,7 +2154,7 @@ function pickFirstUrl(value) {
       ""
     );
   }
-  
+
   return "";
 }
 
@@ -2650,32 +2704,32 @@ function bootstrapEventListeners() {
     }
   });
 
-    // Fullscreen toggle for both boards
-    if (fullscreenToggleBtn) {
-      fullscreenToggleBtn.addEventListener('click', async () => {
-        try {
-          if (!document.fullscreenElement) {
-            if (boardGrid && boardGrid.requestFullscreen) {
-              await boardGrid.requestFullscreen();
-            }
-          } else {
-            if (document.exitFullscreen) {
-              await document.exitFullscreen();
-            }
+  // Fullscreen toggle for both boards
+  if (fullscreenToggleBtn) {
+    fullscreenToggleBtn.addEventListener('click', async () => {
+      try {
+        if (!document.fullscreenElement) {
+          if (boardGrid && boardGrid.requestFullscreen) {
+            await boardGrid.requestFullscreen();
           }
-        } catch (err) {
-          setLiveStatus('error', 'No se pudo cambiar a pantalla completa.');
+        } else {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
         }
-      });
-    }
-
-    document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement) {
-        if (fullscreenToggleBtn) fullscreenToggleBtn.textContent = 'Pantalla completa';
-      } else {
-        if (fullscreenToggleBtn) fullscreenToggleBtn.textContent = 'Salir pantalla completa';
+      } catch (err) {
+        setLiveStatus('error', 'No se pudo cambiar a pantalla completa.');
       }
     });
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      if (fullscreenToggleBtn) fullscreenToggleBtn.textContent = 'Pantalla completa';
+    } else {
+      if (fullscreenToggleBtn) fullscreenToggleBtn.textContent = 'Salir pantalla completa';
+    }
+  });
 }
 
 async function initializeApp() {

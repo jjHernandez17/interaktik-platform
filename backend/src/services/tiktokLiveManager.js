@@ -346,17 +346,46 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
 
   logger.info(`Iniciando TikTok Live para ${normalizedGameType} @${normalizedUniqueId}`);
 
-  connection.on(WebcastEvent.GIFT, (data) => {
-    logger.info(`[GIFT EVENT] Recibido en backend para ${normalizedGameType}:`, {
-      giftId: data?.giftId,
-      giftName: data?.giftDetails?.giftName || data?.giftName,
-      repeatCount: data?.repeatCount,
-      user: data?.user?.nickname,
-    });
-    const payload = simplifyGiftEvent(data);
-    logger.info(`[GIFT PAYLOAD] Publicando a SSE para ${normalizedGameType}:`, payload);
-    publish(normalizedGameType, 'gift', { ownerKey, ...payload });
+
+connection.on(WebcastEvent.GIFT, (data) => {
+
+  console.log("🎁 BACKEND GIFT", {
+    giftId: data?.giftId,
+    repeatCount: data?.repeatCount,
+    repeatEnd: data?.repeatEnd,
+    createTime: data?.createTime,
+    userId: data?.user?.userId,
+    uniqueId: data?.uniqueId,
   });
+
+  const repeatEnd =
+    data.repeatEnd === true ||
+    data.repeatEnd === 1 ||
+    data.repeatEnd === "1";
+
+  if (repeatEnd) {
+    console.log("🚫 Gift duplicado ignorado (repeatEnd)");
+    return;
+  }
+
+  const payload = simplifyGiftEvent(data);
+
+  publish(normalizedGameType, 'gift', {
+    ownerKey,
+    ...payload,
+  });
+});
+  // connection.on(WebcastEvent.GIFT, (data) => {
+  //   logger.info(`[GIFT EVENT] Recibido en backend para ${normalizedGameType}:`, {
+  //     giftId: data?.giftId,
+  //     giftName: data?.giftDetails?.giftName || data?.giftName,
+  //     repeatCount: data?.repeatCount,
+  //     user: data?.user?.nickname,
+  //   });
+  //   const payload = simplifyGiftEvent(data);
+  //   logger.info(`[GIFT PAYLOAD] Publicando a SSE para ${normalizedGameType}:`, payload);
+  //   publish(normalizedGameType, 'gift', { ownerKey, ...payload });
+  // });
 
   connection.on(WebcastEvent.CHAT, (data) => {
     publish(normalizedGameType, 'comment', { ownerKey, ...simplifyChatEvent(data) });

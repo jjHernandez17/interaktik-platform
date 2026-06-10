@@ -353,8 +353,14 @@ function getLiveGiftDisplayName(rule) {
 }
 
 function setConnectionStatus(status, details = "", error = "") {
+
+  console.log("[SET CONNECTION STATUS]", {
+    status,
+    uniqueId: connectionState.uniqueId
+  });
   connectionState.status = status;
   connectionState.lastError = error;
+
 
   const hasLinkedId = Boolean(connectionState.uniqueId);
   let displayStatus = "unlinked";

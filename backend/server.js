@@ -129,15 +129,18 @@ app.get('/events', (req, res) => {
   logger.success(`Cliente conectado a /events (${gameType}) desde origin: ${origin || 'sin origin'}`);
 
   res.write('retry: 3000\n\n');
+
+  const liveState = getConnectionState(gameType, {
+    userId: req.session?.user?.id || req.session?.userId || null,
+    sessionId: req.sessionID,
+  });
+
+
+
   res.write('event: status\n');
   res.write(`data: ${JSON.stringify({
-    status: 'connected',
-    message: 'SSE conectado correctamente',
-    gameType,
-    live: getConnectionState(gameType, {
-      userId: req.session?.user?.id || req.session?.userId || null,
-      sessionId: req.sessionID,
-    }),
+    ...liveState,
+    gameType
   })}\n\n`);
 
   const pushEvent = ({ eventName, payload }) => {

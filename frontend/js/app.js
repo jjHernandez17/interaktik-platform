@@ -589,13 +589,27 @@ async function fetchStatus() {
     if (!response.ok) return;
 
     const status = await response.json();
-    connectionState.uniqueId = status.uniqueId || "";
+    if (status.uniqueId) {
+      connectionState.uniqueId = status.uniqueId;
+    }
     connectionState.roomId = status.roomId || "";
-    setConnectionStatus(
-      status.status || "disconnected",
-      status.message || "",
-      status.error || "",
-    );
+    if (status.status === "connected") {
+      setConnectionStatus(
+        "connected",
+        status.message || "",
+        status.error || ""
+      );
+    } else if (connectionState.uniqueId) {
+      setConnectionStatus(
+        "linked",
+        `Cuenta vinculada a @${connectionState.uniqueId}.`
+      );
+    } else {
+      setConnectionStatus(
+        "unlinked",
+        "No has vinculado un ID de TikTok Live."
+      );
+    }
 
     if (status.status === "connected" && connectionState.uniqueId) {
       await loadGiftCatalog();
@@ -668,9 +682,21 @@ function startEventStream() {
 
   liveEventsSource.addEventListener("status", (event) => {
     const payload = JSON.parse(event.data);
-    connectionState.uniqueId = payload.uniqueId || "";
+
+    console.log("[SSE STATUS RECIBIDO]", payload);
+    console.log("[SSE] uniqueId actual:", connectionState.uniqueId);
+
+    if (payload.uniqueId) {
+      connectionState.uniqueId = payload.uniqueId;
+    }
+
     connectionState.roomId = payload.roomId || "";
-    setConnectionStatus(payload.status || "disconnected", payload.message || "", payload.error || "");
+
+    setConnectionStatus(
+      payload.status || "disconnected",
+      payload.message || "",
+      payload.error || ""
+    );
   });
 
   liveEventsSource.addEventListener("gift", (event) => {

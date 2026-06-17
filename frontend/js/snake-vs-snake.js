@@ -1402,16 +1402,12 @@ function renderCatalog() {
 
 function sanitizeCatalog(payload) {
   return Array.isArray(payload)
-    ? payload
-      .slice(0, 300)
-      .map((gift) => ({
-        id: String(gift?.id || gift?.giftId || '').trim(),
-        name: String(gift?.name || gift?.giftName || 'Regalo').trim(),
-        diamondCount: Math.max(1, Number(gift?.diamondCount || 1) || 1),
-        imageUrl: String(gift?.imageUrl || getGiftImageUrl(gift) || '').trim(),
+    ? payload.map((gift) => ({
+        id: String(gift?.id || gift?.giftId || ''),
+        name: gift?.name || gift?.giftName || `Regalo ID ${gift?.id || gift?.giftId}`,
+        diamondCount: Number(gift?.diamondCount || gift?.diamond_count || 1) || 1,
+        imageUrl: gift?.imageUrl || getGiftImageUrl(gift),
       }))
-      .filter((gift) => gift.id)
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
     : [];
 }
 

@@ -1457,6 +1457,12 @@ async function loadGiftCatalog() {
     if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
       selectedGiftId = state.catalog[0]?.id || '';
     }
+    if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
+      leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
+    }
+    if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
+      rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
+    }
     updateRuleGiftOptions();
     renderCatalog();
     renderLeftGiftCatalogMenu();
@@ -1494,6 +1500,12 @@ async function refreshGiftCatalogFromLive() {
     state.catalog = sanitizeCatalog(payload.gifts || []);
     if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
       selectedGiftId = state.catalog[0]?.id || '';
+    }
+    if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
+      leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
+    }
+    if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
+      rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
     }
     updateRuleGiftOptions();
     renderCatalog();
@@ -1878,6 +1890,12 @@ function connectLiveEvents() {
 
       if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
         selectedGiftId = state.catalog[0]?.id || '';
+      }
+      if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
+        leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
+      }
+      if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
+        rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
       }
 
       updateRuleGiftOptions();
@@ -2267,11 +2285,18 @@ function renderLeftGiftCatalogMenu() {
       leftGiftCatalogOptions.innerHTML = `<div class="empty">No hay regalos disponibles.</div>`;
     }
     updateLeftGiftCatalogToggle(null);
+    setLeftCatalogPreview(null);
     return;
   }
 
-  const currentGift = getLeftSelectedCatalogGift();
-  updateLeftGiftCatalogToggle(currentGift || state.catalog[0]);
+  let currentGift = getLeftSelectedCatalogGift();
+  const giftToShow = currentGift || state.catalog[0];
+  if (!currentGift && giftToShow) {
+    leftSelectedCatalogGiftId = giftToShow.id;
+    currentGift = giftToShow;
+  }
+  updateLeftGiftCatalogToggle(giftToShow);
+  setLeftCatalogPreview(giftToShow);
 
   const normalizedNameFilter = leftGiftNameFilter.trim().toLowerCase();
   const coinsFilterNumber = Number(leftGiftCoinsFilter);
@@ -2392,11 +2417,18 @@ function renderRightGiftCatalogMenu() {
       rightGiftCatalogOptions.innerHTML = `<div class="empty">No hay regalos disponibles.</div>`;
     }
     updateRightGiftCatalogToggle(null);
+    setRightCatalogPreview(null);
     return;
   }
 
-  const currentGift = getRightSelectedCatalogGift();
-  updateRightGiftCatalogToggle(currentGift || state.catalog[0]);
+  let currentGift = getRightSelectedCatalogGift();
+  const giftToShow = currentGift || state.catalog[0];
+  if (!currentGift && giftToShow) {
+    rightSelectedCatalogGiftId = giftToShow.id;
+    currentGift = giftToShow;
+  }
+  updateRightGiftCatalogToggle(giftToShow);
+  setRightCatalogPreview(giftToShow);
 
   const normalizedNameFilter = rightGiftNameFilter.trim().toLowerCase();
   const coinsFilterNumber = Number(rightGiftCoinsFilter);

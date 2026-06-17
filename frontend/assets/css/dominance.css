@@ -1,0 +1,225 @@
+.dominance-shell{
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+    padding:20px;
+}
+
+.dominance-battlefield{
+    display:grid;
+    grid-template-columns:1fr 220px 1fr;
+    gap:20px;
+    min-height:700px;
+}
+
+.army-side{
+    position:relative;
+    border-radius:24px;
+    overflow:hidden;
+    background:#111827;
+    border:2px solid rgba(255,255,255,.08);
+}
+
+.left-side{
+    background:
+    linear-gradient(
+        rgba(120,0,0,.35),
+        rgba(120,0,0,.35)
+    ),
+    #111827;
+}
+
+.right-side{
+    background:
+    linear-gradient(
+        rgba(0,60,150,.35),
+        rgba(0,60,150,.35)
+    ),
+    #111827;
+}
+
+.army-header{
+    position:sticky;
+    top:0;
+    z-index:10;
+
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+
+    padding:20px;
+
+    background:rgba(0,0,0,.45);
+    backdrop-filter:blur(10px);
+}
+
+.army-header input{
+    width:100%;
+    text-align:center;
+
+    border:none;
+    outline:none;
+
+    background:transparent;
+
+    color:white;
+
+    font-size:1.5rem;
+    font-weight:800;
+}
+
+.army-health{
+    font-size:1.2rem;
+    font-weight:700;
+    color:white;
+}
+
+.army-container{
+    position:relative;
+    height:620px;
+    overflow:hidden;
+}
+
+.soldier{
+    position:absolute;
+
+    width:52px;
+    height:52px;
+
+    border-radius:50%;
+    overflow:hidden;
+
+    border:2px solid rgba(255,255,255,.25);
+
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+.soldier:hover{
+    transform:scale(1.15);
+}
+
+.soldier img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.soldier.active{
+    transform:scale(1.4);
+
+    box-shadow:
+        0 0 20px #fff,
+        0 0 40px #fff;
+}
+
+.battlefield{
+    position:relative;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border-radius:24px;
+
+    background:
+    linear-gradient(
+        180deg,
+        rgba(20,20,20,.95),
+        rgba(0,0,0,.95)
+    );
+
+    overflow:hidden;
+}
+
+.battlefield-title{
+    font-size:2rem;
+    font-weight:900;
+    letter-spacing:.2em;
+    color:white;
+}
+
+.projectile{
+    position:absolute;
+
+    width:14px;
+    height:14px;
+
+    border-radius:50%;
+
+    background:#ffd700;
+
+    box-shadow:
+        0 0 10px #ffd700,
+        0 0 25px #ffd700;
+
+    pointer-events:none;
+}
+
+.dominance-history-item{
+    padding:12px;
+    border-radius:12px;
+    background:rgba(255,255,255,.04);
+}
+
+@media(max-width:1100px){
+
+    .dominance-battlefield{
+        grid-template-columns:1fr;
+    }
+
+    .battlefield{
+        min-height:160px;
+    }
+
+    .army-container{
+        height:500px;
+    }
+
+}
+
+
+
+.dominance-config{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+}
+
+.config-card{
+    background:#111827;
+    border-radius:20px;
+    padding:20px;
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.config-card h2{
+    margin-bottom:20px;
+    color:white;
+}
+
+.config-group{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:16px;
+}
+
+.config-group label{
+    color:#cbd5e1;
+    font-size:.9rem;
+}
+
+.config-group input{
+    padding:10px;
+    border-radius:10px;
+    border:none;
+}
+
+#dominanceHistory{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}

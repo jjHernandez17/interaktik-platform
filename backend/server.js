@@ -13,7 +13,6 @@ const logger = require('./src/config/logger');
 const { getCorsConfig, getSocketCorsConfig, isOriginAllowed } = require('./src/config/cors');
 
 // Database
-const pool = require('./src/database/pool');
 const { bootstrapDatabase } = require('./src/database/init');
 
 // Middleware
@@ -75,9 +74,9 @@ const PgSession = connectPgSimple(session);
 app.use(
   session({
     store: new PgSession({
-      pool,
+      pool: require('./src/database/pool'),
       tableName: 'user_sessions',
-      createTableIfMissing: true,
+      createTableIfMissing: false,
     }),
     secret: env.SESSION_SECRET,
     resave: false,

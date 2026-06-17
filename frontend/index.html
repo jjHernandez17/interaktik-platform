@@ -8,17 +8,24 @@
   </head>
   <body>
     <main class="landing-shell">
-      <header class="landing-nav">
-        <strong class="brand">PlayTik Live</strong>
+      <header class="landing-nav scroll-reveal">
+        <div class="brand-wrapper">
+          <img class="brand-logo" src="assets/images/logo.png" alt="PlayTik Live" />
+        </div>
         <nav class="landing-nav-actions">
           <a class="btn ghost" href="login.html">Iniciar sesion</a>
           <a class="btn solid" href="register.html">Registrarme</a>
         </nav>
       </header>
 
-      <section class="hero">
-        <p class="tag">TikTok Live + Gamificacion</p>
-        <h1>Convierte tus directos en juegos interactivos para tu audiencia.</h1>
+      <section class="hero scroll-reveal">
+        <div class="hero-head">
+          
+          <div>
+            <p class="tag">TikTok Live + Gamificacion</p>
+            <h1>Convierte tus directos en juegos interactivos para tu audiencia.</h1>
+          </div>
+        </div>
         <p>
           PlayTik Live es una plataforma para creadores y hosts que transforma regalos de TikTok
           en dinamicas de juego en tiempo real: equipos, torres de puntaje y reglas personalizadas.
@@ -27,9 +34,23 @@
           <a class="btn solid" href="register.html">Crear cuenta</a>
           <a class="btn ghost" href="login.html">Ya tengo cuenta</a>
         </div>
+        <div class="hero-stats">
+          <div>
+            <strong>3</strong>
+            <span>Modos de juego activos</span>
+          </div>
+          <div>
+            <strong>100%</strong>
+            <span>Interacción en vivo</span>
+          </div>
+          <div>
+            <strong>0</strong>
+            <span>Configuración complicada</span>
+          </div>
+        </div>
       </section>
 
-      <section class="info-grid">
+      <section class="info-grid scroll-reveal">
         <article class="info-card">
           <h2>Quienes Somos</h2>
           <p>
@@ -56,5 +77,6 @@
     <script src="js/config.js"></script>
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>
+    <script src="js/landing-effects.js"></script>
   </body>
 </html>

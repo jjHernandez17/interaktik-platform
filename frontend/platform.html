@@ -43,6 +43,30 @@
               <strong>Sesion activa</strong>
             </article>
           </div>
+
+          <div class="password-section">
+            <h3>Cambiar contraseña</h3>
+            <form id="changePasswordForm" class="password-form">
+              <label class="field">
+                <span>Ingrese la contraseña actual</span>
+                <input id="currentPasswordInput" type="password" autocomplete="current-password" required />
+              </label>
+              <label class="field">
+                <span>Ingrese la nueva contraseña</span>
+                <input id="newPasswordInput" type="password" autocomplete="new-password" required />
+              </label>
+              <label class="field">
+                <span>Repita la nueva contraseña</span>
+                <input id="confirmNewPasswordInput" type="password" autocomplete="new-password" required />
+              </label>
+              <p class="password-rules">
+                La contraseña debe tener mas de 5 caracteres y contener al menos una letra, un numero y un caracter especial.
+              </p>
+              <div class="password-actions">
+                <button id="changePasswordBtn" class="btn primary" type="submit">Actualizar contraseña</button>
+              </div>
+            </form>
+          </div>
         </section>
 
         <section id="gamesSection" class="content-card">
@@ -71,6 +95,13 @@
               <h3>Carrera de Colegas</h3>
               <p>Crea participantes y corre contra ellos. Los regalos avanzan a los carritos.</p>
               <a class="start-btn" href="race.html">Iniciar juego</a>
+            </article>
+
+            <article class="game-card">
+              <img src="/assets/images/Dominance.png" alt="Dominance" class="game-card-image" />
+              <h3>Dominance</h3>
+              <p>Dos equipos se enfrentan disparando y reduciendo la vida del rival.</p>
+              <a class="start-btn" href="dominance.html">Iniciar juego</a>
             </article>
 
             <article class="game-card disabled">

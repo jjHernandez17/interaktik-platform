@@ -367,6 +367,47 @@ router.get('/race.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/race.js'));
 });
 
+// Dominance
+router.get('/dominance', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'dominance'))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/dominance.html', 'Dominance page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/dominance.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/dominance.html', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'dominance'))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/dominance.html', 'Dominance HTML request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/dominance.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/dominance.css', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/assets/css/dominance.css'));
+});
+
+router.get('/dominance.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/dominance.js'));
+});
+
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
 router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));

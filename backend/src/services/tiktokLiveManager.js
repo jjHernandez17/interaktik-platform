@@ -111,7 +111,7 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance'].includes(gameType)) {
     return gameType === 'snake-vs-snake' ? 'snake' : gameType;
   }
 
@@ -137,6 +137,7 @@ function inferGameTypeFromRequest(req) {
   const referer = String(req.get('referer') || req.get('referrer') || '').toLowerCase();
   if (referer.includes('snake-vs-snake')) return 'snake';
   if (referer.includes('race')) return 'race';
+  if (referer.includes('dominance')) return 'dominance';
   if (referer.includes('app')) return 'app';
 
   return 'app';
@@ -160,14 +161,15 @@ function getEmptyState(gameType) {
 function simplifyGiftEvent(data) {
   return {
     giftId: data?.giftId || data?.giftDetails?.giftId || data?.giftDetails?.id || null,
-    giftName: data?.giftDetails?.giftName || data?.giftName || data?.giftName?.trim?.() || 'Regalo',
+    giftName: data?.giftDetails?.giftName || data?.giftName || (data?.giftName || '').trim() || 'Regalo',
     giftType: data?.giftDetails?.giftType ?? data?.giftType ?? null,
     repeatCount: Number(data?.repeatCount || data?.giftCount || 1) || 1,
     repeatEnd: Boolean(data?.repeatEnd),
     user: {
-      uniqueId: data?.user?.uniqueId || data?.user?.uniqueId?.trim?.() || '',
+      uniqueId: data?.user?.uniqueId || (data?.user?.uniqueId || '').trim() || '',
       nickname: data?.user?.nickname || '',
       userId: data?.user?.userId || null,
+      avatar: data?.user?.avatar || data?.user?.avatarThumb || data?.user?.profilePicture || null,
     },
     diamondCount: data?.giftDetails?.diamondCount ?? data?.diamondCount ?? null,
     extendedGiftInfo: data?.extendedGiftInfo || null,

@@ -121,7 +121,7 @@ function updateLeaderStyles() {
 
 function updateTrackSizing() {
   if (!trackSection) return;
-  
+
   const count = Math.max(participants.length, 1);
   const header = trackSection.querySelector('.track-header');
   const footer = trackSection.querySelector('.track-footer');
@@ -153,7 +153,7 @@ function updateTrackSizing() {
 
 async function toggleFullscreenTrack() {
   if (!trackSection) return;
-  
+
   try {
     if (document.fullscreenElement === trackSection) {
       await document.exitFullscreen();
@@ -215,7 +215,7 @@ async function loadState() {
 
     const state = await response.json();
     console.log('[Race] Loaded race state from database:', state);
-    
+
     participants = state.participants || [];
     carPositions = state.car_positions || {};
     finishCounts = state.finish_counts || {};
@@ -230,7 +230,7 @@ async function loadState() {
       try {
         const state = JSON.parse(stored);
         console.log('[Race] Loaded race state from localStorage:', state);
-        
+
         participants = state.participants || [];
         carPositions = state.car_positions || state.carPositions || {};
         finishCounts = state.finish_counts || state.finishCounts || {};
@@ -247,6 +247,7 @@ async function loadState() {
   }
   renderParticipants();
   renderRaceTrack();
+
 
   if (winnerParticipantId) {
     showWinnerModal(winnerParticipantId);
@@ -302,7 +303,7 @@ function removeParticipant(id) {
 
 function renderParticipants() {
   if (!participantsList) return;
-  
+
   participantsList.innerHTML = '';
   participants.forEach((p) => {
     const item = document.createElement('div');
@@ -356,7 +357,7 @@ function renderParticipants() {
       if (!file) return;
       const id = input.id.replace('participant-file-', '');
       const reader = new FileReader();
-      reader.onload = function(ev) {
+      reader.onload = function (ev) {
         const dataUrl = ev.target.result;
         const idx = participants.findIndex(p => p.id === id);
         if (idx === -1) return;
@@ -432,7 +433,7 @@ function modifyParticipantCoins(id, deltaCoins, contextNote = '') {
 
 function renderRaceTrack() {
   if (!raceTrack) return;
-  
+
   updateTrackSizing();
   // Reuse existing lane DOM nodes to allow smooth transitions
   const existingIds = new Set(laneElements.keys());
@@ -588,12 +589,12 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
 
   const currentProgress = Number(carPositions[id] || 0);
   const totalProgress = currentProgress + normalizedCoins;
-  
+
   // Calculate only NEW laps crossed in this update
   const lapsBeforeUpdate = Math.floor(currentProgress / COINS_PER_LAP);
   const lapsAfterUpdate = Math.floor(totalProgress / COINS_PER_LAP);
   const laps = lapsAfterUpdate - lapsBeforeUpdate;
-  
+
   const remainder = totalProgress - lapsAfterUpdate * COINS_PER_LAP;
 
   const startPercent = Math.min((currentProgress / COINS_PER_LAP) * 100, 100);
@@ -610,7 +611,7 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
       if (laps > 0) {
         finishCounts[id] = (Number(finishCounts[id] || 0) || 0) + laps;
         addHistoryEntry(`${participant.name} cruzó la meta (+${laps}). Total: ${finishCounts[id]} vueltas.`);
-        
+
         // Check if this participant won
         if (!winnerParticipantId && finishCounts[id] >= raceLapsLimit) {
           winnerParticipantId = id;
@@ -790,7 +791,7 @@ function addHistoryEntry(text) {
 
 function renderHistory() {
   if (!raceHistoryList) return;
-  
+
   raceHistoryList.innerHTML = '';
   history.slice(0, 20).forEach(entry => {
     const item = document.createElement('div');
@@ -850,24 +851,24 @@ if (raceFullscreenBtn) raceFullscreenBtn.addEventListener('click', toggleFullscr
 
 if (raceLinkBtn) {
   raceLinkBtn.addEventListener('click', async (e) => {
-  e.preventDefault();
-  const uniqueId = raceUsername.value.trim().replace(/^@/, '');
-  if (!uniqueId) {
-    showAppAlert('Por favor ingresa un usuario de TikTok.', 'Usuario requerido');
-    return;
-  }
-
-  if (confirm(`¿Estás seguro de que quieres vincular el juego a @${uniqueId}?\n\nNo podrás cambiar esta cuenta después.`)) {
-    try {
-      await saveTiktokConnectionRaceToDB(uniqueId);
-      raceUsername.value = `@${uniqueId}`;
-      lockRaceUsernameInput();
-      setRaceConnectionStatus('disconnected', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-      addHistoryEntry(`Cuenta vinculada a TikTok Live: @${uniqueId}`);
-    } catch (error) {
-      showAppAlert(error.message, 'Error al guardar la cuenta');
+    e.preventDefault();
+    const uniqueId = raceUsername.value.trim().replace(/^@/, '');
+    if (!uniqueId) {
+      showAppAlert('Por favor ingresa un usuario de TikTok.', 'Usuario requerido');
+      return;
     }
-  }
+
+    if (confirm(`¿Estás seguro de que quieres vincular el juego a @${uniqueId}?\n\nNo podrás cambiar esta cuenta después.`)) {
+      try {
+        await saveTiktokConnectionRaceToDB(uniqueId);
+        raceUsername.value = `@${uniqueId}`;
+        lockRaceUsernameInput();
+        setRaceConnectionStatus('disconnected', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
+        addHistoryEntry(`Cuenta vinculada a TikTok Live: @${uniqueId}`);
+      } catch (error) {
+        showAppAlert(error.message, 'Error al guardar la cuenta');
+      }
+    }
   });
 }
 

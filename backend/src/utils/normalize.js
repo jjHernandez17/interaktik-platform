@@ -244,6 +244,55 @@ function sanitizeRaceGameState(payload) {
   };
 }
 
+function sanitizeDominanceTeam(team, index) {
+  const defaults = [
+    { name: 'Equipo Morado', color: '#8b5cf6', life: 100, attack: 12 },
+    { name: 'Equipo Azul', color: '#06b6d4', life: 100, attack: 12 },
+  ];
+  const defaultTeam = defaults[index] || { name: `Equipo ${index + 1}`, color: '#8b5cf6', life: 100, attack: 10 };
+
+  return {
+    id: String(team?.id || `team-${index + 1}`),
+    name: String(team?.name || defaultTeam.name).trim().slice(0, 120),
+    color: normalizeColor(team?.color, defaultTeam.color),
+    life: Math.min(999, Math.max(0, Number(team?.life || defaultTeam.life) || defaultTeam.life)),
+    attack: Math.min(100, Math.max(1, Number(team?.attack || defaultTeam.attack) || defaultTeam.attack)),
+    alive: team?.alive !== false,
+  };
+}
+
+function sanitizeDominanceHistoryEntry(entry, index) {
+  return {
+    id: String(entry?.id || `history-${index + 1}`),
+    message: String(entry?.message || 'Evento').trim().slice(0, 360),
+    source: String(entry?.source || 'live').trim().slice(0, 40),
+    createdAt: normalizeIsoDate(entry?.createdAt),
+  };
+}
+
+function sanitizeDominanceGameState(payload) {
+  const teams = Array.isArray(payload?.teams)
+    ? payload.teams.slice(0, 20).map(sanitizeDominanceTeam)
+    : [sanitizeDominanceTeam({}, 0), sanitizeDominanceTeam({}, 1)];
+  const teamIds = new Set(teams.map((team) => team.id));
+
+  return {
+    teams,
+    active_team_id: teamIds.has(payload?.active_team_id) ? String(payload.active_team_id) : teams[0]?.id,
+    round: Math.max(1, Number(payload?.round || 1) || 1),
+    winner_team_id: payload?.winner_team_id && teamIds.has(payload.winner_team_id) ? String(payload.winner_team_id) : null,
+    history: Array.isArray(payload?.history) ? payload.history.slice(0, 100).map(sanitizeDominanceHistoryEntry) : [],
+    viewer_bindings: typeof payload?.viewer_bindings === 'object' && payload.viewer_bindings !== null ? payload.viewer_bindings : {},
+    soldiers: Array.isArray(payload?.soldiers) ? payload.soldiers.slice(0, 300).map((s, i) => ({
+      id: String(s?.id || `soldier-${i + 1}`),
+      uniqueId: String(s?.uniqueId || s?.id || '').trim(),
+      nickname: String(s?.nickname || '').trim().slice(0, 120),
+      avatarData: s?.avatarData ? String(s.avatarData).slice(0, 1000) : null,
+      teamId: s?.teamId && teamIds.has(s.teamId) ? s.teamId : null,
+    })) : [],
+  };
+}
+
 module.exports = {
   normalizeEmail,
   normalizeColor,
@@ -259,4 +308,5 @@ module.exports = {
   sanitizeSnakeVsSnakeState,
   sanitizeRaceParticipant,
   sanitizeRaceGameState,
+  sanitizeDominanceGameState,
 };

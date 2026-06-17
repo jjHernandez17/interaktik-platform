@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
 const gameStateService = require('../services/gameStateService');
+const dominanceService = require('../services/dominanceService');
 const snakeService = require('../services/snakeService');
 const raceService = require('../services/raceService');
 const { normalizeError } = require('../utils/normalize');
@@ -97,6 +98,36 @@ router.post('/race/state', requireAuth, async (req, res, next) => {
     return res.json({ success: true, updated_at: saved.updated_at });
   } catch (error) {
     logger.error('Error saving race state', error);
+    return res.status(500).json({ error: normalizeError(error), details: error?.message });
+  }
+});
+
+router.get('/dominance/state', requireAuth, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const state = await dominanceService.loadDominanceState(userId);
+    return res.json(state);
+  } catch (error) {
+    logger.error('Error loading dominance state', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/dominance/state', requireAuth, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const saved = await dominanceService.saveDominanceState(userId, req.body || {});
+    return res.json({ success: true, updated_at: saved.updated_at });
+  } catch (error) {
+    logger.error('Error saving dominance state', error);
     return res.status(500).json({ error: normalizeError(error), details: error?.message });
   }
 });

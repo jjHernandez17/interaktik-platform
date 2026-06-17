@@ -73,4 +73,19 @@ router.get('/auth/me', (req, res) => {
   return res.json({ user: req.session.user });
 });
 
+router.put('/auth/password', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+
+    await authService.changePassword(userId, currentPassword, newPassword);
+
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('Change password error', error);
+    return res.status(400).json({ error: normalizeError(error) });
+  }
+});
+
 module.exports = router;

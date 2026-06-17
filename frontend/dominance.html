@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dominance | PlayTik Live</title>
+  <link rel="stylesheet" href="assets/css/styles.css?v=20260606b" />
+  <link rel="stylesheet" href="assets/css/dominance.css?v=20260606b" />
+</head>
+
+<body>
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="game-content dominance-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">PlayTik Live • DOMINANCE</p>
+        <h1>Dominance</h1>
+        <p class="subtitle">
+          Recluta aliados con comentarios y deja que los regalos de TikTok disparen al rival.
+        </p>
+      </div>
+      <div class="hero-card">
+        <span class="hero-card-label">Resumen</span>
+        <strong id="dominanceSummary">2 equipos • 0 rondas</strong>
+        <small>El estado del juego se guarda automáticamente en la base de datos.</small>
+      </div>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="dominanceConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+      </div>
+
+      <form id="dominanceConnectionForm" class="connection-form">
+        <input id="dominanceUsername" type="text" placeholder="@usuario_en_vivo" required />
+        <button id="dominanceLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
+        <button id="dominanceLinkBtn" class="btn accent" type="button">Vincular TikTok</button>
+        <button id="dominanceConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="dominanceDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="dominanceConnectionDetails" class="hint"></p>
+    </section>
+
+    <section class="dominance-battlefield">
+
+      <div class="army-side left-side">
+
+        <div class="army-header">
+
+          <input id="leftTeamName" type="text" value="Titanes" maxlength="30">
+
+          <div id="leftHealth" class="army-health">
+            10000 HP
+          </div>
+
+        </div>
+
+        <div id="leftArmy" class="army-container"></div>
+
+      </div>
+
+      <div id="battlefield" class="battlefield">
+
+        <div class="battlefield-title">
+          DOMINANCE
+        </div>
+
+      </div>
+
+      <div class="army-side right-side">
+
+        <div class="army-header">
+
+          <input id="rightTeamName" type="text" value="Imperio" maxlength="30">
+
+          <div id="rightHealth" class="army-health">
+            10000 HP
+          </div>
+
+        </div>
+
+        <div id="rightArmy" class="army-container"></div>
+
+      </div>
+
+    </section>
+    <section class="dominance-config">
+
+      <div class="config-card">
+
+        <h2>Configuración equipo izquierdo</h2>
+
+        <div class="config-group">
+          <label>Nombre del equipo</label>
+          <input id="leftConfigName" type="text" value="Titanes">
+        </div>
+
+        <div class="config-group">
+          <label>Color principal</label>
+          <input id="leftConfigColor" type="color" value="#ef4444">
+        </div>
+
+        <div class="config-group">
+          <label>Vida inicial</label>
+          <input id="leftConfigHealth" type="number" value="10000">
+        </div>
+
+        <div class="config-group">
+          <label>Fondo del equipo</label>
+          <input id="leftConfigBackground" type="file" accept="image/*">
+        </div>
+
+      </div>
+
+      <div class="config-card">
+
+        <h2>Configuración equipo derecho</h2>
+
+        <div class="config-group">
+          <label>Nombre del equipo</label>
+          <input id="rightConfigName" type="text" value="Imperio">
+        </div>
+
+        <div class="config-group">
+          <label>Color principal</label>
+          <input id="rightConfigColor" type="color" value="#3b82f6">
+        </div>
+
+        <div class="config-group">
+          <label>Vida inicial</label>
+          <input id="rightConfigHealth" type="number" value="10000">
+        </div>
+
+        <div class="config-group">
+          <label>Fondo del equipo</label>
+          <input id="rightConfigBackground" type="file" accept="image/*">
+        </div>
+
+      </div>
+
+    </section>
+
+    <section class="config-card">
+
+      <div class="card-header">
+        <h2>Historial de combate</h2>
+      </div>
+
+      <div id="dominanceHistory"></div>
+
+    </section>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js?v=20260524"></script>
+  <script src="js/dialog.js?v=20260524"></script>
+  <script src="js/dominance.js?v=20260606b"></script>
+</body>
+
+</html>

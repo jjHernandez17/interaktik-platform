@@ -3,6 +3,11 @@ const sections = document.querySelectorAll('.content-card');
 const logoutBtn = document.getElementById('logoutBtn');
 const userName = document.getElementById('userName');
 const userEmail = document.getElementById('userEmail');
+const changePasswordForm = document.getElementById('changePasswordForm');
+const currentPasswordInput = document.getElementById('currentPasswordInput');
+const newPasswordInput = document.getElementById('newPasswordInput');
+const confirmNewPasswordInput = document.getElementById('confirmNewPasswordInput');
+const changePasswordBtn = document.getElementById('changePasswordBtn');
 
 const adminNavItem = document.getElementById('adminNavItem');
 const refreshUsersBtn = document.getElementById('refreshUsersBtn');
@@ -22,6 +27,7 @@ const GAME_LABELS = {
   app: 'Contador de puntos',
   snake: 'Snake Vs Snake',
   race: 'Carrera de Colegas',
+  dominance: 'Dominance',
 };
 
 let currentUser = null;
@@ -32,6 +38,17 @@ let adminEditAccountEmail = null;
 let adminSearchInput = null;
 let adminEmailFilter = '';
 let gameAvailability = {};
+
+function validatePasswordStrength(password) {
+  const value = String(password || '');
+  if (value.length <= 5) {
+    return 'La contraseña debe tener mas de 5 caracteres.';
+  }
+  if (!/[A-Za-z]/.test(value) || !/[0-9]/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
+    return 'La contraseña debe incluir al menos una letra, un numero y un caracter especial.';
+  }
+  return '';
+}
 
 function setupAdminSearch() {
   if (!adminUsersList || document.getElementById('adminEmailSearch')) {
@@ -57,6 +74,7 @@ function setupAdminSearch() {
 function gameTypeFromHref(href = '') {
   if (href.includes('snake-vs-snake')) return 'snake';
   if (href.includes('race')) return 'race';
+  if (href.includes('dominance')) return 'dominance';
   if (href.includes('app')) return 'app';
   return '';
 }
@@ -515,6 +533,67 @@ async function loadMe() {
   }
 }
 
+async function handleChangePassword(event) {
+  event.preventDefault();
+
+  const currentPassword = currentPasswordInput?.value || '';
+  const newPassword = newPasswordInput?.value || '';
+  const confirmNewPassword = confirmNewPasswordInput?.value || '';
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    await showAlert('Completa todos los campos de contraseña.', 'Faltan datos');
+    return;
+  }
+
+  const strengthError = validatePasswordStrength(newPassword);
+  if (strengthError) {
+    await showAlert(strengthError, 'Contraseña invalida');
+    return;
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    await showAlert('La nueva contraseña y su repeticion no coinciden.', 'Contraseñas diferentes');
+    return;
+  }
+
+  if (newPassword === currentPassword) {
+    await showAlert('La nueva contraseña debe ser diferente a la actual.', 'Contraseña repetida');
+    return;
+  }
+
+  if (changePasswordBtn) {
+    changePasswordBtn.disabled = true;
+    changePasswordBtn.textContent = 'Actualizando...';
+  }
+
+  try {
+    const response = await fetch('/api/auth/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo actualizar la contraseña.');
+    }
+
+    changePasswordForm.reset();
+    await showAlert('La contraseña se actualizo correctamente.', 'Contraseña actualizada');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    if (changePasswordBtn) {
+      changePasswordBtn.disabled = false;
+      changePasswordBtn.textContent = 'Actualizar contraseña';
+    }
+  }
+}
+
 navButtons.forEach((button) => {
   button.addEventListener('click', () => {
     showSection(button.dataset.section);
@@ -572,5 +651,9 @@ document.addEventListener('keydown', (event) => {
     closeEditModal();
   }
 });
+
+if (changePasswordForm) {
+  changePasswordForm.addEventListener('submit', handleChangePassword);
+}
 
 loadMe();

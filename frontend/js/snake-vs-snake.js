@@ -405,7 +405,18 @@ async function saveStateToServer(force = false) {
     return;
   }
 
-  console.log("GUARDANDO", payload);
+  console.log("GUARDANDO", {
+    left: {
+      applesEaten: state.snakes.left.applesEaten,
+      length: state.snakes.left.length,
+      apples: state.snakes.left.apples.length
+    },
+    right: {
+      applesEaten: state.snakes.right.applesEaten,
+      length: state.snakes.right.length,
+      apples: state.snakes.right.apples.length
+    }
+  });
   const response = await fetch('/api/snake-vs-snake/state', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -1436,7 +1447,7 @@ function findCatalogGiftByInput(value) {
 
 async function loadGiftCatalog() {
   try {
-    const response = await fetch('/api/gifts');
+    const response = await fetch('/api/gifts?gameType=snake');
     if (!response.ok) {
       throw new Error('No se pudo cargar el catálogo guardado.');
     }
@@ -1452,6 +1463,8 @@ async function loadGiftCatalog() {
     renderRightGiftCatalogMenu();
   } catch (error) {
     updateRuleGiftOptions();
+    renderLeftGiftCatalogMenu();
+    renderRightGiftCatalogMenu();
     if (snakeGiftList) {
       snakeGiftList.innerHTML = `<div class="empty">${escapeHtml(error.message || 'No se pudo cargar el catálogo.')}</div>`;
     }
@@ -1466,11 +1479,16 @@ async function refreshGiftCatalogFromLive() {
   }
 
   try {
-    const response = await fetch('/api/catalog', {
+    const response = await fetch('/api/catalog?gameType=snake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uniqueId }),
     });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'No se pudo cargar el catálogo en vivo.');
+    }
 
     const payload = await response.json();
     state.catalog = sanitizeCatalog(payload.gifts || []);
@@ -1483,6 +1501,9 @@ async function refreshGiftCatalogFromLive() {
     renderRightGiftCatalogMenu();
     setText(snakeConnectionStatus, payload.message || payload.warning || 'Catálogo actualizado.');
   } catch (error) {
+    updateRuleGiftOptions();
+    renderLeftGiftCatalogMenu();
+    renderRightGiftCatalogMenu();
     setText(snakeConnectionStatus, error.message || 'No se pudo actualizar el catálogo.');
   }
 }
@@ -1859,9 +1880,10 @@ function connectLiveEvents() {
         selectedGiftId = state.catalog[0]?.id || '';
       }
 
-      if (snakeGiftList) {
-        renderCatalog();
-      }
+      updateRuleGiftOptions();
+      renderCatalog();
+      renderLeftGiftCatalogMenu();
+      renderRightGiftCatalogMenu();
     } catch (_error) {
       // Ignorar.
     }

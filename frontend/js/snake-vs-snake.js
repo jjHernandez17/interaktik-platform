@@ -101,6 +101,7 @@ const boardGrid = document.getElementById('boardGrid');
 
 // LEFT gift catalog elements
 const leftGiftCatalogToggle = document.getElementById('leftGiftCatalogToggle');
+const leftGiftCatalogToggleName = document.getElementById('leftGiftCatalogToggleName');
 const leftGiftCatalogMenu = document.getElementById('leftGiftCatalogMenu');
 const leftGiftSearchInput = document.getElementById('leftGiftSearchInput');
 const leftGiftCoinsFilterInput = document.getElementById('leftGiftCoinsFilterInput');
@@ -112,6 +113,7 @@ const leftGiftCatalogPreview = document.getElementById('leftGiftCatalogPreview')
 
 // RIGHT gift catalog elements
 const rightGiftCatalogToggle = document.getElementById('rightGiftCatalogToggle');
+const rightGiftCatalogToggleName = document.getElementById('rightGiftCatalogToggleName');
 const rightGiftCatalogMenu = document.getElementById('rightGiftCatalogMenu');
 const rightGiftSearchInput = document.getElementById('rightGiftSearchInput');
 const rightGiftCoinsFilterInput = document.getElementById('rightGiftCoinsFilterInput');
@@ -1406,7 +1408,7 @@ function sanitizeCatalog(payload) {
         id: String(gift?.id || gift?.giftId || '').trim(),
         name: String(gift?.name || gift?.giftName || 'Regalo').trim(),
         diamondCount: Math.max(1, Number(gift?.diamondCount || 1) || 1),
-        imageUrl: String(gift?.imageUrl || '').trim(),
+        imageUrl: String(gift?.imageUrl || getGiftImageUrl(gift) || '').trim(),
       }))
       .filter((gift) => gift.id)
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
@@ -1454,19 +1456,10 @@ async function loadGiftCatalog() {
 
     const payload = await response.json();
     state.catalog = sanitizeCatalog(payload.gifts);
-    if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
-      selectedGiftId = state.catalog[0]?.id || '';
-    }
-    if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
-      leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
-    }
-    if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
-      rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
-    }
+    syncSnakeGiftCatalogSelection();
     updateRuleGiftOptions();
     renderCatalog();
-    renderLeftGiftCatalogMenu();
-    renderRightGiftCatalogMenu();
+    renderSnakeGiftCatalogMenus();
   } catch (error) {
     updateRuleGiftOptions();
     renderLeftGiftCatalogMenu();
@@ -1498,19 +1491,10 @@ async function refreshGiftCatalogFromLive() {
 
     const payload = await response.json();
     state.catalog = sanitizeCatalog(payload.gifts || []);
-    if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
-      selectedGiftId = state.catalog[0]?.id || '';
-    }
-    if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
-      leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
-    }
-    if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
-      rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
-    }
+    syncSnakeGiftCatalogSelection();
     updateRuleGiftOptions();
     renderCatalog();
-    renderLeftGiftCatalogMenu();
-    renderRightGiftCatalogMenu();
+    renderSnakeGiftCatalogMenus();
     setText(snakeConnectionStatus, payload.message || payload.warning || 'Catálogo actualizado.');
   } catch (error) {
     updateRuleGiftOptions();
@@ -1887,21 +1871,10 @@ function connectLiveEvents() {
     try {
       const payload = JSON.parse(event.data);
       state.catalog = sanitizeCatalog(payload.gifts || []);
-
-      if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
-        selectedGiftId = state.catalog[0]?.id || '';
-      }
-      if (!leftSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
-        leftSelectedCatalogGiftId = state.catalog[0]?.id || '';
-      }
-      if (!rightSelectedCatalogGiftId || !state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
-        rightSelectedCatalogGiftId = state.catalog[0]?.id || '';
-      }
-
+      syncSnakeGiftCatalogSelection();
       updateRuleGiftOptions();
       renderCatalog();
-      renderLeftGiftCatalogMenu();
-      renderRightGiftCatalogMenu();
+      renderSnakeGiftCatalogMenus();
     } catch (_error) {
       // Ignorar.
     }
@@ -2217,6 +2190,34 @@ function getGiftImageUrl(gift) {
   );
 }
 
+function syncSnakeGiftCatalogSelection() {
+  if (!Array.isArray(state.catalog) || state.catalog.length === 0) {
+    selectedGiftId = '';
+    leftSelectedCatalogGiftId = '';
+    rightSelectedCatalogGiftId = '';
+    return;
+  }
+
+  const firstGiftId = state.catalog[0].id;
+
+  if (!state.catalog.some((gift) => String(gift.id) === String(selectedGiftId))) {
+    selectedGiftId = firstGiftId;
+  }
+
+  if (!state.catalog.some((gift) => String(gift.id) === String(leftSelectedCatalogGiftId))) {
+    leftSelectedCatalogGiftId = firstGiftId;
+  }
+
+  if (!state.catalog.some((gift) => String(gift.id) === String(rightSelectedCatalogGiftId))) {
+    rightSelectedCatalogGiftId = firstGiftId;
+  }
+}
+
+function renderSnakeGiftCatalogMenus() {
+  renderLeftGiftCatalogMenu();
+  renderRightGiftCatalogMenu();
+}
+
 // ============================================================================
 // LEFT SIDE GIFT CATALOG FUNCTIONS
 // ============================================================================
@@ -2244,8 +2245,12 @@ function getLeftSelectedCatalogGift() {
 }
 
 function updateLeftGiftCatalogToggle(gift) {
+  const label = gift ? gift.name : "Selecciona un regalo";
+  if (leftGiftCatalogToggleName) {
+    leftGiftCatalogToggleName.textContent = label;
+    return;
+  }
   if (leftGiftCatalogToggle) {
-    const label = gift ? gift.name : "Selecciona un regalo";
     const existingSpan = leftGiftCatalogToggle.querySelector('span:first-child');
     if (existingSpan) {
       existingSpan.textContent = label;
@@ -2376,8 +2381,12 @@ function getRightSelectedCatalogGift() {
 }
 
 function updateRightGiftCatalogToggle(gift) {
+  const label = gift ? gift.name : "Selecciona un regalo";
+  if (rightGiftCatalogToggleName) {
+    rightGiftCatalogToggleName.textContent = label;
+    return;
+  }
   if (rightGiftCatalogToggle) {
-    const label = gift ? gift.name : "Selecciona un regalo";
     const existingSpan = rightGiftCatalogToggle.querySelector('span:first-child');
     if (existingSpan) {
       existingSpan.textContent = label;

@@ -179,7 +179,7 @@ function sanitizeSnakeHistoryEntry(entry, index) {
 
 function sanitizeSnakeVsSnakeState(payload) {
   const defaults = {
-    settings: { rows: 14, cols: 14, tickMs: 450 },
+    settings: { rows: 14, cols: 14, tickMs: 450, boardAspectRatio: 1 },
     snakes: {
       left: {
         side: 'left',
@@ -212,6 +212,7 @@ function sanitizeSnakeVsSnakeState(payload) {
       rows: defaults.settings.rows,
       cols: defaults.settings.cols,
       tickMs: clampNumber(settings.tickMs, 60, 3000, defaults.settings.tickMs),
+      boardAspectRatio: clampNumber(settings.boardAspectRatio, 0.7, 1.7, defaults.settings.boardAspectRatio),
     },
     snakes: {
       left: sanitizeSnakePlayer(snakes.left || payload?.left, 'left'),

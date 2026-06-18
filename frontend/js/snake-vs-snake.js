@@ -8,6 +8,10 @@ const DEFAULT_TICK_MS = 450;
 const SPEED_MIN_MS = 60;
 const SPEED_MAX_MS = 3000;
 const SPEED_STEP_MS = 10;
+const DEFAULT_BOARD_ASPECT_RATIO = 1;
+const BOARD_ASPECT_MIN = 1;
+const BOARD_ASPECT_MAX = 1.7;
+const BOARD_ASPECT_STEP = 0.05;
 
 const state = createDefaultState();
 
@@ -72,6 +76,9 @@ const snakeHistoryList = document.getElementById('snakeHistoryList');
 const snakeSpeedLabel = document.getElementById('snakeSpeedLabel');
 const snakeSpeedValue = document.getElementById('snakeSpeedValue');
 const snakeSpeedSlider = document.getElementById('snakeSpeedSlider');
+const snakeAspectLabel = document.getElementById('snakeAspectLabel');
+const snakeAspectValue = document.getElementById('snakeAspectValue');
+const snakeAspectSlider = document.getElementById('snakeAspectSlider');
 const snakePauseBtn = document.getElementById('snakePauseBtn');
 const snakeResumeBtn = document.getElementById('snakeResumeBtn');
 const leftSnakeNameInput = document.getElementById('leftSnakeNameInput');
@@ -157,6 +164,7 @@ function createDefaultState() {
       rows: DEFAULT_ROWS,
       cols: DEFAULT_COLS,
       tickMs: DEFAULT_TICK_MS,
+      boardAspectRatio: DEFAULT_BOARD_ASPECT_RATIO,
     },
     snakes: {
       left: createDefaultSnake('left', 'right', '#8b5cf6', 'Serpiente1'),
@@ -348,6 +356,7 @@ function sanitizeLoadedState(payload) {
       rows: clamp(settings.rows, 10, 24, DEFAULT_ROWS),
       cols: clamp(settings.cols, 10, 24, DEFAULT_COLS),
       tickMs: clamp(settings.tickMs, SPEED_MIN_MS, SPEED_MAX_MS, DEFAULT_TICK_MS),
+      boardAspectRatio: clamp(settings.boardAspectRatio, BOARD_ASPECT_MIN, BOARD_ASPECT_MAX, DEFAULT_BOARD_ASPECT_RATIO),
     },
     snakes: {
       left: sanitizeLoadedSnake(snakes.left || payload?.left, 'left'),
@@ -922,6 +931,28 @@ function updateSpeedUI() {
   }
 }
 
+function updateAspectUI() {
+  const aspectRatio = clamp(
+    state.settings.boardAspectRatio,
+    BOARD_ASPECT_MIN,
+    BOARD_ASPECT_MAX,
+    DEFAULT_BOARD_ASPECT_RATIO,
+  );
+  state.settings.boardAspectRatio = aspectRatio;
+
+  const label = aspectRatio === 1 ? 'Cuadrado' : 'Vertical';
+
+  setText(snakeAspectLabel, label);
+  setText(snakeAspectValue, `${aspectRatio.toFixed(2)} : 1`);
+
+  if (snakeAspectSlider) {
+    snakeAspectSlider.min = String(Math.round(BOARD_ASPECT_MIN * 100));
+    snakeAspectSlider.max = String(Math.round(BOARD_ASPECT_MAX * 100));
+    snakeAspectSlider.step = String(Math.round(BOARD_ASPECT_STEP * 100));
+    snakeAspectSlider.value = String(Math.round(aspectRatio * 100));
+  }
+}
+
 function formatSnakeSummary(side) {
   const snake = getSnake(side);
   const finishedText = snake.finished ? ' • finalizada' : '';
@@ -956,7 +987,7 @@ function addManualApple(side) {
   }
 }
 
-function drawBoardBackground(ctx, width, height, cellSize, boardImageObj = null) {
+function drawBoardBackground(ctx, width, height, cellWidth, cellHeight, boardImageObj = null) {
   ctx.save();
   ctx.fillStyle = '#0a0f1c';
   ctx.fillRect(0, 0, width, height);
@@ -972,14 +1003,14 @@ function drawBoardBackground(ctx, width, height, cellSize, boardImageObj = null)
   ctx.strokeStyle = '#1a2238';
   ctx.lineWidth = 1;
 
-  for (let x = 0; x <= width; x += cellSize) {
+  for (let x = 0; x <= width; x += cellWidth) {
     ctx.beginPath();
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, height);
     ctx.stroke();
   }
 
-  for (let y = 0; y <= height; y += cellSize) {
+  for (let y = 0; y <= height; y += cellHeight) {
     ctx.beginPath();
     ctx.moveTo(0, y + 0.5);
     ctx.lineTo(width, y + 0.5);
@@ -989,7 +1020,7 @@ function drawBoardBackground(ctx, width, height, cellSize, boardImageObj = null)
   ctx.restore();
 }
 
-function drawSnakeTube(ctx, points, snakeColor = '#ff4fa3') {
+function drawSnakeTube(ctx, points, thickness, snakeColor = '#ff4fa3') {
   if (!points.length) {
     return;
   }
@@ -1002,7 +1033,7 @@ function drawSnakeTube(ctx, points, snakeColor = '#ff4fa3') {
     ctx.lineTo(points[index].x, points[index].y);
   }
 
-  ctx.lineWidth = 20;
+  ctx.lineWidth = thickness;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = snakeColor;
@@ -1028,10 +1059,14 @@ function getHeadDirection(path, headIndex) {
 function drawSnakeHead(ctx, headPoint, direction, cellSize, snakeColor = '#ff4fa3') {
   const centerX = headPoint.x;
   const centerY = headPoint.y;
+  const headRadius = Math.max(7, cellSize * 0.33);
+  const eyeOffset = Math.max(2.8, cellSize * 0.13);
+  const eyeRadius = Math.max(1.8, cellSize * 0.09);
+  const pupilRadius = Math.max(0.8, cellSize * 0.04);
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, headRadius, 0, Math.PI * 2);
   ctx.fillStyle = snakeColor;
   ctx.shadowColor = snakeColor;
   ctx.shadowBlur = 20;
@@ -1040,23 +1075,23 @@ function drawSnakeHead(ctx, headPoint, direction, cellSize, snakeColor = '#ff4fa
 
   const perpX = -direction.dy;
   const perpY = direction.dx;
-  const eyeBaseX = centerX + direction.dx * 2;
-  const eyeBaseY = centerY + direction.dy * 2;
+  const eyeBaseX = centerX + direction.dx * (cellSize * 0.07);
+  const eyeBaseY = centerY + direction.dy * (cellSize * 0.07);
 
-  const leftEye = { x: eyeBaseX + perpX * 4, y: eyeBaseY + perpY * 4 };
-  const rightEye = { x: eyeBaseX - perpX * 4, y: eyeBaseY - perpY * 4 };
+  const leftEye = { x: eyeBaseX + perpX * eyeOffset, y: eyeBaseY + perpY * eyeOffset };
+  const rightEye = { x: eyeBaseX - perpX * eyeOffset, y: eyeBaseY - perpY * eyeOffset };
 
   ctx.save();
   ctx.shadowBlur = 0;
 
   [leftEye, rightEye].forEach((eye) => {
     ctx.beginPath();
-    ctx.arc(eye.x, eye.y, 2.8, 0, Math.PI * 2);
+    ctx.arc(eye.x, eye.y, eyeRadius, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(eye.x + direction.dx * 1.2, eye.y + direction.dy * 1.2, 1.2, 0, Math.PI * 2);
+    ctx.arc(eye.x + direction.dx * pupilRadius, eye.y + direction.dy * pupilRadius, pupilRadius, 0, Math.PI * 2);
     ctx.fillStyle = '#000000';
     ctx.fill();
   });
@@ -1064,7 +1099,8 @@ function drawSnakeHead(ctx, headPoint, direction, cellSize, snakeColor = '#ff4fa
   ctx.restore();
 }
 
-function drawFood(ctx, apples, path, cellSize) {
+function drawFood(ctx, apples, path, cellWidth, cellHeight) {
+  const foodRadius = Math.max(4, Math.min(cellWidth, cellHeight) * 0.2);
   ctx.save();
   ctx.fillStyle = '#ff8c00';
   ctx.shadowColor = '#ff8c00';
@@ -1076,11 +1112,11 @@ function drawFood(ctx, apples, path, cellSize) {
       return;
     }
 
-    const x = point.x * cellSize + cellSize / 2;
-    const y = point.y * cellSize + cellSize / 2;
+    const x = point.x * cellWidth + cellWidth / 2;
+    const y = point.y * cellHeight + cellHeight / 2;
 
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.arc(x, y, foodRadius, 0, Math.PI * 2);
     ctx.fill();
   });
 
@@ -1096,7 +1132,7 @@ function getPathPoint(path, index) {
   return path[safeIndex];
 }
 
-function buildInterpolatedSnakePoints(path, snake, cellSize, alpha) {
+function buildInterpolatedSnakePoints(path, snake, cellWidth, cellHeight, alpha) {
   if (!path.length) {
     return [];
   }
@@ -1114,10 +1150,10 @@ function buildInterpolatedSnakePoints(path, snake, cellSize, alpha) {
 
     const previousPoint = getPathPoint(path, snake.prevHeadIndex - prevDistanceFromHead) || currentPoint;
     const segment = {
-      x: currentPoint.x * cellSize + cellSize / 2,
-      y: currentPoint.y * cellSize + cellSize / 2,
-      prevX: previousPoint.x * cellSize + cellSize / 2,
-      prevY: previousPoint.y * cellSize + cellSize / 2,
+      x: currentPoint.x * cellWidth + cellWidth / 2,
+      y: currentPoint.y * cellHeight + cellHeight / 2,
+      prevX: previousPoint.x * cellWidth + cellWidth / 2,
+      prevY: previousPoint.y * cellHeight + cellHeight / 2,
     };
 
     points.push({
@@ -1129,14 +1165,36 @@ function buildInterpolatedSnakePoints(path, snake, cellSize, alpha) {
   return points;
 }
 
+function getBoardCellSize() {
+  const baseSize = 30;
+
+  if (document.fullscreenElement === boardGrid) {
+    const fullscreenPaddingWidth = 48;
+    const fullscreenPaddingHeight = 180;
+    const extraBoardControls = 120;
+    const maxBoardWidth = Math.max(140, Math.floor(((window.innerWidth - fullscreenPaddingWidth) / 2) - extraBoardControls));
+    const maxBoardHeight = Math.max(140, Math.floor((window.innerHeight - fullscreenPaddingHeight) / 1.05));
+    const widthBasedSize = Math.floor(maxBoardWidth / state.settings.cols);
+    const heightBasedSize = Math.floor(maxBoardHeight / state.settings.rows);
+    const fullscreenSize = Math.min(widthBasedSize, heightBasedSize);
+
+    return clamp(fullscreenSize, 16, 50, baseSize);
+  }
+
+  return baseSize;
+}
+
 function renderBoard(side, alpha = 1) {
-  const CELL_SIZE = 30;
+  const CELL_SIZE = getBoardCellSize();
   const snake = getSnake(side);
   const board = side === 'left' ? leftBoard : rightBoard;
   const path = getSnakePath(side);
+  const cellWidth = CELL_SIZE;
+  const cellHeight = CELL_SIZE;
+  const drawSize = Math.max(8, Math.min(cellWidth, cellHeight));
 
-  const boardWidth = state.settings.cols * CELL_SIZE;
-  const boardHeight = state.settings.rows * CELL_SIZE;
+  const boardWidth = Math.round(state.settings.cols * cellWidth);
+  const boardHeight = Math.round(state.settings.rows * cellHeight);
 
   board.style.width = `${boardWidth}px`;
   board.style.height = `${boardHeight}px`;
@@ -1159,11 +1217,11 @@ function renderBoard(side, alpha = 1) {
     img.src = snake.boardImage;
   }
 
-  drawBoardBackground(ctx, boardWidth, boardHeight, CELL_SIZE, boardImageObj);
+  drawBoardBackground(ctx, boardWidth, boardHeight, cellWidth, cellHeight, boardImageObj);
 
-  const snakePoints = buildInterpolatedSnakePoints(path, snake, CELL_SIZE, alpha);
+  const snakePoints = buildInterpolatedSnakePoints(path, snake, cellWidth, cellHeight, alpha);
 
-  drawSnakeTube(ctx, snakePoints, snake.color);
+  drawSnakeTube(ctx, snakePoints, Math.max(10, drawSize * 0.66), snake.color);
 
   if (snakePoints.length) {
     const headPoint = snakePoints[snakePoints.length - 1];
@@ -1171,10 +1229,10 @@ function renderBoard(side, alpha = 1) {
     const dx = Math.sign(headPoint.x - prevHeadPoint.x);
     const dy = Math.sign(headPoint.y - prevHeadPoint.y);
     const headDirection = dx === 0 && dy === 0 ? getHeadDirection(path, snake.headIndex) : { dx, dy };
-    drawSnakeHead(ctx, headPoint, headDirection, CELL_SIZE, snake.color);
+    drawSnakeHead(ctx, headPoint, headDirection, drawSize, snake.color);
   }
 
-  drawFood(ctx, snake.apples, path, CELL_SIZE);
+  drawFood(ctx, snake.apples, path, cellWidth, cellHeight);
 }
 
 function renderBoards(alpha = 1) {
@@ -1677,6 +1735,15 @@ function setGameSpeed(nextTickMs) {
   state.settings.tickMs = clamp(nextTickMs, SPEED_MIN_MS, SPEED_MAX_MS, DEFAULT_TICK_MS);
   restartGameLoop();
   updateSpeedUI();
+  scheduleSaveState();
+}
+
+function setBoardAspectRatio(nextRatio) {
+  const aspectRatio = clamp(nextRatio, BOARD_ASPECT_MIN, BOARD_ASPECT_MAX, DEFAULT_BOARD_ASPECT_RATIO);
+  state.settings.boardAspectRatio = aspectRatio;
+  state.settings.rows = clamp(Math.round(DEFAULT_ROWS * aspectRatio), 10, 24, DEFAULT_ROWS);
+  updateAspectUI();
+  renderBoards();
   scheduleSaveState();
 }
 
@@ -2557,6 +2624,16 @@ function bootstrapEventListeners() {
     });
   }
 
+  if (snakeAspectSlider) {
+    snakeAspectSlider.min = String(Math.round(BOARD_ASPECT_MIN * 100));
+    snakeAspectSlider.max = String(Math.round(BOARD_ASPECT_MAX * 100));
+    snakeAspectSlider.step = String(Math.round(BOARD_ASPECT_STEP * 100));
+    snakeAspectSlider.value = String(Math.round(state.settings.boardAspectRatio * 100));
+    snakeAspectSlider.addEventListener('input', (event) => {
+      setBoardAspectRatio(Number(event.target.value) / 100);
+    });
+  }
+
   if (snakeGiftSearch) {
     snakeGiftSearch.addEventListener('input', (event) => {
       giftSearchTerm = event.target.value || '';
@@ -2793,6 +2870,14 @@ function bootstrapEventListeners() {
     } else {
       if (fullscreenToggleBtn) fullscreenToggleBtn.textContent = 'Salir pantalla completa';
     }
+
+    renderBoards();
+  });
+
+  window.addEventListener('resize', () => {
+    if (document.fullscreenElement === boardGrid) {
+      renderBoards();
+    }
   });
 }
 
@@ -2818,6 +2903,7 @@ async function initializeApp() {
   hideWinnerOverlay();
   updateSnakeTitles();
   updateSpeedUI();
+  updateAspectUI();
   await loadGiftCatalog();
   renderBoards();
   renderRules();

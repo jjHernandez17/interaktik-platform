@@ -1822,23 +1822,36 @@ function getGiftRepeatCount(payload) {
 }
 
 function applyRuleToSnake(rule, payload) {
+  const applesPerGift = Math.max(1, Number(rule.apples || 1) || 1);
+  const repeatCount = Math.max(
+    1,
+    Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1
+  );
+
+  const totalApples = applesPerGift * repeatCount;
 
   console.log("APLICANDO REGLA", {
     regalo: payload?.giftName,
     lado: rule.side,
-    manzanas: rule.apples
+    manzanasPorRegalo: applesPerGift,
+    repeatCount,
+    totalApples
   });
 
-
-  const totalApples = Math.max(1, Number(rule.apples || 1) || 1);
   const snakeLabel = getSnake(rule.side).label;
+
   const created = spawnApples(rule.side, totalApples, 'live', {
     giftId: payload?.giftId || rule.giftId,
     giftName: payload?.giftName || rule.giftName,
   });
 
   if (created > 0) {
-    pushGiftActionToHistory(`${payload?.giftName || rule.giftName} añadió ${created} manzana(s) a ${snakeLabel}`, rule.side, created, 'live');
+    pushGiftActionToHistory(
+      `${payload?.giftName || rule.giftName} x${repeatCount} añadió ${created} manzana(s) a ${snakeLabel}`,
+      rule.side,
+      created,
+      'live'
+    );
     renderBoards();
   }
 
@@ -1853,22 +1866,37 @@ function handleLiveGift(payload) {
   console.log("🎁 Gift recibido:", payload);
   console.log("REGLAS ACTIVAS:", state.rules);
 
+  const repeatCount = Math.max(
+    1,
+    Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1
+  );
+
+  const hasRepeatEndField = Object.prototype.hasOwnProperty.call(payload || {}, 'repeatEnd');
+  const repeatEnd = Boolean(payload?.repeatEnd);
+
+  // Si el payload trae repeatEnd, ignoramos TODOS los eventos intermedios
+  // y solo procesamos el final del combo.
+  if (hasRepeatEndField && repeatEnd === false) {
+    console.log("⏭️ Gift repetido intermedio ignorado hasta repeatEnd:", {
+      giftId: payload?.giftId,
+      giftName: payload?.giftName,
+      repeatCount,
+      repeatEnd
+    });
+    return;
+  }
+
   const giftSignature = [
     String(payload?.giftId || '').trim(),
     normalizeText(payload?.giftName || '').toLowerCase(),
     String(payload?.user?.uniqueId || '').trim().toLowerCase(),
-    String(payload?.repeatCount ?? payload?.giftCount ?? 1),
-    String(Boolean(payload?.repeatEnd)),
+    String(repeatCount),
+    String(repeatEnd)
   ].join('|');
 
   const now = Date.now();
   if (giftSignature === lastProcessedGiftSignature && now - lastProcessedGiftAt < 1200) {
     console.log("⏭️ Gift duplicado ignorado:", giftSignature);
-    return;
-  }
-
-  if (Number(payload?.repeatCount || payload?.giftCount || 1) > 1 && !payload?.repeatEnd) {
-    console.log("⏭️ Gift repetido intermedio ignorado hasta repeatEnd:", giftSignature);
     return;
   }
 
@@ -1878,55 +1906,44 @@ function handleLiveGift(payload) {
   const rule = findRuleForGift(payload);
 
   if (!rule) {
-    // 🔥 fallback automático
-    console.log("⚠️ No hay regla, aplicando fallback");
-
-    const randomSide = Math.random() > 0.5 ? "left" : "right";
-    const created = spawnApples(randomSide, getGiftRepeatCount(payload), 'live', {
+    console.log("⚠️ No hay regla para este regalo:", {
       giftId: payload?.giftId,
-      giftName: payload?.giftName || 'Gift'
+      giftName: payload?.giftName,
+      repeatCount
     });
-
-    if (created > 0) {
-      pushGiftActionToHistory(
-        `${payload?.giftName || 'Gift'} añadió ${created} manzana(s)`,
-        randomSide,
-        created,
-        'live'
-      );
-      renderBoards();
-    }
-
     return;
   }
 
   console.log("✅ Regla encontrada:", rule);
-  applyRuleToSnake(rule, payload);
+  applyRuleToSnake(rule, {
+    ...payload,
+    repeatCount
+  });
 }
 
 function connectLiveEvents() {
-
-  if (liveEventsConnected) {
-    console.log("⚠️ SSE ya conectado");
-    return;
-  }
-
-  liveEventsConnected = true;
-
-  console.log("🔥 NUEVA CONEXION SSE");
-
   if (liveEventsSource) {
     liveEventsSource.close();
+    liveEventsSource = null;
   }
 
+  liveEventsConnected = false;
+
+  console.log("[SNAKE] Abriendo SSE /events...");
   liveEventsSource = new EventSource('/events?gameType=snake');
+
+  liveEventsSource.addEventListener('open', () => {
+    console.log('[SNAKE] SSE conectado');
+    liveEventsConnected = true;
+  });
 
   liveEventsSource.addEventListener('status', (event) => {
     try {
       const payload = JSON.parse(event.data);
+      console.log('[SNAKE] status SSE:', payload);
       updateConnectionState(payload);
-    } catch (_error) {
-      // Ignorar.
+    } catch (error) {
+      console.error('[SNAKE] Error parseando status SSE:', error);
     }
   });
 
@@ -1938,31 +1955,31 @@ function connectLiveEvents() {
       updateRuleGiftOptions();
       renderCatalog();
       renderSnakeGiftCatalogMenus();
-    } catch (_error) {
-      // Ignorar.
+    } catch (error) {
+      console.error('[SNAKE] Error parseando catálogo SSE:', error);
     }
   });
 
   liveEventsSource.addEventListener('gift', (event) => {
-
-    console.log("🎯 LISTENER GIFT EJECUTADO");
-
     try {
       const payload = JSON.parse(event.data);
+      console.log('[SNAKE] gift SSE:', payload);
       handleLiveGift(payload);
-    } catch (_error) {
-      // Ignorar.
+    } catch (error) {
+      console.error('[SNAKE] Error parseando gift SSE:', error);
     }
   });
 
-  liveEventsSource.addEventListener('error', () => {
-    console.log("❌ ERROR SSE");
+  liveEventsSource.addEventListener('error', (event) => {
+    console.error('[SNAKE] SSE error:', event);
 
+    // OJO: EventSource suele reintentar solo.
+    // Aquí solo marca visualmente que hubo problema temporal.
     liveEventsConnected = false;
 
-    setText(
-      snakeConnectionStatus,
-      'La conexion en vivo se interrumpio.'
+    setLiveStatus(
+      state.live.uniqueId ? 'disconnected' : 'unlinked',
+      'La conexión de eventos con el servidor se interrumpió.'
     );
   });
 }
@@ -2888,7 +2905,6 @@ async function initializeApp() {
   await loadStateFromServer();
   await restoreTiktokConnectionSnake();
 
-  // Pre-load board images from state
   ['left', 'right'].forEach((side) => {
     const snake = getSnake(side);
     if (snake.boardImage && !boardImageCache[side]) {
@@ -2908,7 +2924,10 @@ async function initializeApp() {
   renderBoards();
   renderRules();
   renderHistory();
-  connectLiveEvents();
+
+  // ❌ NO abrir SSE aquí
+  // connectLiveEvents();
+
   startGameLoop();
 }
 

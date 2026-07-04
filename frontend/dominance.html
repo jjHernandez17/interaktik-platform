@@ -45,6 +45,58 @@
       <p id="dominanceConnectionDetails" class="hint"></p>
     </section>
 
+
+    <section class="config-card">
+      <div class="card-header">
+        <h2>Configuración de partida</h2>
+      </div>
+
+      <div class="dominance-game-config">
+        <div class="config-group">
+          <label for="dominanceGameMode">Modo de juego</label>
+          <select id="dominanceGameMode">
+            <option value="team_hp">Vida de equipo</option>
+            <option value="soldier_kills">Kills por soldado</option>
+          </select>
+        </div>
+
+        <div id="killsModeConfig" class="kills-mode-config">
+          <div class="config-group">
+            <label for="dominanceKillsVictoryType">Condición de victoria</label>
+            <select id="dominanceKillsVictoryType">
+              <option value="time">Más kills al acabarse el tiempo</option>
+              <option value="target">Primero en llegar a la meta de kills</option>
+            </select>
+          </div>
+
+          <div class="config-group" id="killsDurationGroup">
+            <label for="dominanceKillsDuration">Duración (segundos)</label>
+            <input id="dominanceKillsDuration" type="number" min="10" value="120">
+          </div>
+
+          <div class="config-group" id="killsTargetGroup" style="display:none;">
+            <label for="dominanceKillsTarget">Meta de kills</label>
+            <input id="dominanceKillsTarget" type="number" min="1" value="20">
+          </div>
+
+          <div class="config-group">
+            <label for="dominanceSoldierHp">Vida por soldado</label>
+            <input id="dominanceSoldierHp" type="number" min="1" value="200">
+          </div>
+        </div>
+
+        <div class="team-config" style="display:flex; gap:12px; justify-content:center;">
+          <button id="dominanceSaveGameConfigBtn" class="btn primary" type="button">
+            Guardar configuración
+          </button>
+
+          <button id="dominanceResetBtn" class="btn ghost" type="button">
+            Reiniciar juego
+          </button>
+        </div>
+      </div>
+    </section>
+
     <section class="dominance-battlefield">
 
       <div class="army-side left-side">
@@ -64,11 +116,15 @@
       </div>
 
       <div id="battlefield" class="battlefield">
-
-        <div class="battlefield-title">
-          DOMINANCE
+        <div id="dominanceTimerPill" class="dominance-timer-pill">
+          00:00
         </div>
 
+        <button id="dominanceStartBattleBtn" class="btn primary dominance-start-btn" type="button">
+            Iniciar combate
+        </button>
+
+        <div id="dominanceCenterStatus" class="dominance-center-status"></div>
       </div>
 
       <div class="army-side right-side">
@@ -114,6 +170,14 @@
           <input id="leftConfigBackground" type="file" accept="image/*">
         </div>
 
+        <div class="team-config">
+
+          <button id="saveLeftTeamBtn" class="btn primary" type="button">
+            Guardar configuración
+          </button>
+
+        </div>
+
       </div>
 
       <div class="config-card">
@@ -138,6 +202,14 @@
         <div class="config-group">
           <label>Fondo del equipo</label>
           <input id="rightConfigBackground" type="file" accept="image/*">
+        </div>
+
+        <div class="team-config">
+
+          <button id="saveRightTeamBtn" class="btn primary" type="button">
+            Guardar configuración
+          </button>
+
         </div>
 
       </div>

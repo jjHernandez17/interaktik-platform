@@ -272,27 +272,208 @@ function sanitizeDominanceHistoryEntry(entry, index) {
 }
 
 function sanitizeDominanceGameState(payload) {
-  const teams = Array.isArray(payload?.teams)
-    ? payload.teams.slice(0, 20).map(sanitizeDominanceTeam)
-    : [sanitizeDominanceTeam({}, 0), sanitizeDominanceTeam({}, 1)];
-  const teamIds = new Set(teams.map((team) => team.id));
+  const gameMode =
+    payload?.gameMode === 'soldier_kills'
+      ? 'soldier_kills'
+      : 'team_hp';
+
+  const killsConfig = {
+    victoryType:
+      payload?.killsConfig?.victoryType === 'target'
+        ? 'target'
+        : 'time',
+
+    durationSeconds: Math.max(
+      10,
+      Number(payload?.killsConfig?.durationSeconds || 120)
+    ),
+
+    targetKills: Math.max(
+      1,
+      Number(payload?.killsConfig?.targetKills || 20)
+    ),
+
+    soldierHp: Math.max(
+      1,
+      Number(payload?.killsConfig?.soldierHp || 200)
+    ),
+
+    timerStartedAt:
+      typeof payload?.killsConfig?.timerStartedAt === 'string'
+        ? payload.killsConfig.timerStartedAt
+        : null,
+
+    timerEndsAt:
+      typeof payload?.killsConfig?.timerEndsAt === 'string'
+        ? payload.killsConfig.timerEndsAt
+        : null,
+
+    isFinished: Boolean(payload?.killsConfig?.isFinished),
+  };
+
+  const leftTeam = {
+    id: 'left',
+
+    name: String(payload?.teams?.left?.name || 'Titanes')
+      .trim()
+      .slice(0, 50),
+
+    color: String(
+      payload?.teams?.left?.color
+      || payload?.teams?.left?.backgroundColor
+      || '#ef4444'
+    ),
+
+    health: Math.max(
+      0,
+      Number(payload?.teams?.left?.health || 10000)
+    ),
+
+    maxHealth: Math.max(
+      0,
+      Number(
+        payload?.teams?.left?.maxHealth
+        || payload?.teams?.left?.health
+        || 10000
+      )
+    ),
+
+    kills: Math.max(
+      0,
+      Number(payload?.teams?.left?.kills || 0)
+    ),
+
+    backgroundType:
+      payload?.teams?.left?.backgroundType === 'image'
+        ? 'image'
+        : 'color',
+
+    backgroundColor: String(
+      payload?.teams?.left?.backgroundColor
+      || payload?.teams?.left?.color
+      || '#ef4444'
+    ),
+
+    backgroundImage:
+      typeof payload?.teams?.left?.backgroundImage === 'string'
+        ? payload.teams.left.backgroundImage
+        : '',
+  };
+
+  const rightTeam = {
+    id: 'right',
+
+    name: String(payload?.teams?.right?.name || 'Imperio')
+      .trim()
+      .slice(0, 50),
+
+    color: String(
+      payload?.teams?.right?.color
+      || payload?.teams?.right?.backgroundColor
+      || '#3b82f6'
+    ),
+
+    health: Math.max(
+      0,
+      Number(payload?.teams?.right?.health || 10000)
+    ),
+
+    maxHealth: Math.max(
+      0,
+      Number(
+        payload?.teams?.right?.maxHealth
+        || payload?.teams?.right?.health
+        || 10000
+      )
+    ),
+
+    kills: Math.max(
+      0,
+      Number(payload?.teams?.right?.kills || 0)
+    ),
+
+    backgroundType:
+      payload?.teams?.right?.backgroundType === 'image'
+        ? 'image'
+        : 'color',
+
+    backgroundColor: String(
+      payload?.teams?.right?.backgroundColor
+      || payload?.teams?.right?.color
+      || '#3b82f6'
+    ),
+
+    backgroundImage:
+      typeof payload?.teams?.right?.backgroundImage === 'string'
+        ? payload.teams.right.backgroundImage
+        : '',
+  };
+
+  const soldierHp = killsConfig.soldierHp;
+
+  function sanitizeSoldier(soldier, side) {
+    return {
+      id: String(
+        soldier?.id ||
+        `soldier-${side}-${Math.random().toString(36).slice(2, 8)}`
+      ),
+      uniqueId: String(soldier?.uniqueId || '').trim().slice(0, 120),
+      nickname: String(soldier?.nickname || 'Jugador').trim().slice(0, 120),
+      avatarData: String(soldier?.avatarData || '').trim().slice(0, 5000),
+      hp: Math.max(0, Number(soldier?.hp ?? soldierHp)),
+      maxHp: Math.max(1, Number(soldier?.maxHp ?? soldierHp)),
+      x: Number(soldier?.x || 0),
+      y: Number(soldier?.y || 0),
+      targetX: typeof soldier?.targetX === 'number' ? soldier.targetX : undefined,
+      targetY: typeof soldier?.targetY === 'number' ? soldier.targetY : undefined,
+      speed: typeof soldier?.speed === 'number' ? soldier.speed : undefined,
+    };
+  }
 
   return {
-    teams,
-    active_team_id: teamIds.has(payload?.active_team_id) ? String(payload.active_team_id) : teams[0]?.id,
-    round: Math.max(1, Number(payload?.round || 1) || 1),
-    winner_team_id: payload?.winner_team_id && teamIds.has(payload.winner_team_id) ? String(payload.winner_team_id) : null,
-    history: Array.isArray(payload?.history) ? payload.history.slice(0, 100).map(sanitizeDominanceHistoryEntry) : [],
-    viewer_bindings: typeof payload?.viewer_bindings === 'object' && payload.viewer_bindings !== null ? payload.viewer_bindings : {},
-    soldiers: Array.isArray(payload?.soldiers) ? payload.soldiers.slice(0, 300).map((s, i) => ({
-      id: String(s?.id || `soldier-${i + 1}`),
-      uniqueId: String(s?.uniqueId || s?.id || '').trim(),
-      nickname: String(s?.nickname || '').trim().slice(0, 120),
-      avatarData: s?.avatarData ? String(s.avatarData).slice(0, 1000) : null,
-      teamId: s?.teamId && teamIds.has(s.teamId) ? s.teamId : null,
-    })) : [],
+    gameMode,
+    killsConfig,
+
+    teams: {
+      left: leftTeam,
+      right: rightTeam,
+    },
+
+    soldiers: {
+      left: Array.isArray(payload?.soldiers?.left)
+        ? payload.soldiers.left.slice(0, 500).map((soldier) => sanitizeSoldier(soldier, 'left'))
+        : [],
+
+      right: Array.isArray(payload?.soldiers?.right)
+        ? payload.soldiers.right.slice(0, 500).map((soldier) => sanitizeSoldier(soldier, 'right'))
+        : [],
+    },
+
+    viewer_bindings:
+      typeof payload?.viewer_bindings === 'object'
+      && payload.viewer_bindings !== null
+        ? payload.viewer_bindings
+        : {},
+
+    giftRules: Array.isArray(payload?.giftRules)
+      ? payload.giftRules
+      : [],
+
+    history: Array.isArray(payload?.history)
+      ? payload.history.slice(0, 200)
+      : [],
+
+    active_team_id: String(payload?.active_team_id || 'left'),
+
+    round: Math.max(1, Number(payload?.round || 1)),
+
+    winner_team_id: payload?.winner_team_id || null,
+
+    winner: payload?.winner || null,
   };
 }
+
+
 
 module.exports = {
   normalizeEmail,

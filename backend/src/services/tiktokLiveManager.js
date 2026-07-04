@@ -184,6 +184,15 @@ function simplifyChatEvent(data) {
       uniqueId: data?.user?.uniqueId || '',
       nickname: data?.user?.nickname || '',
       userId: data?.user?.userId || null,
+
+      avatar:
+        data?.user?.profilePictureUrl ||
+        data?.user?.avatar ||
+        data?.user?.profilePicture ||
+        data?.user?.avatarThumb ||
+        data?.user?.avatarMedium ||
+        data?.user?.avatarLarge ||
+        null,
     },
     timestamp: new Date().toISOString(),
   };
@@ -357,25 +366,14 @@ connection.on(WebcastEvent.GIFT, (data) => {
     repeatEnd: data?.repeatEnd,
     createTime: data?.createTime,
     userId: data?.user?.userId,
-    uniqueId: data?.uniqueId,
+    uniqueId: data?.user?.uniqueId,
   });
 
-  const repeatEnd =
-    data.repeatEnd === true ||
-    data.repeatEnd === 1 ||
-    data.repeatEnd === "1";
-
-  if (repeatEnd) {
-    console.log("🚫 Gift duplicado ignorado (repeatEnd)");
-    return;
-  }
-
-  const payload = simplifyGiftEvent(data);
-
-  publish(normalizedGameType, 'gift', {
+  publish(normalizedGameType, "gift", {
     ownerKey,
-    ...payload,
+    ...simplifyGiftEvent(data),
   });
+
 });
   // connection.on(WebcastEvent.GIFT, (data) => {
   //   logger.info(`[GIFT EVENT] Recibido en backend para ${normalizedGameType}:`, {
@@ -389,9 +387,25 @@ connection.on(WebcastEvent.GIFT, (data) => {
   //   publish(normalizedGameType, 'gift', { ownerKey, ...payload });
   // });
 
-  connection.on(WebcastEvent.CHAT, (data) => {
-    publish(normalizedGameType, 'comment', { ownerKey, ...simplifyChatEvent(data) });
+connection.on(WebcastEvent.CHAT, (data) => {
+  console.log('[BACKEND CHAT RAW]', {
+    uniqueId: data?.user?.uniqueId,
+    nickname: data?.user?.nickname,
+    userId: data?.user?.userId,
+    profilePictureUrl: data?.user?.profilePictureUrl,
+    avatar: data?.user?.avatar,
+    profilePicture: data?.user?.profilePicture,
+    avatarThumb: data?.user?.avatarThumb,
+    avatarMedium: data?.user?.avatarMedium,
+    avatarLarge: data?.user?.avatarLarge,
+    fullUser: data?.user,
   });
+
+  publish(normalizedGameType, 'comment', {
+    ownerKey,
+    ...simplifyChatEvent(data),
+  });
+});
 
   connection.on(WebcastEvent.MEMBER, (data) => {
     publish(normalizedGameType, 'member', { ownerKey, ...simplifyMemberEvent(data) });

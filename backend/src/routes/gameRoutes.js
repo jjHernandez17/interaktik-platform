@@ -1,3 +1,5 @@
+// tiktokinteractive/backend/src/routes/gameRoutes.js
+
 const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
 const gameStateService = require('../services/gameStateService');

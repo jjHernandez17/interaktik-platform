@@ -1,3 +1,4 @@
+// TIKTOKINTERACTIVE/frontend/js/dominance.js
 const dominanceConnectionForm = document.getElementById('dominanceConnectionForm');
 const dominanceUsernameInput = document.getElementById('dominanceUsername');
 const dominanceLinkBtn = document.getElementById('dominanceLinkBtn');
@@ -19,6 +20,12 @@ const dominanceKillsDuration = document.getElementById('dominanceKillsDuration')
 const dominanceKillsTarget = document.getElementById('dominanceKillsTarget');
 const dominanceSoldierHp = document.getElementById('dominanceSoldierHp');
 const dominanceSaveGameConfigBtn = document.getElementById('dominanceSaveGameConfigBtn');
+const dominanceSavePowersConfigBtn = document.getElementById('dominanceSavePowersConfigBtn');
+const dominancePowersConfigTable = document.getElementById('dominancePowersConfigTable');
+
+let dominanceGiftCatalog = [];
+let dominanceGiftCatalogLoaded = false;
+let dominanceGiftCatalogLoading = false;
 
 const killsModeConfig = document.getElementById('killsModeConfig');
 const killsDurationGroup = document.getElementById('killsDurationGroup');
@@ -135,6 +142,11 @@ function createInitialDominanceState() {
       status: 'disconnected',
       message: 'Sin conexión activa.',
       error: '',
+    },
+
+    combat: {
+      powerCatalog: [],
+      powerBindings: [],
     },
   };
 }
@@ -322,17 +334,26 @@ function generateSoldierPosition(side) {
 function createSoldierFromViewer(user, side) {
   const position = generateSoldierPosition(side);
   const soldierHp = Number(dominanceState.killsConfig?.soldierHp || 200);
-
-  return {
+  const baseSoldier = {
     id: `soldier-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     uniqueId: String(user?.uniqueId || user?.nickname || '').trim(),
     nickname: String(user?.nickname || user?.uniqueId || 'Jugador').trim(),
     avatarData: getViewerAvatar(user),
+    side,
     hp: soldierHp,
     maxHp: soldierHp,
+    shield: 0,
+    giftScore: 0,
+    size: 42,
     x: position.x,
     y: position.y,
   };
+
+  if (window.DominanceCombat?.soldierState?.createSoldierCombatState) {
+    return window.DominanceCombat.soldierState.createSoldierCombatState(baseSoldier, side);
+  }
+
+  return baseSoldier;
 }
 
 async function recruitViewerToTeam(payload) {
@@ -723,6 +744,7 @@ function extractAvatarUrl(avatar) {
 let soldiersAnimationFrame = null;
 
 let dominanceCenterTimerInterval = null;
+let combatEngine = null;
 
 function getArmyBounds(side) {
   const container = side === 'left' ? leftArmy : rightArmy;
@@ -810,6 +832,43 @@ function startSoldiersAnimation() {
   soldiersAnimationFrame = requestAnimationFrame(animateFloatingSoldiers);
 }
 
+function initializeCombatEngine() {
+  if (combatEngine) {
+    return combatEngine;
+  }
+
+  if (!window.DominanceCombat?.createCombatEngine) {
+    return null;
+  }
+
+  combatEngine = window.DominanceCombat.createCombatEngine({
+    getWorld: () => ({
+      soldiers: dominanceState.soldiers,
+      teams: dominanceState.teams,
+      combat: dominanceState.combat,
+    }),
+  });
+
+  if (combatEngine) {
+    window.DominanceCombat.combatEngine = combatEngine;
+    window.DominanceCombat.getCombatEngine = () => combatEngine;
+    combatEngine.setWorldProvider(() => ({
+      soldiers: dominanceState.soldiers,
+      teams: dominanceState.teams,
+      combat: dominanceState.combat,
+    }));
+    combatEngine.start();
+  }
+
+  return combatEngine;
+}
+
+function stopCombatEngine() {
+  if (combatEngine) {
+    combatEngine.stop();
+  }
+}
+
 function stopSoldiersAnimation() {
   if (soldiersAnimationFrame) {
     cancelAnimationFrame(soldiersAnimationFrame);
@@ -867,9 +926,45 @@ function buildSoldierHpBar(soldier) {
 }
 
 
+const MIN_GIFTS_FOR_MAX_SIZE = 20; // cantidad de regalos acumulados necesarios para llegar al tamaño máximo si nadie más lo ha superado
+
+function getScaledSoldierSize(soldier, side) {
+  const teamSoldiers = dominanceState.soldiers[side] || [];
+  const maxGiftScore = teamSoldiers.reduce((max, current) => {
+    return Math.max(max, Number(current?.giftScore || 0));
+  }, 0);
+
+  const effectiveMax = Math.max(maxGiftScore, MIN_GIFTS_FOR_MAX_SIZE);
+
+  const ratio = Math.max(0, Number(soldier?.giftScore || 0) / effectiveMax);
+  return Math.max(42, Math.min(90, 42 + (ratio * 48)));
+}
+
+function recalculateSoldierVisualSizes() {
+  if (!dominanceState?.soldiers) return;
+
+  const growthEase = 0.04; // qué tan rápido se acerca al tamaño objetivo cada frame (0-1)
+
+  ['left', 'right'].forEach((side) => {
+    const soldiers = dominanceState.soldiers[side] || [];
+    soldiers.forEach((soldier) => {
+      const targetSize = getScaledSoldierSize(soldier, side);
+      const currentSize = Number(soldier.size || 42);
+
+      if (Math.abs(targetSize - currentSize) < 0.1) {
+        soldier.size = targetSize;
+      } else {
+        soldier.size = currentSize + (targetSize - currentSize) * growthEase;
+      }
+    });
+  });
+}
+
 function renderSoldiers() {
   leftArmy.innerHTML = '';
   rightArmy.innerHTML = '';
+
+  recalculateSoldierVisualSizes();
 
   dominanceState.soldiers.left.forEach((soldier) => {
     const element = document.createElement('div');
@@ -878,9 +973,10 @@ function renderSoldiers() {
 
     element.style.left = `${soldier.x}px`;
     element.style.top = `${soldier.y}px`;
+    element.style.width = `${soldier.size || 42}px`;
 
     element.innerHTML = `
-      <div class="soldier-avatar">
+      <div class="soldier-avatar" style="width:${soldier.size || 42}px;height:${soldier.size || 42}px;">
         <img
           src="${soldier.avatarData || 'assets/img/default-avatar.png'}"
           alt=""
@@ -899,9 +995,10 @@ function renderSoldiers() {
 
     element.style.left = `${soldier.x}px`;
     element.style.top = `${soldier.y}px`;
+    element.style.width = `${soldier.size || 42}px`;
 
     element.innerHTML = `
-      <div class="soldier-avatar">
+      <div class="soldier-avatar" style="width:${soldier.size || 42}px;height:${soldier.size || 42}px;">
         <img
           src="${soldier.avatarData || 'assets/img/default-avatar.png'}"
           alt=""
@@ -1002,12 +1099,12 @@ async function resetGame() {
     live: liveState
   };
 
-updateArenaMessage(
-  currentMode === 'soldier_kills'
-    ? 'Juego reiniciado. Recluta soldados y pulsa "Iniciar combate".'
-    : 'Juego reiniciado. Esperando nuevos combatientes...',
-  false
-);
+  updateArenaMessage(
+    currentMode === 'soldier_kills'
+      ? 'Juego reiniciado. Recluta soldados y pulsa "Iniciar combate".'
+      : 'Juego reiniciado. Esperando nuevos combatientes...',
+    false
+  );
 
   renderState();
   await saveDominanceState();
@@ -1076,16 +1173,10 @@ async function saveDominanceState() {
     history: dominanceState.history,
     viewer_bindings: dominanceState.viewer_bindings,
     soldiers: dominanceState.soldiers,
+    combat: dominanceState.combat,
   };
 
-
   try {
-    console.log('GUARDANDO DOMINANCE', payload);
-    console.log('ENVIANDO A BACKEND', JSON.stringify(payload, null, 2));
-    console.log(
-      'ENVIANDO A BACKEND',
-      JSON.stringify(payload, null, 2)
-    );
     const response = await fetch('/api/dominance/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1145,10 +1236,17 @@ async function loadDominanceState() {
 
     const initialState = createInitialDominanceState();
 
+    const combatState = payload.combat || dominanceState.combat || {};
+
     dominanceState = {
       ...initialState,
       ...dominanceState,
       ...payload,
+
+      combat: {
+        powerCatalog: Array.isArray(combatState.powerCatalog) ? combatState.powerCatalog : [],
+        powerBindings: Array.isArray(combatState.powerBindings) ? combatState.powerBindings : [],
+      },
 
       teams: {
         left: {
@@ -1214,8 +1312,13 @@ function renderState() {
   renderCenterStatus();
   renderStartBattleButton();
   renderSummary();
+  renderCombatPowerConfig();
   renderSoldiers();
   renderHistory();
+
+  if (window.DominanceCombat?.registerCombatSystems) {
+    window.DominanceCombat.registerCombatSystems();
+  }
 
   if (dominanceState.live.status !== 'connected') {
     updateArenaMessage(
@@ -1324,7 +1427,7 @@ function connectToEvents() {
       const avatarUrl = getViewerAvatar(payload.user);
       console.log('[DOMINANCE AVATAR FINAL]', avatarUrl);
 
-      
+
 
       const soldierMaxHp =
         dominanceState.gameMode === 'soldier_kills'
@@ -1336,9 +1439,13 @@ function connectToEvents() {
         uniqueId: userId,
         nickname: payload.user?.nickname || userId,
         avatarData: avatarUrl,
+        side: selectedSide,
 
         hp: soldierMaxHp,
         maxHp: soldierMaxHp,
+        shield: 0,
+        giftScore: 0,
+        size: 42,
         isDead: false,
 
         x: startPosition.x,
@@ -1348,17 +1455,24 @@ function connectToEvents() {
         speed: 0.25 + Math.random() * 0.35
       };
 
-      dominanceState.soldiers[selectedSide].push(soldier);
+      const soldierWithCombatState = window.DominanceCombat?.soldierState?.createSoldierCombatState
+        ? window.DominanceCombat.soldierState.createSoldierCombatState(soldier, selectedSide)
+        : soldier;
+      dominanceState.soldiers[selectedSide].push(soldierWithCombatState);
+
+      if (isKillsMode()) {
+        await triggerThresholdAction(userId, 'comment', 1);
+      }
 
       dominanceState.history.push(
         createDominanceHistoryEntry(
-          `${soldier.nickname} se unió a ${selectedTeam.name}`,
+          `${soldierWithCombatState.nickname} se unió a ${selectedTeam.name}`,
           'live'
         )
       );
 
       updateArenaMessage(
-        `${soldier.nickname} se unió a ${selectedTeam.name}`,
+        `${soldierWithCombatState.nickname} se unió a ${selectedTeam.name}`,
         true
       );
 
@@ -1403,6 +1517,60 @@ function connectToEvents() {
         return;
       }
 
+      const giftRepeatCount = Number(payload.repeatCount || payload.giftCount || 1) || 1;
+      const giftName = payload.giftName || '';
+
+      // Crecimiento del soldado por regalos (aplica en ambos modos)
+      const senderMatch = findSoldierByUserId(sender);
+      if (senderMatch?.soldier) {
+        senderMatch.soldier.giftScore =
+          Number(senderMatch.soldier.giftScore || 0) + giftRepeatCount;
+      }
+
+      if (isKillsMode()) {
+        if (!dominanceState.killsCombatStarted) {
+          markLiveEventFingerprintProcessed(fp);
+          renderState();
+          await saveDominanceState();
+          return;
+        }
+
+        if (!senderMatch?.soldier || senderMatch.soldier.isDead) {
+          markLiveEventFingerprintProcessed(fp);
+          return;
+        }
+
+        const binding = resolveAbilityBindingForAction('gift', giftName);
+        const abilityId = binding?.powerId || 'basic-shot';
+        const configuredDamage = Number(binding?.parameterValue || 0);
+        const overrides = configuredDamage > 0 ? { damage: configuredDamage } : null;
+
+        const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
+        if (engine) {
+          engine.queueAbility(senderMatch.soldier.id, abilityId, null, overrides);
+        }
+
+        const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+
+        dominanceState.history.push(
+          createDominanceHistoryEntry(
+            `${payload.user?.nickname || sender} activó ${ability?.name || abilityId} con ${giftName || 'un regalo'}`,
+            'live'
+          )
+        );
+
+        updateArenaMessage(
+          `${payload.user?.nickname || sender} lanzó ${ability?.name || abilityId}`,
+          true
+        );
+
+        markLiveEventFingerprintProcessed(fp);
+        renderState();
+        await saveDominanceState();
+        return;
+      }
+
+      // Modo vida de equipo (comportamiento existente, sin cambios)
       const attackerSide = senderSide;
       const defenderSide = attackerSide === 'left' ? 'right' : 'left';
 
@@ -1414,8 +1582,7 @@ function connectToEvents() {
         return;
       }
 
-      const damage =
-        Number(payload.repeatCount || payload.giftCount || 1) || 1;
+      const damage = giftRepeatCount;
 
       defenderTeam.health = Math.max(
         0,
@@ -1453,6 +1620,43 @@ function connectToEvents() {
 
     } catch (error) {
       console.warn('[DOMINANCE] Error procesando gift', error);
+    }
+  });
+
+  liveEventsSource.addEventListener('like', async (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
+      if (!userId) return;
+
+      const increment = Number(payload.likeCount || payload.count || 1) || 1;
+      await triggerThresholdAction(userId, 'like', increment);
+    } catch (error) {
+      console.warn('[DOMINANCE] Error procesando like', error);
+    }
+  });
+
+  liveEventsSource.addEventListener('follow', async (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
+      if (!userId) return;
+
+      await triggerThresholdAction(userId, 'follow', 1);
+    } catch (error) {
+      console.warn('[DOMINANCE] Error procesando follow', error);
+    }
+  });
+
+  liveEventsSource.addEventListener('share', async (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
+      if (!userId) return;
+
+      await triggerThresholdAction(userId, 'share', 1);
+    } catch (error) {
+      console.warn('[DOMINANCE] Error procesando share', error);
     }
   });
 
@@ -1555,6 +1759,12 @@ async function disconnectTikTokLive() {
 }
 
 async function loadGiftCatalog() {
+  if (dominanceGiftCatalogLoading) {
+    return dominanceGiftCatalog;
+  }
+
+  dominanceGiftCatalogLoading = true;
+
   try {
     const response = await fetch('/api/gifts?gameType=dominance');
     const result = await response.json();
@@ -1563,12 +1773,251 @@ async function loadGiftCatalog() {
       throw new Error(result.error || 'No se pudo cargar el catálogo.');
     }
 
+    dominanceGiftCatalog = Array.isArray(result.gifts) ? result.gifts : [];
+    dominanceGiftCatalogLoaded = true;
+
+    if (typeof renderCombatPowerConfig === 'function') {
+      renderCombatPowerConfig();
+    }
+
     await showAppAlert('Catálogo cargado correctamente.', 'TikTok catálogo');
-    return result.gifts || [];
+    return dominanceGiftCatalog;
   } catch (error) {
     await showAppAlert(error.message, 'Error');
-    return [];
+    return dominanceGiftCatalog;
+  } finally {
+    dominanceGiftCatalogLoading = false;
   }
+}
+
+async function triggerThresholdAction(userUniqueId, actionType, incrementCount = 1) {
+  if (!isKillsMode() || !dominanceState.killsCombatStarted) return;
+  if (dominanceState.winner_team_id) return;
+
+  const match = findSoldierByUserId(userUniqueId);
+  if (!match?.soldier || match.soldier.isDead) return;
+
+  const soldier = match.soldier;
+  soldier.actionCounters = soldier.actionCounters || { like: 0, follow: 0, share: 0 };
+  soldier.actionCounters[actionType] =
+    Number(soldier.actionCounters[actionType] || 0) + Number(incrementCount || 1);
+
+  const binding = resolveAbilityBindingForAction(actionType);
+  if (!binding) return;
+
+  const threshold = Math.max(1, Number(binding.parameterValue || 1));
+  const abilityId = binding.powerId || 'basic-shot';
+  const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
+
+  let triggeredCount = 0;
+  while (soldier.actionCounters[actionType] >= threshold) {
+    soldier.actionCounters[actionType] -= threshold;
+    if (engine) {
+      engine.queueAbility(soldier.id, abilityId, null);
+    }
+    triggeredCount += 1;
+  }
+
+  if (triggeredCount > 0) {
+    const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+
+    dominanceState.history.push(
+      createDominanceHistoryEntry(
+        `${soldier.nickname} activó ${ability?.name || abilityId} x${triggeredCount} (${actionType})`,
+        'live'
+      )
+    );
+
+    updateArenaMessage(`${soldier.nickname} lanzó ${ability?.name || abilityId}`, true);
+
+    renderState();
+    await saveDominanceState();
+  }
+}
+
+function resolveAbilityBindingForAction(actionType, actionName) {
+  ensureCombatStateShape();
+  const bindings = dominanceState.combat.powerBindings || [];
+  const typeBindings = bindings.filter((binding) => binding.actionType === actionType);
+  if (!typeBindings.length) return null;
+
+  const normalizedName = String(actionName || '').trim().toLowerCase();
+  if (normalizedName) {
+    const exactMatch = typeBindings.find(
+      (binding) => String(binding.actionName || '').trim().toLowerCase() === normalizedName
+    );
+    if (exactMatch) return exactMatch;
+  }
+
+  return typeBindings[0];
+}
+
+function ensureCombatStateShape() {
+  const defaultCombat = window.DominanceCombat?.createCombatState?.() || {
+    powerCatalog: [],
+    powerBindings: [],
+  };
+
+  if (!dominanceState.combat) {
+    dominanceState.combat = {
+      powerCatalog: [],
+      powerBindings: [],
+    };
+  }
+
+  if (!Array.isArray(dominanceState.combat.powerCatalog)) {
+    dominanceState.combat.powerCatalog = defaultCombat.powerCatalog || [];
+  }
+
+  if (!Array.isArray(dominanceState.combat.powerBindings)) {
+    dominanceState.combat.powerBindings = defaultCombat.powerBindings || [];
+  }
+
+  if (dominanceState.combat.powerCatalog.length === 0) {
+    dominanceState.combat.powerCatalog = defaultCombat.powerCatalog || [];
+  }
+
+  if (dominanceState.combat.powerBindings.length === 0) {
+    dominanceState.combat.powerBindings = defaultCombat.powerBindings || [];
+  }
+
+  return dominanceState.combat;
+}
+
+function renderCombatPowerConfig() {
+  ensureCombatStateShape();
+
+  if (!dominancePowersConfigTable) return;
+
+  const combatState = dominanceState.combat;
+  const catalog = Array.isArray(combatState.powerCatalog) && combatState.powerCatalog.length > 0
+    ? combatState.powerCatalog
+    : (window.DominanceCombat?.createDefaultPowerCatalog?.() || []);
+  const bindings = Array.isArray(combatState.powerBindings) && combatState.powerBindings.length > 0
+    ? combatState.powerBindings
+    : (window.DominanceCombat?.createDefaultPowerBindings?.() || []);
+
+  const actionTypes = [
+    { value: 'comment', label: 'Comentario' },
+    { value: 'like', label: 'Me gusta' },
+    { value: 'follow', label: 'Follow' },
+    { value: 'gift', label: 'Regalo' },
+    { value: 'share', label: 'Share' },
+  ];
+
+  if (!dominanceGiftCatalogLoaded && !dominanceGiftCatalogLoading) {
+    void loadGiftCatalog();
+  }
+
+  const normalizedBindings = [];
+  actionTypes.forEach((actionTypeItem) => {
+    const existingBinding = bindings.find((binding) => binding.actionType === actionTypeItem.value);
+    normalizedBindings.push(existingBinding || {
+      id: `binding-${actionTypeItem.value}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      actionType: actionTypeItem.value,
+      actionName: actionTypeItem.value === 'gift' ? '' : actionTypeItem.label,
+      powerId: catalog[0]?.id || '',
+      parameterValue: 1,
+    });
+  });
+
+  const extraBindings = bindings.filter((binding) => !actionTypes.some((actionTypeItem) => actionTypeItem.value === binding.actionType));
+  normalizedBindings.push(...extraBindings);
+
+  const rows = normalizedBindings.map((binding) => {
+    const actionType = actionTypes.find((item) => item.value === binding.actionType) || actionTypes[0];
+    const selectedPower = catalog.find((power) => power.id === binding.powerId) || catalog[0] || null;
+    const actionLabel = String(binding.actionName || '').trim();
+    const actionNameValue = escapeHtml(actionLabel || (actionType.value === 'gift' ? '' : actionType.label));
+    const giftOptions = dominanceGiftCatalog
+      .map((gift) => {
+        const giftName = String(gift?.name || gift?.giftName || gift?.id || '').trim();
+        if (!giftName) return '';
+        const isSelected = actionLabel.toLowerCase() === giftName.toLowerCase();
+        return `<option value="${escapeHtml(giftName)}" ${isSelected ? 'selected' : ''}>${escapeHtml(giftName)}</option>`;
+      })
+      .filter(Boolean)
+      .join('');
+
+    const actionInput = actionType.value === 'gift'
+      ? `<select data-binding-id="${binding.id}" data-field="actionName">
+          <option value="">Sin regalo específico</option>
+          ${giftOptions}
+        </select>`
+      : `<input data-binding-id="${binding.id}" data-field="actionName" value="${actionNameValue}" placeholder="${escapeHtml(actionType.label)}" />`;
+
+    return `
+      <tr>
+        <td>
+          <select data-binding-id="${binding.id}" data-field="actionType">
+            ${actionTypes.map((item) => `<option value="${item.value}" ${item.value === binding.actionType ? 'selected' : ''}>${item.label}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          ${actionInput}
+        </td>
+        <td>
+          <select data-binding-id="${binding.id}" data-field="powerId">
+            ${catalog.map((power) => `<option value="${power.id}" ${selectedPower?.id === power.id ? 'selected' : ''}>${escapeHtml(power.name)}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <input data-binding-id="${binding.id}" data-field="parameterValue" type="number" min="1" value="${Number(binding.parameterValue || 1)}" />
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  dominancePowersConfigTable.innerHTML = `
+    <table class="power-config-table">
+      <thead>
+        <tr>
+          <th>Tipo de acción</th>
+          <th>Acción o regalo</th>
+          <th>Poder asignado</th>
+          <th>Parámetro adicional</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function savePowerBindingsFromUI() {
+  ensureCombatStateShape();
+
+  if (!dominancePowersConfigTable) return;
+
+  const rows = dominancePowersConfigTable.querySelectorAll('tbody tr');
+  const bindings = [];
+
+  rows.forEach((row, index) => {
+    const actionType = row.querySelector('[data-field="actionType"]')?.value || 'like';
+    const actionName = row.querySelector('[data-field="actionName"]')?.value || '';
+    const powerId = row.querySelector('[data-field="powerId"]')?.value || '';
+    const parameterValue = Number(row.querySelector('[data-field="parameterValue"]')?.value || 1);
+
+    const binding = dominanceState.combat.powerBindings[index] || {
+      id: `binding-${Date.now()}-${index}`,
+    };
+
+    bindings.push({
+      ...binding,
+      actionType,
+      actionName,
+      powerId,
+      parameterValue: Math.max(1, parameterValue),
+    });
+  });
+
+  dominanceState.combat.powerBindings = bindings;
+}
+
+async function savePowerConfig() {
+  ensureCombatStateShape();
+  savePowerBindingsFromUI();
+  renderState();
+  await saveDominanceState();
 }
 
 function bindUIActions() {
@@ -1640,12 +2089,18 @@ function bindUIActions() {
     });
   }
 
+  if (dominanceSavePowersConfigBtn) {
+    dominanceSavePowersConfigBtn.addEventListener('click', async () => {
+      await savePowerConfig();
+      await showAppAlert('Configuración de poderes guardada.', 'Dominance');
+    });
+  }
 
-
-
-
-
-
+  if (dominancePowersConfigTable) {
+    dominancePowersConfigTable.addEventListener('change', () => {
+      savePowerBindingsFromUI();
+    });
+  }
 
   if (dominanceLinkBtn) {
     dominanceLinkBtn.addEventListener('click', () => linkTikTok());
@@ -1788,11 +2243,13 @@ window.addEventListener('beforeunload', () => {
   cleanUpEvents();
   stopSoldiersAnimation();
   stopDominanceCenterTimer();
+  stopCombatEngine();
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindUIActions();
   await loadDominanceState();
+  initializeCombatEngine();
   startSoldiersAnimation();
   startDominanceCenterTimer();
 });

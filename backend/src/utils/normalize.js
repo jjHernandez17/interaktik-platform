@@ -424,6 +424,9 @@ function sanitizeDominanceGameState(payload) {
       maxHp: Math.max(1, Number(soldier?.maxHp ?? soldierHp)),
       x: Number(soldier?.x || 0),
       y: Number(soldier?.y || 0),
+      shield: Math.max(0, Number(soldier?.shield || 0)),
+      giftScore: Math.max(0, Number(soldier?.giftScore || 0)),
+      size: Math.max(42, Math.min(72, Number(soldier?.size || 42))),
       targetX: typeof soldier?.targetX === 'number' ? soldier.targetX : undefined,
       targetY: typeof soldier?.targetY === 'number' ? soldier.targetY : undefined,
       speed: typeof soldier?.speed === 'number' ? soldier.speed : undefined,
@@ -462,6 +465,15 @@ function sanitizeDominanceGameState(payload) {
     history: Array.isArray(payload?.history)
       ? payload.history.slice(0, 200)
       : [],
+
+    combat: {
+      powerCatalog: Array.isArray(payload?.combat?.powerCatalog)
+        ? payload.combat.powerCatalog.slice(0, 200)
+        : [],
+      powerBindings: Array.isArray(payload?.combat?.powerBindings)
+        ? payload.combat.powerBindings.slice(0, 200)
+        : [],
+    },
 
     active_team_id: String(payload?.active_team_id || 'left'),
 

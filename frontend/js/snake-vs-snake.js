@@ -1,3 +1,5 @@
+
+
 const liveIndicator = document.getElementById("snakeLiveIndicator");
 const MAX_RULES = 80;
 const MAX_HISTORY = 200;
@@ -31,6 +33,7 @@ let lastProcessedGiftSignature = '';
 let lastProcessedGiftAt = 0;
 const boardImageCache = { left: null, right: null };
 const carryOverApples = { left: 0, right: 0 };
+const pendingGiftApples = { left: [], right: [] };
 
 // Gift catalog state variables for LEFT snake
 let leftSelectedCatalogGiftId = '';
@@ -1643,6 +1646,45 @@ function queueCarryOverApples(side, amount) {
   carryOverApples[sideKey] += qty;
 }
 
+function queuePendingGiftSpawns(side, amount, gift = null) {
+  const sideKey = side === 'right' ? 'right' : 'left';
+  const qty = Math.max(0, Number(amount || 0) || 0);
+  if (!qty) {
+    return;
+  }
+
+  pendingGiftApples[sideKey].push({ amount: qty, gift });
+  drainPendingGiftSpawns();
+}
+
+function drainPendingGiftSpawns() {
+  ['left', 'right'].forEach((side) => {
+    const queue = pendingGiftApples[side];
+    if (!queue.length) {
+      return;
+    }
+
+    const remaining = [];
+    let createdAny = false;
+
+    queue.forEach((entry) => {
+      const created = spawnApples(side, entry.amount, 'live', entry.gift || null);
+      if (created > 0) {
+        createdAny = true;
+      }
+      if (created < entry.amount) {
+        remaining.push({ amount: entry.amount - created, gift: entry.gift || null });
+      }
+    });
+
+    pendingGiftApples[side] = remaining;
+
+    if (createdAny) {
+      renderBoards();
+    }
+  });
+}
+
 function applyCarryOverApplesToNewRound() {
   ['left', 'right'].forEach((side) => {
     const pending = Math.max(0, Number(carryOverApples[side] || 0) || 0);
@@ -1700,6 +1742,8 @@ function tickGame() {
   if (movedLeft || movedRight) {
     scheduleSaveState();
   }
+
+  drainPendingGiftSpawns();
 
   const pathLength = getPathLength();
   const leftWonByFill = state.snakes.left.length >= pathLength;
@@ -1857,8 +1901,10 @@ function applyRuleToSnake(rule, payload) {
 
   const overflow = Math.max(0, totalApples - created);
   if (overflow > 0) {
-    queueCarryOverApples(rule.side, overflow);
-    setLiveStatus('running', `Se acumularon ${overflow} manzana(s) para la siguiente ronda.`);
+    queuePendingGiftSpawns(rule.side, overflow, {
+      giftId: payload?.giftId || rule.giftId,
+      giftName: payload?.giftName || rule.giftName,
+    });
   }
 }
 

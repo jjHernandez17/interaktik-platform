@@ -1,3 +1,5 @@
+/* TIKTOKINTERACTIVE/frontend/assets/css/dominance.css */
+/* */
 .dominance-shell{
     display:flex;
     flex-direction:column;
@@ -165,6 +167,27 @@
     display:flex;
     flex-direction:column;
     gap:10px;
+}
+
+.power-config-table-wrapper table {
+    width:100%;
+    border-collapse:collapse;
+    color:white;
+}
+
+.power-config-table-wrapper th,
+.power-config-table-wrapper td {
+    padding:10px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    text-align:left;
+}
+
+.power-config-table-wrapper select,
+.power-config-table-wrapper input {
+    width:100%;
+    padding:8px 10px;
+    border-radius:10px;
+    border:none;
 }
 
 

@@ -1,9 +1,11 @@
+
+// TIKTOKINTERACTIVE/backend/src/services/dominanceService.js
 const pool = require('../database/pool');
 const { sanitizeDominanceGameState } = require('../utils/normalize');
 
 async function loadDominanceState(userId) {
   const result = await pool.query(
-    `SELECT game_mode, kills_config, teams, active_team_id, round, winner_team_id, winner, history, viewer_bindings, soldiers, updated_at
+    `SELECT game_mode, kills_config, teams, active_team_id, round, winner_team_id, winner, history, viewer_bindings, soldiers, combat, updated_at
      FROM dominance_game_state
      WHERE user_id = $1`,
     [userId],
@@ -44,6 +46,10 @@ async function loadDominanceState(userId) {
       viewer_bindings: {},
       giftRules: [],
       history: [],
+      combat: {
+        powerCatalog: [],
+        powerBindings: [],
+      },
       winner_team_id: null,
       winner: null,
       updated_at: null
@@ -64,6 +70,7 @@ async function loadDominanceState(userId) {
       history: row.history,
       viewer_bindings: row.viewer_bindings,
       soldiers: row.soldiers,
+      combat: row.combat,
     }),
     updated_at: row.updated_at,
   };
@@ -85,6 +92,7 @@ async function saveDominanceState(userId, nextState) {
       history,
       viewer_bindings,
       soldiers,
+      combat,
       updated_at
     )
     VALUES (
@@ -113,6 +121,7 @@ async function saveDominanceState(userId, nextState) {
       history = EXCLUDED.history,
       viewer_bindings = EXCLUDED.viewer_bindings,
       soldiers = EXCLUDED.soldiers,
+      combat = EXCLUDED.combat,
       updated_at = NOW()
     RETURNING updated_at`,
     [
@@ -127,6 +136,7 @@ async function saveDominanceState(userId, nextState) {
       JSON.stringify(normalized.history),
       JSON.stringify(normalized.viewer_bindings || {}),
       JSON.stringify(normalized.soldiers || {}),
+      JSON.stringify(normalized.combat || { powerCatalog: [], powerBindings: [] }),
     ],
   );
 

@@ -1,3 +1,7 @@
+<!-- 
+  TIKTOKINTERACTIVE/frontend/dominance.html
+  -->
+
 <!doctype html>
 <html lang="es">
 
@@ -217,6 +221,20 @@
     </section>
 
     <section class="config-card">
+      <div class="card-header">
+        <h2>Configuración de poderes</h2>
+      </div>
+
+      <div id="dominancePowersConfigTable" class="power-config-table-wrapper"></div>
+
+      <div class="team-config" style="margin-top:16px;">
+        <button id="dominanceSavePowersConfigBtn" class="btn primary" type="button">
+          Guardar configuración de poderes
+        </button>
+      </div>
+    </section>
+
+    <section class="config-card">
 
       <div class="card-header">
         <h2>Historial de combate</h2>
@@ -230,6 +248,25 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js?v=20260524"></script>
   <script src="js/dialog.js?v=20260524"></script>
+  <script src="js/combat/index.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/basicBullet.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/heavyBullet.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/rocket.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/laser.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/meteor.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/fireball.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/bomb.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/healOrb.js?v=20260704a"></script>
+  <script src="js/combat/projectileBehaviors/shieldWave.js?v=20260704a"></script>
+  <script src="js/combat/targeting.js?v=20260704a"></script>
+  <script src="js/combat/damage.js?v=20260704a"></script>
+  <script src="js/combat/collision.js?v=20260704a"></script>
+  <script src="js/combat/soldierState.js?v=20260704a"></script>
+  <script src="js/combat/eventBus.js?v=20260704a"></script>
+  <script src="js/combat/abilities.js?v=20260704a"></script>
+  <script src="js/combat/projectileFactory.js?v=20260704a"></script>
+  <script src="js/combat/projectileManager.js?v=20260704a"></script>
+  <script src="js/combat/engine.js?v=20260704a"></script>
   <script src="js/dominance.js?v=20260606b"></script>
 </body>
 

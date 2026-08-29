@@ -29,6 +29,9 @@ function getTransporter() {
       port,
       secure: port === 465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+      // Railway no tiene salida IPv6: sin esto, Node a veces resuelve
+      // smtp.gmail.com a una IP v6 y la conexion falla con ENETUNREACH.
+      family: 4,
     });
   }
 

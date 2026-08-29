@@ -6,36 +6,42 @@
 // truena el registro: solo deja el link de verificacion en el log para
 // poder probar manualmente mientras se configura.
 
+const dns = require('dns');
 const env = require('../config/env');
 const logger = require('../config/logger');
-
-let transporterInstance = null;
 
 function isConfigured() {
   return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
 }
 
-function getTransporter() {
-  if (!isConfigured()) {
-    throw new Error('El envio de correos no esta configurado (falta SMTP_HOST/SMTP_USER/SMTP_PASS).');
-  }
-
-  if (!transporterInstance) {
-    const nodemailer = require('nodemailer');
-    const port = Number(env.SMTP_PORT || 587);
-
-    transporterInstance = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      // Railway no tiene salida IPv6: sin esto, Node a veces resuelve
-      // smtp.gmail.com a una IP v6 y la conexion falla con ENETUNREACH.
-      family: 4,
+// nodemailer resuelve A y AAAA y elige una direccion al azar para conectar.
+// Railway tiene una interfaz IPv6 local pero sin salida real a internet, asi
+// que cuando le toca una IPv6 la conexion muere con ENETUNREACH. Resolvemos
+// nosotros mismos solo el registro A (IPv4) y conectamos directo a esa IP,
+// manteniendo servername=host para que la validacion TLS siga funcionando.
+function resolveIPv4(host) {
+  return new Promise((resolve, reject) => {
+    dns.resolve4(host, (err, addresses) => {
+      if (err || !addresses || !addresses.length) {
+        return reject(err || new Error(`No se pudo resolver IPv4 para ${host}`));
+      }
+      resolve(addresses[0]);
     });
-  }
+  });
+}
 
-  return transporterInstance;
+async function buildTransporter() {
+  const nodemailer = require('nodemailer');
+  const port = Number(env.SMTP_PORT || 587);
+  const ip = await resolveIPv4(env.SMTP_HOST);
+
+  return nodemailer.createTransport({
+    host: ip,
+    port,
+    secure: port === 465,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    tls: { servername: env.SMTP_HOST },
+  });
 }
 
 function buildVerificationEmailHtml({ name, verifyUrl }) {
@@ -66,7 +72,7 @@ async function sendVerificationEmail({ to, name, verifyUrl }) {
   }
 
   try {
-    const transporter = getTransporter();
+    const transporter = await buildTransporter();
     await transporter.sendMail({
       from: env.SMTP_FROM || env.SMTP_USER,
       to,

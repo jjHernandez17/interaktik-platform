@@ -1,0 +1,279 @@
+/* ===========================================================
+   PlayTik Live — Sistema de diseño compartido
+   Cargar este archivo ANTES del CSS propio de cada página.
+   Define tokens (color, tipografía, espaciado, sombras) y
+   componentes base (botones, tarjetas, badges, inputs) para que
+   toda la plataforma comparta un mismo lenguaje visual.
+   =========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+
+:root {
+  /* --- Superficies --- */
+  --ds-bg: #090c14;
+  --ds-bg-soft: #0d111c;
+  --ds-surface: #12172699;
+  --ds-surface-solid: #131826;
+  --ds-surface-hover: #1a2136;
+  --ds-border: rgba(148, 163, 184, 0.14);
+  --ds-border-strong: rgba(148, 163, 184, 0.28);
+
+  /* --- Texto --- */
+  --ds-text: #f1f5f9;
+  --ds-text-muted: #92a0b8;
+  --ds-text-faint: #5c6b85;
+
+  /* --- Marca --- */
+  --ds-primary: #7c5cff;
+  --ds-primary-hover: #6a48f2;
+  --ds-primary-soft: rgba(124, 92, 255, 0.14);
+  --ds-accent: #22d3ee;
+  --ds-accent-soft: rgba(34, 211, 238, 0.14);
+
+  /* --- Estado --- */
+  --ds-success: #22c55e;
+  --ds-warning: #f59e0b;
+  --ds-danger: #ef4444;
+
+  /* --- Tipografía --- */
+  --ds-font-body: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ds-font-display: 'Sora', 'Inter', system-ui, sans-serif;
+
+  /* --- Radios --- */
+  --ds-radius-sm: 10px;
+  --ds-radius-md: 14px;
+  --ds-radius-lg: 20px;
+  --ds-radius-xl: 28px;
+  --ds-radius-pill: 999px;
+
+  /* --- Sombras --- */
+  --ds-shadow-sm: 0 4px 14px rgba(3, 6, 15, 0.32);
+  --ds-shadow-md: 0 16px 40px rgba(3, 6, 15, 0.4);
+  --ds-shadow-lg: 0 30px 80px rgba(3, 6, 15, 0.5);
+  --ds-shadow-glow: 0 0 0 1px rgba(124, 92, 255, 0.24), 0 18px 50px rgba(124, 92, 255, 0.16);
+
+  /* --- Gradientes --- */
+  --ds-gradient-brand: linear-gradient(135deg, var(--ds-primary), #a855f7 55%, var(--ds-accent));
+  --ds-gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+}
+
+/* ===========================================================
+   Reset ligero + base tipográfica
+   =========================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--ds-font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--ds-font-display);
+  letter-spacing: -0.01em;
+}
+
+/* ===========================================================
+   Botones — soporta las variantes ya usadas en el sitio
+   (.solid/.primary, .ghost, .accent, .secondary, .danger)
+   para no tener que renombrar clases en cada página.
+   =========================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--ds-font-body);
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--ds-radius-md);
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  color: var(--ds-text);
+  background: var(--ds-surface-solid);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn.solid,
+.btn.primary {
+  background: var(--ds-gradient-brand);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(124, 92, 255, 0.28);
+}
+
+.btn.solid:hover,
+.btn.primary:hover {
+  box-shadow: 0 16px 40px rgba(124, 92, 255, 0.38);
+}
+
+.btn.accent {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.32);
+  color: #67e8f9;
+}
+
+.btn.accent:hover {
+  background: rgba(34, 211, 238, 0.2);
+}
+
+.btn.ghost,
+.btn.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+.btn.ghost:hover,
+.btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.btn.danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+
+.btn.danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.btn.small {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  border-radius: var(--ds-radius-sm);
+}
+
+/* ===========================================================
+   Tarjetas / superficies
+   =========================================================== */
+
+.ds-card {
+  position: relative;
+  background: var(--ds-surface-solid);
+  background-image: var(--ds-gradient-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-card--elevated {
+  box-shadow: var(--ds-shadow-md);
+}
+
+/* ===========================================================
+   Badges / etiquetas de estado
+   =========================================================== */
+
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.ds-badge--brand {
+  background: var(--ds-primary-soft);
+  color: #c4b5fd;
+  border-color: rgba(124, 92, 255, 0.3);
+}
+
+.ds-badge--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.ds-badge--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.ds-badge--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+/* ===========================================================
+   Inputs
+   =========================================================== */
+
+.ds-input {
+  width: 100%;
+  font-family: var(--ds-font-body);
+  font-size: 0.95rem;
+  color: var(--ds-text);
+  background: rgba(4, 8, 16, 0.5);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  padding: 12px 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ds-input:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.ds-input::placeholder {
+  color: var(--ds-text-faint);
+}
+
+/* ===========================================================
+   Utilidades
+   =========================================================== */
+
+.ds-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ds-accent);
+}
+
+.ds-eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ds-accent);
+  box-shadow: 0 0 12px var(--ds-accent);
+}

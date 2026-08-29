@@ -63,6 +63,28 @@ async function requireEnabledGame(req, res, gameType) {
   return false;
 }
 
+async function requireActiveAccessPage(req, res) {
+  if (isSuperUserEmail(req.session?.user?.email)) {
+    return true;
+  }
+
+  const userId = req.session?.userId || req.session?.user?.id;
+  if (!userId) {
+    res.redirect('/platform.html');
+    return false;
+  }
+
+  const accessService = require('../services/accessService');
+  const hasAccess = await accessService.hasActiveAccess(userId);
+
+  if (hasAccess) {
+    return true;
+  }
+
+  res.redirect('/platform.html?locked=1');
+  return false;
+}
+
 // Helper to inject API base URL into HTML
 async function injectApiBaseUrl(filePath, apiBaseUrl) {
   let html = await fs.readFile(filePath, 'utf-8');
@@ -248,6 +270,7 @@ router.get('/platform.js', requireAuthPage, (req, res) => {
 router.get('/app', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'app'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/app.html', 'App page request in production');
     }
@@ -264,6 +287,7 @@ router.get('/app', requireAuthPage, async (req, res) => {
 router.get('/app.html', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'app'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/app.html', 'App HTML request in production');
     }
@@ -289,6 +313,7 @@ router.get('/styles.css', requireAuthPage, (req, res) => {
 router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'snake'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake page request in production');
     }
@@ -305,6 +330,7 @@ router.get('/snake-vs-snake', requireAuthPage, async (req, res) => {
 router.get('/snake-vs-snake.html', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'snake'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/snake-vs-snake.html', 'Snake vs Snake HTML request in production');
     }
@@ -330,6 +356,7 @@ router.get('/snake-vs-snake.js', requireAuthPage, (req, res) => {
 router.get('/race', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'race'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/race.html', 'Race page request in production');
     }
@@ -346,6 +373,7 @@ router.get('/race', requireAuthPage, async (req, res) => {
 router.get('/race.html', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'race'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/race.html', 'Race HTML request in production');
     }
@@ -371,6 +399,7 @@ router.get('/race.js', requireAuthPage, (req, res) => {
 router.get('/dominance', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'dominance'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/dominance.html', 'Dominance page request in production');
     }
@@ -387,6 +416,7 @@ router.get('/dominance', requireAuthPage, async (req, res) => {
 router.get('/dominance.html', requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'dominance'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
     if (!shouldServeBackendPages()) {
       return redirectFrontendPage(res, '/dominance.html', 'Dominance HTML request in production');
     }

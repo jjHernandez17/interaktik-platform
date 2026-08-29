@@ -23,6 +23,11 @@ const adminEditCloseBtn = document.getElementById('adminEditCloseBtn');
 const adminEditCancelBtn = document.getElementById('adminEditCancelBtn');
 const adminEditSaveBtn = document.getElementById('adminEditSaveBtn');
 
+const accessStatusBanner = document.getElementById('accessStatusBanner');
+const plansAccessStatus = document.getElementById('plansAccessStatus');
+const plansGrid = document.getElementById('plansGrid');
+const plansGatewayNotice = document.getElementById('plansGatewayNotice');
+
 const GAME_LABELS = {
   app: 'Contador de puntos',
   snake: 'Snake Vs Snake',
@@ -38,6 +43,9 @@ let adminEditAccountEmail = null;
 let adminSearchInput = null;
 let adminEmailFilter = '';
 let gameAvailability = {};
+let accessStatus = null;
+let availablePlans = [];
+let availableGateways = { stripe: false, mercadopago: false, wompi: false };
 
 function validatePasswordStrength(password) {
   const value = String(password || '');
@@ -106,6 +114,247 @@ function applyGameAvailabilityToCards() {
       link.tabIndex = 0;
     }
   });
+
+  applyPlanLockToCards();
+}
+
+// Bloquea las tarjetas de juego cuando el usuario no tiene una prueba/plan
+// activos. Es independiente del bloqueo por admin (applyGameAvailabilityToCards);
+// una tarjeta puede estar bloqueada por cualquiera de los dos motivos.
+function applyPlanLockToCards() {
+  const locked = accessStatus !== null && accessStatus.hasAccess === false && !currentUser?.isSuperUser;
+
+  document.querySelectorAll('.game-card').forEach((card) => {
+    const link = card.querySelector('a.start-btn');
+    if (!link) return;
+
+    if (card.classList.contains('game-disabled-by-admin')) {
+      // ya esta bloqueada por el admin; no pisar ese mensaje con el de plan
+      card.classList.remove('game-locked-by-plan');
+      return;
+    }
+
+    card.classList.toggle('game-locked-by-plan', locked);
+    let message = card.querySelector('.game-locked-message');
+
+    if (locked) {
+      if (!message) {
+        message = document.createElement('p');
+        message.className = 'game-locked-message';
+        card.appendChild(message);
+      }
+      message.innerHTML = '🔒 Tu prueba gratuita o plan vencio. <a href="#" data-go-to-plans>Ver planes</a>';
+      link.setAttribute('aria-disabled', 'true');
+      link.tabIndex = -1;
+
+      const plansLink = message.querySelector('[data-go-to-plans]');
+      if (plansLink) {
+        plansLink.addEventListener('click', (event) => {
+          event.preventDefault();
+          showSection('plansSection');
+        });
+      }
+    } else if (message) {
+      message.remove();
+      link.removeAttribute('aria-disabled');
+      link.tabIndex = 0;
+    }
+  });
+}
+
+function formatAccessMessage(status) {
+  if (!status) return '';
+
+  if (status.hasAccess) {
+    const label = status.isTrial ? 'prueba gratuita' : 'plan activo';
+    const days = status.daysRemaining;
+    const daysLabel = days === 1 ? '1 dia' : `${days} dias`;
+    return `Tienes tu ${label} activa: te quedan ${daysLabel}.`;
+  }
+
+  return status.accessExpiresAt
+    ? 'Tu prueba gratuita o plan vencio. Elige un plan para seguir jugando.'
+    : 'Aun no tienes un plan activo.';
+}
+
+function renderAccessBanners() {
+  if (currentUser?.isSuperUser) {
+    if (accessStatusBanner) accessStatusBanner.classList.add('hidden');
+    if (plansAccessStatus) plansAccessStatus.classList.add('hidden');
+    return;
+  }
+
+  const message = formatAccessMessage(accessStatus);
+  const isWarning = !accessStatus?.hasAccess;
+
+  [accessStatusBanner, plansAccessStatus].forEach((banner) => {
+    if (!banner) return;
+    banner.textContent = message;
+    banner.classList.remove('hidden');
+    banner.classList.toggle('warning', isWarning);
+    banner.classList.toggle('ok', !isWarning);
+  });
+}
+
+async function loadAccessStatus() {
+  try {
+    const response = await fetch('/api/account/access');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar tu estado de acceso.');
+
+    accessStatus = data;
+    renderAccessBanners();
+    applyPlanLockToCards();
+  } catch (error) {
+    console.warn('[PLATFORM] Access status unavailable:', error.message);
+  }
+}
+
+// Mapa minimo region -> moneda, para estimar en que moneda mostrar el precio
+// segun el idioma/region del navegador. Es solo para mostrar un estimado: el
+// cobro real de Wompi siempre es en COP, sin importar lo que se muestre aqui.
+const REGION_TO_CURRENCY = {
+  CO: 'COP', US: 'USD', MX: 'MXN', BR: 'BRL', AR: 'ARS', CL: 'CLP', PE: 'PEN',
+  EC: 'USD', VE: 'USD', UY: 'USD', PY: 'USD', BO: 'USD', GB: 'GBP', CA: 'CAD',
+  ES: 'EUR', DE: 'EUR', FR: 'EUR', IT: 'EUR', PT: 'EUR', NL: 'EUR',
+};
+
+function detectUserCurrency() {
+  try {
+    const locale = navigator.language || navigator.languages?.[0] || 'en-US';
+    const region = locale.split('-')[1]?.toUpperCase();
+    return REGION_TO_CURRENCY[region] || 'USD';
+  } catch (_error) {
+    return 'USD';
+  }
+}
+
+function formatPrice(amount, currency) {
+  try {
+    return new Intl.NumberFormat(navigator.language || 'en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: currency === 'COP' ? 0 : 2,
+    }).format(amount);
+  } catch (_error) {
+    return `${currency || 'USD'} ${Number(amount || 0).toFixed(2)}`;
+  }
+}
+
+function renderPlanCards() {
+  if (!plansGrid) return;
+
+  if (!availablePlans.length) {
+    plansGrid.innerHTML = '<p class="muted">No hay planes disponibles por el momento.</p>';
+    return;
+  }
+
+  const anyGatewayReady = availableGateways.mercadopago || availableGateways.wompi;
+
+  if (plansGatewayNotice) {
+    plansGatewayNotice.classList.toggle('hidden', anyGatewayReady);
+    plansGatewayNotice.textContent = 'Los pagos todavia no estan habilitados. Vuelve pronto.';
+  }
+
+  plansGrid.innerHTML = availablePlans.map((plan) => {
+    const copPrice = formatPrice(Number(plan.price_cop_cents || 0) / 100, 'COP');
+    const mainPrice = plan.display
+      ? formatPrice(plan.display.amount, plan.display.currency)
+      : formatPrice(Number(plan.price_usd_cents || 0) / 100, 'USD');
+    const showUsdHint = plan.display && plan.display.currency !== 'USD';
+    const usdHint = showUsdHint ? `<p class="plan-price-hint">≈ ${formatPrice(Number(plan.price_usd_cents || 0) / 100, 'USD')}</p>` : '';
+
+    return `
+    <article class="plan-card" data-plan-id="${escapeHtml(plan.id)}">
+      <h3>${escapeHtml(plan.name)}</h3>
+      <p class="plan-price">${mainPrice}</p>
+      ${usdHint}
+      <p class="plan-description">${escapeHtml(plan.description)}</p>
+      <div class="plan-actions">
+        <button class="btn primary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="wompi" ${availableGateways.wompi ? '' : 'disabled'}>
+          Pagar con Wompi
+        </button>
+        <button class="btn secondary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="mercadopago" disabled title="Próximamente: pendiente de un problema en la plataforma de MercadoPago">
+          Pagar con MercadoPago
+        </button>
+      </div>
+      <p class="plan-cop-note">Cobro real vía Wompi: ${copPrice}</p>
+    </article>
+  `;
+  }).join('');
+
+  plansGrid.querySelectorAll('[data-checkout]').forEach((button) => {
+    button.addEventListener('click', () => {
+      startCheckout(button.dataset.planId, button.dataset.gateway, button);
+    });
+  });
+}
+
+async function loadPlans() {
+  try {
+    const currency = detectUserCurrency();
+    const response = await fetch(`/api/plans?currency=${encodeURIComponent(currency)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los planes.');
+
+    availablePlans = data.plans || [];
+    availableGateways = data.gateways || { stripe: false, mercadopago: false, wompi: false };
+    renderPlanCards();
+  } catch (error) {
+    if (plansGrid) {
+      plansGrid.innerHTML = `<p class="muted">No se pudieron cargar los planes: ${escapeHtml(error.message)}</p>`;
+    }
+  }
+}
+
+async function startCheckout(planId, gateway, button) {
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Redirigiendo...';
+  }
+
+  try {
+    const response = await fetch('/api/payments/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, gateway }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo iniciar el pago.');
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    await showAlert(error.message, 'Error al iniciar el pago');
+    renderPlanCards();
+  }
+}
+
+async function handlePaymentRedirectParams() {
+  const params = new URLSearchParams(window.location.search);
+  const paymentStatus = params.get('payment');
+  const locked = params.get('locked');
+
+  if (paymentStatus === 'success') {
+    await loadAccessStatus();
+    await showAlert('¡Pago recibido! Tu acceso ya deberia estar activo. Si no ves el cambio, espera unos segundos y recarga.', 'Pago exitoso');
+    showSection('plansSection');
+  } else if (paymentStatus === 'cancel') {
+    await showAlert('El pago no se completo. Puedes intentarlo de nuevo cuando quieras.', 'Pago cancelado');
+    showSection('plansSection');
+  } else if (locked === '1') {
+    showSection('gamesSection');
+  }
+
+  if (paymentStatus || locked) {
+    params.delete('payment');
+    params.delete('paymentId');
+    params.delete('locked');
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }
 }
 
 function setupAdminGameAvailabilityControls() {
@@ -527,6 +776,9 @@ async function loadMe() {
     }
 
     await loadGameAvailability();
+    await loadAccessStatus();
+    await loadPlans();
+    await handlePaymentRedirectParams();
   } catch (_error) {
     console.log('Error al verificar autenticacion:', _error);
     redirectWithLog('/login.html', 'Error al cargar datos de usuario');

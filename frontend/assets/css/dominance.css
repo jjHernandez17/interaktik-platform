@@ -8,10 +8,40 @@
 }
 
 .dominance-battlefield{
+    position:relative;
     display:grid;
     grid-template-columns:1fr 220px 1fr;
     gap:20px;
     min-height:700px;
+}
+
+.projectile-layer{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:60;
+    overflow:visible;
+}
+
+.combat-impact-flash{
+    position:absolute;
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    animation:combat-impact-flash-anim 320ms ease-out forwards;
+}
+
+@keyframes combat-impact-flash-anim{
+    0%{
+        opacity:.9;
+        transform:translate(-50%,-50%) scale(0.4);
+    }
+    100%{
+        opacity:0;
+        transform:translate(-50%,-50%) scale(1.6);
+    }
 }
 
 .army-side{
@@ -88,19 +118,55 @@
 
 .projectile{
     position:absolute;
-
-    width:14px;
-    height:14px;
-
-    border-radius:50%;
-
-    background:#ffd700;
-
-    box-shadow:
-        0 0 10px #ffd700,
-        0 0 25px #ffd700;
-
     pointer-events:none;
+    transition-property:left, top, width, height, opacity;
+    transition-timing-function:linear;
+}
+
+.proj-shape-dot,
+.proj-shape-orb{
+    border-radius:50%;
+}
+
+.proj-shape-capsule{
+    border-radius:50%;
+}
+
+.proj-shape-ring{
+    border-radius:50%;
+    background:transparent !important;
+    border:3px solid currentColor;
+    transition-timing-function:ease-out;
+}
+
+.proj-trail::after{
+    content:"";
+    position:absolute;
+    inset:-6px;
+    border-radius:inherit;
+    background:inherit;
+    filter:blur(6px);
+    opacity:.5;
+    z-index:-1;
+}
+
+.combat-laser-beam{
+    position:absolute;
+    height:4px;
+    border-radius:4px;
+    transform-origin:left center;
+    pointer-events:none;
+    animation:combat-laser-fade 180ms ease-out forwards;
+}
+
+@keyframes combat-laser-fade{
+    0%{ opacity:1; }
+    100%{ opacity:0; }
+}
+
+.combat-impact-flash.big{
+    width:72px;
+    height:72px;
 }
 
 .dominance-history-item{
@@ -188,6 +254,97 @@
     padding:8px 10px;
     border-radius:10px;
     border:none;
+}
+
+.power-catalog-section{
+    margin-bottom:24px;
+}
+
+.power-catalog-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:6px;
+}
+
+.power-catalog-header h3,
+.power-bindings-section h3{
+    margin:0;
+}
+
+.power-catalog-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:14px;
+    margin-top:12px;
+}
+
+.power-card{
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:16px;
+    padding:14px;
+}
+
+.power-card-header{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+}
+
+.power-card-name{
+    flex:1;
+    font-weight:700;
+    font-size:1rem;
+}
+
+.power-card-remove{
+    flex:0 0 auto;
+    width:30px;
+    height:30px;
+    border-radius:8px;
+    border:none;
+    background:rgba(239,68,68,.18);
+    color:#fca5a5;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.power-card-remove:hover{
+    background:rgba(239,68,68,.32);
+}
+
+.power-card-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+.power-card-grid label{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:.78rem;
+    color:rgba(255,255,255,.65);
+}
+
+.power-card-grid input[type="color"]{
+    padding:2px;
+    height:36px;
+}
+
+.power-bindings-section{
+    padding-top:8px;
+    border-top:1px solid rgba(255,255,255,.08);
+}
+
+.power-binding-hint{
+    display:block;
+    margin-top:4px;
+    color:rgba(255,255,255,.5);
+    font-size:.72rem;
 }
 
 

@@ -1,14 +1,4 @@
-:root {
-  --bg: #0b1220;
-  --card: #121d30;
-  --line: rgba(157, 178, 206, 0.28);
-  --text: #e7f0fb;
-  --muted: #9db2ce;
-}
-
-* {
-  box-sizing: border-box;
-}
+/* PlayTik Live — Login / Registro (usa tokens de design-system.css) */
 
 body {
   margin: 0;
@@ -16,68 +6,136 @@ body {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.18), transparent 32%),
-    radial-gradient(circle at top left, rgba(249, 115, 22, 0.16), transparent 28%),
-    linear-gradient(180deg, #0a111d 0%, var(--bg) 100%);
-  color: var(--text);
-  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    radial-gradient(circle at 85% 8%, rgba(34, 211, 238, 0.18), transparent 34%),
+    radial-gradient(circle at 12% 92%, rgba(124, 92, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, var(--ds-bg) 0%, #05070d 100%);
+  color: var(--ds-text);
   padding: 20px;
 }
 
 .auth-shell {
-  width: min(460px, 100%);
+  width: min(440px, 100%);
+}
+
+.auth-shell::before {
+  content: 'PLAYTIK LIVE';
+  display: block;
+  text-align: center;
+  margin-bottom: 18px;
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.28em;
+  background: var(--ds-gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .auth-card {
-  background: linear-gradient(180deg, rgba(18, 29, 48, 0.94), rgba(18, 29, 48, 0.86));
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 22px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(19, 24, 38, 0.94), rgba(13, 17, 28, 0.92));
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-lg);
+  padding: 36px 32px;
 }
 
-h1 {
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.18), transparent 40%);
+  pointer-events: none;
+}
+
+.auth-card h1 {
+  position: relative;
   margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.auth-card > .muted {
+  position: relative;
+  margin: 8px 0 0;
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--ds-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 form {
+  position: relative;
   display: grid;
-  gap: 10px;
-  margin: 14px 0;
+  gap: 16px;
+  margin: 26px 0 18px;
 }
 
 label {
   display: grid;
-  gap: 6px;
-  font-size: 0.95rem;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ds-text-muted);
 }
 
 input {
-  border: 1px solid var(--line);
-  background: rgba(4, 10, 19, 0.6);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 11px;
+  font-family: var(--ds-font-body);
+  font-size: 0.95rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 13px 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-button {
+input:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+button[type="submit"] {
+  font-family: var(--ds-font-body);
   border: 0;
-  border-radius: 10px;
-  padding: 11px;
-  color: #1f1306;
-  background: linear-gradient(135deg, #f97316, #fb923c);
+  border-radius: var(--ds-radius-md);
+  padding: 13px;
+  color: #fff;
+  background: var(--ds-gradient-brand);
   font-weight: 700;
+  font-size: 0.95rem;
   cursor: pointer;
+  box-shadow: 0 12px 30px rgba(124, 92, 255, 0.28);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+button[type="submit"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(124, 92, 255, 0.38);
+}
+
+button[type="submit"]:active {
+  transform: translateY(0);
 }
 
 .message {
   min-height: 1.1em;
   margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 a {
-  color: #93c5fd;
+  color: var(--ds-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }

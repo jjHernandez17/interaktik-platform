@@ -1,0 +1,3 @@
+ALTER TABLE race_game_state
+ADD COLUMN IF NOT EXISTS race_laps_limit INTEGER NOT NULL DEFAULT 5,
+ADD COLUMN IF NOT EXISTS winner_participant_id VARCHAR(120);

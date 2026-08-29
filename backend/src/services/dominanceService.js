@@ -107,6 +107,7 @@ async function saveDominanceState(userId, nextState) {
       $9::jsonb,
       $10::jsonb,
       $11::jsonb,
+      $12::jsonb,
       NOW()
     )
     ON CONFLICT (user_id)

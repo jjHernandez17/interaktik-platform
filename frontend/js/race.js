@@ -23,6 +23,13 @@ const trackSection = document.getElementById('trackSection');
 const raceLapsLimitInput = document.getElementById('raceLapsLimit');
 const raceWinnerModal = document.getElementById('raceWinnerModal');
 const raceWinnerCloseBtn = document.getElementById('raceWinnerCloseBtn');
+const raceInfoBtn = document.getElementById('raceInfoBtn');
+const raceInfoModal = document.getElementById('raceInfoModal');
+const raceInfoCloseBtn = document.getElementById('raceInfoCloseBtn');
+const raceLikesEnabledToggle = document.getElementById('raceLikesEnabledToggle');
+const raceLikesPerMoveInput = document.getElementById('raceLikesPerMoveInput');
+const raceLikesMovePercentInput = document.getElementById('raceLikesMovePercentInput');
+const raceLikesMovePercentValue = document.getElementById('raceLikesMovePercentValue');
 
 // State
 let participants = [];
@@ -35,6 +42,7 @@ let viewerBindings = {};
 let liveEventsSource = null;
 let winnerParticipantId = null;
 const liveGiftProgress = new Map();
+const viewerLikeCounts = new Map();
 const laneElements = new Map();
 
 const MAX_PARTICIPANTS = 20;
@@ -42,6 +50,23 @@ const COINS_PER_LAP = 200;
 const COMMENT_COINS = 0.5;
 const HISTORY_LIMIT = 50;
 let raceLapsLimit = 5;
+let likesConfig = { enabled: false, likesPerMove: 50, movePercent: 5 };
+
+function normalizeLikesConfig(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: source.enabled === true,
+    likesPerMove: Math.max(1, Math.min(100000, Number(source.likesPerMove) || 50)),
+    movePercent: Math.max(0, Math.min(100, Number(source.movePercent) || 0)),
+  };
+}
+
+function applyLikesConfigToInputs() {
+  if (raceLikesEnabledToggle) raceLikesEnabledToggle.checked = likesConfig.enabled;
+  if (raceLikesPerMoveInput) raceLikesPerMoveInput.value = likesConfig.likesPerMove;
+  if (raceLikesMovePercentInput) raceLikesMovePercentInput.value = likesConfig.movePercent;
+  if (raceLikesMovePercentValue) raceLikesMovePercentValue.textContent = `${likesConfig.movePercent}%`;
+}
 
 function lockRaceUsernameInput() {
   if (raceUsername) raceUsername.disabled = true;
@@ -56,7 +81,11 @@ function unlockRaceUsernameInput() {
 }
 
 function normalizeParticipantName(value) {
-  return String(value || '').trim().toLocaleLowerCase('es');
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('es')
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '');
 }
 
 function getLeaderParticipantIds() {
@@ -174,6 +203,7 @@ function saveState() {
     history,
     race_laps_limit: raceLapsLimit,
     winner_participant_id: winnerParticipantId,
+    likes_config: likesConfig,
   };
 
   // First, save to localStorage as backup
@@ -223,6 +253,7 @@ async function loadState() {
     history = state.history || [];
     raceLapsLimit = Number(state.race_laps_limit) || 5;
     winnerParticipantId = state.winner_participant_id || null;
+    likesConfig = normalizeLikesConfig(state.likes_config);
   } catch (error) {
     console.warn('[Race] Failed to load from database, falling back to localStorage:', error.message);
     const stored = localStorage.getItem('raceState');
@@ -238,6 +269,7 @@ async function loadState() {
         history = state.history || [];
         raceLapsLimit = Number(state.race_laps_limit || state.raceLapsLimit) || 5;
         winnerParticipantId = state.winner_participant_id || state.winnerParticipantId || null;
+        likesConfig = normalizeLikesConfig(state.likes_config || state.likesConfig);
       } catch (parseError) {
         console.error('[Race] Failed to parse localStorage:', parseError);
       }
@@ -245,6 +277,9 @@ async function loadState() {
       console.log('[Race] No localStorage fallback available');
     }
   }
+  if (raceLapsLimitInput) raceLapsLimitInput.value = raceLapsLimit;
+  applyLikesConfigToInputs();
+
   renderParticipants();
   renderRaceTrack();
 
@@ -273,8 +308,14 @@ function addParticipant(name) {
   }
 
   const id = `participant-${Date.now()}`;
-  const carIndex = participants.length % 17;
-  const carNumber = carIndex + 1;
+  const usedCarNumbers = new Set(participants.map((p) => p.carNumber));
+  let carNumber = 1;
+  while (usedCarNumbers.has(carNumber) && carNumber <= 17) {
+    carNumber += 1;
+  }
+  if (carNumber > 17) {
+    carNumber = (participants.length % 17) + 1;
+  }
   participants.push({ id, name, carNumber });
   carPositions[id] = 0;
   finishCounts[id] = 0;
@@ -395,6 +436,8 @@ function modifyParticipantCoins(id, deltaCoins, contextNote = '') {
     applyCoinsToParticipant(id, deltaCoins, contextNote);
     return;
   }
+
+  showDeltaBubble(id, deltaCoins);
 
   // For negative adjustments: commit lap changes immediately (can't animate backwards multiple laps easily)
   if (lapsDelta < 0) {
@@ -538,8 +581,40 @@ function renderRaceTrack() {
   }
 }
 
+function formatDeltaAmount(amount) {
+  const rounded = Math.round(Math.abs(amount) * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function showDeltaBubble(id, amount) {
+  const numericAmount = Number(amount) || 0;
+  if (numericAmount === 0) return;
+
+  const entry = laneElements.get(id);
+  if (!entry || !entry.run) return;
+
+  const position = Number(carPositions[id] || 0);
+  const positionPercent = Math.min((position / COINS_PER_LAP) * 100, 100);
+
+  const bubble = document.createElement('div');
+  bubble.className = `race-delta-bubble${numericAmount < 0 ? ' negative' : ''}`;
+  bubble.textContent = `${numericAmount < 0 ? '-' : '+'}${formatDeltaAmount(numericAmount)}`;
+  bubble.style.left = `${positionPercent}%`;
+
+  entry.run.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 950);
+}
+
 function animateToPercent(carEl, fromPercent, toPercent, durationSec = null) {
   return new Promise((resolve) => {
+    if (fromPercent === toPercent) {
+      // El navegador no dispara "transitionend" si el valor no cambia realmente,
+      // así que sin esta salida la promesa nunca se resuelve y el conteo de
+      // vueltas se queda congelado (pasa siempre que el remanente cae en 0).
+      resolve();
+      return;
+    }
+
     const delta = Math.abs(toPercent - fromPercent);
     const duration = durationSec != null ? durationSec : Math.max(0.12, delta * 0.02);
     const onEnd = (e) => {
@@ -587,6 +662,8 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
   const participant = participants.find((p) => p.id === id);
   if (!participant) return;
 
+  showDeltaBubble(id, normalizedCoins);
+
   const currentProgress = Number(carPositions[id] || 0);
   const totalProgress = currentProgress + normalizedCoins;
 
@@ -617,6 +694,7 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
           winnerParticipantId = id;
           addHistoryEntry(`🏆 ¡${participant.name} GANÓ la carrera!`);
           showWinnerModal(id);
+          resetRaceState(`Nueva carrera iniciada automáticamente tras la victoria de ${participant.name}.`);
         }
       }
 
@@ -638,6 +716,13 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
       if (laps > 0) {
         finishCounts[id] = (Number(finishCounts[id] || 0) || 0) + laps;
         addHistoryEntry(`${participant.name} cruzó la meta (+${laps}). Total: ${finishCounts[id]} vueltas.`);
+
+        if (!winnerParticipantId && finishCounts[id] >= raceLapsLimit) {
+          winnerParticipantId = id;
+          addHistoryEntry(`🏆 ¡${participant.name} GANÓ la carrera!`);
+          showWinnerModal(id);
+          resetRaceState(`Nueva carrera iniciada automáticamente tras la victoria de ${participant.name}.`);
+        }
       }
       if (contextNote) addHistoryEntry(contextNote);
       saveState();
@@ -647,20 +732,20 @@ function applyCoinsToParticipant(id, coins, contextNote = '') {
 }
 
 function normalizeViewerKey(payload) {
-  const userId = String(payload.userId || '').trim();
+  const userId = String(payload?.user?.userId || payload?.userId || '').trim();
   if (userId) return `id:${userId}`;
 
-  const uniqueId = String(payload.uniqueId || '').trim().toLowerCase();
+  const uniqueId = String(payload?.user?.uniqueId || payload?.uniqueId || '').trim().toLowerCase();
   if (uniqueId) return `uid:${uniqueId}`;
 
-  const nickname = String(payload.nickname || '').trim().toLowerCase();
+  const nickname = String(payload?.user?.nickname || payload?.nickname || '').trim().toLowerCase();
   if (nickname) return `nick:${nickname}`;
 
   return '';
 }
 
 function viewerDisplayName(payload) {
-  return String(payload.nickname || payload.uniqueId || payload.userId || 'Usuario');
+  return String(payload?.user?.nickname || payload?.user?.uniqueId || payload?.user?.userId || payload?.nickname || payload?.uniqueId || payload?.userId || 'Usuario');
 }
 
 function getLiveGiftProgressKey(payload) {
@@ -780,6 +865,42 @@ function handleLiveGift(payload) {
   );
 }
 
+function handleLiveLike(payload) {
+  if (!likesConfig.enabled || likesConfig.movePercent <= 0) return;
+
+  const viewerKey = normalizeViewerKey(payload);
+  if (!viewerKey) return;
+
+  const participantId = viewerBindings[viewerKey];
+  if (!participantId) return;
+
+  const participant = participants.find((p) => p.id === participantId);
+  if (!participant) {
+    delete viewerBindings[viewerKey];
+    return;
+  }
+
+  const likeCount = Math.max(0, Number(payload.likeCount || 1) || 0);
+  if (likeCount <= 0) return;
+
+  const previousTotal = viewerLikeCounts.get(viewerKey) || 0;
+  const newTotal = previousTotal + likeCount;
+  viewerLikeCounts.set(viewerKey, newTotal);
+
+  const thresholdsBefore = Math.floor(previousTotal / likesConfig.likesPerMove);
+  const thresholdsAfter = Math.floor(newTotal / likesConfig.likesPerMove);
+  const triggers = thresholdsAfter - thresholdsBefore;
+  if (triggers <= 0) return;
+
+  const coins = triggers * (likesConfig.movePercent / 100) * COINS_PER_LAP;
+  const sender = viewerDisplayName(payload);
+  applyCoinsToParticipant(
+    participant.id,
+    coins,
+    `${sender} llegó a ${newTotal} likes (+${likesConfig.movePercent}% de vuelta para ${participant.name}).`,
+  );
+}
+
 function addHistoryEntry(text) {
   const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   history.unshift({ text, timestamp });
@@ -801,16 +922,21 @@ function renderHistory() {
   });
 }
 
-function resetRace() {
+function resetRaceState(historyMessage) {
   participants.forEach(p => {
     carPositions[p.id] = 0;
     finishCounts[p.id] = 0;
   });
   winnerParticipantId = null;
-  hideWinnerModal();
-  saveState();
   renderRaceTrack();
-  addHistoryEntry('Carrera reiniciada');
+  updateLeaderStyles();
+  if (historyMessage) addHistoryEntry(historyMessage);
+  saveState();
+}
+
+function resetRace() {
+  hideWinnerModal();
+  resetRaceState('Carrera reiniciada');
 }
 
 async function clearParticipants() {
@@ -841,6 +967,71 @@ if (participantNameInput) {
   participantNameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       addParticipant(participantNameInput.value);
+    }
+  });
+}
+
+if (raceLapsLimitInput) {
+  raceLapsLimitInput.addEventListener('change', () => {
+    const value = Math.max(1, Math.min(999, Number(raceLapsLimitInput.value) || 5));
+    raceLapsLimit = value;
+    raceLapsLimitInput.value = value;
+    addHistoryEntry(`Meta de vueltas actualizada a ${value}.`);
+    saveState();
+    maybeDeclareWinner();
+  });
+}
+
+if (raceLikesEnabledToggle) {
+  raceLikesEnabledToggle.addEventListener('change', () => {
+    likesConfig.enabled = raceLikesEnabledToggle.checked;
+    addHistoryEntry(likesConfig.enabled ? 'Movimiento por likes activado.' : 'Movimiento por likes desactivado.');
+    saveState();
+  });
+}
+
+if (raceLikesPerMoveInput) {
+  raceLikesPerMoveInput.addEventListener('change', () => {
+    const value = Math.max(1, Math.min(100000, Number(raceLikesPerMoveInput.value) || 50));
+    likesConfig.likesPerMove = value;
+    raceLikesPerMoveInput.value = value;
+    viewerLikeCounts.clear();
+    addHistoryEntry(`Ahora cada ${value} likes mueven el carro vinculado.`);
+    saveState();
+  });
+}
+
+if (raceLikesMovePercentInput) {
+  raceLikesMovePercentInput.addEventListener('input', () => {
+    const value = Math.max(0, Math.min(100, Number(raceLikesMovePercentInput.value) || 0));
+    if (raceLikesMovePercentValue) raceLikesMovePercentValue.textContent = `${value}%`;
+  });
+
+  raceLikesMovePercentInput.addEventListener('change', () => {
+    const value = Math.max(0, Math.min(100, Number(raceLikesMovePercentInput.value) || 0));
+    likesConfig.movePercent = value;
+    if (raceLikesMovePercentValue) raceLikesMovePercentValue.textContent = `${value}%`;
+    addHistoryEntry(`Los likes ahora avanzan el carro un ${value}% de vuelta.`);
+    saveState();
+  });
+}
+
+if (raceWinnerCloseBtn) raceWinnerCloseBtn.addEventListener('click', hideWinnerModal);
+
+if (raceInfoBtn) {
+  raceInfoBtn.addEventListener('click', () => {
+    if (raceInfoModal) {
+      raceInfoModal.classList.remove('hidden');
+      raceInfoModal.setAttribute('aria-hidden', 'false');
+    }
+  });
+}
+
+if (raceInfoCloseBtn) {
+  raceInfoCloseBtn.addEventListener('click', () => {
+    if (raceInfoModal) {
+      raceInfoModal.classList.add('hidden');
+      raceInfoModal.setAttribute('aria-hidden', 'true');
     }
   });
 }
@@ -1030,6 +1221,16 @@ function connectToEvents() {
     }
   });
 
+  liveEventsSource.addEventListener('like', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (participants.length === 0) return;
+      handleLiveLike(data);
+    } catch (_error) {
+      // Ignorar errores de parseo
+    }
+  });
+
   liveEventsSource.addEventListener('error', () => {
     if (isConnected) {
       setRaceConnectionStatus('connecting', 'Reconectando eventos del servidor...');
@@ -1080,3 +1281,10 @@ function setRaceConnectionStatus(status, details = '', error = '') {
     raceConnectionDetails.textContent = 'No has vinculado un ID de TikTok Live.';
   }
 }
+
+async function initializeRace() {
+  await loadState();
+  await restoreTiktokConnectionRace();
+}
+
+initializeRace();

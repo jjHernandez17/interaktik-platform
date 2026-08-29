@@ -36,6 +36,7 @@ const dominanceStartBattleBtn = document.getElementById('dominanceStartBattleBtn
 
 const leftArmy = document.getElementById('leftArmy');
 const rightArmy = document.getElementById('rightArmy');
+const dominanceProjectileLayer = document.getElementById('dominanceProjectileLayer');
 
 const leftHealth = document.getElementById('leftHealth');
 const rightHealth = document.getElementById('rightHealth');
@@ -265,142 +266,12 @@ function isTeamHpMode() {
   return dominanceState.gameMode === 'team_hp';
 }
 
-function getTeamByComment(commentText) {
-
-  const text =
-    String(commentText || '')
-      .trim()
-      .toLowerCase();
-
-  if (!text) return null;
-
-  const leftName =
-    dominanceState.teams.left.name
-      .trim()
-      .toLowerCase();
-
-  const rightName =
-    dominanceState.teams.right.name
-      .trim()
-      .toLowerCase();
-
-  if (text === leftName) {
-    return 'left';
-  }
-
-  if (text === rightName) {
-    return 'right';
-  }
-
-  return null;
-}
-
-function generateSoldierPosition(side) {
-
-  const container =
-    side === 'left' ? leftArmy : rightArmy;
-
-  const containerWidth =
-    container?.clientWidth || 320;
-
-  const containerHeight =
-    container?.clientHeight || 620;
-
-  const soldiers =
-    dominanceState.soldiers[side] || [];
-
-  const columns = 4;
-  const spacingX = 70;
-  const spacingY = 80;
-
-  const index = soldiers.length;
-  const row = Math.floor(index / columns);
-  const col = index % columns;
-
-  const baseX =
-    side === 'left'
-      ? 30
-      : Math.max(30, containerWidth - 320);
-
-  const x = baseX + (col * spacingX);
-  const y = 30 + (row * spacingY);
-
-  return {
-    x: Math.min(x, containerWidth - 60),
-    y: Math.min(y, containerHeight - 60),
-  };
-}
-
-function createSoldierFromViewer(user, side) {
-  const position = generateSoldierPosition(side);
-  const soldierHp = Number(dominanceState.killsConfig?.soldierHp || 200);
-  const baseSoldier = {
-    id: `soldier-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    uniqueId: String(user?.uniqueId || user?.nickname || '').trim(),
-    nickname: String(user?.nickname || user?.uniqueId || 'Jugador').trim(),
-    avatarData: getViewerAvatar(user),
-    side,
-    hp: soldierHp,
-    maxHp: soldierHp,
-    shield: 0,
-    giftScore: 0,
-    size: 42,
-    x: position.x,
-    y: position.y,
-  };
-
-  if (window.DominanceCombat?.soldierState?.createSoldierCombatState) {
-    return window.DominanceCombat.soldierState.createSoldierCombatState(baseSoldier, side);
-  }
-
-  return baseSoldier;
-}
-
-async function recruitViewerToTeam(payload) {
-
-  const comment =
-    String(payload?.comment || '').trim();
-
-  if (!comment) return;
-
-  const side =
-    getTeamByComment(comment);
-
-  if (!side) return;
-
-  const userUniqueId =
-    String(payload?.user?.uniqueId || payload?.user?.nickname || '').trim();
-
-  if (!userUniqueId) return;
-
-  dominanceState.viewer_bindings =
-    dominanceState.viewer_bindings || {};
-
-  if (dominanceState.viewer_bindings[userUniqueId]) {
-    return;
-  }
-
-  const soldier =
-    createSoldierFromViewer(payload.user, side);
-
-  dominanceState.viewer_bindings[userUniqueId] = side;
-  dominanceState.soldiers[side].push(soldier);
-
-  dominanceState.history.push(
-    createDominanceHistoryEntry(
-      `${soldier.nickname} se unió a ${dominanceState.teams[side].name}`,
-      'comment'
-    )
-  );
-
-  updateArenaMessage(
-    `${soldier.nickname} se unió a ${dominanceState.teams[side].name}`,
-    true
-  );
-
-  renderState();
-  await saveDominanceState();
-}
+// Nota: el reclutamiento real ocurre en el listener 'comment' de connectToEvents()
+// (más abajo). Antes existían aquí getTeamByComment/generateSoldierPosition/
+// createSoldierFromViewer/recruitViewerToTeam como una segunda implementación
+// paralela que nunca se llamaba desde ningún lado (código muerto duplicado con
+// valores por defecto ligeramente distintos) — se eliminaron para no dejar una
+// trampa de mantenimiento a futuro.
 
 function renderHealth() {
   if (isKillsMode()) {
@@ -583,6 +454,8 @@ async function startKillsBattle() {
   dominanceState.killsCombatStarted = true;
 
   const killsConfig = dominanceState.killsConfig || {};
+  dominanceState.killsConfig.timerStartedAt = new Date().toISOString();
+
   if (killsConfig.victoryType === 'time') {
     const durationSeconds = Math.max(10, Number(killsConfig.durationSeconds || 120));
     dominanceState.killsConfig.timerEndsAt =
@@ -857,6 +730,22 @@ function initializeCombatEngine() {
       teams: dominanceState.teams,
       combat: dominanceState.combat,
     }));
+
+    combatEngine.eventBus?.on?.('SoldierKilled', (detail) => {
+      handleSoldierKilled(detail).catch((error) => {
+        console.warn('[DOMINANCE] Error procesando SoldierKilled', error);
+      });
+    });
+
+    if (dominanceProjectileLayer && window.DominanceCombat?.projectileRenderer?.attach) {
+      window.DominanceCombat.projectileRenderer.attach(combatEngine, {
+        layer: dominanceProjectileLayer,
+        getSoldierElement: (soldierId) => leftArmy?.querySelector(`[data-soldier-id="${soldierId}"]`)
+          || rightArmy?.querySelector(`[data-soldier-id="${soldierId}"]`)
+          || null,
+      });
+    }
+
     combatEngine.start();
   }
 
@@ -885,6 +774,18 @@ function startDominanceCenterTimer() {
     if (dominanceState.killsConfig?.victoryType !== 'time') return;
 
     renderCenterStatus();
+
+    if (dominanceState.killsCombatStarted && !dominanceState.winner_team_id) {
+      const endsAt = dominanceState.killsConfig?.timerEndsAt
+        ? new Date(dominanceState.killsConfig.timerEndsAt).getTime()
+        : null;
+
+      if (endsAt && Date.now() >= endsAt) {
+        finishKillsBattleByTimeout().catch((error) => {
+          console.warn('[DOMINANCE] Error finalizando combate por tiempo', error);
+        });
+      }
+    }
   }, 1000);
 }
 
@@ -970,6 +871,7 @@ function renderSoldiers() {
     const element = document.createElement('div');
 
     element.className = 'soldier';
+    element.dataset.soldierId = soldier.id;
 
     element.style.left = `${soldier.x}px`;
     element.style.top = `${soldier.y}px`;
@@ -992,6 +894,7 @@ function renderSoldiers() {
     const element = document.createElement('div');
 
     element.className = 'soldier';
+    element.dataset.soldierId = soldier.id;
 
     element.style.left = `${soldier.x}px`;
     element.style.top = `${soldier.y}px`;
@@ -1192,6 +1095,13 @@ async function saveDominanceState() {
   }
 }
 
+function rehydrateSoldierCombatState(soldier, side) {
+  if (window.DominanceCombat?.soldierState?.createSoldierCombatState) {
+    return window.DominanceCombat.soldierState.createSoldierCombatState(soldier, side);
+  }
+  return soldier;
+}
+
 async function loadDominanceState() {
   try {
 
@@ -1261,10 +1171,10 @@ async function loadDominanceState() {
 
       soldiers: {
         left: Array.isArray(payload.soldiers?.left)
-          ? payload.soldiers.left
+          ? payload.soldiers.left.map((soldier) => rehydrateSoldierCombatState(soldier, 'left'))
           : [],
         right: Array.isArray(payload.soldiers?.right)
-          ? payload.soldiers.right
+          ? payload.soldiers.right.map((soldier) => rehydrateSoldierCombatState(soldier, 'right'))
           : []
       },
 
@@ -1335,6 +1245,102 @@ function cleanUpEvents() {
   }
 }
 
+
+function findSoldierEntryById(soldierId) {
+  const leftSoldier = dominanceState.soldiers.left.find(
+    soldier => soldier.id === soldierId
+  );
+
+  if (leftSoldier) {
+    return { side: 'left', soldier: leftSoldier };
+  }
+
+  const rightSoldier = dominanceState.soldiers.right.find(
+    soldier => soldier.id === soldierId
+  );
+
+  if (rightSoldier) {
+    return { side: 'right', soldier: rightSoldier };
+  }
+
+  return null;
+}
+
+function finishKillsBattle(winningSide) {
+  if (dominanceState.winner_team_id) return;
+
+  dominanceState.winner_team_id = winningSide;
+  dominanceState.winner = winningSide;
+  dominanceState.killsCombatStarted = false;
+
+  if (dominanceState.killsConfig) {
+    dominanceState.killsConfig.isFinished = true;
+  }
+
+  showVictoryModal(winningSide);
+}
+
+async function finishKillsBattleByTimeout() {
+  if (dominanceState.winner_team_id) return;
+
+  const leftKills = Number(dominanceState.teams.left.kills || 0);
+  const rightKills = Number(dominanceState.teams.right.kills || 0);
+
+  dominanceState.killsCombatStarted = false;
+  if (dominanceState.killsConfig) {
+    dominanceState.killsConfig.isFinished = true;
+  }
+
+  if (leftKills === rightKills) {
+    dominanceState.winner = 'draw';
+
+    dominanceState.history.push(
+      createDominanceHistoryEntry('El combate terminó en empate.', 'system')
+    );
+
+    updateArenaMessage('¡Empate! Ambos equipos terminaron con la misma cantidad de kills.', false);
+
+    try {
+      await showAppAlert('El combate terminó en empate.', 'Empate');
+    } catch (e) {
+      alert('El combate terminó en empate.');
+    }
+  } else {
+    finishKillsBattle(leftKills > rightKills ? 'left' : 'right');
+  }
+
+  renderState();
+  await saveDominanceState();
+}
+
+async function handleSoldierKilled({ soldierId } = {}) {
+  if (!isKillsMode() || dominanceState.winner_team_id) return;
+
+  const match = findSoldierEntryById(soldierId);
+  if (!match) return;
+
+  const killerSide = match.side === 'left' ? 'right' : 'left';
+  dominanceState.teams[killerSide].kills =
+    Number(dominanceState.teams[killerSide].kills || 0) + 1;
+
+  dominanceState.history.push(
+    createDominanceHistoryEntry(
+      `${match.soldier.nickname} cayó en combate. ${dominanceState.teams[killerSide].name} +1 kill.`,
+      'system'
+    )
+  );
+
+  const killsConfigState = dominanceState.killsConfig || {};
+  if (killsConfigState.victoryType === 'target') {
+    const targetKills = Math.max(1, Number(killsConfigState.targetKills || 20));
+    if (dominanceState.teams[killerSide].kills >= targetKills) {
+      finishKillsBattle(killerSide);
+    }
+  }
+
+  renderState();
+  await saveDominanceState();
+}
 
 function findSoldierByUserId(userId) {
   const leftSoldier = dominanceState.soldiers.left.find(
@@ -1884,6 +1890,70 @@ function ensureCombatStateShape() {
   return dominanceState.combat;
 }
 
+function renderPowerCatalogCard(power) {
+  const projectileTypes = window.DominanceCombat?.abilities?.PROJECTILE_TYPES || [];
+  const projectileOptions = projectileTypes
+    .map((option) => `<option value="${option.value}" ${option.value === power.projectileType ? 'selected' : ''}>${escapeHtml(option.label)}</option>`)
+    .join('');
+
+  return `
+    <div class="power-card" data-power-id="${power.id}">
+      <div class="power-card-header">
+        <input class="power-card-name" data-power-id="${power.id}" data-field="name" value="${escapeHtml(power.name)}" maxlength="40" />
+        <button class="power-card-remove" data-power-id="${power.id}" type="button" title="Eliminar poder">✕</button>
+      </div>
+      <div class="power-card-grid">
+        <label>Tipo
+          <select data-power-id="${power.id}" data-field="type">
+            <option value="attack" ${power.type !== 'support' ? 'selected' : ''}>Ataque</option>
+            <option value="support" ${power.type === 'support' ? 'selected' : ''}>Soporte (aliados)</option>
+          </select>
+        </label>
+        <label>Estilo visual
+          <select data-power-id="${power.id}" data-field="projectileType">${projectileOptions}</select>
+        </label>
+        <label>Color
+          <input type="color" data-power-id="${power.id}" data-field="color" value="${escapeHtml(power.color || '#f59e0b')}" />
+        </label>
+        <label>Daño
+          <input type="number" min="0" data-power-id="${power.id}" data-field="damage" value="${Number(power.damage || 0)}" />
+        </label>
+        <label>Curación
+          <input type="number" min="0" data-power-id="${power.id}" data-field="healing" value="${Number(power.healing || 0)}" />
+        </label>
+        <label>Escudo otorgado
+          <input type="number" min="0" data-power-id="${power.id}" data-field="shield" value="${Number(power.shield || 0)}" />
+        </label>
+        <label>Disparos
+          <input type="number" min="1" max="20" data-power-id="${power.id}" data-field="shots" value="${Number(power.shots || 1)}" />
+        </label>
+        <label>Radio de explosión (px)
+          <input type="number" min="0" data-power-id="${power.id}" data-field="explosionRadius" value="${Number(power.explosionRadius || 0)}" />
+        </label>
+        <label>Velocidad
+          <input type="number" min="0.1" step="0.1" data-power-id="${power.id}" data-field="projectileSpeed" value="${Number(power.projectileSpeed || 1)}" />
+        </label>
+        <label>Tamaño (px)
+          <input type="number" min="2" max="40" data-power-id="${power.id}" data-field="projectileSize" value="${Number(power.projectileSize || 8)}" />
+        </label>
+        <label>Cooldown (ms)
+          <input type="number" min="0" step="10" data-power-id="${power.id}" data-field="cooldownMs" value="${Number(power.cooldownMs || 0)}" />
+        </label>
+        <label>Duración animación (ms)
+          <input type="number" min="50" step="10" data-power-id="${power.id}" data-field="animationDuration" value="${Number(power.animationDuration || 280)}" />
+        </label>
+      </div>
+    </div>
+  `;
+}
+
+function getBindingParameterHint(actionType) {
+  if (actionType === 'gift') {
+    return 'Daño/curación extra (0 = usa el valor del poder)';
+  }
+  return 'Cada cuántas veces se activa el poder';
+}
+
 function renderCombatPowerConfig() {
   ensureCombatStateShape();
 
@@ -1962,24 +2032,40 @@ function renderCombatPowerConfig() {
           </select>
         </td>
         <td>
-          <input data-binding-id="${binding.id}" data-field="parameterValue" type="number" min="1" value="${Number(binding.parameterValue || 1)}" />
+          <input data-binding-id="${binding.id}" data-field="parameterValue" type="number" min="0" value="${Number(binding.parameterValue || 1)}" />
+          <small class="power-binding-hint">${getBindingParameterHint(binding.actionType)}</small>
         </td>
       </tr>
     `;
   }).join('');
 
   dominancePowersConfigTable.innerHTML = `
-    <table class="power-config-table">
-      <thead>
-        <tr>
-          <th>Tipo de acción</th>
-          <th>Acción o regalo</th>
-          <th>Poder asignado</th>
-          <th>Parámetro adicional</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="power-catalog-section">
+      <div class="power-catalog-header">
+        <h3>Poderes disponibles</h3>
+        <button id="dominanceAddPowerBtn" class="btn accent" type="button">+ Nuevo poder</button>
+      </div>
+      <p class="hint">Cada poder define su propio daño/curación/escudo, cuántos proyectiles dispara, si golpea en área, qué tan rápido viaja y con qué estilo visual se dibuja.</p>
+      <div class="power-catalog-grid">
+        ${catalog.map(renderPowerCatalogCard).join('')}
+      </div>
+    </div>
+
+    <div class="power-bindings-section">
+      <h3>Asignación de eventos de TikTok</h3>
+      <p class="hint">Decide qué poder se activa con cada tipo de evento (y, para regalos, con cuál regalo específico).</p>
+      <table class="power-config-table">
+        <thead>
+          <tr>
+            <th>Tipo de acción</th>
+            <th>Acción o regalo</th>
+            <th>Poder asignado</th>
+            <th>Parámetro</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -1995,7 +2081,7 @@ function savePowerBindingsFromUI() {
     const actionType = row.querySelector('[data-field="actionType"]')?.value || 'like';
     const actionName = row.querySelector('[data-field="actionName"]')?.value || '';
     const powerId = row.querySelector('[data-field="powerId"]')?.value || '';
-    const parameterValue = Number(row.querySelector('[data-field="parameterValue"]')?.value || 1);
+    const parameterValue = Number(row.querySelector('[data-field="parameterValue"]')?.value || 0);
 
     const binding = dominanceState.combat.powerBindings[index] || {
       id: `binding-${Date.now()}-${index}`,
@@ -2006,15 +2092,105 @@ function savePowerBindingsFromUI() {
       actionType,
       actionName,
       powerId,
-      parameterValue: Math.max(1, parameterValue),
+      // 0 es válido: para regalos significa "usar el valor del poder";
+      // para like/follow/share, quien lo consume ya exige un mínimo de 1.
+      parameterValue: Math.max(0, parameterValue),
     });
   });
 
   dominanceState.combat.powerBindings = bindings;
 }
 
+function savePowerCatalogFromUI() {
+  ensureCombatStateShape();
+
+  if (!dominancePowersConfigTable) return;
+
+  const cards = dominancePowersConfigTable.querySelectorAll('.power-card');
+  if (!cards.length) return;
+
+  const catalog = [];
+
+  cards.forEach((card) => {
+    const powerId = card.dataset.powerId;
+    const field = (name) => card.querySelector(`[data-field="${name}"]`)?.value;
+
+    catalog.push({
+      id: powerId,
+      name: String(field('name') || 'Poder').trim().slice(0, 40) || 'Poder',
+      type: field('type') === 'support' ? 'support' : 'attack',
+      projectileType: field('projectileType') || 'basic-bullet',
+      color: field('color') || '#f59e0b',
+      damage: Math.max(0, Number(field('damage')) || 0),
+      healing: Math.max(0, Number(field('healing')) || 0),
+      shield: Math.max(0, Number(field('shield')) || 0),
+      shots: Math.max(1, Math.min(20, Number(field('shots')) || 1)),
+      explosionRadius: Math.max(0, Number(field('explosionRadius')) || 0),
+      projectileSpeed: Math.max(0.1, Number(field('projectileSpeed')) || 1),
+      projectileSize: Math.max(2, Math.min(60, Number(field('projectileSize')) || 8)),
+      cooldownMs: Math.max(0, Number(field('cooldownMs')) || 0),
+      animationDuration: Math.max(50, Number(field('animationDuration')) || 280),
+    });
+  });
+
+  dominanceState.combat.powerCatalog = catalog;
+}
+
+function addNewPower() {
+  ensureCombatStateShape();
+
+  dominanceState.combat.powerCatalog.push({
+    id: `power-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: 'Nuevo poder',
+    type: 'attack',
+    projectileType: 'basic-bullet',
+    color: '#f59e0b',
+    damage: 20,
+    healing: 0,
+    shield: 0,
+    shots: 1,
+    explosionRadius: 0,
+    projectileSpeed: 1.2,
+    projectileSize: 8,
+    cooldownMs: 200,
+    animationDuration: 280,
+  });
+
+  renderCombatPowerConfig();
+}
+
+async function removePower(powerId) {
+  ensureCombatStateShape();
+
+  if (dominanceState.combat.powerCatalog.length <= 1) {
+    await showAppAlert('Debe quedar al menos un poder disponible.', 'No se puede eliminar');
+    return;
+  }
+
+  const usedByBinding = dominanceState.combat.powerBindings.some((binding) => binding.powerId === powerId);
+  if (usedByBinding) {
+    const confirmed = await showAppConfirm(
+      'Este poder está asignado a un evento de TikTok. Si lo eliminas, ese evento pasará a usar el primer poder disponible. ¿Eliminar de todas formas?',
+      'Poder en uso',
+      'Eliminar',
+      'Cancelar',
+    );
+    if (!confirmed) return;
+  }
+
+  dominanceState.combat.powerCatalog = dominanceState.combat.powerCatalog.filter((power) => power.id !== powerId);
+  const fallbackId = dominanceState.combat.powerCatalog[0]?.id || '';
+
+  dominanceState.combat.powerBindings = dominanceState.combat.powerBindings.map((binding) =>
+    binding.powerId === powerId ? { ...binding, powerId: fallbackId } : binding
+  );
+
+  renderCombatPowerConfig();
+}
+
 async function savePowerConfig() {
   ensureCombatStateShape();
+  savePowerCatalogFromUI();
   savePowerBindingsFromUI();
   renderState();
   await saveDominanceState();
@@ -2098,7 +2274,26 @@ function bindUIActions() {
 
   if (dominancePowersConfigTable) {
     dominancePowersConfigTable.addEventListener('change', () => {
+      savePowerCatalogFromUI();
       savePowerBindingsFromUI();
+    });
+
+    dominancePowersConfigTable.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.power-card-remove');
+      if (removeBtn) {
+        savePowerCatalogFromUI();
+        savePowerBindingsFromUI();
+        removePower(removeBtn.dataset.powerId).catch((error) => {
+          console.warn('[DOMINANCE] Error eliminando poder', error);
+        });
+        return;
+      }
+
+      if (event.target.closest('#dominanceAddPowerBtn')) {
+        savePowerCatalogFromUI();
+        savePowerBindingsFromUI();
+        addNewPower();
+      }
     });
   }
 

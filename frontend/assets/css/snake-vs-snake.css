@@ -1,14 +1,14 @@
 :root {
-  --bg: #080d1a;
-  --panel: rgba(15, 23, 42, 0.9);
-  --panel-strong: rgba(15, 23, 42, 0.96);
-  --line: rgba(148, 163, 184, 0.18);
-  --text: #e5eefc;
-  --muted: #94a3b8;
-  --primary: #8b5cf6;
-  --accent: #06b6d4;
-  --success: #22c55e;
-  --danger: #ef4444;
+  --bg: var(--ds-bg);
+  --panel: var(--ds-surface-solid);
+  --panel-strong: var(--ds-surface-hover);
+  --line: var(--ds-border);
+  --text: var(--ds-text);
+  --muted: var(--ds-text-muted);
+  --primary: var(--ds-primary);
+  --accent: var(--ds-accent);
+  --success: var(--ds-success);
+  --danger: var(--ds-danger);
 }
 
 * {
@@ -833,38 +833,9 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14);
 }
 
-.btn {
-  border: 0;
-  border-radius: 14px;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
-  color: white;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.btn.ghost {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.btn.accent {
-  background: linear-gradient(135deg, #0ea5e9, #14b8a6);
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
+/* Los estilos base de .btn ahora viven en design-system.css. Verificado:
+   snake-vs-snake.html solo usa .primary/.ghost/.accent, ningun .btn "pelado".
+   Se conserva .btn.full, que es un modificador propio no cubierto ahi. */
 
 .btn.full {
   width: 100%;

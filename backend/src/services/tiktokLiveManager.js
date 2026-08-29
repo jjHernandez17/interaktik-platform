@@ -418,6 +418,7 @@ connection.on(WebcastEvent.CHAT, (data) => {
       user: {
         uniqueId: data?.user?.uniqueId || '',
         nickname: data?.user?.nickname || '',
+        userId: data?.user?.userId || null,
       },
     });
   });

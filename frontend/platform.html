@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel | PlayTik Live</title>
-    <link rel="stylesheet" href="assets/css/platform.css" />
+    <link rel="stylesheet" href="assets/css/design-system.css" />
+    <link rel="stylesheet" href="assets/css/platform.css?v=20260829a" />
   </head>
   <body>
     <main class="platform-shell">
@@ -17,6 +18,7 @@
         <nav class="platform-nav" aria-label="Menu principal">
           <button class="nav-item" type="button" data-section="accountSection">Configuracion de cuenta</button>
           <button class="nav-item active" type="button" data-section="gamesSection">Juegos</button>
+          <button class="nav-item" type="button" data-section="plansSection">Planes</button>
           <button id="adminNavItem" class="nav-item hidden" type="button" data-section="adminSection">Cuentas registradas</button>
         </nav>
 
@@ -75,6 +77,8 @@
           </div>
           <p class="muted">Selecciona un juego para comenzar.</p>
 
+          <div id="accessStatusBanner" class="access-status-banner hidden"></div>
+
           <div class="games-grid">
             <article class="game-card">
               <img src="/assets/images/ContadorPuntos.png" alt="Contador de Puntos" class="game-card-image" />
@@ -110,6 +114,21 @@
               <span class="coming-soon">Proximamente</span>
             </article>
           </div>
+        </section>
+
+        <section id="plansSection" class="content-card hidden">
+          <div class="card-header">
+            <h2>Planes</h2>
+          </div>
+          <p class="muted">Al registrarte obtienes 2 días de prueba gratis con acceso completo. Cuando venza (o si quieres seguir jugando después), elige un plan.</p>
+
+          <div id="plansAccessStatus" class="access-status-banner hidden"></div>
+
+          <div id="plansGrid" class="plans-grid">
+            <p class="muted">Cargando planes...</p>
+          </div>
+
+          <p id="plansGatewayNotice" class="muted plans-gateway-notice hidden"></p>
         </section>
 
         <section id="adminSection" class="content-card hidden">
@@ -161,6 +180,6 @@
     <script src="js/config.js?v=20260606c"></script>
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>
-    <script src="js/platform.js?v=20260606c"></script>
+    <script src="js/platform.js?v=20260829b"></script>
   </body>
 </html>

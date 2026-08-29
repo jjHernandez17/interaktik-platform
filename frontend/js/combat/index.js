@@ -2,73 +2,9 @@
 
 (function () {
   function createDefaultPowerCatalog() {
-    return [
-      {
-        id: 'basic-shot',
-        name: 'Bala básica',
-        type: 'attack',
-        damage: 35,
-        healing: 0,
-        shield: 0,
-        shots: 1,
-        explosionRadius: 0,
-        projectileSpeed: 1.2,
-        color: '#f59e0b',
-        animationDuration: 280,
-      },
-      {
-        id: 'heavy-shot',
-        name: 'Disparo pesado',
-        type: 'attack',
-        damage: 70,
-        healing: 0,
-        shield: 0,
-        shots: 1,
-        explosionRadius: 0,
-        projectileSpeed: 0.8,
-        color: '#ef4444',
-        animationDuration: 360,
-      },
-      {
-        id: 'shield-burst',
-        name: 'Escudo',
-        type: 'support',
-        damage: 0,
-        healing: 0,
-        shield: 35,
-        shots: 1,
-        explosionRadius: 0,
-        projectileSpeed: 0.9,
-        color: '#38bdf8',
-        animationDuration: 320,
-      },
-      {
-        id: 'bombardment',
-        name: 'Bombardeo',
-        type: 'attack',
-        damage: 90,
-        healing: 0,
-        shield: 0,
-        shots: 3,
-        explosionRadius: 54,
-        projectileSpeed: 1.4,
-        color: '#8b5cf6',
-        animationDuration: 420,
-      },
-      {
-        id: 'heal-burst',
-        name: 'Ráfaga de curación',
-        type: 'support',
-        damage: 0,
-        healing: 24,
-        shield: 0,
-        shots: 1,
-        explosionRadius: 24,
-        projectileSpeed: 1.1,
-        color: '#22c55e',
-        animationDuration: 300,
-      },
-    ];
+    // Fuente única: combat/abilities.js. Se delega aquí para que la UI de
+    // configuración y el motor de combate nunca vuelvan a desincronizarse.
+    return window.DominanceCombat?.abilities?.createAbilityCatalog?.() || [];
   }
 
   function createDefaultPowerBindings() {
@@ -177,7 +113,8 @@
     return window.DominanceCombat?.CombatEngine?.create?.(options);
   }
 
-  window.DominanceCombat = {
+  window.DominanceCombat = window.DominanceCombat || {};
+  Object.assign(window.DominanceCombat, {
     createDefaultPowerCatalog,
     createDefaultPowerBindings,
     createCombatState,
@@ -191,5 +128,5 @@
     ProjectileEngine,
     registerCombatSystems,
     createCombatEngine,
-  };
+  });
 })();

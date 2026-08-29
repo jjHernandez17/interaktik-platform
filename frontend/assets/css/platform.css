@@ -1,11 +1,13 @@
 :root {
-  --bg: #0b1020;
-  --card: rgba(15, 23, 42, 0.9);
-  --line: rgba(148, 163, 184, 0.2);
-  --text: #e5eefc;
-  --muted: #94a3b8;
-  --primary: #8b5cf6;
-  --accent: #06b6d4;
+  /* Alias hacia los tokens compartidos de design-system.css, para que todo
+     este archivo (700+ lineas) se retematice sin tener que tocar cada regla. */
+  --bg: var(--ds-bg);
+  --card: var(--ds-surface-solid);
+  --line: var(--ds-border);
+  --text: var(--ds-text);
+  --muted: var(--ds-text-muted);
+  --primary: var(--ds-primary);
+  --accent: var(--ds-accent);
 }
 
 * {
@@ -15,12 +17,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(139, 92, 246, 0.2), transparent 34%),
-    radial-gradient(circle at top right, rgba(6, 182, 212, 0.15), transparent 30%),
-    linear-gradient(180deg, #070b16 0%, #0b1020 100%);
+    radial-gradient(circle at top left, rgba(124, 92, 255, 0.2), transparent 34%),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.15), transparent 30%),
+    linear-gradient(180deg, #05070d 0%, var(--bg) 100%);
 }
 
 button,
@@ -41,9 +42,11 @@ a {
 
 .platform-sidebar,
 .content-card {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
+  background: var(--ds-surface-solid);
+  background-image: var(--ds-gradient-surface);
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .platform-sidebar {
@@ -51,15 +54,16 @@ a {
   top: 0;
   height: 100vh;
   overflow: hidden;
-  padding: 20px;
+  padding: 22px 18px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
   min-height: 100vh;
   border-radius: 0;
   border-left: 0;
   border-top: 0;
   border-bottom: 0;
+  box-shadow: none;
 }
 
 .eyebrow {
@@ -68,55 +72,74 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .brand h1 {
   margin: 8px 0 0;
+  font-family: var(--ds-font-display);
   font-size: 1.8rem;
+  font-weight: 800;
 }
 
 .platform-nav {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .nav-item {
   text-align: left;
-  border: 1px solid var(--line);
-  background: rgba(2, 6, 23, 0.5);
-  color: var(--text);
-  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  border-radius: var(--ds-radius-md);
   padding: 12px 14px;
   cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
 .nav-item.active {
-  border-color: rgba(139, 92, 246, 0.8);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
+  background: var(--ds-primary-soft);
+  border-color: rgba(124, 92, 255, 0.35);
+  color: #fff;
 }
 
 .logout-btn {
   margin-top: auto;
-  border: 0;
-  border-radius: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: var(--ds-radius-md);
   padding: 12px 14px;
   cursor: pointer;
-  color: #fff;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  font-weight: 600;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  transition: background 160ms ease;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
 }
 
 .platform-content {
   display: grid;
   gap: 20px;
-  padding: 20px;
+  padding: 24px;
 }
 
 .content-card {
-  padding: 22px;
+  padding: 26px;
 }
 
 .card-header h2 {
   margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
 }
 
 .muted {
@@ -212,6 +235,120 @@ a {
   font-weight: 700;
 }
 
+.game-card.game-locked-by-plan {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+
+.game-card.game-locked-by-plan .start-btn {
+  pointer-events: none;
+  background: rgba(148, 163, 184, 0.24);
+  color: var(--muted);
+}
+
+.game-locked-message {
+  margin: 10px 0 0;
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.game-locked-message a {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+.access-status-banner {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+.access-status-banner.ok {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #86efac;
+}
+
+.access-status-banner.warning {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+}
+
+.plans-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.plan-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-card h3 {
+  margin: 0;
+}
+
+.plan-price {
+  font-family: var(--ds-font-display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0;
+  background: var(--ds-gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.plan-price-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.plan-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.plan-cop-note {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.plan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plan-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plans-gateway-notice {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+}
+
 .admin-header {
   display: flex;
   align-items: center;
@@ -219,46 +356,8 @@ a {
   gap: 16px;
 }
 
-.btn {
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  color: var(--text);
-  font-weight: 600;
-}
-
-.btn.small {
-  padding: 8px 10px;
-  font-size: 0.88rem;
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: #fff;
-}
-
-.btn.secondary {
-  border: 1px solid var(--line);
-  background: rgba(2, 6, 23, 0.55);
-  color: var(--text);
-}
-
-.btn.ghost {
-  border-color: var(--line);
-  background: transparent;
-  color: var(--text);
-}
-
-.btn.danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #fff;
-}
-
-.btn:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
+/* Los estilos de .btn ahora viven en design-system.css (compartidos con
+   todo el sitio) — se eliminaron de aqui para no duplicar/desincronizar. */
 
 .admin-meta {
   margin-top: 12px;
@@ -407,11 +506,11 @@ a {
   width: min(760px, 100%);
   max-height: min(90vh, 860px);
   overflow: auto;
-  border-radius: 24px;
+  border-radius: var(--ds-radius-xl);
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
-  padding: 20px;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg, rgba(19, 24, 38, 0.98), rgba(13, 17, 28, 0.96));
+  padding: 24px;
+  box-shadow: var(--ds-shadow-lg);
 }
 
 .admin-modal-card .card-header {
@@ -543,6 +642,14 @@ a {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  border-radius: var(--ds-radius-lg);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--ds-border-strong);
+  box-shadow: var(--ds-shadow-md);
 }
 
 .game-card img {
@@ -551,12 +658,14 @@ a {
   object-fit: cover;
   border-radius: 8px 8px 0 0;
   margin: -14px -14px 8px -14px;
-  background: rgba(139, 92, 246, 0.1);
+  background: var(--ds-primary-soft);
   display: block;
 }
 
 .game-card h3 {
   margin: 0 0 8px;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
 }
 
 .game-card p {
@@ -568,19 +677,21 @@ a {
 
 .start-btn {
   display: inline-block;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 11px 16px;
+  border-radius: var(--ds-radius-md);
   color: #fff;
   text-decoration: none;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  transition: transform 0.15s ease, filter 0.15s ease;
-  font-weight: 500;
+  text-align: center;
+  font-weight: 600;
   font-size: 0.9rem;
+  background: var(--ds-gradient-brand);
+  box-shadow: 0 10px 26px rgba(124, 92, 255, 0.26);
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .start-btn:hover {
-  filter: brightness(1.08);
   transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(124, 92, 255, 0.36);
 }
 
 .game-card.disabled {
@@ -589,10 +700,12 @@ a {
 
 .coming-soon {
   display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 6px 12px;
+  border-radius: var(--ds-radius-pill);
   border: 1px solid var(--line);
   color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .hidden {

@@ -233,8 +233,23 @@ function sanitizeRaceParticipant(participant, index) {
   };
 }
 
+function sanitizeRaceLikesConfig(config) {
+  const source = config && typeof config === 'object' ? config : {};
+  return {
+    enabled: source.enabled === true,
+    likesPerMove: Math.max(1, Math.min(100000, Number(source.likesPerMove) || 50)),
+    movePercent: Math.max(0, Math.min(100, Number(source.movePercent) || 0)),
+  };
+}
+
 function sanitizeRaceGameState(payload) {
   const participants = Array.isArray(payload?.participants) ? payload.participants.slice(0, 20).map(sanitizeRaceParticipant) : [];
+
+  const raceLapsLimit = Math.max(1, Math.min(999, Number(payload?.race_laps_limit) || 5));
+
+  const winnerParticipantId = participants.some((p) => p.id === payload?.winner_participant_id)
+    ? String(payload.winner_participant_id)
+    : null;
 
   return {
     participants,
@@ -242,6 +257,9 @@ function sanitizeRaceGameState(payload) {
     finish_counts: payload?.finish_counts || {},
     viewer_bindings: payload?.viewer_bindings || {},
     history: Array.isArray(payload?.history) ? payload.history.slice(0, 100) : [],
+    race_laps_limit: raceLapsLimit,
+    winner_participant_id: winnerParticipantId,
+    likes_config: sanitizeRaceLikesConfig(payload?.likes_config),
   };
 }
 
@@ -268,6 +286,41 @@ function sanitizeDominanceHistoryEntry(entry, index) {
     message: String(entry?.message || 'Evento').trim().slice(0, 360),
     source: String(entry?.source || 'live').trim().slice(0, 40),
     createdAt: normalizeIsoDate(entry?.createdAt),
+  };
+}
+
+const VALID_PROJECTILE_TYPES = [
+  'basic-bullet', 'heavy-bullet', 'rocket', 'laser', 'meteor',
+  'fireball', 'bomb', 'heal-orb', 'shield-wave',
+];
+
+function sanitizeDominancePower(power, index) {
+  return {
+    id: String(power?.id || `power-${index + 1}-${Math.random().toString(36).slice(2, 8)}`),
+    name: String(power?.name || `Poder ${index + 1}`).trim().slice(0, 40) || `Poder ${index + 1}`,
+    type: power?.type === 'support' ? 'support' : 'attack',
+    projectileType: VALID_PROJECTILE_TYPES.includes(power?.projectileType) ? power.projectileType : 'basic-bullet',
+    color: /^#[0-9a-fA-F]{6}$/.test(power?.color || '') ? power.color : '#f59e0b',
+    damage: Math.max(0, Math.min(9999, Number(power?.damage) || 0)),
+    healing: Math.max(0, Math.min(9999, Number(power?.healing) || 0)),
+    shield: Math.max(0, Math.min(9999, Number(power?.shield) || 0)),
+    shots: Math.max(1, Math.min(20, Number(power?.shots) || 1)),
+    explosionRadius: Math.max(0, Math.min(2000, Number(power?.explosionRadius) || 0)),
+    projectileSpeed: Math.max(0.1, Math.min(20, Number(power?.projectileSpeed) || 1.2)),
+    projectileSize: Math.max(2, Math.min(60, Number(power?.projectileSize) || 8)),
+    cooldownMs: Math.max(0, Math.min(60000, Number(power?.cooldownMs) || 0)),
+    animationDuration: Math.max(50, Math.min(5000, Number(power?.animationDuration) || 280)),
+  };
+}
+
+function sanitizeDominancePowerBinding(binding, index) {
+  const validActionTypes = ['comment', 'like', 'follow', 'gift', 'share'];
+  return {
+    id: String(binding?.id || `binding-${index + 1}-${Math.random().toString(36).slice(2, 8)}`),
+    actionType: validActionTypes.includes(binding?.actionType) ? binding.actionType : 'like',
+    actionName: String(binding?.actionName || '').trim().slice(0, 60),
+    powerId: String(binding?.powerId || '').trim().slice(0, 80),
+    parameterValue: Math.max(0, Math.min(999999, Number(binding?.parameterValue) || 0)),
   };
 }
 
@@ -411,6 +464,17 @@ function sanitizeDominanceGameState(payload) {
 
   const soldierHp = killsConfig.soldierHp;
 
+  function sanitizeSoldierActionCounters(counters) {
+    const source = counters && typeof counters === 'object' ? counters : {};
+    return {
+      like: Math.max(0, Number(source.like || 0)),
+      follow: Math.max(0, Number(source.follow || 0)),
+      share: Math.max(0, Number(source.share || 0)),
+    };
+  }
+
+  const VALID_SOLDIER_STATES = ['idle', 'walking', 'attacking', 'casting', 'dead', 'frozen', 'burning', 'poisoned', 'shielded', 'healing', 'stunned'];
+
   function sanitizeSoldier(soldier, side) {
     return {
       id: String(
@@ -430,6 +494,12 @@ function sanitizeDominanceGameState(payload) {
       targetX: typeof soldier?.targetX === 'number' ? soldier.targetX : undefined,
       targetY: typeof soldier?.targetY === 'number' ? soldier.targetY : undefined,
       speed: typeof soldier?.speed === 'number' ? soldier.speed : undefined,
+      isDead: Boolean(soldier?.isDead),
+      state: VALID_SOLDIER_STATES.includes(soldier?.state) ? soldier.state : 'idle',
+      mana: Math.max(0, Number(soldier?.mana || 0)),
+      shieldEffectsCooldown: Math.max(0, Number(soldier?.shieldEffectsCooldown || 0)),
+      lastAttackAt: typeof soldier?.lastAttackAt === 'string' ? soldier.lastAttackAt : null,
+      actionCounters: sanitizeSoldierActionCounters(soldier?.actionCounters),
     };
   }
 
@@ -468,10 +538,10 @@ function sanitizeDominanceGameState(payload) {
 
     combat: {
       powerCatalog: Array.isArray(payload?.combat?.powerCatalog)
-        ? payload.combat.powerCatalog.slice(0, 200)
+        ? payload.combat.powerCatalog.slice(0, 50).map((power, index) => sanitizeDominancePower(power, index))
         : [],
       powerBindings: Array.isArray(payload?.combat?.powerBindings)
-        ? payload.combat.powerBindings.slice(0, 200)
+        ? payload.combat.powerBindings.slice(0, 200).map((binding, index) => sanitizeDominancePowerBinding(binding, index))
         : [],
     },
 

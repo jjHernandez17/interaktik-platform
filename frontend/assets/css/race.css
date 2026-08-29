@@ -1,11 +1,15 @@
 :root {
-  --bg: #0b1020;
-  --card: rgba(15, 23, 42, 0.9);
-  --line: rgba(148, 163, 184, 0.2);
-  --text: #e5eefc;
-  --muted: #94a3b8;
-  --primary: #8b5cf6;
-  --accent: #06b6d4;
+  /* Colores alineados a design-system.css. --lane-height/--car-size/
+     --lane-label-width/--participant-avatar-size se sobreescriben en vivo
+     desde race.js (updateTrackSizing) — sus valores por defecto aqui NO se
+     deben cambiar, son el estado inicial antes de que JS los recalcule. */
+  --bg: var(--ds-bg);
+  --card: var(--ds-surface-solid);
+  --line: var(--ds-border);
+  --text: var(--ds-text);
+  --muted: var(--ds-text-muted);
+  --primary: var(--ds-primary);
+  --accent: var(--ds-accent);
   --lane-height: 56px;
   --car-size: 52px;
   --lane-label-width: 120px;
@@ -305,36 +309,8 @@ a {
   font-size: 0.85rem;
 }
 
-.btn {
-  border: none;
-  border-radius: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.9rem;
-  transition: transform 0.15s ease, filter 0.15s ease;
-}
-
-.btn:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
-}
-
-.btn.ghost {
-  background: rgba(15, 23, 42, 0.6);
-  color: var(--text);
-  border: 1px solid var(--line);
-}
-
-.btn.accent {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
-  color: white;
-}
+/* Los estilos de .btn ahora viven en design-system.css. Verificado: race.html
+   solo usa .primary/.ghost/.accent, ningun .btn "pelado". */
 
 .track-section {
   margin-bottom: 0;
@@ -402,7 +378,37 @@ a {
   width: 100%;
   height: var(--lane-height);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.race-delta-bubble {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 800;
+  font-size: clamp(0.8rem, 1.6vh, 1.05rem);
+  color: #4ade80;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.55);
+  pointer-events: none;
+  z-index: 8;
+  white-space: nowrap;
+  animation: race-delta-float 900ms ease-out forwards;
+}
+
+.race-delta-bubble.negative {
+  color: #f87171;
+  text-shadow: 0 0 8px rgba(248, 113, 113, 0.55);
+}
+
+@keyframes race-delta-float {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 34px));
+  }
 }
 
 .lane-name-overlay {
@@ -717,4 +723,136 @@ a {
 .status-badge.live_off {
   color: #fdba74;
   background: rgba(249, 115, 22, 0.16);
+}
+
+/* Botón de información del juego */
+.race-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info-btn {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--accent);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.info-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+/* Interruptor (switch) reutilizable */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  transition: background 0.18s ease;
+}
+
+.switch-slider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.18s ease;
+}
+
+.switch input:checked + .switch-slider {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+.switch input:checked + .switch-slider::before {
+  transform: translateX(20px);
+}
+
+.field-label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field-label input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.field-label-value {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Tarjeta de información/instrucciones (reutiliza el backdrop .winner-modal) */
+.info-card {
+  width: min(92vw, 560px);
+  max-height: 82vh;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  text-align: left;
+  padding: 28px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+
+.info-card h2 {
+  margin: 0;
+}
+
+.info-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.info-list li::marker {
+  color: var(--accent);
 }

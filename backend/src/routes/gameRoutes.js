@@ -1,7 +1,7 @@
 // tiktokinteractive/backend/src/routes/gameRoutes.js
 
 const express = require('express');
-const { requireAuth, getSessionUserId } = require('../middleware/auth');
+const { requireAuth, requireActiveAccess, getSessionUserId } = require('../middleware/auth');
 const gameStateService = require('../services/gameStateService');
 const dominanceService = require('../services/dominanceService');
 const snakeService = require('../services/snakeService');
@@ -12,7 +12,7 @@ const logger = require('../config/logger');
 const router = express.Router();
 
 // Game State (Contador)
-router.get('/game-state', requireAuth, async (req, res, next) => {
+router.get('/game-state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -27,7 +27,7 @@ router.get('/game-state', requireAuth, async (req, res, next) => {
   }
 });
 
-router.put('/game-state', requireAuth, async (req, res, next) => {
+router.put('/game-state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -43,7 +43,7 @@ router.put('/game-state', requireAuth, async (req, res, next) => {
 });
 
 // Snake vs Snake
-router.get('/snake-vs-snake/state', requireAuth, async (req, res, next) => {
+router.get('/snake-vs-snake/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -58,7 +58,7 @@ router.get('/snake-vs-snake/state', requireAuth, async (req, res, next) => {
   }
 });
 
-router.put('/snake-vs-snake/state', requireAuth, async (req, res, next) => {
+router.put('/snake-vs-snake/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -74,7 +74,7 @@ router.put('/snake-vs-snake/state', requireAuth, async (req, res, next) => {
 });
 
 // Race Game
-router.get('/race/state', requireAuth, async (req, res, next) => {
+router.get('/race/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -89,7 +89,7 @@ router.get('/race/state', requireAuth, async (req, res, next) => {
   }
 });
 
-router.post('/race/state', requireAuth, async (req, res, next) => {
+router.post('/race/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -104,7 +104,7 @@ router.post('/race/state', requireAuth, async (req, res, next) => {
   }
 });
 
-router.get('/dominance/state', requireAuth, async (req, res, next) => {
+router.get('/dominance/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {
@@ -119,7 +119,7 @@ router.get('/dominance/state', requireAuth, async (req, res, next) => {
   }
 });
 
-router.post('/dominance/state', requireAuth, async (req, res, next) => {
+router.post('/dominance/state', requireAuth, requireActiveAccess, async (req, res, next) => {
   try {
     const userId = getSessionUserId(req);
     if (!userId) {

@@ -5,8 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Carrera de Colegas | PlayTik Live</title>
-  <link rel="stylesheet" href="assets/css/styles.css?v=20260606b" />
-  <link rel="stylesheet" href="assets/css/race.css?v=20260606b" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/styles.css?v=20260829a" />
+  <link rel="stylesheet" href="assets/css/race.css?v=20260829a" />
 </head>
 
 <body>
@@ -22,6 +23,7 @@
           El primero en cruzar la meta múltiples veces gana.
         </p>
       </div>
+      <button id="raceInfoBtn" class="info-btn" type="button" aria-label="Información del juego" title="Cómo jugar">i</button>
     </section>
 
     <section class="card connection-card">
@@ -80,7 +82,27 @@
         <div class="panel-section">
           <h3>Meta de vueltas</h3>
           <input id="raceLapsLimit" type="number" min="1" max="999" step="1" value="5" />
-          <p class="hint">El primer participante que alcance este número de vueltas gana la carrera.</p>
+          <p class="hint">El primer participante que alcance este número de vueltas gana la carrera. Al ganar, la carrera se reinicia automáticamente.</p>
+        </div>
+
+        <div class="panel-section">
+          <h3>Movimiento por likes</h3>
+          <label class="switch-row" for="raceLikesEnabledToggle">
+            <span>Los likes mueven el carro comentado</span>
+            <span class="switch">
+              <input id="raceLikesEnabledToggle" type="checkbox" />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+          <label class="field-label" for="raceLikesPerMoveInput">
+            Cada cuántos likes mueve el carro
+            <input id="raceLikesPerMoveInput" type="number" min="1" max="100000" step="1" value="50" />
+          </label>
+          <label class="field-label" for="raceLikesMovePercentInput">
+            Cuánto avanza el carro con esos likes (<span id="raceLikesMovePercentValue" class="field-label-value">5%</span> de una vuelta)
+            <input id="raceLikesMovePercentInput" type="range" min="0" max="100" step="1" value="5" />
+          </label>
+          <p class="hint">Solo aplica al carro del espectador que ya está vinculado por comentario.</p>
         </div>
       </div>
     </section>
@@ -104,6 +126,23 @@
       </div>
       <h2 id="raceWinnerName"></h2>
       <button id="raceWinnerCloseBtn" class="btn primary winner-close-btn" type="button">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="raceInfoModal" class="winner-modal hidden" aria-hidden="true">
+    <div class="info-card" role="dialog" aria-modal="true" aria-labelledby="raceInfoTitle">
+      <p class="winner-eyebrow">Cómo jugar</p>
+      <h2 id="raceInfoTitle">Carrera de Colegas</h2>
+      <ul class="info-list">
+        <li>Agrega participantes en el panel "Participantes"; cada uno recibe un carro en la pista.</li>
+        <li>Vincula tu cuenta de TikTok y conéctate al live para recibir regalos, comentarios y likes en tiempo real.</li>
+        <li>Un espectador queda vinculado a un carro cuando comenta exactamente el nombre de ese participante (no importan tildes ni mayúsculas/minúsculas).</li>
+        <li>Cada comentario válido suma 0.5 monedas al carro vinculado. 200 monedas equivalen a 1 vuelta.</li>
+        <li>Los regalos que envíe ese mismo espectador también suman monedas (según su valor en diamantes) a su carro vinculado.</li>
+        <li>Si activas "Movimiento por likes", cada cierta cantidad de likes acumulados del espectador vinculado también avanza su carro el porcentaje de vuelta que configures.</li>
+        <li>Define la "Meta de vueltas": el primer carro en alcanzarla gana. Al ganar se muestra el aviso en pantalla y la carrera se reinicia automáticamente para la siguiente ronda.</li>
+      </ul>
+      <button id="raceInfoCloseBtn" class="btn primary winner-close-btn" type="button">Entendido</button>
     </div>
   </div>
 

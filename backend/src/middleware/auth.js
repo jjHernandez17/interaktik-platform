@@ -69,12 +69,40 @@ function requireSuperUser(req, res, next) {
   return next();
 }
 
+// Bloquea las APIs de juegos si el usuario no tiene un plan/prueba activos.
+// El superusuario siempre pasa, igual que con requireEnabledGame.
+async function requireActiveAccess(req, res, next) {
+  if (isSuperUserEmail(req.session?.user?.email)) {
+    return next();
+  }
+
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Debes iniciar sesion.' });
+    }
+
+    const accessService = require('../services/accessService');
+    const hasAccess = await accessService.hasActiveAccess(userId);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Tu prueba gratuita o plan vencio. Adquiere un plan para seguir jugando.', code: 'ACCESS_EXPIRED' });
+    }
+
+    return next();
+  } catch (error) {
+    logger.error('Error verificando acceso activo', error);
+    return res.status(500).json({ error: 'No se pudo verificar tu acceso.' });
+  }
+}
+
 module.exports = {
   requireAuth,
   requireAuthPage,
   requireGuestPage,
   getSessionUserId,
   requireSuperUser,
+  requireActiveAccess,
   isSuperUserEmail,
   attachAuthFlags,
 };

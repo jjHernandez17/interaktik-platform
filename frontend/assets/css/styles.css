@@ -1,16 +1,20 @@
 :root {
   color-scheme: dark;
-  --bg: #0b1020;
-  --bg-soft: rgba(15, 23, 42, 0.78);
-  --card: rgba(17, 24, 39, 0.92);
-  --border: rgba(148, 163, 184, 0.18);
-  --text: #e5eefc;
-  --muted: #94a3b8;
-  --primary: #8b5cf6;
-  --primary-strong: #7c3aed;
-  --accent: #06b6d4;
-  --danger: #ef4444;
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  /* Alias hacia los tokens compartidos de design-system.css. Este archivo lo
+     cargan las 4 paginas de juegos (Contador, Snake, Carrera, Dominance),
+     asi que retematizar aqui alcanza a todas — dominance.css ni siquiera
+     define su propio :root, depende enteramente de este. */
+  --bg: var(--ds-bg);
+  --bg-soft: rgba(18, 23, 38, 0.78);
+  --card: var(--ds-surface-solid);
+  --border: var(--ds-border);
+  --text: var(--ds-text);
+  --muted: var(--ds-text-muted);
+  --primary: var(--ds-primary);
+  --primary-strong: var(--ds-primary-hover);
+  --accent: var(--ds-accent);
+  --danger: var(--ds-danger);
+  --shadow: var(--ds-shadow-lg);
 }
 
 * {
@@ -21,11 +25,10 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(139, 92, 246, 0.22), transparent 32%),
-    radial-gradient(circle at top right, rgba(6, 182, 212, 0.18), transparent 30%),
-    linear-gradient(180deg, #070b16 0%, #0b1020 100%);
+    radial-gradient(circle at top left, rgba(124, 92, 255, 0.22), transparent 32%),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.18), transparent 30%),
+    linear-gradient(180deg, #05070d 0%, var(--bg) 100%);
   color: var(--text);
 }
 
@@ -423,38 +426,10 @@ select:focus {
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
 }
 
-.btn {
-  border: 0;
-  border-radius: 14px;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
-  color: white;
-  background: var(--primary-strong);
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.btn.ghost {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.btn.accent {
-  background: linear-gradient(135deg, #0ea5e9, #14b8a6);
-}
-
-.btn.danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-}
+/* Los estilos de .btn ahora viven en design-system.css (compartidos con
+   todo el sitio) — se verifico que app.html solo usa variantes con
+   modificador (.primary/.ghost/.accent/.danger), asi que no habia ningun
+   .btn "pelado" que dependiera del estilo por defecto de aqui. */
 
 .status-badge {
   display: inline-flex;

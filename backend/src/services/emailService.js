@@ -105,8 +105,70 @@ async function sendPasswordChangedEmail({ to, name }) {
   });
 }
 
+function formatAmount(amountCents, currency) {
+  const amount = amountCents / 100;
+  if (currency === 'COP') {
+    return `$${amount.toLocaleString('es-CO')} COP`;
+  }
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+}
+
+const GATEWAY_LABELS = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
+
+async function sendPaymentReceiptEmail({
+  to,
+  name,
+  planName,
+  amountCents,
+  currency,
+  gateway,
+  paymentId,
+  gatewayPaymentId,
+  paidAt,
+  accessExpiresAt,
+}) {
+  const amountText = formatAmount(amountCents, currency);
+  const gatewayLabel = GATEWAY_LABELS[gateway] || gateway;
+  const paidAtText = new Date(paidAt).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+  const expiresText = accessExpiresAt
+    ? new Date(accessExpiresAt).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })
+    : null;
+
+  const html = wrapEmailHtml({
+    eyebrow: 'PlayTik Live',
+    title: 'Pago confirmado',
+    bodyHtml: `
+      <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">
+        Hola ${name || ''}, confirmamos tu pago del plan <strong>${planName}</strong>. Aqui esta el detalle de tu factura:
+      </p>
+      <table style="width:100%; border-collapse:collapse; font-size:13px; color:#cbd5e1;">
+        <tr><td style="padding:6px 0; color:#5c6b85;">Plan</td><td style="padding:6px 0; text-align:right;">${planName}</td></tr>
+        <tr><td style="padding:6px 0; color:#5c6b85;">Valor</td><td style="padding:6px 0; text-align:right;">${amountText}</td></tr>
+        <tr><td style="padding:6px 0; color:#5c6b85;">Metodo de pago</td><td style="padding:6px 0; text-align:right;">${gatewayLabel}</td></tr>
+        <tr><td style="padding:6px 0; color:#5c6b85;">ID de pago</td><td style="padding:6px 0; text-align:right;">#${paymentId}</td></tr>
+        <tr><td style="padding:6px 0; color:#5c6b85;">ID de transaccion</td><td style="padding:6px 0; text-align:right;">${gatewayPaymentId}</td></tr>
+        <tr><td style="padding:6px 0; color:#5c6b85;">Fecha</td><td style="padding:6px 0; text-align:right;">${paidAtText}</td></tr>
+        ${expiresText ? `<tr><td style="padding:6px 0; color:#5c6b85;">Tu acceso vence</td><td style="padding:6px 0; text-align:right;">${expiresText}</td></tr>` : ''}
+      </table>
+      <p style="color:#5c6b85; font-size:12px; margin:24px 0 0; line-height:1.5;">
+        Guarda este correo como comprobante de tu compra. Si no reconoces este pago, contacta a soporte de inmediato.
+      </p>
+    `,
+  });
+
+  return sendEmail({
+    to,
+    subject: `Comprobante de pago - ${planName}`,
+    html,
+    text: `Hola ${name || ''}, confirmamos tu pago del plan ${planName} por ${amountText} via ${gatewayLabel} (pago #${paymentId}, transaccion ${gatewayPaymentId}) el ${paidAtText}.${expiresText ? ` Tu acceso vence el ${expiresText}.` : ''}`,
+    logLabel: 'comprobante de pago',
+    fallbackMessage: `Comprobante de pago #${paymentId} para ${to} (no enviado, Resend sin configurar).`,
+  });
+}
+
 module.exports = {
   isConfigured,
   sendVerificationEmail,
   sendPasswordChangedEmail,
+  sendPaymentReceiptEmail,
 };

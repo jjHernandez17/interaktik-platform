@@ -8,6 +8,7 @@ const stripeClient = require('../payments/stripeClient');
 const mercadopagoClient = require('../payments/mercadopagoClient');
 const wompiClient = require('../payments/wompiClient');
 const currencyService = require('../services/currencyService');
+const emailService = require('../services/emailService');
 const pool = require('../database/pool');
 const { normalizeError } = require('../utils/normalize');
 const env = require('../config/env');
@@ -148,6 +149,32 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/payments/:id/status - estado real de un pago (fuente de verdad: DB,
+// actualizada por el webhook de la pasarela). El frontend usa esto despues de
+// que la pasarela redirige de vuelta, en vez de confiar en el query param de
+// la URL de redireccion (algunas pasarelas, como Wompi, redirigen a la MISMA
+// url sin importar si el pago fue aprobado o rechazado).
+router.get('/payments/:id/status', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const paymentId = Number(req.params.id);
+
+    const result = await pool.query(
+      'SELECT id, status, gateway, plan_id FROM payments WHERE id = $1 AND user_id = $2',
+      [paymentId, userId],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Pago no encontrado.' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error consultando estado de pago', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
 // NOTA: el webhook de Stripe NO se registra en este router porque necesita el
 // body crudo (sin pasar por express.json()) para verificar la firma. Se monta
 // aparte en server.js, antes del parser JSON global — ver stripeWebhookHandler
@@ -196,14 +223,16 @@ router.post('/payments/webhook/wompi', async (req, res) => {
     }
 
     const transaction = event?.data?.transaction;
-    if (event.event === 'transaction.updated' && transaction?.status === 'APPROVED') {
+    if (event.event === 'transaction.updated' && transaction?.status) {
       const reference = String(transaction.reference || '');
       const paymentId = Number(reference.replace(/^ik-/, ''));
 
-      if (paymentId) {
-        await confirmPayment(paymentId, String(transaction.id));
-      } else {
+      if (!paymentId) {
         logger.warn('[payments] Webhook Wompi con referencia no reconocida', reference);
+      } else if (transaction.status === 'APPROVED') {
+        await confirmPayment(paymentId, String(transaction.id));
+      } else if (['DECLINED', 'ERROR', 'VOIDED'].includes(transaction.status)) {
+        await failPayment(paymentId, String(transaction.id));
       }
     }
 
@@ -221,7 +250,7 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     await client.query('BEGIN');
 
     const paymentResult = await client.query(
-      `SELECT id, user_id, plan_id, status FROM payments WHERE id = $1 FOR UPDATE`,
+      `SELECT id, user_id, plan_id, status, gateway, currency FROM payments WHERE id = $1 FOR UPDATE`,
       [paymentId],
     );
 
@@ -237,12 +266,17 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
       return;
     }
 
-    const planResult = await client.query('SELECT duration_days FROM plans WHERE id = $1', [payment.plan_id]);
+    const planResult = await client.query(
+      'SELECT name, duration_days, price_usd_cents, price_cop_cents FROM plans WHERE id = $1',
+      [payment.plan_id],
+    );
     if (planResult.rowCount === 0) {
       logger.error(`[payments] confirmPayment: plan ${payment.plan_id} no existe`);
       await client.query('ROLLBACK');
       return;
     }
+
+    const userResult = await client.query('SELECT email, name FROM app_users WHERE id = $1', [payment.user_id]);
 
     await client.query(
       `UPDATE payments SET status = 'paid', gateway_payment_id = $1, paid_at = NOW() WHERE id = $2`,
@@ -251,14 +285,44 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
 
     await client.query('COMMIT');
 
-    const durationDays = planResult.rows[0].duration_days;
-    const newExpiry = await accessService.extendAccess(payment.user_id, durationDays);
+    const plan = planResult.rows[0];
+    const newExpiry = await accessService.extendAccess(payment.user_id, plan.duration_days);
     logger.success(`[payments] Pago ${paymentId} confirmado. Usuario ${payment.user_id} con acceso hasta ${newExpiry}`);
+
+    const user = userResult.rows[0];
+    if (user?.email) {
+      await emailService.sendPaymentReceiptEmail({
+        to: user.email,
+        name: user.name,
+        planName: plan.name,
+        amountCents: payment.currency === 'COP' ? plan.price_cop_cents : plan.price_usd_cents,
+        currency: payment.currency,
+        gateway: payment.gateway,
+        paymentId,
+        gatewayPaymentId,
+        paidAt: new Date(),
+        accessExpiresAt: newExpiry,
+      });
+    }
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
   } finally {
     client.release();
+  }
+}
+
+// Marca un pago como rechazado/fallido. Idempotente igual que confirmPayment;
+// nunca extiende acceso ni sobreescribe un pago que ya haya quedado 'paid'.
+async function failPayment(paymentId, gatewayPaymentId) {
+  const result = await pool.query(
+    `UPDATE payments SET status = 'failed', gateway_payment_id = $1
+     WHERE id = $2 AND status = 'pending'`,
+    [gatewayPaymentId, paymentId],
+  );
+
+  if (result.rowCount > 0) {
+    logger.warn(`[payments] Pago ${paymentId} rechazado/fallido (gateway: ${gatewayPaymentId})`);
   }
 }
 

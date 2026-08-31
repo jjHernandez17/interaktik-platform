@@ -332,14 +332,47 @@ async function startCheckout(planId, gateway, button) {
   }
 }
 
+// Consulta el estado real del pago en nuestra DB (la fuente de verdad, que
+// actualiza el webhook de cada pasarela) esperando un poco si aun no llega:
+// algunas pasarelas (Wompi) redirigen de vuelta a la MISMA url sin importar
+// si el pago fue aprobado o rechazado, asi que nunca hay que confiar en el
+// query param por si solo.
+async function pollPaymentStatus(paymentId, attempts = 5, delayMs = 1500) {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const response = await fetch(`/api/payments/${paymentId}/status`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'paid' || data.status === 'failed') {
+          return data.status;
+        }
+      }
+    } catch (_error) {
+      // reintenta
+    }
+    if (i < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return 'pending';
+}
+
 async function handlePaymentRedirectParams() {
   const params = new URLSearchParams(window.location.search);
   const paymentStatus = params.get('payment');
+  const paymentId = params.get('paymentId');
   const locked = params.get('locked');
 
-  if (paymentStatus === 'success') {
-    await loadAccessStatus();
-    await showAlert('¡Pago recibido! Tu acceso ya deberia estar activo. Si no ves el cambio, espera unos segundos y recarga.', 'Pago exitoso');
+  if (paymentStatus === 'success' && paymentId) {
+    const realStatus = await pollPaymentStatus(paymentId);
+    if (realStatus === 'paid') {
+      await loadAccessStatus();
+      await showAlert('¡Pago recibido! Tu acceso ya esta activo.', 'Pago exitoso');
+    } else if (realStatus === 'failed') {
+      await showAlert('El pago fue rechazado por la pasarela. Puedes intentarlo de nuevo con otro medio de pago.', 'Pago rechazado');
+    } else {
+      await showAlert('Tu pago sigue en proceso. Te confirmaremos por correo apenas se complete; si ya pagaste, recarga esta pagina en un momento.', 'Pago en proceso');
+    }
     showSection('plansSection');
   } else if (paymentStatus === 'cancel') {
     await showAlert('El pago no se completo. Puedes intentarlo de nuevo cuando quieras.', 'Pago cancelado');

@@ -25,8 +25,8 @@ function validatePasswordStrength(password) {
     throw new Error('La contraseña debe tener mas de 5 caracteres.');
   }
 
-  if (!/[A-Za-z]/.test(value) || !/[0-9]/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
-    throw new Error('La contraseña debe incluir al menos una letra, un numero y un caracter especial.');
+  if (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/[0-9]/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
+    throw new Error('La contraseña debe incluir mayusculas, minusculas, un numero y un caracter especial.');
   }
 }
 
@@ -36,6 +36,8 @@ async function register(name, email, password, baseUrl) {
   if (!name || !normalizedEmail || password.length < 6) {
     throw new Error('Debes completar nombre, correo y contrasena (minimo 6 caracteres).');
   }
+
+  validatePasswordStrength(password);
 
   try {
     const existingUser = await pool.query('SELECT id FROM app_users WHERE email = $1', [normalizedEmail]);
@@ -131,7 +133,7 @@ async function changePassword(userId, currentPassword, newPassword) {
   validatePasswordStrength(next);
 
   const result = await pool.query(
-    'SELECT id, password_hash FROM app_users WHERE id = $1',
+    'SELECT id, name, email, password_hash FROM app_users WHERE id = $1',
     [normalizedUserId],
   );
 
@@ -155,6 +157,8 @@ async function changePassword(userId, currentPassword, newPassword) {
     'UPDATE app_users SET password_hash = $1 WHERE id = $2',
     [newHash, normalizedUserId],
   );
+
+  await emailService.sendPasswordChangedEmail({ to: user.email, name: user.name });
 
   return {
     success: true,

@@ -123,6 +123,82 @@ button[type="submit"]:active {
   transform: translateY(0);
 }
 
+button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-resend {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  font-family: var(--ds-font-body);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  padding: 12px;
+  color: var(--ds-text);
+  background: rgba(124, 92, 255, 0.1);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.btn-resend:hover:not(:disabled) {
+  background: rgba(124, 92, 255, 0.2);
+  border-color: var(--ds-primary);
+  transform: translateY(-1px);
+}
+
+.btn-resend:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-resend:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.password-rules {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: -6px 0 2px;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+}
+
+.password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 160ms ease;
+}
+
+.password-rules li::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--ds-border-strong);
+  background: transparent;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.password-rules li.valid {
+  color: var(--ds-success, #4ade80);
+}
+
+.password-rules li.valid::before {
+  border-color: var(--ds-success, #4ade80);
+  background: var(--ds-success, #4ade80);
+}
+
 .message {
   min-height: 1.1em;
   margin: 0;

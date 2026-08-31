@@ -13,9 +13,8 @@ function ensureResendButton() {
   btn = document.createElement("button");
   btn.id = "resendVerificationBtn";
   btn.type = "button";
+  btn.className = "btn-resend";
   btn.textContent = "Reenviar correo de verificación";
-  btn.style.marginTop = "10px";
-  btn.style.width = "100%";
   message.insertAdjacentElement("afterend", btn);
   return btn;
 }
@@ -26,6 +25,12 @@ function hideResendButton() {
 }
 
 async function resendVerification(email) {
+  const btn = document.getElementById("resendVerificationBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+  }
+
   try {
     const response = await fetch("/api/auth/resend-verification", {
       method: "POST",
@@ -38,6 +43,10 @@ async function resendVerification(email) {
     hideResendButton();
   } catch (_error) {
     setMessage("No se pudo reenviar el correo. Intenta de nuevo.", true);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Reenviar correo de verificación";
+    }
   }
 }
 
@@ -63,8 +72,53 @@ function showVerifyQueryMessage() {
   window.history.replaceState({}, "", newUrl);
 }
 
+// Checklist de requisitos de contrasena, solo en el formulario de registro.
+function setupPasswordRules() {
+  const passwordInput = document.getElementById("passwordInput");
+  const passwordConfirmInput = document.getElementById("passwordConfirmInput");
+  const rulesList = document.getElementById("passwordRules");
+  const submitBtn = document.getElementById("submitBtn");
+
+  if (!passwordInput || !passwordConfirmInput || !rulesList || !submitBtn) {
+    return null;
+  }
+
+  const ruleCheckers = {
+    length: (value) => value.length >= 6,
+    lower: (value) => /[a-z]/.test(value),
+    upper: (value) => /[A-Z]/.test(value),
+    number: (value) => /[0-9]/.test(value),
+    special: (value) => /[^A-Za-z0-9]/.test(value),
+    match: (value, confirmValue) => value.length > 0 && value === confirmValue,
+  };
+
+  function update() {
+    const value = passwordInput.value;
+    const confirmValue = passwordConfirmInput.value;
+    let allValid = true;
+
+    rulesList.querySelectorAll("li[data-rule]").forEach((item) => {
+      const rule = item.dataset.rule;
+      const checker = ruleCheckers[rule];
+      const valid = checker ? checker(value, confirmValue) : false;
+      item.classList.toggle("valid", valid);
+      if (!valid) allValid = false;
+    });
+
+    submitBtn.disabled = !allValid;
+    return allValid;
+  }
+
+  passwordInput.addEventListener("input", update);
+  passwordConfirmInput.addEventListener("input", update);
+  update();
+
+  return update;
+}
+
 if (form) {
   showVerifyQueryMessage();
+  const refreshPasswordRules = setupPasswordRules();
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -103,6 +157,7 @@ if (form) {
       if (mode === "register" && data.requiresVerification) {
         setMessage("¡Cuenta creada! Revisa tu correo y confirma tu cuenta antes de iniciar sesión.");
         form.reset();
+        if (refreshPasswordRules) refreshPasswordRules();
         return;
       }
 

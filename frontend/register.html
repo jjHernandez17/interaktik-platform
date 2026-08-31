@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Registro | PlayTik Live</title>
     <link rel="stylesheet" href="assets/css/design-system.css" />
-    <link rel="stylesheet" href="assets/css/auth.css?v=20260829a" />
+    <link rel="stylesheet" href="assets/css/auth.css?v=20260830a" />
   </head>
   <body>
     <main class="auth-shell">
@@ -23,9 +23,21 @@
           </label>
           <label>
             Contrasena
-            <input name="password" type="password" minlength="6" required />
+            <input name="password" id="passwordInput" type="password" minlength="6" required />
           </label>
-          <button type="submit">Registrarme</button>
+          <label>
+            Confirmar contrasena
+            <input name="passwordConfirm" id="passwordConfirmInput" type="password" minlength="6" required />
+          </label>
+          <ul id="passwordRules" class="password-rules">
+            <li data-rule="length">Minimo 6 caracteres</li>
+            <li data-rule="lower">Una minuscula</li>
+            <li data-rule="upper">Una mayuscula</li>
+            <li data-rule="number">Un numero</li>
+            <li data-rule="special">Un caracter especial</li>
+            <li data-rule="match">Las contrasenas coinciden</li>
+          </ul>
+          <button type="submit" id="submitBtn" disabled>Registrarme</button>
           <p id="authMessage" class="message" aria-live="polite"></p>
         </form>
         <p class="muted">Ya tienes cuenta? <a href="login.html">Inicia sesion</a></p>

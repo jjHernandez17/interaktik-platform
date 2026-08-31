@@ -20,7 +20,7 @@ function buildConnectionsMap(rows = []) {
 
 async function loadAdminUsers() {
   const usersResult = await pool.query(`
-    SELECT id, name, email, created_at
+    SELECT id, name, email, created_at, email_verified, email_verified_at
     FROM app_users
     ORDER BY created_at DESC, id DESC
   `);
@@ -29,6 +29,28 @@ async function loadAdminUsers() {
     SELECT user_id, game_type, tiktok_username, is_linked, linked_at
     FROM user_tiktok_connections
     ORDER BY user_id ASC, game_type ASC
+  `);
+
+  const accessResult = await pool.query(`
+    SELECT user_id, access_expires_at, is_trial
+    FROM user_access
+  `);
+
+  // Ultimo pago pagado de cada usuario (para mostrar plan actual/mas reciente).
+  const lastPaymentResult = await pool.query(`
+    SELECT DISTINCT ON (p.user_id)
+      p.user_id, p.gateway, p.amount_cents, p.currency, p.paid_at, pl.name AS plan_name
+    FROM payments p
+    JOIN plans pl ON pl.id = p.plan_id
+    WHERE p.status = 'paid'
+    ORDER BY p.user_id, p.paid_at DESC
+  `);
+
+  const paymentCountsResult = await pool.query(`
+    SELECT user_id, COUNT(*)::int AS paid_count
+    FROM payments
+    WHERE status = 'paid'
+    GROUP BY user_id
   `);
 
   const connectionsByUser = new Map();
@@ -40,10 +62,27 @@ async function loadAdminUsers() {
     connectionsByUser.get(connection.user_id).push(connection);
   }
 
-  return usersResult.rows.map((user) => ({
-    ...user,
-    tiktokConnections: buildConnectionsMap(connectionsByUser.get(user.id) || []),
-  }));
+  const accessByUser = new Map(accessResult.rows.map((row) => [row.user_id, row]));
+  const lastPaymentByUser = new Map(lastPaymentResult.rows.map((row) => [row.user_id, row]));
+  const paidCountByUser = new Map(paymentCountsResult.rows.map((row) => [row.user_id, row.paid_count]));
+
+  return usersResult.rows.map((user) => {
+    const access = accessByUser.get(user.id) || null;
+    const expiresAt = access?.access_expires_at ? new Date(access.access_expires_at) : null;
+    const hasAccess = Boolean(expiresAt && expiresAt.getTime() > Date.now());
+
+    return {
+      ...user,
+      tiktokConnections: buildConnectionsMap(connectionsByUser.get(user.id) || []),
+      access: {
+        hasAccess,
+        isTrial: Boolean(access?.is_trial),
+        accessExpiresAt: access?.access_expires_at || null,
+      },
+      lastPayment: lastPaymentByUser.get(user.id) || null,
+      paidPaymentsCount: paidCountByUser.get(user.id) || 0,
+    };
+  });
 }
 
 router.get('/admin/users', requireAuth, requireSuperUser, async (_req, res) => {

@@ -586,6 +586,57 @@ function renderEditConnections(connections = {}) {
     .join('');
 }
 
+function formatAdminMoney(amountCents, currency) {
+  const amount = Number(amountCents || 0) / 100;
+  if (currency === 'COP') {
+    return `$${amount.toLocaleString('es-CO')} COP`;
+  }
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+}
+
+const ADMIN_GATEWAY_LABELS = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
+
+function renderAdminUserPlanInfo(user) {
+  const access = user.access || {};
+  const verifiedBadge = user.email_verified
+    ? '<span class="admin-badge admin-badge-success">Correo verificado</span>'
+    : '<span class="admin-badge admin-badge-warning">Correo sin verificar</span>';
+
+  let accessBadge;
+  if (access.hasAccess && access.isTrial) {
+    accessBadge = '<span class="admin-badge admin-badge-info">Prueba gratuita activa</span>';
+  } else if (access.hasAccess) {
+    accessBadge = '<span class="admin-badge admin-badge-success">Acceso activo</span>';
+  } else if (access.accessExpiresAt) {
+    accessBadge = '<span class="admin-badge admin-badge-danger">Acceso vencido</span>';
+  } else {
+    accessBadge = '<span class="admin-badge admin-badge-muted">Sin acceso</span>';
+  }
+
+  const expiresLine = access.accessExpiresAt
+    ? `<p class="admin-user-info">Vence: ${escapeHtml(formatDate(access.accessExpiresAt))}</p>`
+    : '';
+
+  const lastPayment = user.lastPayment;
+  const lastPaymentLine = lastPayment
+    ? `<p class="admin-user-info">Ultima compra: <strong>${escapeHtml(lastPayment.plan_name)}</strong> por ${formatAdminMoney(lastPayment.amount_cents, lastPayment.currency)} via ${ADMIN_GATEWAY_LABELS[lastPayment.gateway] || escapeHtml(lastPayment.gateway)} (${escapeHtml(formatDate(lastPayment.paid_at))})</p>`
+    : '<p class="admin-user-info">Sin compras registradas.</p>';
+
+  const paidCountLine = `<p class="admin-user-info">Pagos completados: ${user.paidPaymentsCount || 0}</p>`;
+
+  return `
+    <div class="admin-user-plan-info">
+      <div class="admin-user-badges">
+        ${accessBadge}
+        ${verifiedBadge}
+      </div>
+      ${expiresLine}
+      ${lastPaymentLine}
+      ${paidCountLine}
+    </div>
+  `;
+}
+
 function renderAdminUsers() {
   const filteredUsers = adminEmailFilter
     ? adminUsers.filter((user) => String(user.email || '').toLowerCase().includes(adminEmailFilter))
@@ -620,6 +671,7 @@ function renderAdminUsers() {
             <button class="btn danger delete-user" type="button">Eliminar cuenta</button>
           </div>
         </div>
+        ${renderAdminUserPlanInfo(user)}
       </article>
     `)
     .join('');

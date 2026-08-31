@@ -5,6 +5,8 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
   'https://interaktik-platform.vercel.app',
   'https://interaktik-platform-git-main-juan-jose-hernandez-s-projects.vercel.app',
+  'https://interaktik.com',
+  'https://www.interaktik.com',
   env.FRONTEND_URL,
   ...String(env.CORS_ORIGIN || '')
     .split(',')

@@ -17,9 +17,6 @@ module.exports = {
   WOMPI_PRIVATE_KEY: process.env.WOMPI_PRIVATE_KEY || null,
   WOMPI_INTEGRITY_SECRET: process.env.WOMPI_INTEGRITY_SECRET || null,
   WOMPI_EVENTS_SECRET: process.env.WOMPI_EVENTS_SECRET || null,
-  SMTP_HOST: process.env.SMTP_HOST || null,
-  SMTP_PORT: process.env.SMTP_PORT || 587,
-  SMTP_USER: process.env.SMTP_USER || null,
-  SMTP_PASS: process.env.SMTP_PASS || null,
-  SMTP_FROM: process.env.SMTP_FROM || null,
+  RESEND_API_KEY: process.env.RESEND_API_KEY || null,
+  EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev',
 };

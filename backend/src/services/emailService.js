@@ -1,47 +1,16 @@
 // tiktokinteractive/backend/src/services/emailService.js
 //
-// SMTP generico via nodemailer: funciona con Gmail (App Password), Resend,
-// SendGrid, Mailgun, o cualquier proveedor que exponga credenciales SMTP —
-// no ata el proyecto a un proveedor especifico. Si no esta configurado, no
-// truena el registro: solo deja el link de verificacion en el log para
-// poder probar manualmente mientras se configura.
+// Correo transaccional via Resend (API HTTPS, no SMTP): Railway bloquea
+// puertos SMTP salientes (587/465/25) fuera del plan Pro, asi que el envio
+// tiene que salir por HTTPS. Si no esta configurado, no truena el registro:
+// solo deja el link de verificacion en el log para poder probar manualmente
+// mientras se configura.
 
-const dns = require('dns');
 const env = require('../config/env');
 const logger = require('../config/logger');
 
 function isConfigured() {
-  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
-}
-
-// nodemailer resuelve A y AAAA y elige una direccion al azar para conectar.
-// Railway tiene una interfaz IPv6 local pero sin salida real a internet, asi
-// que cuando le toca una IPv6 la conexion muere con ENETUNREACH. Resolvemos
-// nosotros mismos solo el registro A (IPv4) y conectamos directo a esa IP,
-// manteniendo servername=host para que la validacion TLS siga funcionando.
-function resolveIPv4(host) {
-  return new Promise((resolve, reject) => {
-    dns.resolve4(host, (err, addresses) => {
-      if (err || !addresses || !addresses.length) {
-        return reject(err || new Error(`No se pudo resolver IPv4 para ${host}`));
-      }
-      resolve(addresses[0]);
-    });
-  });
-}
-
-async function buildTransporter() {
-  const nodemailer = require('nodemailer');
-  const port = Number(env.SMTP_PORT || 587);
-  const ip = await resolveIPv4(env.SMTP_HOST);
-
-  return nodemailer.createTransport({
-    host: ip,
-    port,
-    secure: port === 465,
-    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-    tls: { servername: env.SMTP_HOST },
-  });
+  return Boolean(env.RESEND_API_KEY);
 }
 
 function buildVerificationEmailHtml({ name, verifyUrl }) {
@@ -67,19 +36,31 @@ function buildVerificationEmailHtml({ name, verifyUrl }) {
 
 async function sendVerificationEmail({ to, name, verifyUrl }) {
   if (!isConfigured()) {
-    logger.warn(`[email] SMTP no configurado todavia. Link de verificacion para ${to}: ${verifyUrl}`);
+    logger.warn(`[email] Resend no configurado todavia. Link de verificacion para ${to}: ${verifyUrl}`);
     return { sent: false };
   }
 
   try {
-    const transporter = await buildTransporter();
-    await transporter.sendMail({
-      from: env.SMTP_FROM || env.SMTP_USER,
-      to,
-      subject: 'Verifica tu cuenta en PlayTik Live',
-      html: buildVerificationEmailHtml({ name, verifyUrl }),
-      text: `Hola ${name || ''}, verifica tu cuenta entrando a: ${verifyUrl} (vence en 24 horas)`,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [to],
+        subject: 'Verifica tu cuenta en PlayTik Live',
+        html: buildVerificationEmailHtml({ name, verifyUrl }),
+        text: `Hola ${name || ''}, verifica tu cuenta entrando a: ${verifyUrl} (vence en 24 horas)`,
+      }),
     });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Resend respondio ${response.status}: ${body}`);
+    }
+
     return { sent: true };
   } catch (error) {
     logger.error('[email] Error enviando correo de verificacion', error);

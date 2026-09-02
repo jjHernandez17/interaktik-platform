@@ -25,6 +25,7 @@ const adminRouter = require('./src/routes/admin');
 const gameRouter = require('./src/routes/gameRoutes');
 const tiktokRouter = require('./src/routes/tiktok');
 const paymentsRouter = require('./src/routes/payments');
+const robloxDanceRouter = require('./src/routes/robloxDanceRoutes');
 const { hub } = require('./src/services/liveHub');
 const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest } = require('./src/services/tiktokLiveManager');
 
@@ -101,6 +102,7 @@ app.use('/api', adminRouter);
 app.use('/api', gameRouter);
 app.use('/api', tiktokRouter);
 app.use('/api', paymentsRouter);
+app.use('/api', robloxDanceRouter);
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {

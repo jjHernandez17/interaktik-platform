@@ -4,7 +4,7 @@ const { requireAuth, requireSuperUser } = require('../middleware/auth');
 const logger = require('../config/logger');
 
 const router = express.Router();
-const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance'];
+const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox'];
 
 function buildConnectionsMap(rows = []) {
   return rows.reduce((accumulator, row) => {

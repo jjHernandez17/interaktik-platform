@@ -565,6 +565,20 @@ function sanitizeDominanceGameState(payload) {
 
 
 
+function sanitizeJoinKeyword(value) {
+  const trimmed = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) {
+    return 'join';
+  }
+  return trimmed.slice(0, 40);
+}
+
+function sanitizeRobloxUsername(value) {
+  const trimmed = String(value || '').trim().replace(/^@/, '');
+  const filtered = trimmed.replace(/[^A-Za-z0-9_]/g, '');
+  return filtered.slice(0, 40);
+}
+
 module.exports = {
   normalizeEmail,
   normalizeColor,
@@ -581,4 +595,6 @@ module.exports = {
   sanitizeRaceParticipant,
   sanitizeRaceGameState,
   sanitizeDominanceGameState,
+  sanitizeJoinKeyword,
+  sanitizeRobloxUsername,
 };

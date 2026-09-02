@@ -438,6 +438,49 @@ router.get('/dominance.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/dominance.js'));
 });
 
+// Roblox Dance
+router.get('/roblox-dance', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'roblox'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/roblox-dance.html', 'Roblox Dance page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/roblox-dance.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/roblox-dance.html', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'roblox'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/roblox-dance.html', 'Roblox Dance HTML request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/roblox-dance.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/roblox-dance.css', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/assets/css/roblox-dance.css'));
+});
+
+router.get('/roblox-dance.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-dance.js'));
+});
+
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
 router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));

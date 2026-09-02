@@ -1,6 +1,7 @@
 const logger = require('../config/logger');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
+const robloxDanceService = require('./robloxDanceService');
 
 let TikTokLiveConnection = null;
 let WebcastEvent = null;
@@ -111,8 +112,10 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance'].includes(gameType)) {
-    return gameType === 'snake-vs-snake' ? 'snake' : gameType;
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance'].includes(gameType)) {
+    if (gameType === 'snake-vs-snake') return 'snake';
+    if (gameType === 'roblox-dance') return 'roblox';
+    return gameType;
   }
 
   return 'app';
@@ -136,6 +139,7 @@ function inferGameTypeFromRequest(req) {
 
   const referer = String(req.get('referer') || req.get('referrer') || '').toLowerCase();
   if (referer.includes('snake-vs-snake')) return 'snake';
+  if (referer.includes('roblox-dance')) return 'roblox';
   if (referer.includes('race')) return 'race';
   if (referer.includes('dominance')) return 'dominance';
   if (referer.includes('app')) return 'app';
@@ -401,10 +405,18 @@ connection.on(WebcastEvent.CHAT, (data) => {
     fullUser: data?.user,
   });
 
+  const chatPayload = simplifyChatEvent(data);
+
   publish(normalizedGameType, 'comment', {
     ownerKey,
-    ...simplifyChatEvent(data),
+    ...chatPayload,
   });
+
+  if (normalizedGameType === 'roblox' && userId) {
+    robloxDanceService.handleChatComment(userId, chatPayload).catch((error) => {
+      logger.warn('No se pudo procesar comentario para Roblox Dance', error);
+    });
+  }
 });
 
   connection.on(WebcastEvent.MEMBER, (data) => {

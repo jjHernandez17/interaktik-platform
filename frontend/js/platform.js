@@ -33,6 +33,7 @@ const GAME_LABELS = {
   snake: 'Snake Vs Snake',
   race: 'Carrera de Colegas',
   dominance: 'Dominance',
+  roblox: 'Roblox Dance',
 };
 
 let currentUser = null;
@@ -81,6 +82,7 @@ function setupAdminSearch() {
 
 function gameTypeFromHref(href = '') {
   if (href.includes('snake-vs-snake')) return 'snake';
+  if (href.includes('roblox-dance')) return 'roblox';
   if (href.includes('race')) return 'race';
   if (href.includes('dominance')) return 'dominance';
   if (href.includes('app')) return 'app';

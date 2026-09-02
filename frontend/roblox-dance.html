@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roblox Dance | PlayTik Live</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260902a" />
+</head>
+
+<body>
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="roblox-shell">
+    <section class="roblox-hero">
+      <p class="eyebrow">PlayTik Live • Juego interactivo</p>
+      <h1>Roblox Dance</h1>
+      <p class="subtitle">
+        Los espectadores comentan tu palabra clave seguida de su usuario de Roblox (ej. "join MiUsuario") y su avatar
+        real aparece dentro de tu partida de Roblox Studio, con su nombre de TikTok flotando encima.
+      </p>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="robloxConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+      </div>
+
+      <form id="robloxConnectionForm" class="connection-form">
+        <input id="robloxUsernameInput" type="text" placeholder="@usuario_en_vivo" required />
+        <button id="robloxLinkBtn" class="btn primary" type="button">Vincular TikTok</button>
+        <button id="robloxConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="robloxDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="robloxConnectionDetails" class="hint">Conecta tu cuenta de TikTok para empezar a recibir comentarios.</p>
+    </section>
+
+    <section class="card config-card">
+      <div class="card-header">
+        <h3>Configuración de Roblox</h3>
+      </div>
+
+      <form id="robloxConfigForm" class="roblox-config-grid">
+        <label>
+          Palabra clave para unirse
+          <input id="robloxJoinKeywordInput" type="text" maxlength="40" placeholder="join" />
+        </label>
+
+        <label>
+          Tu usuario de Roblox (opcional, referencia)
+          <input id="robloxUsernameConfigInput" type="text" maxlength="40" placeholder="TuUsuarioDeRoblox" />
+        </label>
+
+        <label class="api-key-field">
+          API key para Roblox Studio
+          <div class="api-key-row">
+            <input id="robloxApiKeyInput" type="text" readonly />
+            <button id="robloxCopyKeyBtn" class="btn ghost" type="button">Copiar</button>
+            <button id="robloxRegenerateKeyBtn" class="btn ghost" type="button">Regenerar</button>
+          </div>
+          <small class="hint">Pega esta key en el script de Roblox Studio. Regenerarla invalida la anterior de inmediato.</small>
+        </label>
+
+        <button id="robloxConfigSaveBtn" class="btn primary" type="submit">Guardar configuración</button>
+      </form>
+
+      <div class="test-spawn-row">
+        <button id="robloxTestSpawnBtn" class="btn accent" type="button">Enviar spawn de prueba</button>
+        <p id="robloxTestSpawnStatus" class="hint"></p>
+      </div>
+    </section>
+
+    <section class="card activity-card">
+      <div class="card-header">
+        <h2>Actividad reciente</h2>
+        <span class="pill">Solicitudes detectadas</span>
+      </div>
+      <div id="robloxActivityList" class="activity-list">
+        <p class="muted">Aún no se ha detectado ningún comentario con la palabra clave.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/roblox-dance.js?v=20260902a"></script>
+</body>
+
+</html>

@@ -207,12 +207,20 @@ function sanitizeSnakeVsSnakeState(payload) {
   const settings = payload?.settings || {};
   const snakes = payload?.snakes || payload || {};
 
+  // "rows" siempre se deriva de boardAspectRatio (misma formula que el
+  // frontend usa al mover el slider) en vez de confiar en un valor "rows"
+  // independiente que el cliente mande — asi un dato viejo/desincronizado
+  // (guardado antes de esta correccion, o corrupto por cualquier otro motivo)
+  // se autorepara solo la proxima vez que se lea, sin necesitar una migracion.
+  const boardAspectRatio = clampNumber(settings.boardAspectRatio, 0.7, 1.7, defaults.settings.boardAspectRatio);
+  const derivedRows = clampNumber(Math.round(defaults.settings.rows * boardAspectRatio), 10, 24, defaults.settings.rows);
+
   return {
     settings: {
-      rows: defaults.settings.rows,
+      rows: derivedRows,
       cols: defaults.settings.cols,
       tickMs: clampNumber(settings.tickMs, 60, 3000, defaults.settings.tickMs),
-      boardAspectRatio: clampNumber(settings.boardAspectRatio, 0.7, 1.7, defaults.settings.boardAspectRatio),
+      boardAspectRatio,
     },
     snakes: {
       left: sanitizeSnakePlayer(snakes.left || payload?.left, 'left'),

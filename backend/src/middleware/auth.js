@@ -107,7 +107,10 @@ async function requireRobloxApiKey(req, res, next) {
   try {
     const pool = require('../database/pool');
     const result = await pool.query(
-      'SELECT user_id FROM roblox_dance_config WHERE api_key = $1',
+      `SELECT rdc.user_id, au.email
+       FROM roblox_dance_config rdc
+       JOIN app_users au ON au.id = rdc.user_id
+       WHERE rdc.api_key = $1`,
       [apiKey],
     );
 
@@ -116,11 +119,14 @@ async function requireRobloxApiKey(req, res, next) {
     }
 
     const userId = result.rows[0].user_id;
-    const accessService = require('../services/accessService');
-    const hasAccess = await accessService.hasActiveAccess(userId);
 
-    if (!hasAccess) {
-      return res.status(403).json({ error: 'La prueba o el plan de este usuario vencio.', code: 'ACCESS_EXPIRED' });
+    if (!isSuperUserEmail(result.rows[0].email)) {
+      const accessService = require('../services/accessService');
+      const hasAccess = await accessService.hasActiveAccess(userId);
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'La prueba o el plan de este usuario vencio.', code: 'ACCESS_EXPIRED' });
+      }
     }
 
     req.robloxUserId = userId;

@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
-  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260902a" />
+  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260903a" />
 </head>
 
 <body>
@@ -44,28 +44,28 @@
 
     <section class="card config-card">
       <div class="card-header">
-        <h3>Configuración de Roblox</h3>
+        <h3>Tu cuenta de Roblox</h3>
+      </div>
+
+      <form id="robloxLinkForm" class="connection-form">
+        <input id="robloxUserIdInput" type="text" inputmode="numeric" placeholder="ID numerico de tu cuenta de Roblox" required />
+        <button id="robloxLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
+      </form>
+      <p id="robloxLinkStatus" class="hint">
+        Aún no has vinculado ninguna cuenta de Roblox. Busca tu ID numérico en tu perfil de Roblox
+        (roblox.com/users/<strong>TU_ID</strong>/profile).
+      </p>
+    </section>
+
+    <section class="card config-card">
+      <div class="card-header">
+        <h3>Configuración del juego</h3>
       </div>
 
       <form id="robloxConfigForm" class="roblox-config-grid">
         <label>
           Palabra clave para unirse
           <input id="robloxJoinKeywordInput" type="text" maxlength="40" placeholder="join" />
-        </label>
-
-        <label>
-          Tu usuario de Roblox (opcional, referencia)
-          <input id="robloxUsernameConfigInput" type="text" maxlength="40" placeholder="TuUsuarioDeRoblox" />
-        </label>
-
-        <label class="api-key-field">
-          API key para Roblox Studio
-          <div class="api-key-row">
-            <input id="robloxApiKeyInput" type="text" readonly />
-            <button id="robloxCopyKeyBtn" class="btn ghost" type="button">Copiar</button>
-            <button id="robloxRegenerateKeyBtn" class="btn ghost" type="button">Regenerar</button>
-          </div>
-          <small class="hint">Pega esta key en el script de Roblox Studio. Regenerarla invalida la anterior de inmediato.</small>
         </label>
 
         <button id="robloxConfigSaveBtn" class="btn primary" type="submit">Guardar configuración</button>
@@ -91,7 +91,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-dance.js?v=20260902a"></script>
+  <script src="js/roblox-dance.js?v=20260903a"></script>
 </body>
 
 </html>

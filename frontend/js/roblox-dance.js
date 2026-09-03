@@ -8,12 +8,13 @@ const linkBtn = document.getElementById('robloxLinkBtn');
 const connectLiveBtn = document.getElementById('robloxConnectLiveBtn');
 const disconnectBtn = document.getElementById('robloxDisconnectBtn');
 
+const linkForm = document.getElementById('robloxLinkForm');
+const robloxUserIdInput = document.getElementById('robloxUserIdInput');
+const linkAccountBtn = document.getElementById('robloxLinkAccountBtn');
+const linkStatus = document.getElementById('robloxLinkStatus');
+
 const configForm = document.getElementById('robloxConfigForm');
 const joinKeywordInput = document.getElementById('robloxJoinKeywordInput');
-const usernameConfigInput = document.getElementById('robloxUsernameConfigInput');
-const apiKeyInput = document.getElementById('robloxApiKeyInput');
-const copyKeyBtn = document.getElementById('robloxCopyKeyBtn');
-const regenerateKeyBtn = document.getElementById('robloxRegenerateKeyBtn');
 const configSaveBtn = document.getElementById('robloxConfigSaveBtn');
 
 const testSpawnBtn = document.getElementById('robloxTestSpawnBtn');
@@ -27,11 +28,6 @@ let currentJoinKeyword = 'join';
 async function showAlert(message, title = 'Aviso') {
   if (window.showAppAlert) return window.showAppAlert(message, title);
   window.alert(message);
-}
-
-async function showConfirm(message, title = 'Confirmacion') {
-  if (window.showAppConfirm) return window.showAppConfirm(message, title);
-  return window.confirm(message);
 }
 
 function normalizeText(value) {
@@ -214,6 +210,23 @@ function connectLiveEvents() {
   });
 }
 
+function setLinkStatus(robloxUsername, robloxUserId) {
+  if (robloxUserId) {
+    linkStatus.innerHTML = `Cuenta vinculada: <strong>${robloxUsername ? escapeHtml(robloxUsername) : 'ID ' + robloxUserId}</strong> (ID ${robloxUserId}). Puedes volver a vincular otra cuenta cuando quieras.`;
+  } else {
+    linkStatus.innerHTML = 'Aún no has vinculado ninguna cuenta de Roblox. Busca tu ID numérico en tu perfil de Roblox (roblox.com/users/<strong>TU_ID</strong>/profile).';
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 async function loadConfig() {
   try {
     const response = await fetch('/api/roblox-dance/config');
@@ -222,8 +235,10 @@ async function loadConfig() {
     const data = await response.json();
     currentJoinKeyword = data.joinKeyword || 'join';
     joinKeywordInput.value = currentJoinKeyword;
-    usernameConfigInput.value = data.robloxUsername || '';
-    apiKeyInput.value = data.apiKey || '';
+    setLinkStatus(data.robloxUsername, data.robloxUserId);
+    if (data.robloxUserId) {
+      robloxUserIdInput.value = data.robloxUserId;
+    }
   } catch (error) {
     await showAlert(error.message, 'Error');
   }
@@ -239,10 +254,7 @@ async function saveConfig(event) {
     const response = await fetch('/api/roblox-dance/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        joinKeyword: joinKeywordInput.value,
-        robloxUsername: usernameConfigInput.value,
-      }),
+      body: JSON.stringify({ joinKeyword: joinKeywordInput.value }),
     });
 
     const data = await response.json();
@@ -250,7 +262,6 @@ async function saveConfig(event) {
 
     currentJoinKeyword = data.joinKeyword || 'join';
     joinKeywordInput.value = currentJoinKeyword;
-    usernameConfigInput.value = data.robloxUsername || '';
     await showAlert('Configuracion guardada correctamente.', 'Listo');
   } catch (error) {
     await showAlert(error.message, 'Error');
@@ -260,35 +271,35 @@ async function saveConfig(event) {
   }
 }
 
-async function copyApiKey() {
-  try {
-    await navigator.clipboard.writeText(apiKeyInput.value);
-    await showAlert('API key copiada al portapapeles.', 'Copiado');
-  } catch (error) {
-    apiKeyInput.select();
-    await showAlert('No se pudo copiar automaticamente. Selecciona y copia manualmente.', 'Aviso');
+async function linkRobloxAccount(event) {
+  event.preventDefault();
+
+  const robloxUserId = normalizeText(robloxUserIdInput.value);
+  if (!robloxUserId || !/^\d+$/.test(robloxUserId)) {
+    await showAlert('Ingresa un ID de Roblox valido (solo numeros).', 'ID invalido');
+    return;
   }
-}
 
-async function regenerateApiKey() {
-  const confirmed = await showConfirm(
-    'La API key anterior dejara de funcionar de inmediato. Tendras que pegar la nueva en tu script de Roblox Studio. ¿Continuar?',
-    'Regenerar API key',
-  );
-  if (!confirmed) return;
+  linkAccountBtn.disabled = true;
+  linkAccountBtn.textContent = 'Vinculando...';
 
-  regenerateKeyBtn.disabled = true;
   try {
-    const response = await fetch('/api/roblox-dance/regenerate-key', { method: 'POST' });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'No se pudo regenerar la API key.');
+    const response = await fetch('/api/roblox-dance/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ robloxUserId }),
+    });
 
-    apiKeyInput.value = data.apiKey || '';
-    await showAlert('Nueva API key generada. Actualizala en tu script de Roblox Studio.', 'Listo');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo vincular la cuenta.');
+
+    setLinkStatus(data.robloxUsername, data.robloxUserId);
+    await showAlert(`Cuenta vinculada correctamente${data.robloxUsername ? `: ${data.robloxUsername}` : ''}.`, 'Listo');
   } catch (error) {
     await showAlert(error.message, 'Error');
   } finally {
-    regenerateKeyBtn.disabled = false;
+    linkAccountBtn.disabled = false;
+    linkAccountBtn.textContent = 'Vincular ID';
   }
 }
 
@@ -320,8 +331,7 @@ function bootstrapEventListeners() {
   disconnectBtn.addEventListener('click', disconnectLive);
 
   configForm.addEventListener('submit', saveConfig);
-  copyKeyBtn.addEventListener('click', copyApiKey);
-  regenerateKeyBtn.addEventListener('click', regenerateApiKey);
+  linkForm.addEventListener('submit', linkRobloxAccount);
   testSpawnBtn.addEventListener('click', sendTestSpawn);
 }
 

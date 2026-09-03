@@ -573,12 +573,6 @@ function sanitizeJoinKeyword(value) {
   return trimmed.slice(0, 40);
 }
 
-function sanitizeRobloxUsername(value) {
-  const trimmed = String(value || '').trim().replace(/^@/, '');
-  const filtered = trimmed.replace(/[^A-Za-z0-9_]/g, '');
-  return filtered.slice(0, 40);
-}
-
 module.exports = {
   normalizeEmail,
   normalizeColor,
@@ -596,5 +590,4 @@ module.exports = {
   sanitizeRaceGameState,
   sanitizeDominanceGameState,
   sanitizeJoinKeyword,
-  sanitizeRobloxUsername,
 };

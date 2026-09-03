@@ -96,47 +96,6 @@ async function requireActiveAccess(req, res, next) {
   }
 }
 
-// Autenticacion por API key para clientes sin cookies de sesion (ej. el script
-// de Roblox Studio consultando la cola de spawns via HttpService).
-async function requireRobloxApiKey(req, res, next) {
-  const apiKey = String(req.get('X-API-Key') || '').trim();
-  if (!apiKey) {
-    return res.status(401).json({ error: 'Falta la API key.' });
-  }
-
-  try {
-    const pool = require('../database/pool');
-    const result = await pool.query(
-      `SELECT rdc.user_id, au.email
-       FROM roblox_dance_config rdc
-       JOIN app_users au ON au.id = rdc.user_id
-       WHERE rdc.api_key = $1`,
-      [apiKey],
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(401).json({ error: 'API key invalida.' });
-    }
-
-    const userId = result.rows[0].user_id;
-
-    if (!isSuperUserEmail(result.rows[0].email)) {
-      const accessService = require('../services/accessService');
-      const hasAccess = await accessService.hasActiveAccess(userId);
-
-      if (!hasAccess) {
-        return res.status(403).json({ error: 'La prueba o el plan de este usuario vencio.', code: 'ACCESS_EXPIRED' });
-      }
-    }
-
-    req.robloxUserId = userId;
-    return next();
-  } catch (error) {
-    logger.error('Error verificando API key de Roblox', error);
-    return res.status(500).json({ error: 'No se pudo verificar la API key.' });
-  }
-}
-
 module.exports = {
   requireAuth,
   requireAuthPage,
@@ -144,7 +103,6 @@ module.exports = {
   getSessionUserId,
   requireSuperUser,
   requireActiveAccess,
-  requireRobloxApiKey,
   isSuperUserEmail,
   attachAuthFlags,
 };

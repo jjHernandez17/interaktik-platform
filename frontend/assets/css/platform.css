@@ -715,12 +715,14 @@ a {
   overflow: hidden;
   border-radius: var(--ds-radius-lg);
   transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  transform-origin: center;
 }
 
 .game-card:hover {
-  transform: translateY(-4px);
+  transform: scale(1.07);
+  z-index: 5;
   border-color: var(--ds-border-strong);
-  box-shadow: var(--ds-shadow-md);
+  box-shadow: var(--ds-shadow-lg);
 }
 
 .game-card img {
@@ -731,6 +733,13 @@ a {
   margin: -14px -14px 8px -14px;
   background: var(--ds-primary-soft);
   display: block;
+  transition: height 220ms ease, object-fit 220ms ease;
+}
+
+.game-card:hover img {
+  height: 220px;
+  object-fit: contain;
+  background: rgba(2, 6, 23, 0.72);
 }
 
 .game-card h3 {
@@ -748,7 +757,9 @@ a {
 
 .start-btn {
   display: inline-block;
-  padding: 11px 16px;
+  align-self: center;
+  width: fit-content;
+  padding: 11px 28px;
   border-radius: var(--ds-radius-md);
   color: #fff;
   text-decoration: none;

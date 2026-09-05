@@ -66,13 +66,11 @@ a {
   box-shadow: none;
 }
 
-.eyebrow {
-  margin: 0;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.75rem;
-  font-weight: 700;
+.brand-logo {
+  display: block;
+  width: 140px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .brand h1 {

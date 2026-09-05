@@ -17,19 +17,12 @@ body {
   width: min(440px, 100%);
 }
 
-.auth-shell::before {
-  content: 'PLAYTIK LIVE';
+.auth-brand-logo {
   display: block;
-  text-align: center;
-  margin-bottom: 18px;
-  font-family: var(--ds-font-display);
-  font-weight: 800;
-  font-size: 0.82rem;
-  letter-spacing: 0.28em;
-  background: var(--ds-gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  width: 168px;
+  height: 48px;
+  object-fit: contain;
+  margin: 0 auto 18px;
 }
 
 .auth-card {

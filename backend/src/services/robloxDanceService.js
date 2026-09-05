@@ -55,12 +55,13 @@ async function handleChatComment(userId, { comment, user } = {}) {
   }
 
   const robloxUsername = match[1].slice(0, 60);
+  const tiktokUniqueId = String(user?.uniqueId || '').slice(0, 120) || null;
   const tiktokNickname = String(user?.nickname || user?.uniqueId || 'Espectador').slice(0, 120);
 
   await pool.query(
-    `INSERT INTO roblox_dance_queue (user_id, roblox_username, tiktok_nickname)
-     VALUES ($1, $2, $3)`,
-    [userId, robloxUsername, tiktokNickname],
+    `INSERT INTO roblox_dance_queue (user_id, roblox_username, tiktok_nickname, tiktok_unique_id)
+     VALUES ($1, $2, $3, $4)`,
+    [userId, robloxUsername, tiktokNickname, tiktokUniqueId],
   );
 }
 
@@ -165,10 +166,86 @@ async function enqueueTestSpawn(userId) {
   }
 
   await pool.query(
-    `INSERT INTO roblox_dance_queue (user_id, roblox_username, tiktok_nickname)
-     VALUES ($1, $2, 'Prueba')`,
+    `INSERT INTO roblox_dance_queue (user_id, roblox_username, tiktok_nickname, tiktok_unique_id)
+     VALUES ($1, $2, 'Prueba', 'test-user')`,
     [userId, robloxUsername],
   );
+}
+
+const giftRuleCache = new Map();
+
+async function getGiftRulesByGiftId(userId) {
+  const cached = giftRuleCache.get(Number(userId));
+  if (cached) {
+    return cached;
+  }
+
+  const result = await pool.query(
+    'SELECT gift_id, power, duration_seconds FROM roblox_dance_gift_rules WHERE user_id = $1',
+    [userId],
+  );
+
+  const byGiftId = new Map(result.rows.map((row) => [String(row.gift_id), row]));
+  giftRuleCache.set(Number(userId), byGiftId);
+  return byGiftId;
+}
+
+function invalidateGiftRuleCache(userId) {
+  giftRuleCache.delete(Number(userId));
+}
+
+// Solo se cuenta/activa al final de cada racha de regalo (repeatEnd=true)
+// para no contar de mas los ticks intermedios de un mismo combo.
+async function handleGift(userId, { repeatEnd, repeatCount, diamondCount, giftId, user } = {}) {
+  if (!repeatEnd) {
+    return;
+  }
+
+  const uniqueId = String(user?.uniqueId || '').trim();
+  if (!uniqueId) {
+    return;
+  }
+
+  const nickname = String(user?.nickname || uniqueId).slice(0, 120);
+  const coins = Math.round(Number(diamondCount || 0) * Number(repeatCount || 1));
+
+  if (coins > 0) {
+    await pool.query(
+      `INSERT INTO roblox_dance_gift_totals (user_id, tiktok_unique_id, tiktok_nickname, total_coins)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, tiktok_unique_id) DO UPDATE SET
+         tiktok_nickname = EXCLUDED.tiktok_nickname,
+         total_coins = roblox_dance_gift_totals.total_coins + EXCLUDED.total_coins,
+         updated_at = NOW()`,
+      [userId, uniqueId.slice(0, 120), nickname, coins],
+    );
+  }
+
+  if (giftId) {
+    const rulesByGiftId = await getGiftRulesByGiftId(userId);
+    const rule = rulesByGiftId.get(String(giftId));
+
+    if (rule) {
+      await pool.query(
+        `INSERT INTO roblox_dance_power_queue (user_id, tiktok_unique_id, tiktok_nickname, power, duration_seconds)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [userId, uniqueId.slice(0, 120), nickname, rule.power, rule.duration_seconds],
+      );
+    }
+  }
+}
+
+async function getTopGifters(userId, limit = 4) {
+  const result = await pool.query(
+    `SELECT tiktok_nickname, total_coins
+     FROM roblox_dance_gift_totals
+     WHERE user_id = $1
+     ORDER BY total_coins DESC
+     LIMIT $2`,
+    [userId, limit],
+  );
+
+  return result.rows;
 }
 
 async function pollQueue(userId, limit = 20) {
@@ -181,7 +258,94 @@ async function pollQueue(userId, limit = 20) {
        ORDER BY created_at ASC
        LIMIT $2
      )
-     RETURNING id, roblox_username, tiktok_nickname, created_at`,
+     RETURNING id, roblox_username, tiktok_nickname, tiktok_unique_id, created_at`,
+    [userId, limit],
+  );
+
+  return result.rows;
+}
+
+async function listGiftRules(userId) {
+  const result = await pool.query(
+    `SELECT id, gift_id, gift_name, gift_image_url, power, duration_seconds, created_at
+     FROM roblox_dance_gift_rules
+     WHERE user_id = $1
+     ORDER BY created_at ASC`,
+    [userId],
+  );
+
+  return result.rows;
+}
+
+async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, durationSeconds }) {
+  const cleanGiftId = String(giftId || '').trim().slice(0, 60);
+  const cleanGiftName = String(giftName || '').trim().slice(0, 120);
+  const cleanPower = String(power || 'fuego').trim().slice(0, 40);
+  const cleanDuration = Math.min(60, Math.max(1, Math.round(Number(durationSeconds) || 5)));
+
+  if (!cleanGiftId || !cleanGiftName) {
+    const error = new Error('Debes seleccionar un regalo.');
+    error.status = 400;
+    throw error;
+  }
+
+  const result = await pool.query(
+    `INSERT INTO roblox_dance_gift_rules (user_id, gift_id, gift_name, gift_image_url, power, duration_seconds)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id, gift_id) DO UPDATE SET
+       gift_name = EXCLUDED.gift_name,
+       gift_image_url = EXCLUDED.gift_image_url,
+       power = EXCLUDED.power,
+       duration_seconds = EXCLUDED.duration_seconds,
+       updated_at = NOW()
+     RETURNING id, gift_id, gift_name, gift_image_url, power, duration_seconds, created_at`,
+    [userId, cleanGiftId, cleanGiftName, giftImageUrl || null, cleanPower, cleanDuration],
+  );
+
+  invalidateGiftRuleCache(userId);
+  return result.rows[0];
+}
+
+async function deleteGiftRule(userId, ruleId) {
+  await pool.query(
+    'DELETE FROM roblox_dance_gift_rules WHERE id = $1 AND user_id = $2',
+    [ruleId, userId],
+  );
+  invalidateGiftRuleCache(userId);
+}
+
+async function enqueueTestPower(userId, ruleId) {
+  const ruleResult = await pool.query(
+    'SELECT power, duration_seconds FROM roblox_dance_gift_rules WHERE id = $1 AND user_id = $2',
+    [ruleId, userId],
+  );
+
+  if (ruleResult.rowCount === 0) {
+    const error = new Error('Regla no encontrada.');
+    error.status = 404;
+    throw error;
+  }
+
+  const rule = ruleResult.rows[0];
+
+  await pool.query(
+    `INSERT INTO roblox_dance_power_queue (user_id, tiktok_unique_id, tiktok_nickname, power, duration_seconds)
+     VALUES ($1, 'test-user', 'Prueba', $2, $3)`,
+    [userId, rule.power, rule.duration_seconds],
+  );
+}
+
+async function pollPowerQueue(userId, limit = 20) {
+  const result = await pool.query(
+    `UPDATE roblox_dance_power_queue
+     SET status = 'sent', sent_at = NOW()
+     WHERE id IN (
+       SELECT id FROM roblox_dance_power_queue
+       WHERE user_id = $1 AND status = 'pending'
+       ORDER BY created_at ASC
+       LIMIT $2
+     )
+     RETURNING id, tiktok_unique_id, tiktok_nickname, power, duration_seconds, created_at`,
     [userId, limit],
   );
 
@@ -223,11 +387,18 @@ async function resolveLinkedUser(robloxUserId) {
 
 module.exports = {
   handleChatComment,
+  handleGift,
   getOrCreateConfig,
   updateJoinKeyword,
   linkRobloxAccount,
   enqueueTestSpawn,
   pollQueue,
+  getTopGifters,
+  listGiftRules,
+  upsertGiftRule,
+  deleteGiftRule,
+  enqueueTestPower,
+  pollPowerQueue,
   resolveLinkedUser,
   invalidateConfigCache,
 };

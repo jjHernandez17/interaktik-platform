@@ -210,6 +210,59 @@ h1 {
   box-shadow: 0 0 0 3px var(--ds-primary-soft);
 }
 
+.roblox-config-grid select {
+  font-family: var(--ds-font-body);
+  font-size: 0.95rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 12px 14px;
+}
+
+.roblox-config-grid select:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.rules-card .hint {
+  margin: 0 0 14px;
+}
+
+#robloxLoadGiftsBtn {
+  margin-bottom: 16px;
+}
+
+.rules-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--ds-radius-md);
+  background: rgba(15, 23, 42, 0.64);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.rule-info {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9rem;
+}
+
+.rule-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .test-spawn-row {
   margin-top: 18px;
   padding-top: 18px;

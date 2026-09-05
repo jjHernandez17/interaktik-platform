@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
-  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260903a" />
+  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260905a" />
 </head>
 
 <body>
@@ -77,6 +77,46 @@
       </div>
     </section>
 
+    <section class="card rules-card">
+      <div class="card-header">
+        <h3>Reglas: regalo → poder</h3>
+      </div>
+      <p class="hint">
+        Cuando un espectador mande el regalo que elijas, su personaje se destaca con el poder configurado y
+        deja de perder su lugar en la fila mientras el poder está activo.
+      </p>
+
+      <button id="robloxLoadGiftsBtn" class="btn ghost" type="button">Cargar catálogo de regalos</button>
+
+      <form id="robloxRuleForm" class="roblox-config-grid">
+        <label>
+          Regalo
+          <select id="robloxRuleGiftSelect">
+            <option value="">Carga el catálogo primero</option>
+          </select>
+        </label>
+
+        <label>
+          Poder
+          <select id="robloxRulePowerSelect">
+            <option value="fuego">Fuego</option>
+            <option value="brillo">Brillo</option>
+          </select>
+        </label>
+
+        <label>
+          Duración (segundos)
+          <input id="robloxRuleDurationInput" type="number" min="1" max="60" value="5" />
+        </label>
+
+        <button id="robloxRuleSaveBtn" class="btn primary" type="submit">Agregar regla</button>
+      </form>
+
+      <div id="robloxRulesList" class="rules-list">
+        <p class="muted">Aún no has configurado ninguna regla.</p>
+      </div>
+    </section>
+
     <section class="card activity-card">
       <div class="card-header">
         <h2>Actividad reciente</h2>
@@ -91,7 +131,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-dance.js?v=20260903a"></script>
+  <script src="js/roblox-dance.js?v=20260905a"></script>
 </body>
 
 </html>

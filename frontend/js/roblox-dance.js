@@ -21,6 +21,14 @@ const testSpawnBtn = document.getElementById('robloxTestSpawnBtn');
 const testSpawnStatus = document.getElementById('robloxTestSpawnStatus');
 const activityList = document.getElementById('robloxActivityList');
 
+const loadGiftsBtn = document.getElementById('robloxLoadGiftsBtn');
+const ruleForm = document.getElementById('robloxRuleForm');
+const ruleGiftSelect = document.getElementById('robloxRuleGiftSelect');
+const rulePowerSelect = document.getElementById('robloxRulePowerSelect');
+const ruleDurationInput = document.getElementById('robloxRuleDurationInput');
+const ruleSaveBtn = document.getElementById('robloxRuleSaveBtn');
+const rulesList = document.getElementById('robloxRulesList');
+
 let liveEventsSource = null;
 let liveConnected = false;
 let currentJoinKeyword = 'join';
@@ -28,6 +36,11 @@ let currentJoinKeyword = 'join';
 async function showAlert(message, title = 'Aviso') {
   if (window.showAppAlert) return window.showAppAlert(message, title);
   window.alert(message);
+}
+
+async function showConfirm(message, title = 'Confirmacion') {
+  if (window.showAppConfirm) return window.showAppConfirm(message, title);
+  return window.confirm(message);
 }
 
 function normalizeText(value) {
@@ -321,6 +334,140 @@ async function sendTestSpawn() {
   }
 }
 
+let giftCatalog = [];
+
+async function loadGiftCatalog() {
+  loadGiftsBtn.disabled = true;
+  loadGiftsBtn.textContent = 'Cargando...';
+
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: GAME_TYPE }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catalogo.');
+
+    giftCatalog = Array.isArray(data.gifts) ? data.gifts : [];
+
+    if (giftCatalog.length === 0) {
+      ruleGiftSelect.innerHTML = '<option value="">Sin regalos disponibles (conecta tu TikTok primero)</option>';
+    } else {
+      ruleGiftSelect.innerHTML = giftCatalog
+        .map((gift) => `<option value="${escapeHtml(gift.id)}" data-name="${escapeHtml(gift.name)}" data-image="${escapeHtml(gift.imageUrl || '')}">${escapeHtml(gift.name)} (${escapeHtml(gift.diamondCount)} monedas)</option>`)
+        .join('');
+    }
+
+    await showAlert(`Catalogo cargado: ${giftCatalog.length} regalos.`, 'Listo');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    loadGiftsBtn.disabled = false;
+    loadGiftsBtn.textContent = 'Cargar catálogo de regalos';
+  }
+}
+
+async function saveRule(event) {
+  event.preventDefault();
+
+  const option = ruleGiftSelect.selectedOptions[0];
+  if (!option || !option.value) {
+    await showAlert('Primero carga el catalogo y selecciona un regalo.', 'Aviso');
+    return;
+  }
+
+  ruleSaveBtn.disabled = true;
+  ruleSaveBtn.textContent = 'Guardando...';
+
+  try {
+    const response = await fetch('/api/roblox-dance/rules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        giftId: option.value,
+        giftName: option.dataset.name,
+        giftImageUrl: option.dataset.image,
+        power: rulePowerSelect.value,
+        durationSeconds: Number(ruleDurationInput.value) || 5,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo guardar la regla.');
+
+    await loadRules();
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    ruleSaveBtn.disabled = false;
+    ruleSaveBtn.textContent = 'Agregar regla';
+  }
+}
+
+const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo' };
+
+async function loadRules() {
+  try {
+    const response = await fetch('/api/roblox-dance/rules');
+    const data = await response.json();
+    const rules = Array.isArray(data.rules) ? data.rules : [];
+
+    if (rules.length === 0) {
+      rulesList.innerHTML = '<p class="muted">Aún no has configurado ninguna regla.</p>';
+      return;
+    }
+
+    rulesList.innerHTML = rules.map((rule) => `
+      <div class="rule-item" data-rule-id="${rule.id}">
+        <div class="rule-info">
+          <strong>${escapeHtml(rule.gift_name)}</strong>
+          <span class="muted">${escapeHtml(POWER_LABELS[rule.power] || rule.power)} · ${escapeHtml(rule.duration_seconds)}s</span>
+        </div>
+        <div class="rule-actions">
+          <button class="btn ghost small test-rule-btn" type="button">Probar</button>
+          <button class="btn danger small delete-rule-btn" type="button">Eliminar</button>
+        </div>
+      </div>
+    `).join('');
+
+    rulesList.querySelectorAll('.test-rule-btn').forEach((btn) => {
+      btn.addEventListener('click', () => testRule(btn.closest('.rule-item').dataset.ruleId, btn));
+    });
+    rulesList.querySelectorAll('.delete-rule-btn').forEach((btn) => {
+      btn.addEventListener('click', () => deleteRule(btn.closest('.rule-item').dataset.ruleId));
+    });
+  } catch (error) {
+    rulesList.innerHTML = '<p class="muted">No se pudieron cargar las reglas.</p>';
+  }
+}
+
+async function testRule(ruleId, button) {
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/roblox-dance/rules/${ruleId}/test`, { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo probar el poder.');
+    await showAlert('Poder de prueba enviado. Deberia activarse en tu Roblox Studio en unos segundos.', 'Listo');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteRule(ruleId) {
+  const confirmed = await showConfirm('¿Eliminar esta regla?', 'Eliminar regla');
+  if (!confirmed) return;
+
+  try {
+    await fetch(`/api/roblox-dance/rules/${ruleId}`, { method: 'DELETE' });
+    await loadRules();
+  } catch (error) {
+    await showAlert('No se pudo eliminar la regla.', 'Error');
+  }
+}
+
 function bootstrapEventListeners() {
   if (robloxConnectionForm) {
     robloxConnectionForm.addEventListener('submit', (event) => event.preventDefault());
@@ -333,10 +480,14 @@ function bootstrapEventListeners() {
   configForm.addEventListener('submit', saveConfig);
   linkForm.addEventListener('submit', linkRobloxAccount);
   testSpawnBtn.addEventListener('click', sendTestSpawn);
+
+  loadGiftsBtn.addEventListener('click', loadGiftCatalog);
+  ruleForm.addEventListener('submit', saveRule);
 }
 
 (async function init() {
   bootstrapEventListeners();
   await loadConfig();
   await restoreTiktokConnection();
+  await loadRules();
 })();

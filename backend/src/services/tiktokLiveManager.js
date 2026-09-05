@@ -373,10 +373,18 @@ connection.on(WebcastEvent.GIFT, (data) => {
     uniqueId: data?.user?.uniqueId,
   });
 
+  const giftPayload = simplifyGiftEvent(data);
+
   publish(normalizedGameType, "gift", {
     ownerKey,
-    ...simplifyGiftEvent(data),
+    ...giftPayload,
   });
+
+  if (normalizedGameType === 'roblox' && userId) {
+    robloxDanceService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Roblox Dance', error);
+    });
+  }
 
 });
   // connection.on(WebcastEvent.GIFT, (data) => {

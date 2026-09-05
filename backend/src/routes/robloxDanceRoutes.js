@@ -90,6 +90,101 @@ router.get('/roblox-dance/session', async (req, res) => {
   }
 });
 
+router.get('/roblox-dance/rules', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const rules = await robloxDanceService.listGiftRules(userId);
+    return res.json({ rules });
+  } catch (error) {
+    logger.error('Error listando reglas de Roblox Dance', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/roblox-dance/rules', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const rule = await robloxDanceService.upsertGiftRule(userId, {
+      giftId: req.body?.giftId,
+      giftName: req.body?.giftName,
+      giftImageUrl: req.body?.giftImageUrl,
+      power: req.body?.power,
+      durationSeconds: req.body?.durationSeconds,
+    });
+    return res.json({ rule });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status >= 500) {
+      logger.error('Error guardando regla de Roblox Dance', error);
+    }
+    return res.status(status).json({ error: normalizeError(error) });
+  }
+});
+
+router.delete('/roblox-dance/rules/:id', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    await robloxDanceService.deleteGiftRule(userId, Number(req.params.id));
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('Error eliminando regla de Roblox Dance', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/roblox-dance/rules/:id/test', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    await robloxDanceService.enqueueTestPower(userId, Number(req.params.id));
+    return res.json({ success: true });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status >= 500) {
+      logger.error('Error probando poder de Roblox Dance', error);
+    }
+    return res.status(status).json({ error: normalizeError(error) });
+  }
+});
+
+// Consultado en bucle por el script de Roblox Studio para traer los poderes
+// activados por regalos (o por el boton de prueba).
+router.get('/roblox-dance/power-queue', async (req, res) => {
+  try {
+    const { linked, hasAccess, userId } = await robloxDanceService.resolveLinkedUser(req.query?.robloxUserId);
+
+    if (!linked) {
+      return res.status(404).json({ error: 'Esa cuenta de Roblox no esta vinculada.' });
+    }
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'La prueba o el plan de este usuario vencio.', code: 'ACCESS_EXPIRED' });
+    }
+
+    const items = await robloxDanceService.pollPowerQueue(userId);
+    return res.json({ items });
+  } catch (error) {
+    logger.error('Error consultando cola de poderes de Roblox Dance', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// Consultado por el script de Roblox Studio para llenar la valla con el
+// top de espectadores que mas monedas han mandado en regalos.
+router.get('/roblox-dance/leaderboard', async (req, res) => {
+  try {
+    const { linked, hasAccess, userId } = await robloxDanceService.resolveLinkedUser(req.query?.robloxUserId);
+
+    if (!linked || !hasAccess) {
+      return res.json({ items: [] });
+    }
+
+    const items = await robloxDanceService.getTopGifters(userId, 4);
+    return res.json({ items });
+  } catch (error) {
+    logger.error('Error consultando leaderboard de Roblox Dance', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
 // Consultado en bucle por el script de Roblox Studio para traer las
 // solicitudes de spawn pendientes.
 router.get('/roblox-dance/queue', async (req, res) => {

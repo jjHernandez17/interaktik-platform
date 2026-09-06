@@ -63,6 +63,21 @@ async function handleChatComment(userId, { comment, user } = {}) {
      VALUES ($1, $2, $3, $4)`,
     [userId, robloxUsername, tiktokNickname, tiktokUniqueId],
   );
+
+  // Recuerda que usuario de Roblox eligio este espectador, para poder
+  // mostrarlo junto a su nombre de TikTok en la valla de lideres (aunque
+  // todavia no haya mandado ningun regalo).
+  if (tiktokUniqueId) {
+    await pool.query(
+      `INSERT INTO roblox_dance_gift_totals (user_id, tiktok_unique_id, tiktok_nickname, roblox_username, total_coins)
+       VALUES ($1, $2, $3, $4, 0)
+       ON CONFLICT (user_id, tiktok_unique_id) DO UPDATE SET
+         tiktok_nickname = EXCLUDED.tiktok_nickname,
+         roblox_username = EXCLUDED.roblox_username,
+         updated_at = NOW()`,
+      [userId, tiktokUniqueId, tiktokNickname, robloxUsername],
+    );
+  }
 }
 
 async function getOrCreateConfig(userId) {
@@ -245,9 +260,9 @@ async function resetGame(userId) {
   await pool.query('DELETE FROM roblox_dance_gift_totals WHERE user_id = $1', [userId]);
 }
 
-async function getTopGifters(userId, limit = 4) {
+async function getTopGifters(userId, limit = 3) {
   const result = await pool.query(
-    `SELECT tiktok_nickname, total_coins
+    `SELECT tiktok_nickname, roblox_username, total_coins
      FROM roblox_dance_gift_totals
      WHERE user_id = $1
      ORDER BY total_coins DESC

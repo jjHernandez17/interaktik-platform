@@ -177,7 +177,7 @@ router.get('/roblox-dance/leaderboard', async (req, res) => {
       return res.json({ items: [] });
     }
 
-    const items = await robloxDanceService.getTopGifters(userId, 4);
+    const items = await robloxDanceService.getTopGifters(userId, 3);
     return res.json({ items });
   } catch (error) {
     logger.error('Error consultando leaderboard de Roblox Dance', error);

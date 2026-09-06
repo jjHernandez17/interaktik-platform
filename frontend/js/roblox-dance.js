@@ -531,7 +531,7 @@ async function saveRule(event) {
   }
 }
 
-const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo' };
+const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo', gigante: 'Gigante' };
 
 async function loadRules() {
   try {

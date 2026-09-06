@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS gift_catalog_cache (
+  user_id INTEGER PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+  gifts JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

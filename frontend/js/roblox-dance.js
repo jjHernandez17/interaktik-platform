@@ -462,7 +462,7 @@ function toggleGiftPicker() {
   else closeGiftPicker();
 }
 
-async function loadGiftCatalog() {
+async function loadGiftCatalog(silent) {
   loadGiftsBtn.disabled = true;
   loadGiftsBtn.textContent = 'Cargando...';
 
@@ -479,16 +479,20 @@ async function loadGiftCatalog() {
     selectedGift = null;
     giftPickerSelected.classList.add('placeholder');
     giftPickerSelected.textContent = giftCatalog.length === 0
-      ? 'Sin regalos disponibles (conecta tu TikTok primero)'
+      ? 'Sin regalos disponibles (conecta tu TikTok y carga el catalogo una vez)'
       : 'Selecciona un regalo';
     giftFilterName.value = '';
     giftFilterCoinsMin.value = '';
     giftFilterCoinsMax.value = '';
     renderGiftPickerList();
 
-    await showAlert(`Catalogo cargado: ${giftCatalog.length} regalos.`, 'Listo');
+    if (!silent) {
+      await showAlert(`Catalogo cargado: ${giftCatalog.length} regalos.`, 'Listo');
+    }
   } catch (error) {
-    await showAlert(error.message, 'Error');
+    if (!silent) {
+      await showAlert(error.message, 'Error');
+    }
   } finally {
     loadGiftsBtn.disabled = false;
     loadGiftsBtn.textContent = 'Cargar catálogo de regalos';

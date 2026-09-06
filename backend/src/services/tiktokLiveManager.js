@@ -310,14 +310,36 @@ async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = nul
 
   const freshEntry = connections.get(ownerKey);
   if (freshEntry?.connection && Array.isArray(freshEntry.availableGifts) && freshEntry.availableGifts.length > 0) {
+    if (userId) {
+      tiktokService.saveUserGiftCatalog(userId, freshEntry.availableGifts).catch((error) => {
+        logger.warn('No se pudo guardar el catalogo de regalos del usuario', error);
+      });
+    }
+
     return {
       gifts: freshEntry.availableGifts,
       total: freshEntry.availableGifts.length,
       source: 'live',
       gameType: normalized,
-      
       updated_at: freshEntry.updatedAt,
     };
+  }
+
+  // No esta conectado ahora mismo: si esta usuario ya cargo su catalogo real
+  // alguna vez (mientras estaba en vivo), lo servimos guardado — asi solo
+  // necesita cargarlo una vez en la vida, no cada vez que entra sin estar
+  // en vivo.
+  if (userId) {
+    const saved = await tiktokService.getUserGiftCatalog(userId);
+    if (saved && Array.isArray(saved.gifts) && saved.gifts.length > 0) {
+      return {
+        gifts: saved.gifts,
+        total: saved.gifts.length,
+        source: 'saved',
+        gameType: normalized,
+        updated_at: saved.updated_at,
+      };
+    }
   }
 
   const cached = await tiktokService.getGiftCatalog();

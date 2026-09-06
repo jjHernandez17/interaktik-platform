@@ -128,7 +128,9 @@ router.post('/catalog', async (req, res) => {
       total: catalog.total,
       source: catalog.source,
       gameType,
-      warning: catalog.source === 'live' ? null : 'Se devolvió el catálogo desde cache local en producción.',
+      warning: (catalog.source === 'live' || catalog.source === 'saved')
+        ? null
+        : 'Se devolvió el catálogo desde cache local en producción.',
     });
   } catch (error) {
     logger.error('Error getting catalog', error);

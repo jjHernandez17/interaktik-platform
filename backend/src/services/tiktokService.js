@@ -94,6 +94,41 @@ async function getGiftCatalog() {
   }
 }
 
+// Catalogo de regalos GUARDADO por usuario: se llena la primera vez que se
+// conecta en vivo y consulta el catalogo, y desde entonces se sirve aunque
+// no este conectado — asi el usuario solo necesita cargarlo una vez.
+async function saveUserGiftCatalog(userId, gifts) {
+  if (!userId || !Array.isArray(gifts) || gifts.length === 0) {
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO gift_catalog_cache (user_id, gifts, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       gifts = EXCLUDED.gifts,
+       updated_at = NOW()`,
+    [userId, JSON.stringify(gifts)],
+  );
+}
+
+async function getUserGiftCatalog(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  const result = await pool.query(
+    'SELECT gifts, updated_at FROM gift_catalog_cache WHERE user_id = $1',
+    [userId],
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+}
+
 async function getStatus(userId = null) {
   try {
     const poolResult = await pool.query('SELECT 1 as ok');
@@ -124,5 +159,7 @@ module.exports = {
   getTiktokConnection,
   deleteTiktokConnection,
   getGiftCatalog,
+  saveUserGiftCatalog,
+  getUserGiftCatalog,
   getStatus,
 };

@@ -235,6 +235,16 @@ async function handleGift(userId, { repeatEnd, repeatCount, diamondCount, giftId
   }
 }
 
+// "Reiniciar juego": limpia el estado efimero de una partida (cola de spawns
+// pendientes, cola de poderes pendientes, y el total de monedas que alimenta
+// la valla de lideres) sin tocar configuracion que el usuario definio a
+// proposito (join keyword, vinculacion de Roblox, reglas de regalo->poder).
+async function resetGame(userId) {
+  await pool.query('DELETE FROM roblox_dance_queue WHERE user_id = $1', [userId]);
+  await pool.query('DELETE FROM roblox_dance_power_queue WHERE user_id = $1', [userId]);
+  await pool.query('DELETE FROM roblox_dance_gift_totals WHERE user_id = $1', [userId]);
+}
+
 async function getTopGifters(userId, limit = 4) {
   const result = await pool.query(
     `SELECT tiktok_nickname, total_coins
@@ -393,6 +403,7 @@ module.exports = {
   linkRobloxAccount,
   enqueueTestSpawn,
   pollQueue,
+  resetGame,
   getTopGifters,
   listGiftRules,
   upsertGiftRule,

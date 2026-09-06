@@ -206,4 +206,26 @@ router.get('/roblox-dance/queue', async (req, res) => {
   }
 });
 
+// Consultado por el script de Roblox Studio cuando el streamer da "Reiniciar
+// juego" en el menu del juego: limpia el estado efimero de la partida
+// (players en cola, poderes pendientes, total de monedas de la valla).
+router.post('/roblox-dance/reset', async (req, res) => {
+  try {
+    const { linked, hasAccess, userId } = await robloxDanceService.resolveLinkedUser(req.query?.robloxUserId);
+
+    if (!linked) {
+      return res.status(404).json({ error: 'Esa cuenta de Roblox no esta vinculada.' });
+    }
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'La prueba o el plan de este usuario vencio.', code: 'ACCESS_EXPIRED' });
+    }
+
+    await robloxDanceService.resetGame(userId);
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('Error reiniciando el juego de Roblox Dance', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
 module.exports = router;

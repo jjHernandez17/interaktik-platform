@@ -341,6 +341,58 @@ async function sendTestSpawn() {
   }
 }
 
+function pickFirstUrl(value) {
+  if (!value) return '';
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const picked = pickFirstUrl(item);
+      if (picked) return picked;
+    }
+    return '';
+  }
+
+  if (typeof value === 'object') {
+    return (
+      pickFirstUrl(value.url) ||
+      pickFirstUrl(value.urlList) ||
+      pickFirstUrl(value.url_list) ||
+      pickFirstUrl(value.urls) ||
+      pickFirstUrl(value.uri) ||
+      ''
+    );
+  }
+
+  return '';
+}
+
+function getGiftImageUrl(gift) {
+  return (
+    pickFirstUrl(gift?.imageUrl) ||
+    pickFirstUrl(gift?.giftImage) ||
+    pickFirstUrl(gift?.previewImage) ||
+    pickFirstUrl(gift?.icon) ||
+    pickFirstUrl(gift?.giftLabelIcon) ||
+    pickFirstUrl(gift?.image) ||
+    pickFirstUrl(gift?.staticImage) ||
+    pickFirstUrl(gift?.dynamicImage) ||
+    ''
+  );
+}
+
+function sanitizeGiftCatalog(rawGifts) {
+  return (Array.isArray(rawGifts) ? rawGifts : []).map((gift) => ({
+    id: String(gift.id),
+    name: gift.name || gift.giftName || `Regalo ID ${gift.id}`,
+    diamondCount: Number(gift.diamondCount || gift.diamond_count || 1) || 1,
+    imageUrl: gift.imageUrl || getGiftImageUrl(gift),
+  }));
+}
+
 let giftCatalog = [];
 let selectedGift = null;
 
@@ -369,7 +421,7 @@ function renderGiftPickerList() {
 
   giftPickerList.innerHTML = filtered.map((gift) => `
     <button type="button" class="gift-picker-item${selectedGift && String(selectedGift.id) === String(gift.id) ? ' selected' : ''}" data-gift-id="${escapeHtml(gift.id)}">
-      <img class="gift-picker-item-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" loading="lazy" />
+      <img class="gift-picker-item-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
       <span class="gift-picker-item-name">${escapeHtml(gift.name)}</span>
       <span class="gift-picker-item-coins">${escapeHtml(gift.diamondCount)}</span>
     </button>
@@ -388,7 +440,7 @@ function selectGift(gift) {
   selectedGift = gift;
   giftPickerSelected.classList.remove('placeholder');
   giftPickerSelected.innerHTML = `
-    <img class="gift-picker-selected-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" />
+    <img class="gift-picker-selected-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" onerror="this.style.visibility='hidden'" />
     <span class="gift-picker-selected-name">${escapeHtml(gift.name)}</span>
     <span class="gift-picker-selected-coins">${escapeHtml(gift.diamondCount)}</span>
   `;
@@ -423,7 +475,7 @@ async function loadGiftCatalog() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catalogo.');
 
-    giftCatalog = Array.isArray(data.gifts) ? data.gifts : [];
+    giftCatalog = sanitizeGiftCatalog(data.gifts);
     selectedGift = null;
     giftPickerSelected.classList.add('placeholder');
     giftPickerSelected.textContent = giftCatalog.length === 0

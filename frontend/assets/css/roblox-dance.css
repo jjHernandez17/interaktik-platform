@@ -314,7 +314,7 @@ h1 {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  background: linear-gradient(180deg, rgba(22, 27, 42, 0.98), rgba(13, 17, 28, 0.98));
+  background: var(--ds-surface-solid);
   border: 1px solid var(--ds-border-strong);
   border-radius: var(--ds-radius-lg);
   box-shadow: var(--ds-shadow-lg);

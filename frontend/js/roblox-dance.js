@@ -23,7 +23,14 @@ const activityList = document.getElementById('robloxActivityList');
 
 const loadGiftsBtn = document.getElementById('robloxLoadGiftsBtn');
 const ruleForm = document.getElementById('robloxRuleForm');
-const ruleGiftSelect = document.getElementById('robloxRuleGiftSelect');
+const giftPicker = document.getElementById('robloxGiftPicker');
+const giftPickerToggle = document.getElementById('robloxGiftPickerToggle');
+const giftPickerSelected = document.getElementById('robloxGiftPickerSelected');
+const giftPickerPanel = document.getElementById('robloxGiftPickerPanel');
+const giftPickerList = document.getElementById('robloxGiftPickerList');
+const giftFilterName = document.getElementById('robloxGiftFilterName');
+const giftFilterCoinsMin = document.getElementById('robloxGiftFilterCoinsMin');
+const giftFilterCoinsMax = document.getElementById('robloxGiftFilterCoinsMax');
 const rulePowerSelect = document.getElementById('robloxRulePowerSelect');
 const ruleDurationInput = document.getElementById('robloxRuleDurationInput');
 const ruleSaveBtn = document.getElementById('robloxRuleSaveBtn');
@@ -335,6 +342,73 @@ async function sendTestSpawn() {
 }
 
 let giftCatalog = [];
+let selectedGift = null;
+
+function renderGiftPickerList() {
+  if (giftCatalog.length === 0) {
+    giftPickerList.innerHTML = '<p class="muted">Carga el catálogo primero.</p>';
+    return;
+  }
+
+  const nameFilter = normalizeText(giftFilterName.value).toLowerCase();
+  const min = giftFilterCoinsMin.value !== '' ? Number(giftFilterCoinsMin.value) : null;
+  const max = giftFilterCoinsMax.value !== '' ? Number(giftFilterCoinsMax.value) : null;
+
+  const filtered = giftCatalog.filter((gift) => {
+    if (nameFilter && !String(gift.name || '').toLowerCase().includes(nameFilter)) return false;
+    const coins = Number(gift.diamondCount) || 0;
+    if (min !== null && !Number.isNaN(min) && coins < min) return false;
+    if (max !== null && !Number.isNaN(max) && coins > max) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    giftPickerList.innerHTML = '<p class="muted">Sin resultados para ese filtro.</p>';
+    return;
+  }
+
+  giftPickerList.innerHTML = filtered.map((gift) => `
+    <button type="button" class="gift-picker-item${selectedGift && String(selectedGift.id) === String(gift.id) ? ' selected' : ''}" data-gift-id="${escapeHtml(gift.id)}">
+      <img class="gift-picker-item-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" loading="lazy" />
+      <span class="gift-picker-item-name">${escapeHtml(gift.name)}</span>
+      <span class="gift-picker-item-coins">${escapeHtml(gift.diamondCount)}</span>
+    </button>
+  `).join('');
+
+  giftPickerList.querySelectorAll('.gift-picker-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const gift = giftCatalog.find((entry) => String(entry.id) === btn.dataset.giftId);
+      if (gift) selectGift(gift);
+      closeGiftPicker();
+    });
+  });
+}
+
+function selectGift(gift) {
+  selectedGift = gift;
+  giftPickerSelected.classList.remove('placeholder');
+  giftPickerSelected.innerHTML = `
+    <img class="gift-picker-selected-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" />
+    <span class="gift-picker-selected-name">${escapeHtml(gift.name)}</span>
+    <span class="gift-picker-selected-coins">${escapeHtml(gift.diamondCount)}</span>
+  `;
+}
+
+function openGiftPicker() {
+  if (giftCatalog.length === 0) return;
+  giftPickerPanel.classList.remove('hidden');
+  giftPickerToggle.classList.add('open');
+}
+
+function closeGiftPicker() {
+  giftPickerPanel.classList.add('hidden');
+  giftPickerToggle.classList.remove('open');
+}
+
+function toggleGiftPicker() {
+  if (giftPickerPanel.classList.contains('hidden')) openGiftPicker();
+  else closeGiftPicker();
+}
 
 async function loadGiftCatalog() {
   loadGiftsBtn.disabled = true;
@@ -350,14 +424,15 @@ async function loadGiftCatalog() {
     if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catalogo.');
 
     giftCatalog = Array.isArray(data.gifts) ? data.gifts : [];
-
-    if (giftCatalog.length === 0) {
-      ruleGiftSelect.innerHTML = '<option value="">Sin regalos disponibles (conecta tu TikTok primero)</option>';
-    } else {
-      ruleGiftSelect.innerHTML = giftCatalog
-        .map((gift) => `<option value="${escapeHtml(gift.id)}" data-name="${escapeHtml(gift.name)}" data-image="${escapeHtml(gift.imageUrl || '')}">${escapeHtml(gift.name)} (${escapeHtml(gift.diamondCount)} monedas)</option>`)
-        .join('');
-    }
+    selectedGift = null;
+    giftPickerSelected.classList.add('placeholder');
+    giftPickerSelected.textContent = giftCatalog.length === 0
+      ? 'Sin regalos disponibles (conecta tu TikTok primero)'
+      : 'Selecciona un regalo';
+    giftFilterName.value = '';
+    giftFilterCoinsMin.value = '';
+    giftFilterCoinsMax.value = '';
+    renderGiftPickerList();
 
     await showAlert(`Catalogo cargado: ${giftCatalog.length} regalos.`, 'Listo');
   } catch (error) {
@@ -371,8 +446,7 @@ async function loadGiftCatalog() {
 async function saveRule(event) {
   event.preventDefault();
 
-  const option = ruleGiftSelect.selectedOptions[0];
-  if (!option || !option.value) {
+  if (!selectedGift) {
     await showAlert('Primero carga el catalogo y selecciona un regalo.', 'Aviso');
     return;
   }
@@ -385,9 +459,9 @@ async function saveRule(event) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        giftId: option.value,
-        giftName: option.dataset.name,
-        giftImageUrl: option.dataset.image,
+        giftId: selectedGift.id,
+        giftName: selectedGift.name,
+        giftImageUrl: selectedGift.imageUrl || '',
         power: rulePowerSelect.value,
         durationSeconds: Number(ruleDurationInput.value) || 5,
       }),
@@ -483,6 +557,17 @@ function bootstrapEventListeners() {
 
   loadGiftsBtn.addEventListener('click', loadGiftCatalog);
   ruleForm.addEventListener('submit', saveRule);
+
+  giftPickerToggle.addEventListener('click', toggleGiftPicker);
+  giftFilterName.addEventListener('input', renderGiftPickerList);
+  giftFilterCoinsMin.addEventListener('input', renderGiftPickerList);
+  giftFilterCoinsMax.addEventListener('input', renderGiftPickerList);
+  document.addEventListener('click', (event) => {
+    if (!giftPicker.contains(event.target)) closeGiftPicker();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeGiftPicker();
+  });
 }
 
 (async function init() {

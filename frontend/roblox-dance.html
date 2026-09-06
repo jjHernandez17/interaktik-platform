@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
-  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260905a" />
+  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260906a" />
 </head>
 
 <body>
@@ -91,9 +91,27 @@
       <form id="robloxRuleForm" class="roblox-config-grid">
         <label>
           Regalo
-          <select id="robloxRuleGiftSelect">
-            <option value="">Carga el catálogo primero</option>
-          </select>
+          <div id="robloxGiftPicker" class="gift-picker">
+            <button id="robloxGiftPickerToggle" class="gift-picker-toggle" type="button">
+              <span id="robloxGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+              <svg class="gift-picker-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.5 4.5L7 9L11.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <div id="robloxGiftPickerPanel" class="gift-picker-panel hidden">
+              <div class="gift-picker-filters">
+                <input id="robloxGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                <div class="gift-picker-coins-filter">
+                  <input id="robloxGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                  <input id="robloxGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                </div>
+              </div>
+              <div id="robloxGiftPickerList" class="gift-picker-list">
+                <p class="muted">Carga el catálogo primero.</p>
+              </div>
+            </div>
+          </div>
         </label>
 
         <label>
@@ -131,7 +149,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-dance.js?v=20260905a"></script>
+  <script src="js/roblox-dance.js?v=20260906a"></script>
 </body>
 
 </html>

@@ -23,6 +23,34 @@ try {
 const connections = new Map();
 
 const STALE_CONNECTION_CHECK_INTERVAL_MS = 30000;
+const RECENT_MSG_ID_LIMIT = 300;
+
+// El WS de TikTok a veces reentrega el mismo evento (reconexiones internas de
+// la libreria, mensajes de "historial" al reconectar, etc.). Sin esto, un solo
+// comentario o regalo real puede procesarse dos veces (p.ej. 2 spawns por 1
+// "join usuario").
+function isDuplicateMessage(entry, data) {
+  const msgId = data?.common?.msgId || data?.msgId || null;
+  if (!msgId) return false;
+
+  if (!entry.recentMsgIds) {
+    entry.recentMsgIds = new Set();
+    entry.recentMsgIdOrder = [];
+  }
+
+  if (entry.recentMsgIds.has(msgId)) {
+    return true;
+  }
+
+  entry.recentMsgIds.add(msgId);
+  entry.recentMsgIdOrder.push(msgId);
+  if (entry.recentMsgIdOrder.length > RECENT_MSG_ID_LIMIT) {
+    const oldest = entry.recentMsgIdOrder.shift();
+    entry.recentMsgIds.delete(oldest);
+  }
+
+  return false;
+}
 
 function buildConnectionKey({ userId = null, sessionId = null, gameType = 'app' }) {
   const normalizedGameType = normalizeGameType(gameType);
@@ -373,6 +401,13 @@ connection.on(WebcastEvent.GIFT, (data) => {
     uniqueId: data?.user?.uniqueId,
   });
 
+  const currentEntry = connections.get(ownerKey);
+  if (!currentEntry || currentEntry.connection !== connection) return;
+  if (isDuplicateMessage(currentEntry, data)) {
+    logger.warn(`Regalo duplicado ignorado para ${normalizedGameType} (msgId repetido)`);
+    return;
+  }
+
   const giftPayload = simplifyGiftEvent(data);
 
   publish(normalizedGameType, "gift", {
@@ -412,6 +447,13 @@ connection.on(WebcastEvent.CHAT, (data) => {
     avatarLarge: data?.user?.avatarLarge,
     fullUser: data?.user,
   });
+
+  const currentEntry = connections.get(ownerKey);
+  if (!currentEntry || currentEntry.connection !== connection) return;
+  if (isDuplicateMessage(currentEntry, data)) {
+    logger.warn(`Comentario duplicado ignorado para ${normalizedGameType} (msgId repetido)`);
+    return;
+  }
 
   const chatPayload = simplifyChatEvent(data);
 

@@ -495,7 +495,7 @@ async function loadGiftCatalog(silent) {
     }
   } finally {
     loadGiftsBtn.disabled = false;
-    loadGiftsBtn.textContent = 'Cargar catálogo de regalos';
+    loadGiftsBtn.textContent = 'Actualizar catálogo de regalos';
   }
 }
 
@@ -631,4 +631,5 @@ function bootstrapEventListeners() {
   await loadConfig();
   await restoreTiktokConnection();
   await loadRules();
+  await loadGiftCatalog(true);
 })();

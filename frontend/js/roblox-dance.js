@@ -35,6 +35,7 @@ const rulePowerSelect = document.getElementById('robloxRulePowerSelect');
 const ruleDurationInput = document.getElementById('robloxRuleDurationInput');
 const ruleSaveBtn = document.getElementById('robloxRuleSaveBtn');
 const rulesList = document.getElementById('robloxRulesList');
+const downloadTemplateBtn = document.getElementById('robloxDownloadTemplateBtn');
 
 let liveEventsSource = null;
 let liveConnected = false;
@@ -537,11 +538,14 @@ async function saveRule(event) {
 
 const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo', gigante: 'Gigante' };
 
+let currentRules = [];
+
 async function loadRules() {
   try {
     const response = await fetch('/api/roblox-dance/rules');
     const data = await response.json();
     const rules = Array.isArray(data.rules) ? data.rules : [];
+    currentRules = rules;
 
     if (rules.length === 0) {
       rulesList.innerHTML = '<p class="muted">Aún no has configurado ninguna regla.</p>';
@@ -598,6 +602,112 @@ async function deleteRule(ruleId) {
   }
 }
 
+function loadProxiedImage(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  });
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+async function downloadRulesTemplate() {
+  if (currentRules.length === 0) {
+    await showAlert('Primero crea al menos una regla.', 'Aviso');
+    return;
+  }
+
+  downloadTemplateBtn.disabled = true;
+  downloadTemplateBtn.textContent = 'Generando...';
+
+  try {
+    const WIDTH = 860;
+    const PADDING = 24;
+    const HEADER_HEIGHT = 90;
+    const ROW_HEIGHT = 88;
+    const ROW_GAP = 12;
+    const ICON_SIZE = 60;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEADER_HEIGHT + currentRules.length * (ROW_HEIGHT + ROW_GAP) + PADDING;
+    const ctx = canvas.getContext('2d');
+
+    const images = await Promise.all(currentRules.map((rule) => loadProxiedImage(rule.gift_image_url)));
+
+    // Encabezado
+    ctx.fillStyle = 'rgba(15, 18, 28, 0.85)';
+    drawRoundedRect(ctx, PADDING, 12, WIDTH - PADDING * 2, HEADER_HEIGHT - 24, 16);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px Arial, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Reglas: regalo → poder', PADDING + 22, 12 + (HEADER_HEIGHT - 24) / 2);
+
+    currentRules.forEach((rule, index) => {
+      const y = HEADER_HEIGHT + index * (ROW_HEIGHT + ROW_GAP);
+
+      ctx.fillStyle = 'rgba(15, 18, 28, 0.78)';
+      drawRoundedRect(ctx, PADDING, y, WIDTH - PADDING * 2, ROW_HEIGHT, 14);
+      ctx.fill();
+
+      const img = images[index];
+      const iconX = PADDING + 16;
+      const iconY = y + (ROW_HEIGHT - ICON_SIZE) / 2;
+      if (img) {
+        ctx.drawImage(img, iconX, iconY, ICON_SIZE, ICON_SIZE);
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        drawRoundedRect(ctx, iconX, iconY, ICON_SIZE, ICON_SIZE, 8);
+        ctx.fill();
+      }
+
+      const textX = iconX + ICON_SIZE + 20;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px Arial, sans-serif';
+      ctx.fillText(rule.gift_name, textX, y + ROW_HEIGHT / 2 - 14);
+
+      ctx.fillStyle = '#bec3ff';
+      ctx.font = '16px Arial, sans-serif';
+      const powerLabel = POWER_LABELS[rule.power] || rule.power;
+      ctx.fillText(`${powerLabel} · ${rule.duration_seconds}s`, textX, y + ROW_HEIGHT / 2 + 14);
+    });
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('No se pudo generar la imagen.');
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reglas-regalos.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    await showAlert(error.message || 'No se pudo generar la plantilla.', 'Error');
+  } finally {
+    downloadTemplateBtn.disabled = false;
+    downloadTemplateBtn.textContent = 'Descargar plantilla (PNG)';
+  }
+}
+
 function bootstrapEventListeners() {
   if (robloxConnectionForm) {
     robloxConnectionForm.addEventListener('submit', (event) => event.preventDefault());
@@ -611,8 +721,9 @@ function bootstrapEventListeners() {
   linkForm.addEventListener('submit', linkRobloxAccount);
   testSpawnBtn.addEventListener('click', sendTestSpawn);
 
-  loadGiftsBtn.addEventListener('click', loadGiftCatalog);
+  loadGiftsBtn.addEventListener('click', () => loadGiftCatalog());
   ruleForm.addEventListener('submit', saveRule);
+  downloadTemplateBtn.addEventListener('click', downloadRulesTemplate);
 
   giftPickerToggle.addEventListener('click', toggleGiftPicker);
   giftFilterName.addEventListener('input', renderGiftPickerList);

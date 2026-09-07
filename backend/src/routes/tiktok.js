@@ -262,4 +262,45 @@ router.delete('/tiktok-connection/:gameType', requireAuth, async (req, res, next
   }
 });
 
+// Reenvia imagenes del CDN de TikTok desde nuestro propio dominio: al ser
+// mismo-origen, el navegador puede dibujarlas en un <canvas> y exportar el
+// resultado (ej. la plantilla PNG de reglas) sin que el canvas quede
+// "contaminado" por CORS. Solo reenvia imagenes del CDN de TikTok, nunca
+// una URL arbitraria (evita que esto se use como proxy abierto).
+const ALLOWED_IMAGE_HOST_SUFFIXES = ['.tiktokcdn.com', '.tiktokcdn-us.com', '.ibyteimg.com'];
+
+router.get('/image-proxy', requireAuth, async (req, res) => {
+  try {
+    const rawUrl = String(req.query?.url || '');
+    let parsed;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      return res.status(400).json({ error: 'URL invalida.' });
+    }
+
+    const isAllowedHost = ALLOWED_IMAGE_HOST_SUFFIXES.some(
+      (suffix) => parsed.hostname === suffix.slice(1) || parsed.hostname.endsWith(suffix),
+    );
+    if (parsed.protocol !== 'https:' || !isAllowedHost) {
+      return res.status(400).json({ error: 'Esa URL no esta permitida.' });
+    }
+
+    const upstream = await fetch(parsed.toString());
+    if (!upstream.ok) {
+      return res.status(502).json({ error: 'No se pudo obtener la imagen.' });
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'image/png';
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(buffer);
+  } catch (error) {
+    logger.error('Error en el proxy de imagenes', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
 module.exports = router;

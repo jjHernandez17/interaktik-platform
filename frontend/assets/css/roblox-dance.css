@@ -436,6 +436,14 @@ h1 {
   gap: 10px;
 }
 
+.rules-template-row {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ds-border);
+  display: grid;
+  gap: 8px;
+}
+
 .rule-item {
   display: flex;
   align-items: center;

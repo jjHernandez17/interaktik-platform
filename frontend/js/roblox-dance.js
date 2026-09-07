@@ -538,6 +538,18 @@ async function saveRule(event) {
 
 const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo', gigante: 'Gigante' };
 
+const POWER_DESCRIPTIONS = {
+  fuego: (seconds) => `Tu personaje se prende en fuego por ${seconds}s`,
+  brillo: (seconds) => `Tu personaje brilla por ${seconds}s`,
+  gigante: (seconds) => `Tu personaje se hace gigante por ${seconds}s`,
+};
+
+function getPowerDescription(power, seconds) {
+  const build = POWER_DESCRIPTIONS[power];
+  if (build) return build(seconds);
+  return `${POWER_LABELS[power] || power} · ${seconds}s`;
+}
+
 let currentRules = [];
 
 async function loadRules() {
@@ -602,17 +614,34 @@ async function deleteRule(ruleId) {
   }
 }
 
-function loadProxiedImage(url) {
-  return new Promise((resolve) => {
-    if (!url) {
-      resolve(null);
-      return;
+async function loadProxiedImage(url) {
+  if (!url) return null;
+
+  try {
+    const response = await fetch(`/api/image-proxy?url=${encodeURIComponent(url)}`);
+    if (!response.ok) {
+      console.warn('[RobloxDance] No se pudo obtener la imagen del regalo:', url, response.status);
+      return null;
     }
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = `/api/image-proxy?url=${encodeURIComponent(url)}`;
-  });
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = objectUrl;
+      });
+      return img;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch (error) {
+    console.warn('[RobloxDance] Error cargando imagen del regalo:', url, error);
+    return null;
+  }
 }
 
 function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -685,8 +714,7 @@ async function downloadRulesTemplate() {
 
       ctx.fillStyle = '#bec3ff';
       ctx.font = '16px Arial, sans-serif';
-      const powerLabel = POWER_LABELS[rule.power] || rule.power;
-      ctx.fillText(`${powerLabel} · ${rule.duration_seconds}s`, textX, y + ROW_HEIGHT / 2 + 14);
+      ctx.fillText(getPowerDescription(rule.power, rule.duration_seconds), textX, y + ROW_HEIGHT / 2 + 14);
     });
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));

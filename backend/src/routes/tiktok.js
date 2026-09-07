@@ -269,7 +269,7 @@ router.delete('/tiktok-connection/:gameType', requireAuth, async (req, res, next
 // una URL arbitraria (evita que esto se use como proxy abierto).
 const ALLOWED_IMAGE_HOST_SUFFIXES = ['.tiktokcdn.com', '.tiktokcdn-us.com', '.ibyteimg.com'];
 
-router.get('/image-proxy', requireAuth, async (req, res) => {
+router.get('/image-proxy', async (req, res) => {
   try {
     const rawUrl = String(req.query?.url || '');
     let parsed;

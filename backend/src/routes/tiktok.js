@@ -48,7 +48,7 @@ async function deleteConnectionByGameType(req, res, gameType) {
   });
 }
 
-router.get('/status', async (req, res) => {
+router.get('/status', requireAuth, async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
     await tiktokLiveManager.cleanupStaleConnection({
@@ -82,7 +82,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-router.get('/gifts', async (req, res) => {
+router.get('/gifts', requireAuth, async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
     const catalog = await tiktokLiveManager.getGiftCatalog(gameType, {
@@ -108,7 +108,7 @@ router.get('/gifts', async (req, res) => {
   }
 });
 
-router.post('/catalog', async (req, res) => {
+router.post('/catalog', requireAuth, async (req, res) => {
   try {
     const uniqueId = String(req.body?.uniqueId || '').trim().replace(/^@/, '');
     const explicitGameType = String(req.body?.gameType || req.query?.gameType || '').trim();
@@ -142,7 +142,7 @@ router.post('/catalog', async (req, res) => {
   }
 });
 
-router.post('/connect', async (req, res) => {
+router.post('/connect', requireAuth, async (req, res) => {
   try {
     const uniqueId = String(req.body?.uniqueId || '').trim().replace(/^@/, '');
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
@@ -179,7 +179,7 @@ router.post('/connect', async (req, res) => {
   }
 });
 
-router.post('/disconnect', async (req, res) => {
+router.post('/disconnect', requireAuth, async (req, res) => {
   try {
     const gameType = tiktokLiveManager.inferGameTypeFromRequest(req);
     const state = await tiktokLiveManager.disconnectGame(gameType, {

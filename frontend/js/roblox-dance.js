@@ -536,12 +536,18 @@ async function saveRule(event) {
   }
 }
 
-const POWER_LABELS = { fuego: 'Fuego', brillo: 'Brillo', gigante: 'Gigante' };
+const POWER_LABELS = {
+  fuego: 'Fuego',
+  brillo: 'Brillo',
+  gigante_principal: 'Gigante principal',
+  sesion_fotos: 'Sesión de fotos',
+};
 
 const POWER_DESCRIPTIONS = {
   fuego: (seconds) => `Tu personaje se prende en fuego por ${seconds}s`,
   brillo: (seconds) => `Tu personaje brilla por ${seconds}s`,
-  gigante: (seconds) => `Tu personaje se hace gigante por ${seconds}s`,
+  gigante_principal: (seconds) => `Un gigante cae encima de todos los players y los manda a volar por ${seconds}s`,
+  sesion_fotos: (seconds) => `Tu personaje se hace gigante y la cámara le hace una sesión de fotos por ${seconds}s`,
 };
 
 function getPowerDescription(power, seconds) {

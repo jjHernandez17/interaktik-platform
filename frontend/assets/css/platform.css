@@ -774,6 +774,31 @@ a {
   box-shadow: 0 14px 34px rgba(124, 92, 255, 0.36);
 }
 
+.game-card-actions {
+  display: flex;
+  align-self: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.game-card-actions .start-btn {
+  padding: 11px 18px;
+  white-space: nowrap;
+}
+
+.start-btn.ghost {
+  background: transparent;
+  border: 1px solid var(--ds-border-strong);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.start-btn.ghost:hover {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .game-card.disabled {
   opacity: 0.85;
 }

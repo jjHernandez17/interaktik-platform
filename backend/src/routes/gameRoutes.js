@@ -6,6 +6,7 @@ const gameStateService = require('../services/gameStateService');
 const dominanceService = require('../services/dominanceService');
 const snakeService = require('../services/snakeService');
 const raceService = require('../services/raceService');
+const shellGameService = require('../services/shellGameService');
 const { normalizeError } = require('../utils/normalize');
 const logger = require('../config/logger');
 
@@ -130,6 +131,37 @@ router.post('/dominance/state', requireAuth, requireActiveAccess, async (req, re
     return res.json({ success: true, updated_at: saved.updated_at });
   } catch (error) {
     logger.error('Error saving dominance state', error);
+    return res.status(500).json({ error: normalizeError(error), details: error?.message });
+  }
+});
+
+// Shell Game (¿Dónde está la bola?)
+router.get('/shell-game/state', requireAuth, requireActiveAccess, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const state = await shellGameService.loadShellGameState(userId);
+    return res.json(state);
+  } catch (error) {
+    logger.error('Error loading shell game state', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/shell-game/state', requireAuth, requireActiveAccess, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const saved = await shellGameService.saveShellGameState(userId, req.body || {});
+    return res.json({ success: true, updated_at: saved.updated_at });
+  } catch (error) {
+    logger.error('Error saving shell game state', error);
     return res.status(500).json({ error: normalizeError(error), details: error?.message });
   }
 });

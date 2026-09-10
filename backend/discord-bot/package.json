@@ -1,0 +1,15 @@
+{
+  "name": "interaktik-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot de Discord para la comunidad de interaktik: verificacion de miembros y tickets de soporte/bugs.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "setup": "node scripts/setup-server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.6.1"
+  }
+}

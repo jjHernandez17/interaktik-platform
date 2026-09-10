@@ -565,6 +565,90 @@ function sanitizeDominanceGameState(payload) {
 
 
 
+const SHELLGAME_MIN_CUPS = 3;
+const SHELLGAME_MAX_CUPS = 8;
+const SHELLGAME_VALID_MODES = ['gift_rules', 'comment_confirm'];
+
+function sanitizeShellGameImageUrl(value) {
+  const trimmed = String(value || '').trim().slice(0, 500);
+  if (!trimmed) return '';
+  if (!/^https?:\/\//i.test(trimmed)) return '';
+  return trimmed;
+}
+
+// giftRules: { [giftNameLower]: { cup, giftName, imageUrl } } — la posicion
+// (vaso) a la que quedo asignado el regalo, junto con su nombre/imagen para
+// poder mostrarlos sin depender de que el catalogo siga cargado.
+function sanitizeShellGameGiftRules(giftRules, cupCount) {
+  const source = giftRules && typeof giftRules === 'object' && !Array.isArray(giftRules) ? giftRules : {};
+  const result = {};
+  let count = 0;
+
+  for (const [giftName, rule] of Object.entries(source)) {
+    if (count >= SHELLGAME_MAX_CUPS) break;
+    const cleanName = String(giftName || '').trim().toLowerCase().slice(0, 120);
+    const cup = Math.round(Number(rule?.cup));
+    if (!cleanName || !Number.isFinite(cup) || cup < 1 || cup > cupCount) continue;
+    result[cleanName] = {
+      cup,
+      giftName: String(rule?.giftName || cleanName).trim().slice(0, 120),
+      imageUrl: sanitizeShellGameImageUrl(rule?.imageUrl),
+    };
+    count += 1;
+  }
+
+  return result;
+}
+
+function sanitizeShellGameLeaderboard(leaderboard) {
+  const source = leaderboard && typeof leaderboard === 'object' && !Array.isArray(leaderboard) ? leaderboard : {};
+  const result = {};
+  let count = 0;
+
+  for (const [viewerKey, entry] of Object.entries(source)) {
+    if (count >= 500) break;
+    const cleanKey = String(viewerKey || '').trim().slice(0, 120);
+    if (!cleanKey) continue;
+    result[cleanKey] = {
+      nickname: String(entry?.nickname || 'Usuario').trim().slice(0, 120),
+      points: Math.max(0, Math.min(99999999, Math.round(Number(entry?.points) || 0))),
+      correctGuesses: Math.max(0, Math.min(999999, Math.round(Number(entry?.correctGuesses) || 0))),
+    };
+    count += 1;
+  }
+
+  return result;
+}
+
+function sanitizeShellGameHistoryEntry(entry, index) {
+  return {
+    id: String(entry?.id || `round-${index + 1}`),
+    message: String(entry?.message || '').trim().slice(0, 360),
+    winningCup: Math.max(1, Math.min(SHELLGAME_MAX_CUPS, Math.round(Number(entry?.winningCup) || 1))),
+    createdAt: normalizeIsoDate(entry?.createdAt),
+  };
+}
+
+function sanitizeShellGameState(payload) {
+  const cupCount = Math.max(SHELLGAME_MIN_CUPS, Math.min(SHELLGAME_MAX_CUPS, Math.round(Number(payload?.cupCount) || SHELLGAME_MIN_CUPS)));
+  const mode = SHELLGAME_VALID_MODES.includes(payload?.mode) ? payload.mode : 'gift_rules';
+
+  return {
+    cupCount,
+    mode,
+    giftRules: sanitizeShellGameGiftRules(payload?.giftRules, cupCount),
+    minCoinsToConfirm: Math.max(1, Math.min(1000000, Math.round(Number(payload?.minCoinsToConfirm) || 50))),
+    timing: {
+      votingSeconds: Math.max(5, Math.min(60, Number(payload?.timing?.votingSeconds) || 15)),
+      mixSeconds: Math.max(2, Math.min(30, Number(payload?.timing?.mixSeconds) || 6)),
+      moveSpeed: Math.max(1, Math.min(10, Math.round(Number(payload?.timing?.moveSpeed)) || 5)),
+      resultSeconds: Math.max(1, Math.min(20, Number(payload?.timing?.resultSeconds) || 4)),
+    },
+    leaderboard: sanitizeShellGameLeaderboard(payload?.leaderboard),
+    history: Array.isArray(payload?.history) ? payload.history.slice(0, 50).map(sanitizeShellGameHistoryEntry) : [],
+  };
+}
+
 function sanitizeJoinKeyword(value) {
   const trimmed = String(value || '').trim().replace(/\s+/g, ' ');
   if (!trimmed) {
@@ -589,5 +673,6 @@ module.exports = {
   sanitizeRaceParticipant,
   sanitizeRaceGameState,
   sanitizeDominanceGameState,
+  sanitizeShellGameState,
   sanitizeJoinKeyword,
 };

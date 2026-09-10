@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>¿Dónde está la bola? | PlayTik Live</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/shell-game.css?v=20260910a" />
+</head>
+
+<body>
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="shell-shell">
+    <section class="shell-hero">
+      <div>
+        <p class="eyebrow">PlayTik Live • Juego interactivo</p>
+        <h1>¿Dónde está la bola?</h1>
+        <p class="subtitle">
+          Una bola se esconde bajo uno de los vasos y se mezclan a toda velocidad. Tus espectadores apuestan a un
+          vaso con comentarios y regalos; cuando aciertan suman puntos en el leaderboard.
+        </p>
+      </div>
+      <button id="shellInfoBtn" class="info-btn" type="button" aria-label="Información del juego" title="Cómo jugar">i</button>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="shellConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+      </div>
+
+      <form id="shellConnectionForm" class="connection-form">
+        <input id="shellUsername" type="text" placeholder="@usuario_en_vivo" required />
+        <button id="shellLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
+        <button id="shellLinkBtn" class="btn primary" type="button">Vincular TikTok</button>
+        <button id="shellConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="shellDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="shellConnectionDetails" class="hint">Los comentarios y regalos de tus espectadores se usarán como apuestas.</p>
+    </section>
+
+    <section class="card config-card">
+      <div class="card-header">
+        <h3>Configuración del juego</h3>
+      </div>
+
+      <div class="config-grid">
+        <label class="field-label" for="shellCupCountInput">
+          <span>Cantidad de vasos (<span id="shellCupCountValue" class="field-label-value">3</span>)</span>
+          <input id="shellCupCountInput" type="range" min="3" max="8" step="1" value="3" />
+        </label>
+
+        <label class="field-label" for="shellVotingSecondsInput">
+          <span>Tiempo de elección del espectador (<span id="shellVotingSecondsValue" class="field-label-value">15s</span>)</span>
+          <input id="shellVotingSecondsInput" type="range" min="5" max="60" step="1" value="15" />
+        </label>
+
+        <label class="field-label" for="shellMixSecondsInput">
+          <span>Duración de la mezcla (<span id="shellMixSecondsValue" class="field-label-value">6s</span>)</span>
+          <input id="shellMixSecondsInput" type="range" min="3" max="20" step="1" value="6" />
+        </label>
+
+        <label class="field-label" for="shellMoveSpeedInput">
+          <span>Velocidad de movimiento de los vasos (<span id="shellMoveSpeedValue" class="field-label-value">5</span>/10)</span>
+          <input id="shellMoveSpeedInput" type="range" min="1" max="10" step="1" value="5" />
+        </label>
+
+        <label class="field-label" for="shellResultSecondsInput">
+          <span>Pausa entre rondas (<span id="shellResultSecondsValue" class="field-label-value">4s</span>)</span>
+          <input id="shellResultSecondsInput" type="range" min="2" max="15" step="1" value="4" />
+        </label>
+      </div>
+
+      <div class="mode-switch-row">
+        <button id="shellModeGiftRulesBtn" class="mode-btn active" type="button">Modo 1: Reglas por regalo</button>
+        <button id="shellModeCommentConfirmBtn" class="mode-btn" type="button">Modo 2: Comentario + regalo mínimo</button>
+      </div>
+
+      <div id="shellGiftRulesPanel" class="mode-panel">
+        <p class="hint">Elige qué regalo activa la apuesta por cada vaso. Carga el catálogo de regalos primero.</p>
+        <div id="shellGiftRulesList" class="config-grid"></div>
+      </div>
+
+      <div id="shellCommentConfirmPanel" class="mode-panel hidden">
+        <label class="field-label" for="shellMinCoinsInput">
+          Monedas mínimas para confirmar la apuesta
+          <input id="shellMinCoinsInput" type="number" min="1" max="1000000" step="1" value="50" />
+        </label>
+        <p class="hint">Cuando termina la mezcla, durante el tiempo de elección (vasos quietos, bola escondida) el espectador comenta el número del vaso (1 a la cantidad configurada) y confirma enviando cualquier regalo que valga al menos esas monedas.</p>
+      </div>
+
+      <div class="game-controls-row">
+        <button id="shellStartPauseBtn" class="btn primary" type="button">Iniciar juego</button>
+        <button id="shellResetBtn" class="btn ghost" type="button">Reiniciar juego</button>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-status-row">
+        <span id="shellPhaseLabel" class="pill">Esperando inicio</span>
+        <span id="shellTimerLabel" class="pill timer-pill hidden">0s</span>
+        <span id="shellRoundLabel" class="pill">Ronda 0</span>
+        <button id="shellFullscreenBtn" class="btn ghost small fullscreen-btn" type="button">Pantalla completa</button>
+      </div>
+
+      <div class="shell-table">
+        <div id="shellCupsRow" class="shell-cups-row"></div>
+        <div id="shellGiftLabels" class="shell-gift-labels"></div>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Actividad reciente</h2>
+          <span class="pill">Apuestas</span>
+        </div>
+        <div id="shellActivityList" class="activity-list">
+          <p class="muted">Aún no se ha detectado ninguna apuesta.</p>
+        </div>
+      </article>
+
+      <article class="panel-card">
+        <div class="card-header">
+          <h2>Leaderboard</h2>
+          <span class="pill">Top aciertos</span>
+        </div>
+        <div id="shellLeaderboardList" class="leaderboard-list">
+          <p class="muted">Aún no hay puntajes.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="shellInfoModal" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="shellInfoTitle">
+      <p class="winner-eyebrow">Cómo jugar</p>
+      <h2 id="shellInfoTitle">¿Dónde está la bola?</h2>
+      <ul class="info-list">
+        <li>Los vasos están numerados de forma ascendente de izquierda a derecha (vaso 1, vaso 2, ...).</li>
+        <li>Al inicio de cada ronda se muestra brevemente dónde está la bola, los vasos se cubren y luego se mezclan a la velocidad que configures (cada vez un poco más rápido según el nivel).</li>
+        <li><strong>Tiempo de elección:</strong> cuando la mezcla termina, los vasos quedan completamente quietos (revueltos) y la bola sigue escondida durante el tiempo que configures (hasta 60s). Ahí es cuando se aceptan las apuestas.</li>
+        <li><strong>Modo 1 (Reglas por regalo):</strong> asigna un regalo distinto a cada vaso. Enviar ese regalo durante el tiempo de elección es la apuesta.</li>
+        <li><strong>Modo 2 (Comentario + regalo mínimo):</strong> durante el tiempo de elección, el espectador comenta el número del vaso y confirma enviando cualquier regalo que cumpla el mínimo de monedas configurado.</li>
+        <li>Cada regalo válido es una apuesta independiente: un espectador puede apostar varias veces en la misma ronda.</li>
+        <li>Cuando el tiempo de elección termina se revela el vaso ganador y quienes acertaron suman un punto en el leaderboard.</li>
+        <li>El juego corre en un loop automático continuo mientras esté "Iniciado". Usa "Reiniciar juego" para volver al nivel 1 y limpiar el leaderboard.</li>
+      </ul>
+      <button id="shellInfoCloseBtn" class="btn primary winner-close-btn" type="button">Entendido</button>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/shell-game.js?v=20260910a"></script>
+</body>
+
+</html>

@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
 const authService = require('../services/authService');
 const verificationService = require('../services/verificationService');
+const discordNotifier = require('../services/discordNotifier');
 const { normalizeError } = require('../utils/normalize');
 const env = require('../config/env');
 const logger = require('../config/logger');
@@ -85,6 +86,7 @@ router.get('/auth/verify-email', async (req, res) => {
     }
 
     logger.success(`Correo verificado: ${result.email}`);
+    discordNotifier.notifyNewSignup({ name: result.name, email: result.email }).catch(() => {});
     return res.redirect(`${frontendBase}/login.html?verify=success`);
   } catch (error) {
     logger.error('Verify email error', error);

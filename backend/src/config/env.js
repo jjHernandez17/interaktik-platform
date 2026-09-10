@@ -19,4 +19,5 @@ module.exports = {
   WOMPI_EVENTS_SECRET: process.env.WOMPI_EVENTS_SECRET || null,
   RESEND_API_KEY: process.env.RESEND_API_KEY || null,
   EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+  DISCORD_SIGNUP_WEBHOOK_URL: process.env.DISCORD_SIGNUP_WEBHOOK_URL || null,
 };

@@ -438,6 +438,49 @@ router.get('/dominance.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/dominance.js'));
 });
 
+// Shell Game (¿Dónde está la bola?)
+router.get('/shell-game', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'shellgame'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/shell-game.html', 'Shell Game page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/shell-game.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/shell-game.html', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'shellgame'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/shell-game.html', 'Shell Game HTML request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/shell-game.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/shell-game.css', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/assets/css/shell-game.css'));
+});
+
+router.get('/shell-game.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/shell-game.js'));
+});
+
 // Roblox Dance
 router.get('/roblox-dance', requireAuthPage, async (req, res) => {
   try {

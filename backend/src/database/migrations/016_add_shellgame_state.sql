@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS shellgame_state (
+  user_id INTEGER PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+  state JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -649,6 +649,69 @@ function sanitizeShellGameState(payload) {
   };
 }
 
+function sanitizeTopGifterEntry(entry) {
+  return {
+    uniqueId: String(entry?.uniqueId || '').trim().slice(0, 60) || 'anonimo',
+    nickname: String(entry?.nickname || '').trim().slice(0, 60) || 'Anónimo',
+    avatar: entry?.avatar ? String(entry.avatar).slice(0, 500) : null,
+    coins: Math.max(0, Math.min(99999999, Math.round(Number(entry?.coins)) || 0)),
+  };
+}
+
+function sanitizeTopLikerEntry(entry) {
+  return {
+    uniqueId: String(entry?.uniqueId || '').trim().slice(0, 60) || 'anonimo',
+    nickname: String(entry?.nickname || '').trim().slice(0, 60) || 'Anónimo',
+    avatar: entry?.avatar ? String(entry.avatar).slice(0, 500) : null,
+    likes: Math.max(0, Math.min(999999999, Math.round(Number(entry?.likes)) || 0)),
+  };
+}
+
+function sanitizeOverlayState(payload) {
+  const giftAlert = payload?.giftAlert || {};
+  const goalBar = payload?.goalBar || {};
+  const topGifters = payload?.topGifters || {};
+  const likeCounter = payload?.likeCounter || {};
+  const topLikers = payload?.topLikers || {};
+  const maxEntries = Math.max(3, Math.min(10, Math.round(Number(topGifters.maxEntries)) || 5));
+  const maxLikerEntries = Math.max(3, Math.min(10, Math.round(Number(topLikers.maxEntries)) || 5));
+
+  return {
+    giftAlert: {
+      enabled: giftAlert.enabled !== false,
+      durationSeconds: Math.max(2, Math.min(15, Number(giftAlert.durationSeconds) || 5)),
+      minCoins: Math.max(0, Math.min(999999, Math.round(Number(giftAlert.minCoins)) || 0)),
+    },
+    goalBar: {
+      enabled: goalBar.enabled !== false,
+      label: String(goalBar.label || 'Meta de la transmisión').trim().slice(0, 80) || 'Meta de la transmisión',
+      targetCoins: Math.max(1, Math.min(99999999, Math.round(Number(goalBar.targetCoins)) || 500)),
+      currentCoins: Math.max(0, Math.min(99999999, Math.round(Number(goalBar.currentCoins)) || 0)),
+    },
+    topGifters: {
+      enabled: topGifters.enabled !== false,
+      title: String(topGifters.title || 'Top Regaladores').trim().slice(0, 80) || 'Top Regaladores',
+      maxEntries,
+      entries: Array.isArray(topGifters.entries)
+        ? topGifters.entries.slice(0, maxEntries).map(sanitizeTopGifterEntry)
+        : [],
+    },
+    likeCounter: {
+      enabled: likeCounter.enabled !== false,
+      label: String(likeCounter.label || 'Likes en vivo').trim().slice(0, 80) || 'Likes en vivo',
+      totalLikes: Math.max(0, Math.min(999999999, Math.round(Number(likeCounter.totalLikes)) || 0)),
+    },
+    topLikers: {
+      enabled: topLikers.enabled !== false,
+      title: String(topLikers.title || 'Top Likes').trim().slice(0, 80) || 'Top Likes',
+      maxEntries: maxLikerEntries,
+      entries: Array.isArray(topLikers.entries)
+        ? topLikers.entries.slice(0, maxLikerEntries).map(sanitizeTopLikerEntry)
+        : [],
+    },
+  };
+}
+
 function sanitizeJoinKeyword(value) {
   const trimmed = String(value || '').trim().replace(/\s+/g, ' ');
   if (!trimmed) {
@@ -674,5 +737,6 @@ module.exports = {
   sanitizeRaceGameState,
   sanitizeDominanceGameState,
   sanitizeShellGameState,
+  sanitizeOverlayState,
   sanitizeJoinKeyword,
 };

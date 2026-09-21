@@ -135,6 +135,73 @@ router.get('/', (req, res) => {
   return res.sendFile(path.join(__dirname, '../../../frontend/index.html'));
 });
 
+// Overlay de alerta de regalos: publica por diseno (sin requireAuthPage),
+// igual que /index.html — la pagina corre sin sesion dentro de OBS y se
+// identifica con la overlay_key de su propia URL (?key=...), no con login.
+router.get('/overlay/gift-alert.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/gift-alert.html', 'Overlay gift-alert page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/gift-alert.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
+// Overlay de barra de meta: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/goal-bar.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/goal-bar.html', 'Overlay goal-bar page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/goal-bar.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
+// Overlay de top de regaladores: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/top-gifters.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/top-gifters.html', 'Overlay top-gifters page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/top-gifters.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
+// Overlay de contador de likes: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/like-counter.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/like-counter.html', 'Overlay like-counter page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/like-counter.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
+// Overlay de top de likes: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/top-likers.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/top-likers.html', 'Overlay top-likers page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/top-likers.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
 router.get('/index.html', async (req, res) => {
   try {
     if (!shouldServeBackendPages()) {

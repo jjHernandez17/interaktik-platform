@@ -22,6 +22,7 @@
         <nav class="platform-nav" aria-label="Menu principal">
           <button class="nav-item" type="button" data-section="accountSection">Configuracion de cuenta</button>
           <button class="nav-item active" type="button" data-section="gamesSection">Juegos</button>
+          <button class="nav-item" type="button" data-section="overlaysSection">Overlays</button>
           <button class="nav-item" type="button" data-section="plansSection">Planes</button>
           <button id="adminNavItem" class="nav-item hidden" type="button" data-section="adminSection">Cuentas registradas</button>
         </nav>
@@ -145,6 +146,94 @@
           </div>
         </section>
 
+        <section id="overlaysSection" class="content-card hidden">
+          <div class="card-header">
+            <h2>Overlays</h2>
+          </div>
+          <p class="muted">
+            Pega estos links como "Browser Source" en OBS, Streamlabs o TikTok LIVE Studio — funcionan con cualquier
+            juego que tengas conectado, no hace falta que abras sesión dentro de tu software de transmisión. Haz clic
+            en cada vista previa para configurarlo.
+          </p>
+
+          <div class="overlay-cards-grid">
+            <article class="overlay-card">
+              <div
+                id="overlayCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--gift-alert"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="overlayConfigModal"
+              >
+                <iframe id="overlayPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Alerta de regalos</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+
+            <article class="overlay-card">
+              <div
+                id="goalBarCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--goal-bar"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="goalBarConfigModal"
+              >
+                <iframe id="goalBarPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Progreso de monedas</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+
+            <article class="overlay-card">
+              <div
+                id="topGiftersCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--top-gifters"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="topGiftersConfigModal"
+              >
+                <iframe id="topGiftersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Top de regaladores</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+
+            <article class="overlay-card">
+              <div
+                id="likeCounterCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--like-counter"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="likeCounterConfigModal"
+              >
+                <iframe id="likeCounterPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Contador de likes</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+
+            <article class="overlay-card">
+              <div
+                id="topLikersCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--top-likers"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="topLikersConfigModal"
+              >
+                <iframe id="topLikersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Top de likes</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section id="plansSection" class="content-card hidden">
           <div class="card-header">
             <h2>Planes</h2>
@@ -174,6 +263,219 @@
         </section>
       </section>
     </main>
+
+    <div id="overlayConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="overlayConfigModalTitle">
+        <div class="card-header">
+          <h3 id="overlayConfigModalTitle">Configurar: Alerta de regalos</h3>
+          <button id="overlayConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="overlayLinkInput" type="text" readonly value="Cargando..." />
+          <button id="overlayCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="overlayRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="overlayLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="overlayEnabledToggle">
+            <span>Alerta de regalos activada</span>
+            <span class="switch">
+              <input id="overlayEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="overlayDurationInput">
+            <span>Duración de la alerta (<span id="overlayDurationValue" class="field-label-value">5s</span>)</span>
+            <input id="overlayDurationInput" type="range" min="2" max="15" step="1" value="5" />
+          </label>
+
+          <label class="field-label" for="overlayMinCoinsInput">
+            <span>Monedas mínimas para mostrar la alerta</span>
+            <input id="overlayMinCoinsInput" type="number" min="0" max="999999" step="1" value="0" />
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="overlayTestGiftBtn" class="btn accent" type="button">Enviar regalo de prueba</button>
+          <button id="overlaySaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">La vista previa del panel repite la animación sola cada pocos segundos usando tu configuración actual — guarda los cambios para verlos reflejados ahí.</p>
+      </div>
+    </div>
+
+    <div id="goalBarConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="goalBarConfigModalTitle">
+        <div class="card-header">
+          <h3 id="goalBarConfigModalTitle">Configurar: Progreso de monedas</h3>
+          <button id="goalBarConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="goalBarLinkInput" type="text" readonly value="Cargando..." />
+          <button id="goalBarCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="goalBarRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="goalBarLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="goalBarEnabledToggle">
+            <span>Barra de meta activada</span>
+            <span class="switch">
+              <input id="goalBarEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="goalBarLabelInput">
+            <span>Texto de la meta</span>
+            <input id="goalBarLabelInput" type="text" maxlength="80" placeholder="Meta de la transmisión" />
+          </label>
+
+          <label class="field-label" for="goalBarTargetInput">
+            <span>Monedas objetivo</span>
+            <input id="goalBarTargetInput" type="number" min="1" max="99999999" step="1" value="500" />
+          </label>
+        </div>
+
+        <p class="muted overlay-hint">Progreso actual: <strong id="goalBarCurrentValue">0</strong> monedas.</p>
+
+        <div class="modal-actions">
+          <button id="goalBarResetBtn" class="btn ghost" type="button">Reiniciar progreso</button>
+          <button id="goalBarTestGiftBtn" class="btn accent" type="button">Enviar regalo de prueba</button>
+          <button id="goalBarSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">El progreso se guarda en el servidor y suma solo con regalos reales (o el de prueba) — sobrevive aunque recargues OBS.</p>
+      </div>
+    </div>
+
+    <div id="topGiftersConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="topGiftersConfigModalTitle">
+        <div class="card-header">
+          <h3 id="topGiftersConfigModalTitle">Configurar: Top de regaladores</h3>
+          <button id="topGiftersConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="topGiftersLinkInput" type="text" readonly value="Cargando..." />
+          <button id="topGiftersCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="topGiftersRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="topGiftersLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="topGiftersEnabledToggle">
+            <span>Top de regaladores activado</span>
+            <span class="switch">
+              <input id="topGiftersEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="topGiftersTitleInput">
+            <span>Título del ranking</span>
+            <input id="topGiftersTitleInput" type="text" maxlength="80" placeholder="Top Regaladores" />
+          </label>
+
+          <label class="field-label" for="topGiftersMaxEntriesInput">
+            <span>Cantidad de puestos (<span id="topGiftersMaxEntriesValue" class="field-label-value">5</span>)</span>
+            <input id="topGiftersMaxEntriesInput" type="range" min="3" max="10" step="1" value="5" />
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="topGiftersResetBtn" class="btn ghost" type="button">Reiniciar ranking</button>
+          <button id="topGiftersTestGiftBtn" class="btn accent" type="button">Enviar regalo de prueba</button>
+          <button id="topGiftersSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">El ranking se guarda en el servidor y suma solo con regalos reales (o el de prueba) — sobrevive aunque recargues OBS.</p>
+      </div>
+    </div>
+
+    <div id="likeCounterConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="likeCounterConfigModalTitle">
+        <div class="card-header">
+          <h3 id="likeCounterConfigModalTitle">Configurar: Contador de likes</h3>
+          <button id="likeCounterConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="likeCounterLinkInput" type="text" readonly value="Cargando..." />
+          <button id="likeCounterCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="likeCounterRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="likeCounterLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="likeCounterEnabledToggle">
+            <span>Contador de likes activado</span>
+            <span class="switch">
+              <input id="likeCounterEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="likeCounterLabelInput">
+            <span>Texto del contador</span>
+            <input id="likeCounterLabelInput" type="text" maxlength="80" placeholder="Likes en vivo" />
+          </label>
+        </div>
+
+        <p class="muted overlay-hint">Total acumulado: <strong id="likeCounterCurrentValue">0</strong> likes.</p>
+
+        <div class="modal-actions">
+          <button id="likeCounterResetBtn" class="btn ghost" type="button">Reiniciar contador</button>
+          <button id="likeCounterTestBtn" class="btn accent" type="button">Enviar likes de prueba</button>
+          <button id="likeCounterSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">El contador se guarda en el servidor y suma solo con likes reales (o los de prueba) — sobrevive aunque recargues OBS.</p>
+      </div>
+    </div>
+
+    <div id="topLikersConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="topLikersConfigModalTitle">
+        <div class="card-header">
+          <h3 id="topLikersConfigModalTitle">Configurar: Top de likes</h3>
+          <button id="topLikersConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="topLikersLinkInput" type="text" readonly value="Cargando..." />
+          <button id="topLikersCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="topLikersRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="topLikersLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="topLikersEnabledToggle">
+            <span>Top de likes activado</span>
+            <span class="switch">
+              <input id="topLikersEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="topLikersTitleInput">
+            <span>Título del ranking</span>
+            <input id="topLikersTitleInput" type="text" maxlength="80" placeholder="Top Likes" />
+          </label>
+
+          <label class="field-label" for="topLikersMaxEntriesInput">
+            <span>Cantidad de puestos (<span id="topLikersMaxEntriesValue" class="field-label-value">5</span>)</span>
+            <input id="topLikersMaxEntriesInput" type="range" min="3" max="10" step="1" value="5" />
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="topLikersResetBtn" class="btn ghost" type="button">Reiniciar ranking</button>
+          <button id="topLikersTestBtn" class="btn accent" type="button">Enviar likes de prueba</button>
+          <button id="topLikersSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">El ranking se guarda en el servidor y suma solo con likes reales (o los de prueba) — sobrevive aunque recargues OBS.</p>
+      </div>
+    </div>
 
     <div id="adminEditModal" class="modal-overlay" hidden>
       <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminEditModalTitle">

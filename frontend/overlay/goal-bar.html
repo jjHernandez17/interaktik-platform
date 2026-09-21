@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlay: Barra de meta</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    #goalBarRoot {
+      position: fixed;
+      left: 50%;
+      bottom: 6%;
+      transform: translateX(-50%);
+      width: min(90vw, 520px);
+      padding: 16px 22px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.75));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transition: opacity 300ms ease;
+    }
+
+    #goalBarRoot.visible {
+      opacity: 1;
+    }
+
+    #goalBarHeader {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+
+    #goalBarLabel {
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+
+    #goalBarCount {
+      font-weight: 700;
+      font-size: 0.92rem;
+      opacity: 0.9;
+      white-space: nowrap;
+    }
+
+    #goalBarTrack {
+      position: relative;
+      width: 100%;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      overflow: hidden;
+    }
+
+    #goalBarFill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #7c5cff, #22d3ee);
+      transition: width 500ms cubic-bezier(0.34, 1.2, 0.64, 1);
+    }
+
+    #goalBarRoot.reached #goalBarFill {
+      background: linear-gradient(90deg, #22c55e, #a3e635);
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
+    }
+
+    #goalBarReachedLabel {
+      margin-top: 6px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      color: #bef264;
+      display: none;
+    }
+
+    #goalBarRoot.reached #goalBarReachedLabel {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="goalBarRoot">
+    <div id="goalBarHeader">
+      <span id="goalBarLabel">Meta de la transmisión</span>
+      <span id="goalBarCount">0 / 500 monedas</span>
+    </div>
+    <div id="goalBarTrack">
+      <div id="goalBarFill"></div>
+    </div>
+    <p id="goalBarReachedLabel">🎉 ¡Meta alcanzada!</p>
+  </div>
+
+  <script src="../js/overlay-goal-bar.js"></script>
+</body>
+
+</html>

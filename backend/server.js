@@ -26,6 +26,9 @@ const gameRouter = require('./src/routes/gameRoutes');
 const tiktokRouter = require('./src/routes/tiktok');
 const paymentsRouter = require('./src/routes/payments');
 const robloxDanceRouter = require('./src/routes/robloxDanceRoutes');
+const overlayRouter = require('./src/routes/overlayRoutes');
+const overlayService = require('./src/services/overlayService');
+const overlayAccumulator = require('./src/services/overlayAccumulator');
 const { hub } = require('./src/services/liveHub');
 const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest } = require('./src/services/tiktokLiveManager');
 
@@ -103,6 +106,8 @@ app.use('/api', gameRouter);
 app.use('/api', tiktokRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', robloxDanceRouter);
+app.use('/api', overlayRouter);
+overlayAccumulator.start();
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {
@@ -176,6 +181,70 @@ app.get('/events', (req, res) => {
   // Limpiar cuando se desconecte
   req.on('close', () => {
     logger.info(`Cliente desconectado de /events (${gameType})`);
+    clearInterval(keepAlive);
+    hub.off('live-event', pushEvent);
+  });
+});
+
+// SSE dedicado a overlays de OBS: NO reutiliza el filtro de /events (que
+// exige gameType + sesion exactos) porque un overlay corre sin sesion de
+// navegador y debe recibir eventos de CUALQUIER juego que el streamer tenga
+// conectado en ese momento. Se identifica con la overlay_key de la URL en
+// vez de con una cookie, y filtra solo por el userId embebido en el
+// ownerKey ("user:<id>:<gameType>") que ya arma tiktokLiveManager.publish().
+app.get('/events/overlay', async (req, res) => {
+  const origin = req.headers.origin;
+
+  const resolved = await overlayService.resolveByOverlayKey(req.query?.key).catch(() => null);
+  if (!resolved) {
+    return res.status(403).json({ error: 'Link de overlay invalido.' });
+  }
+
+  if (!isOriginAllowed(origin)) {
+    logger.error(`CORS bloqueado en /events/overlay para origin: ${origin}`);
+    return res.status(403).json({ error: 'CORS not allowed' });
+  }
+
+  const headers = {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Cache-Control',
+    'X-Accel-Buffering': 'no',
+  };
+
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers.Vary = 'Origin';
+  }
+
+  res.writeHead(200, headers);
+  res.flushHeaders();
+
+  logger.success(`Cliente conectado a /events/overlay (userId=${resolved.userId}) desde origin: ${origin || 'sin origin'}`);
+
+  res.write('retry: 3000\n\n');
+
+  const ownerPrefix = `user:${resolved.userId}:`;
+
+  const pushEvent = ({ eventName, payload }) => {
+    const allowedEvents = ['gift', 'overlay-goal-update', 'overlay-gifters-update', 'overlay-likes-update', 'overlay-likers-update'];
+    if (!allowedEvents.includes(eventName)) return;
+    if (!payload || !String(payload.ownerKey || '').startsWith(ownerPrefix)) return;
+
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  hub.on('live-event', pushEvent);
+
+  const keepAlive = setInterval(() => {
+    res.write(': ping\n\n');
+  }, 30000);
+
+  req.on('close', () => {
+    logger.info(`Cliente desconectado de /events/overlay (userId=${resolved.userId})`);
     clearInterval(keepAlive);
     hub.off('live-event', pushEvent);
   });

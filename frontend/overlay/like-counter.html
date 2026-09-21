@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlay: Contador de likes</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    #likeCounterRoot {
+      position: fixed;
+      left: 4%;
+      bottom: 6%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.75));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transition: opacity 300ms ease;
+    }
+
+    #likeCounterRoot.visible {
+      opacity: 1;
+    }
+
+    #likeCounterIcon {
+      font-size: 1.6rem;
+      transform-origin: center;
+    }
+
+    #likeCounterRoot.pulse #likeCounterIcon {
+      animation: like-pulse 420ms ease;
+    }
+
+    @keyframes like-pulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+
+    #likeCounterTextWrap {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    #likeCounterLabel {
+      font-size: 0.78rem;
+      font-weight: 600;
+      opacity: 0.8;
+    }
+
+    #likeCounterValue {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="likeCounterRoot">
+    <span id="likeCounterIcon">❤️</span>
+    <div id="likeCounterTextWrap">
+      <span id="likeCounterLabel">Likes en vivo</span>
+      <span id="likeCounterValue">0</span>
+    </div>
+  </div>
+
+  <script src="../js/overlay-like-counter.js"></script>
+</body>
+
+</html>

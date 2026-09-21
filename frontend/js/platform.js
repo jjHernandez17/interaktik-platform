@@ -23,6 +23,86 @@ const adminEditCloseBtn = document.getElementById('adminEditCloseBtn');
 const adminEditCancelBtn = document.getElementById('adminEditCancelBtn');
 const adminEditSaveBtn = document.getElementById('adminEditSaveBtn');
 
+const overlayPreviewFrame = document.getElementById('overlayPreviewFrame');
+const overlayCardToggle = document.getElementById('overlayCardToggle');
+const overlayConfigModal = document.getElementById('overlayConfigModal');
+const overlayConfigCloseBtn = document.getElementById('overlayConfigCloseBtn');
+const overlayLinkInput = document.getElementById('overlayLinkInput');
+const overlayCopyLinkBtn = document.getElementById('overlayCopyLinkBtn');
+const overlayRegenerateBtn = document.getElementById('overlayRegenerateBtn');
+const overlayLinkHint = document.getElementById('overlayLinkHint');
+const overlayEnabledToggle = document.getElementById('overlayEnabledToggle');
+const overlayDurationInput = document.getElementById('overlayDurationInput');
+const overlayDurationValue = document.getElementById('overlayDurationValue');
+const overlayMinCoinsInput = document.getElementById('overlayMinCoinsInput');
+const overlaySaveBtn = document.getElementById('overlaySaveBtn');
+const overlayTestGiftBtn = document.getElementById('overlayTestGiftBtn');
+
+const goalBarPreviewFrame = document.getElementById('goalBarPreviewFrame');
+const goalBarCardToggle = document.getElementById('goalBarCardToggle');
+const goalBarConfigModal = document.getElementById('goalBarConfigModal');
+const goalBarConfigCloseBtn = document.getElementById('goalBarConfigCloseBtn');
+const goalBarLinkInput = document.getElementById('goalBarLinkInput');
+const goalBarCopyLinkBtn = document.getElementById('goalBarCopyLinkBtn');
+const goalBarRegenerateBtn = document.getElementById('goalBarRegenerateBtn');
+const goalBarLinkHint = document.getElementById('goalBarLinkHint');
+const goalBarEnabledToggle = document.getElementById('goalBarEnabledToggle');
+const goalBarLabelInput = document.getElementById('goalBarLabelInput');
+const goalBarTargetInput = document.getElementById('goalBarTargetInput');
+const goalBarCurrentValue = document.getElementById('goalBarCurrentValue');
+const goalBarSaveBtn = document.getElementById('goalBarSaveBtn');
+const goalBarTestGiftBtn = document.getElementById('goalBarTestGiftBtn');
+const goalBarResetBtn = document.getElementById('goalBarResetBtn');
+
+const topGiftersPreviewFrame = document.getElementById('topGiftersPreviewFrame');
+const topGiftersCardToggle = document.getElementById('topGiftersCardToggle');
+const topGiftersConfigModal = document.getElementById('topGiftersConfigModal');
+const topGiftersConfigCloseBtn = document.getElementById('topGiftersConfigCloseBtn');
+const topGiftersLinkInput = document.getElementById('topGiftersLinkInput');
+const topGiftersCopyLinkBtn = document.getElementById('topGiftersCopyLinkBtn');
+const topGiftersRegenerateBtn = document.getElementById('topGiftersRegenerateBtn');
+const topGiftersLinkHint = document.getElementById('topGiftersLinkHint');
+const topGiftersEnabledToggle = document.getElementById('topGiftersEnabledToggle');
+const topGiftersTitleInput = document.getElementById('topGiftersTitleInput');
+const topGiftersMaxEntriesInput = document.getElementById('topGiftersMaxEntriesInput');
+const topGiftersMaxEntriesValue = document.getElementById('topGiftersMaxEntriesValue');
+const topGiftersSaveBtn = document.getElementById('topGiftersSaveBtn');
+const topGiftersTestGiftBtn = document.getElementById('topGiftersTestGiftBtn');
+const topGiftersResetBtn = document.getElementById('topGiftersResetBtn');
+
+const likeCounterPreviewFrame = document.getElementById('likeCounterPreviewFrame');
+const likeCounterCardToggle = document.getElementById('likeCounterCardToggle');
+const likeCounterConfigModal = document.getElementById('likeCounterConfigModal');
+const likeCounterConfigCloseBtn = document.getElementById('likeCounterConfigCloseBtn');
+const likeCounterLinkInput = document.getElementById('likeCounterLinkInput');
+const likeCounterCopyLinkBtn = document.getElementById('likeCounterCopyLinkBtn');
+const likeCounterRegenerateBtn = document.getElementById('likeCounterRegenerateBtn');
+const likeCounterLinkHint = document.getElementById('likeCounterLinkHint');
+const likeCounterEnabledToggle = document.getElementById('likeCounterEnabledToggle');
+const likeCounterLabelInput = document.getElementById('likeCounterLabelInput');
+const likeCounterCurrentValue = document.getElementById('likeCounterCurrentValue');
+const likeCounterSaveBtn = document.getElementById('likeCounterSaveBtn');
+const likeCounterTestBtn = document.getElementById('likeCounterTestBtn');
+const likeCounterResetBtn = document.getElementById('likeCounterResetBtn');
+
+const topLikersPreviewFrame = document.getElementById('topLikersPreviewFrame');
+const topLikersCardToggle = document.getElementById('topLikersCardToggle');
+const topLikersConfigModal = document.getElementById('topLikersConfigModal');
+const topLikersConfigCloseBtn = document.getElementById('topLikersConfigCloseBtn');
+const topLikersLinkInput = document.getElementById('topLikersLinkInput');
+const topLikersCopyLinkBtn = document.getElementById('topLikersCopyLinkBtn');
+const topLikersRegenerateBtn = document.getElementById('topLikersRegenerateBtn');
+const topLikersLinkHint = document.getElementById('topLikersLinkHint');
+const topLikersEnabledToggle = document.getElementById('topLikersEnabledToggle');
+const topLikersTitleInput = document.getElementById('topLikersTitleInput');
+const topLikersMaxEntriesInput = document.getElementById('topLikersMaxEntriesInput');
+const topLikersMaxEntriesValue = document.getElementById('topLikersMaxEntriesValue');
+const topLikersSaveBtn = document.getElementById('topLikersSaveBtn');
+const topLikersTestBtn = document.getElementById('topLikersTestBtn');
+const topLikersResetBtn = document.getElementById('topLikersResetBtn');
+
+let overlayKeyLoaded = false;
+
 const accessStatusBanner = document.getElementById('accessStatusBanner');
 const plansAccessStatus = document.getElementById('plansAccessStatus');
 const plansGrid = document.getElementById('plansGrid');
@@ -514,6 +594,533 @@ function showSection(sectionId) {
   if (sectionId === 'adminSection' && currentUser?.isSuperUser) {
     loadAdminUsers();
   }
+
+  if (sectionId === 'overlaysSection') {
+    if (!overlayKeyLoaded) {
+      overlayKeyLoaded = true;
+      loadOverlayConfig();
+    } else {
+      reloadOverlayPreviewFrames();
+    }
+  } else {
+    // Descarga los iframes al salir de la sección para cortar sus loops de
+    // demo en segundo plano (nunca tocan el backend, pero no hace falta que
+    // sigan corriendo si el streamer no está mirando la vista previa).
+    if (overlayPreviewFrame) overlayPreviewFrame.src = 'about:blank';
+    if (goalBarPreviewFrame) goalBarPreviewFrame.src = 'about:blank';
+    if (topGiftersPreviewFrame) topGiftersPreviewFrame.src = 'about:blank';
+    if (likeCounterPreviewFrame) likeCounterPreviewFrame.src = 'about:blank';
+    if (topLikersPreviewFrame) topLikersPreviewFrame.src = 'about:blank';
+  }
+}
+
+let currentOverlayKey = null;
+let currentOverlayState = null;
+
+// Link real, el que se copia para pegar en OBS/Streamlabs/TikTok LIVE Studio
+// — ahí SOLO deben verse regalos reales o el de prueba manual. Todos los
+// overlays de una cuenta comparten la misma key, solo cambia la página.
+function buildOverlayUrl(overlayKey, page) {
+  return `${window.location.origin}/overlay/${page}.html?key=${overlayKey}`;
+}
+
+// Vista previa embebida en la plataforma: mismo overlay, pero con ?demo=1
+// para que repita la animación sola de forma enteramente local (ver
+// overlay-gift-alert.js / overlay-goal-bar.js) — nunca pasa por el canal
+// real de eventos, así que jamás le llega a un overlay real pegado en OBS.
+function buildOverlayPreviewUrl(overlayKey, page) {
+  return `${buildOverlayUrl(overlayKey, page)}&demo=1`;
+}
+
+function reloadOverlayPreviewFrames() {
+  if (!currentOverlayKey) return;
+  if (overlayPreviewFrame) overlayPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'gift-alert');
+  if (goalBarPreviewFrame) goalBarPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'goal-bar');
+  if (topGiftersPreviewFrame) topGiftersPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'top-gifters');
+  if (likeCounterPreviewFrame) likeCounterPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'like-counter');
+  if (topLikersPreviewFrame) topLikersPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'top-likers');
+}
+
+function applyOverlayStateToInputs(state) {
+  currentOverlayState = state;
+
+  const giftAlert = state?.giftAlert || {};
+  if (overlayEnabledToggle) overlayEnabledToggle.checked = giftAlert.enabled !== false;
+  if (overlayDurationInput) overlayDurationInput.value = giftAlert.durationSeconds || 5;
+  if (overlayDurationValue) overlayDurationValue.textContent = `${giftAlert.durationSeconds || 5}s`;
+  if (overlayMinCoinsInput) overlayMinCoinsInput.value = giftAlert.minCoins || 0;
+
+  const goalBar = state?.goalBar || {};
+  if (goalBarEnabledToggle) goalBarEnabledToggle.checked = goalBar.enabled !== false;
+  if (goalBarLabelInput) goalBarLabelInput.value = goalBar.label || 'Meta de la transmisión';
+  if (goalBarTargetInput) goalBarTargetInput.value = goalBar.targetCoins || 500;
+  if (goalBarCurrentValue) goalBarCurrentValue.textContent = goalBar.currentCoins || 0;
+
+  const topGifters = state?.topGifters || {};
+  if (topGiftersEnabledToggle) topGiftersEnabledToggle.checked = topGifters.enabled !== false;
+  if (topGiftersTitleInput) topGiftersTitleInput.value = topGifters.title || 'Top Regaladores';
+  if (topGiftersMaxEntriesInput) topGiftersMaxEntriesInput.value = topGifters.maxEntries || 5;
+  if (topGiftersMaxEntriesValue) topGiftersMaxEntriesValue.textContent = topGifters.maxEntries || 5;
+
+  const likeCounter = state?.likeCounter || {};
+  if (likeCounterEnabledToggle) likeCounterEnabledToggle.checked = likeCounter.enabled !== false;
+  if (likeCounterLabelInput) likeCounterLabelInput.value = likeCounter.label || 'Likes en vivo';
+  if (likeCounterCurrentValue) likeCounterCurrentValue.textContent = likeCounter.totalLikes || 0;
+
+  const topLikers = state?.topLikers || {};
+  if (topLikersEnabledToggle) topLikersEnabledToggle.checked = topLikers.enabled !== false;
+  if (topLikersTitleInput) topLikersTitleInput.value = topLikers.title || 'Top Likes';
+  if (topLikersMaxEntriesInput) topLikersMaxEntriesInput.value = topLikers.maxEntries || 5;
+  if (topLikersMaxEntriesValue) topLikersMaxEntriesValue.textContent = topLikers.maxEntries || 5;
+}
+
+async function loadOverlayConfig() {
+  try {
+    const response = await fetch('/api/overlay/config');
+    if (!response.ok) throw new Error('No se pudo cargar la configuración del overlay.');
+    const data = await response.json();
+    currentOverlayKey = data.overlayKey;
+    if (overlayLinkInput) overlayLinkInput.value = buildOverlayUrl(data.overlayKey, 'gift-alert');
+    if (goalBarLinkInput) goalBarLinkInput.value = buildOverlayUrl(data.overlayKey, 'goal-bar');
+    if (topGiftersLinkInput) topGiftersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-gifters');
+    if (likeCounterLinkInput) likeCounterLinkInput.value = buildOverlayUrl(data.overlayKey, 'like-counter');
+    if (topLikersLinkInput) topLikersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-likers');
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+  } catch (error) {
+    if (overlayLinkInput) overlayLinkInput.value = '';
+    if (overlayLinkHint) overlayLinkHint.textContent = error.message;
+  }
+}
+
+// Ambos overlays comparten un solo blob de estado en el backend — guardar
+// desde un modal manda TAMBIÉN lo que ya había del otro (tal como está en
+// currentOverlayState), para no pisarle la configuración al que no se tocó.
+async function saveOverlayConfig() {
+  try {
+    overlaySaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        giftAlert: {
+          enabled: overlayEnabledToggle.checked,
+          durationSeconds: Number(overlayDurationInput.value) || 5,
+          minCoins: Number(overlayMinCoinsInput.value) || 0,
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    overlaySaveBtn.disabled = false;
+  }
+}
+
+async function saveGoalBarConfig() {
+  try {
+    goalBarSaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        goalBar: {
+          ...(currentOverlayState?.goalBar || {}),
+          enabled: goalBarEnabledToggle.checked,
+          label: goalBarLabelInput.value || 'Meta de la transmisión',
+          targetCoins: Number(goalBarTargetInput.value) || 500,
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    goalBarSaveBtn.disabled = false;
+  }
+}
+
+async function saveTopGiftersConfig() {
+  try {
+    topGiftersSaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        topGifters: {
+          ...(currentOverlayState?.topGifters || {}),
+          enabled: topGiftersEnabledToggle.checked,
+          title: topGiftersTitleInput.value || 'Top Regaladores',
+          maxEntries: Number(topGiftersMaxEntriesInput.value) || 5,
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    topGiftersSaveBtn.disabled = false;
+  }
+}
+
+async function saveLikeCounterConfig() {
+  try {
+    likeCounterSaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        likeCounter: {
+          ...(currentOverlayState?.likeCounter || {}),
+          enabled: likeCounterEnabledToggle.checked,
+          label: likeCounterLabelInput.value || 'Likes en vivo',
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    likeCounterSaveBtn.disabled = false;
+  }
+}
+
+async function saveTopLikersConfig() {
+  try {
+    topLikersSaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        topLikers: {
+          ...(currentOverlayState?.topLikers || {}),
+          enabled: topLikersEnabledToggle.checked,
+          title: topLikersTitleInput.value || 'Top Likes',
+          maxEntries: Number(topLikersMaxEntriesInput.value) || 5,
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    topLikersSaveBtn.disabled = false;
+  }
+}
+
+async function regenerateOverlayKey() {
+  const confirmed = await showAppConfirm(
+    'Esto invalida TODOS los links de overlay anteriores (alerta de regalos, barra de meta, top de regaladores, contador de likes y top de likes) — tendrás que actualizarlos en tu software de transmisión. ¿Seguro que quieres regenerarlos?',
+    'Regenerar links de overlay',
+  );
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('/api/overlay/regenerate-key', { method: 'POST' });
+    if (!response.ok) throw new Error('No se pudo regenerar el link.');
+    const data = await response.json();
+    currentOverlayKey = data.overlayKey;
+    if (overlayLinkInput) overlayLinkInput.value = buildOverlayUrl(data.overlayKey, 'gift-alert');
+    if (goalBarLinkInput) goalBarLinkInput.value = buildOverlayUrl(data.overlayKey, 'goal-bar');
+    if (topGiftersLinkInput) topGiftersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-gifters');
+    if (likeCounterLinkInput) likeCounterLinkInput.value = buildOverlayUrl(data.overlayKey, 'like-counter');
+    if (topLikersLinkInput) topLikersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-likers');
+    reloadOverlayPreviewFrames();
+    showAppAlert('Links regenerados. Actualízalos en tu software de transmisión.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error');
+  }
+}
+
+async function sendOverlayTestGift(hintEl) {
+  try {
+    const response = await fetch('/api/overlay/test-gift', { method: 'POST' });
+    if (!response.ok) throw new Error('No se pudo enviar el regalo de prueba.');
+    const data = await response.json();
+    if (hintEl) hintEl.textContent = `Regalo de prueba enviado: ${data.giftName} (${data.diamondCount} monedas).`;
+  } catch (error) {
+    showAppAlert(error.message, 'Error');
+  }
+}
+
+async function sendOverlayTestLike(hintEl) {
+  try {
+    const response = await fetch('/api/overlay/test-like', { method: 'POST' });
+    if (!response.ok) throw new Error('No se pudieron enviar los likes de prueba.');
+    const data = await response.json();
+    if (hintEl) hintEl.textContent = `Likes de prueba enviados: +${data.likeCount}.`;
+  } catch (error) {
+    showAppAlert(error.message, 'Error');
+  }
+}
+
+function copyOverlayLink(inputEl, hintEl) {
+  return async () => {
+    if (!inputEl?.value) return;
+    try {
+      await navigator.clipboard.writeText(inputEl.value);
+      hintEl.textContent = 'Link copiado al portapapeles.';
+    } catch (_error) {
+      inputEl.select();
+      hintEl.textContent = 'Selecciona y copia el link manualmente (Ctrl+C).';
+    }
+  };
+}
+
+if (overlayCopyLinkBtn) {
+  overlayCopyLinkBtn.addEventListener('click', copyOverlayLink(overlayLinkInput, overlayLinkHint));
+}
+
+if (goalBarCopyLinkBtn) {
+  goalBarCopyLinkBtn.addEventListener('click', copyOverlayLink(goalBarLinkInput, goalBarLinkHint));
+}
+
+if (topGiftersCopyLinkBtn) {
+  topGiftersCopyLinkBtn.addEventListener('click', copyOverlayLink(topGiftersLinkInput, topGiftersLinkHint));
+}
+
+if (likeCounterCopyLinkBtn) {
+  likeCounterCopyLinkBtn.addEventListener('click', copyOverlayLink(likeCounterLinkInput, likeCounterLinkHint));
+}
+
+if (topLikersCopyLinkBtn) {
+  topLikersCopyLinkBtn.addEventListener('click', copyOverlayLink(topLikersLinkInput, topLikersLinkHint));
+}
+
+if (overlayRegenerateBtn) {
+  overlayRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+}
+
+if (goalBarRegenerateBtn) {
+  goalBarRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+}
+
+if (topGiftersRegenerateBtn) {
+  topGiftersRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+}
+
+if (likeCounterRegenerateBtn) {
+  likeCounterRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+}
+
+if (topLikersRegenerateBtn) {
+  topLikersRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+}
+
+if (overlaySaveBtn) {
+  overlaySaveBtn.addEventListener('click', saveOverlayConfig);
+}
+
+if (goalBarSaveBtn) {
+  goalBarSaveBtn.addEventListener('click', saveGoalBarConfig);
+}
+
+if (topGiftersSaveBtn) {
+  topGiftersSaveBtn.addEventListener('click', saveTopGiftersConfig);
+}
+
+if (likeCounterSaveBtn) {
+  likeCounterSaveBtn.addEventListener('click', saveLikeCounterConfig);
+}
+
+if (topLikersSaveBtn) {
+  topLikersSaveBtn.addEventListener('click', saveTopLikersConfig);
+}
+
+if (overlayTestGiftBtn) {
+  overlayTestGiftBtn.addEventListener('click', async () => {
+    overlayTestGiftBtn.disabled = true;
+    await sendOverlayTestGift(overlayLinkHint);
+    overlayTestGiftBtn.disabled = false;
+  });
+}
+
+if (goalBarTestGiftBtn) {
+  goalBarTestGiftBtn.addEventListener('click', async () => {
+    goalBarTestGiftBtn.disabled = true;
+    await sendOverlayTestGift(goalBarLinkHint);
+    goalBarTestGiftBtn.disabled = false;
+  });
+}
+
+if (topGiftersTestGiftBtn) {
+  topGiftersTestGiftBtn.addEventListener('click', async () => {
+    topGiftersTestGiftBtn.disabled = true;
+    await sendOverlayTestGift(topGiftersLinkHint);
+    topGiftersTestGiftBtn.disabled = false;
+  });
+}
+
+if (likeCounterTestBtn) {
+  likeCounterTestBtn.addEventListener('click', async () => {
+    likeCounterTestBtn.disabled = true;
+    await sendOverlayTestLike(likeCounterLinkHint);
+    likeCounterTestBtn.disabled = false;
+  });
+}
+
+if (topLikersTestBtn) {
+  topLikersTestBtn.addEventListener('click', async () => {
+    topLikersTestBtn.disabled = true;
+    await sendOverlayTestLike(topLikersLinkHint);
+    topLikersTestBtn.disabled = false;
+  });
+}
+
+if (goalBarResetBtn) {
+  goalBarResetBtn.addEventListener('click', async () => {
+    const confirmed = await showAppConfirm('¿Reiniciar el progreso de la barra de meta a 0?', 'Reiniciar progreso');
+    if (!confirmed) return;
+    try {
+      const response = await fetch('/api/overlay/goal-bar/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('No se pudo reiniciar el progreso.');
+      const data = await response.json();
+      applyOverlayStateToInputs(data.state);
+      showAppAlert('Progreso reiniciado.', 'Overlays');
+    } catch (error) {
+      showAppAlert(error.message, 'Error');
+    }
+  });
+}
+
+if (topGiftersResetBtn) {
+  topGiftersResetBtn.addEventListener('click', async () => {
+    const confirmed = await showAppConfirm('¿Reiniciar el ranking de top de regaladores?', 'Reiniciar ranking');
+    if (!confirmed) return;
+    try {
+      const response = await fetch('/api/overlay/top-gifters/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('No se pudo reiniciar el ranking.');
+      const data = await response.json();
+      applyOverlayStateToInputs(data.state);
+      showAppAlert('Ranking reiniciado.', 'Overlays');
+    } catch (error) {
+      showAppAlert(error.message, 'Error');
+    }
+  });
+}
+
+if (likeCounterResetBtn) {
+  likeCounterResetBtn.addEventListener('click', async () => {
+    const confirmed = await showAppConfirm('¿Reiniciar el contador de likes a 0?', 'Reiniciar contador');
+    if (!confirmed) return;
+    try {
+      const response = await fetch('/api/overlay/like-counter/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('No se pudo reiniciar el contador.');
+      const data = await response.json();
+      applyOverlayStateToInputs(data.state);
+      showAppAlert('Contador reiniciado.', 'Overlays');
+    } catch (error) {
+      showAppAlert(error.message, 'Error');
+    }
+  });
+}
+
+if (topLikersResetBtn) {
+  topLikersResetBtn.addEventListener('click', async () => {
+    const confirmed = await showAppConfirm('¿Reiniciar el ranking de top de likes?', 'Reiniciar ranking');
+    if (!confirmed) return;
+    try {
+      const response = await fetch('/api/overlay/top-likers/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('No se pudo reiniciar el ranking.');
+      const data = await response.json();
+      applyOverlayStateToInputs(data.state);
+      showAppAlert('Ranking reiniciado.', 'Overlays');
+    } catch (error) {
+      showAppAlert(error.message, 'Error');
+    }
+  });
+}
+
+function makeModalToggle(toggleEl, modalEl) {
+  function open() {
+    if (!modalEl) return;
+    modalEl.hidden = false;
+  }
+  function close() {
+    if (!modalEl) return;
+    modalEl.hidden = true;
+  }
+
+  if (toggleEl) {
+    toggleEl.addEventListener('click', open);
+    toggleEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    });
+  }
+
+  if (modalEl) {
+    modalEl.addEventListener('click', (event) => {
+      if (event.target === modalEl) close();
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modalEl && !modalEl.hidden) close();
+  });
+
+  return { open, close };
+}
+
+const overlayModalControls = makeModalToggle(overlayCardToggle, overlayConfigModal);
+if (overlayConfigCloseBtn) overlayConfigCloseBtn.addEventListener('click', overlayModalControls.close);
+
+const goalBarModalControls = makeModalToggle(goalBarCardToggle, goalBarConfigModal);
+if (goalBarConfigCloseBtn) goalBarConfigCloseBtn.addEventListener('click', goalBarModalControls.close);
+
+const topGiftersModalControls = makeModalToggle(topGiftersCardToggle, topGiftersConfigModal);
+if (topGiftersConfigCloseBtn) topGiftersConfigCloseBtn.addEventListener('click', topGiftersModalControls.close);
+
+const likeCounterModalControls = makeModalToggle(likeCounterCardToggle, likeCounterConfigModal);
+if (likeCounterConfigCloseBtn) likeCounterConfigCloseBtn.addEventListener('click', likeCounterModalControls.close);
+
+const topLikersModalControls = makeModalToggle(topLikersCardToggle, topLikersConfigModal);
+if (topLikersConfigCloseBtn) topLikersConfigCloseBtn.addEventListener('click', topLikersModalControls.close);
+
+if (overlayDurationInput) {
+  overlayDurationInput.addEventListener('input', () => {
+    overlayDurationValue.textContent = `${overlayDurationInput.value}s`;
+  });
+}
+
+if (topGiftersMaxEntriesInput) {
+  topGiftersMaxEntriesInput.addEventListener('input', () => {
+    topGiftersMaxEntriesValue.textContent = topGiftersMaxEntriesInput.value;
+  });
+}
+
+if (topLikersMaxEntriesInput) {
+  topLikersMaxEntriesInput.addEventListener('input', () => {
+    topLikersMaxEntriesValue.textContent = topLikersMaxEntriesInput.value;
+  });
 }
 
 function escapeHtml(value) {

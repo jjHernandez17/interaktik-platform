@@ -294,6 +294,42 @@ router.get('/register.html', requireGuestPage, async (req, res) => {
   }
 });
 
+// Pagina con el formulario para pedir el correo de restablecimiento —
+// enlazada desde login.html, misma logica de guest-only que login/register.
+router.get('/forgot-password.html', requireGuestPage, async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/forgot-password.html', 'Forgot password page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/forgot-password.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading forgot password page');
+  }
+});
+
+// Pagina a la que apunta el link del correo de "olvide mi contrasena" — sin
+// requireGuestPage porque el usuario llega desde un link de correo, no
+// desde la navegacion normal, y puede llegar con una sesion activa abierta
+// en otra pestaña.
+router.get('/reset-password.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/reset-password.html', 'Reset password page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/reset-password.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading reset password page');
+  }
+});
+
 // Platform
 router.get('/platform', requireAuthPage, async (req, res) => {
   try {

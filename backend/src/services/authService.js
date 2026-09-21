@@ -4,6 +4,7 @@ const { normalizeEmail, normalizeError } = require('../utils/normalize');
 const { attachAuthFlags } = require('../middleware/auth');
 const accessService = require('./accessService');
 const verificationService = require('./verificationService');
+const passwordResetService = require('./passwordResetService');
 const emailService = require('./emailService');
 
 function buildVerifyUrl(baseUrl, token) {
@@ -165,10 +166,71 @@ async function changePassword(userId, currentPassword, newPassword) {
   };
 }
 
+function buildResetUrl(baseUrl, token) {
+  return `${baseUrl}/reset-password.html?token=${encodeURIComponent(token)}`;
+}
+
+// Igual que resendVerification: siempre responde generico, sin revelar si
+// la cuenta existe, para no filtrar informacion de cuentas a quien pruebe
+// correos al azar.
+async function requestPasswordReset(email, baseUrl) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new Error('Debes indicar un correo.');
+  }
+
+  const result = await pool.query(
+    'SELECT id, name, email FROM app_users WHERE email = $1',
+    [normalizedEmail],
+  );
+
+  if (result.rowCount > 0) {
+    const user = result.rows[0];
+    const token = await passwordResetService.createPasswordResetToken(user.id);
+    await emailService.sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      resetUrl: buildResetUrl(baseUrl, token),
+    });
+  }
+
+  return { success: true };
+}
+
+async function checkPasswordResetToken(token) {
+  return passwordResetService.checkPasswordResetToken(token);
+}
+
+async function resetPassword(token, newPassword) {
+  const next = String(newPassword || '');
+  validatePasswordStrength(next);
+
+  const consumed = await passwordResetService.consumePasswordResetToken(token);
+  if (!consumed.success) {
+    const error = new Error(
+      consumed.reason === 'expired'
+        ? 'El enlace para restablecer tu contraseña vencio. Solicita uno nuevo.'
+        : 'Ese enlace para restablecer tu contraseña no es valido.',
+    );
+    error.code = 'INVALID_RESET_TOKEN';
+    throw error;
+  }
+
+  const newHash = await bcrypt.hash(next, 10);
+  await pool.query('UPDATE app_users SET password_hash = $1 WHERE id = $2', [newHash, consumed.userId]);
+
+  await emailService.sendPasswordChangedEmail({ to: consumed.email, name: consumed.name });
+
+  return { success: true };
+}
+
 module.exports = {
   register,
   login,
   changePassword,
   validatePasswordStrength,
   resendVerification,
+  requestPasswordReset,
+  checkPasswordResetToken,
+  resetPassword,
 };

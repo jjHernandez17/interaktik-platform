@@ -72,6 +72,18 @@ function showVerifyQueryMessage() {
   window.history.replaceState({}, "", newUrl);
 }
 
+// Mensaje al volver de reset-password.html tras restablecer la contrasena.
+function showResetQueryMessage() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("reset") !== "success") return;
+
+  setMessage("¡Contrasena restablecida! Ya puedes iniciar sesion con tu nueva contrasena.");
+
+  params.delete("reset");
+  const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+  window.history.replaceState({}, "", newUrl);
+}
+
 // Checklist de requisitos de contrasena, solo en el formulario de registro.
 function setupPasswordRules() {
   const passwordInput = document.getElementById("passwordInput");
@@ -118,6 +130,7 @@ function setupPasswordRules() {
 
 if (form) {
   showVerifyQueryMessage();
+  showResetQueryMessage();
   const refreshPasswordRules = setupPasswordRules();
 
   form.addEventListener("submit", async (event) => {

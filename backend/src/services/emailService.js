@@ -105,6 +105,34 @@ async function sendPasswordChangedEmail({ to, name }) {
   });
 }
 
+async function sendPasswordResetEmail({ to, name, resetUrl }) {
+  const html = wrapEmailHtml({
+    eyebrow: 'PlayTik Live',
+    title: 'Restablece tu contraseña',
+    bodyHtml: `
+      <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">
+        Hola ${name || ''}, recibimos una solicitud para restablecer la contraseña de tu cuenta (${to}). Haz clic en el boton para elegir una nueva.
+      </p>
+      <a href="${resetUrl}" style="display:inline-block; padding:14px 24px; border-radius:12px; background:linear-gradient(135deg,#7c5cff,#22d3ee); color:#fff; text-decoration:none; font-weight:700;">
+        Restablecer mi contraseña
+      </a>
+      <p style="color:#5c6b85; font-size:12px; margin:28px 0 0; line-height:1.5;">
+        Este enlace vence en 1 hora. Si no pediste este cambio, puedes ignorar este correo — tu contraseña actual seguira funcionando.<br>
+        Si el boton no funciona, copia este link: ${resetUrl}
+      </p>
+    `,
+  });
+
+  return sendEmail({
+    to,
+    subject: 'Restablece tu contraseña en PlayTik Live',
+    html,
+    text: `Hola ${name || ''}, restablece tu contraseña entrando a: ${resetUrl} (vence en 1 hora). Si no pediste este cambio, ignora este correo.`,
+    logLabel: 'correo de restablecimiento de contrasena',
+    fallbackMessage: `Link de restablecimiento para ${to}: ${resetUrl}`,
+  });
+}
+
 function formatAmount(amountCents, currency) {
   const amount = amountCents / 100;
   if (currency === 'COP') {
@@ -170,5 +198,6 @@ module.exports = {
   isConfigured,
   sendVerificationEmail,
   sendPasswordChangedEmail,
+  sendPasswordResetEmail,
   sendPaymentReceiptEmail,
 };

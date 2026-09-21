@@ -94,6 +94,41 @@ router.get('/auth/verify-email', async (req, res) => {
   }
 });
 
+router.post('/auth/forgot-password', async (req, res) => {
+  try {
+    const email = req.body?.email;
+    await authService.requestPasswordReset(email, getFrontendBaseUrl(req));
+    return res.json({ success: true, message: 'Si la cuenta existe, te enviamos un correo para restablecer tu contraseña.' });
+  } catch (error) {
+    logger.error('Forgot password error', error);
+    return res.status(400).json({ error: normalizeError(error) });
+  }
+});
+
+router.get('/auth/check-reset-token', async (req, res) => {
+  try {
+    const result = await authService.checkPasswordResetToken(req.query?.token);
+    return res.json(result);
+  } catch (error) {
+    logger.error('Check reset token error', error);
+    return res.status(500).json({ valid: false, reason: 'error' });
+  }
+});
+
+router.post('/auth/reset-password', async (req, res) => {
+  try {
+    const token = req.body?.token;
+    const newPassword = String(req.body?.newPassword || '');
+
+    await authService.resetPassword(token, newPassword);
+
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('Reset password error', error);
+    return res.status(400).json({ error: normalizeError(error), code: error.code || null });
+  }
+});
+
 router.post('/auth/logout', (req, res, next) => {
   req.session.destroy((error) => {
     if (error) {

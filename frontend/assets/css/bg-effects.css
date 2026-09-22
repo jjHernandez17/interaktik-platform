@@ -1,0 +1,220 @@
+/* PlayTik Live — Fondo decorativo compartido (aurora + estrellas + estrellas
+   fugaces + scroll suave). Usado por la landing, login y registro. Depende
+   de los tokens de design-system.css (debe cargarse antes) y de
+   js/bg-effects.js para generar las posiciones de las estrellas y el
+   parallax/scroll suave. */
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* --- Fondo "aurora": manchas de color difuminadas que flotan muy despacio
+   detras de todo el contenido, para que la pagina se sienta viva en vez de
+   un fondo plano. Puramente decorativo (aria-hidden), no interactivo. */
+.aurora-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.aurora-1 {
+  top: -12%;
+  left: -8%;
+  width: 46vw;
+  height: 46vw;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.55), transparent 70%);
+  animation: aurora-drift-1 26s ease-in-out infinite;
+}
+
+.aurora-2 {
+  top: 12%;
+  right: -12%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.45), transparent 70%);
+  animation: aurora-drift-2 32s ease-in-out infinite;
+}
+
+.aurora-3 {
+  bottom: -14%;
+  left: 22%;
+  width: 44vw;
+  height: 44vw;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.4), transparent 70%);
+  animation: aurora-drift-3 30s ease-in-out infinite;
+}
+
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(6vw, 8vh) scale(1.12); }
+}
+
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-7vw, 6vh) scale(1.08); }
+}
+
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4vw, -6vh) scale(1.1); }
+}
+
+/* --- Campo de estrellas: puntitos que flotan despacio hacia arriba, en 3
+   capas (chica/mediana/grande) para dar sensacion de profundidad. Las
+   posiciones se generan por JS (bg-effects.js -> initStarfield) dentro de
+   un lienzo virtual de 2000x2000px y se guardan en --star-shadow-N; el
+   ::after repite el mismo patron 2000px mas abajo para que el loop de
+   translateY(-2000px) sea perfecto y no se note la costura.
+
+   Cada capa va dentro de un .starfield-layer que bg-effects.js mueve con
+   el scroll (translateY proporcional a --depth, distinto por capa) — las
+   capas "cercanas" (puntos grandes) se desplazan mas rapido que las
+   "lejanas" (puntos chicos), dando sensacion de profundidad 3D al hacer
+   scroll, encima del flotado ambiental que ya traian. */
+.starfield-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+#stars,
+#stars2,
+#stars3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  border-radius: 50%;
+}
+
+#stars {
+  width: 1px;
+  height: 1px;
+  box-shadow: var(--star-shadow-sm, none);
+  animation: starfield-fall 70s linear infinite;
+}
+
+#stars::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  box-shadow: var(--star-shadow-sm, none);
+}
+
+#stars2 {
+  width: 2px;
+  height: 2px;
+  box-shadow: var(--star-shadow-md, none);
+  animation: starfield-fall 130s linear infinite;
+}
+
+#stars2::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  box-shadow: var(--star-shadow-md, none);
+}
+
+#stars3 {
+  width: 3px;
+  height: 3px;
+  box-shadow: var(--star-shadow-lg, none);
+  animation: starfield-fall 200s linear infinite;
+}
+
+#stars3::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  box-shadow: var(--star-shadow-lg, none);
+}
+
+@keyframes starfield-fall {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2000px); }
+}
+
+/* --- Estrellas fugaces: puntitos brillantes que cruzan el fondo de vez en
+   cuando, cada uno con su propio angulo/distancia/tiempo (--angle, --dist)
+   para que no se vean sincronizados. La mayor parte del ciclo estan
+   invisibles (opacity 0) — solo "pasan" durante un tramo corto. */
+.shooting-star {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px 1px #fff, 0 0 16px 4px rgba(124, 92, 255, 0.55);
+  opacity: 0;
+  animation: shoot-move linear infinite;
+}
+
+.shooting-star::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 90px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), transparent);
+  transform: translateY(-50%);
+}
+
+@keyframes shoot-move {
+  0% { opacity: 0; transform: rotate(var(--angle, 215deg)) translateX(0); }
+  3% { opacity: 1; }
+  20% { opacity: 1; transform: rotate(var(--angle, 215deg)) translateX(var(--dist, 340px)); }
+  26% { opacity: 0; transform: rotate(var(--angle, 215deg)) translateX(calc(var(--dist, 340px) + 50px)); }
+  100% { opacity: 0; }
+}
+
+.shooting-star:nth-child(4) { top: 6%;  left: 18%; --angle: 212deg; --dist: 320px; animation-duration: 7.5s; animation-delay: 0.4s; }
+.shooting-star:nth-child(5) { top: 14%; left: 58%; --angle: 222deg; --dist: 380px; animation-duration: 9s;   animation-delay: 3.2s; }
+.shooting-star:nth-child(6) { top: 3%;  left: 82%; --angle: 205deg; --dist: 300px; animation-duration: 8.2s; animation-delay: 5.6s; }
+.shooting-star:nth-child(7) { top: 26%; left: 34%; --angle: 218deg; --dist: 360px; animation-duration: 10s;  animation-delay: 1.8s; }
+.shooting-star:nth-child(8) { top: 9%;  left: 92%; --angle: 208deg; --dist: 280px; animation-duration: 7.8s; animation-delay: 7.1s; }
+.shooting-star:nth-child(9) { top: 38%; left: 10%; --angle: 225deg; --dist: 400px; animation-duration: 8.6s; animation-delay: 4.5s; }
+.shooting-star:nth-child(10) { top: 18%; left: 44%; --angle: 215deg; --dist: 330px; animation-duration: 9.4s; animation-delay: 2.6s; }
+
+/* Quien prefiere menos movimiento no necesita ver las manchas de fondo
+   flotando ni los bordes girando sin parar — se quedan estaticos. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .shooting-star,
+  #stars,
+  #stars2,
+  #stars3 {
+    animation: none !important;
+  }
+
+  .shooting-star {
+    display: none;
+  }
+}

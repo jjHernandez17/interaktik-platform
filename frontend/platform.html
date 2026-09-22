@@ -14,20 +14,61 @@
   <body>
     <main class="platform-shell">
       <aside class="platform-sidebar">
-        <div class="brand">
-          <img class="brand-logo" src="/assets/images/logo.png" alt="PlayTik Live" />
-          <h1>Panel</h1>
+        <div class="sidebar-bg-layer" aria-hidden="true">
+          <span class="aurora-blob-sm sidebar-aurora-1"></span>
+          <span class="aurora-blob-sm sidebar-aurora-2"></span>
+          <div id="sidebarStars"></div>
         </div>
 
+        <div class="brand">
+          <img class="brand-logo" src="/assets/images/logo.png" alt="PlayTik Live" />
+        </div>
+
+        <button id="sidebarToggleBtn" class="sidebar-toggle-btn" type="button" aria-label="Contraer menu" title="Contraer menu">
+          <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 4L7 10l5.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
         <nav class="platform-nav" aria-label="Menu principal">
-          <button class="nav-item" type="button" data-section="accountSection">Configuracion de cuenta</button>
-          <button class="nav-item active" type="button" data-section="gamesSection">Juegos</button>
-          <button class="nav-item" type="button" data-section="overlaysSection">Overlays</button>
-          <button class="nav-item" type="button" data-section="plansSection">Planes</button>
-          <button id="adminNavItem" class="nav-item hidden" type="button" data-section="adminSection">Cuentas registradas</button>
+          <button class="nav-item active" type="button" data-section="gamesSection" title="Juegos">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6.5" width="16" height="8" rx="4" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 8.7v3.1M4.65 10.25h3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="14" cy="9.3" r="0.9" fill="currentColor"/><circle cx="12.2" cy="11.1" r="0.9" fill="currentColor"/></svg>
+            <span class="nav-label">Juegos</span>
+          </button>
+          <button class="nav-item" type="button" data-section="overlaysSection" title="Overlays">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 2.5l7.2 3.6L10 9.7l-7.2-3.6L10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.8 10.1L10 13.7l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 13.9L10 17.5l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="nav-label">Overlays</span>
+          </button>
+          <button class="nav-item" type="button" data-section="plansSection" title="Planes">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="4.5" width="15.6" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M2.2 8.2h15.6" stroke="currentColor" stroke-width="1.6"/><path d="M5 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="nav-label">Planes</span>
+          </button>
+          <button id="adminNavItem" class="nav-item hidden" type="button" data-section="adminSection" title="Cuentas registradas">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="M2 17c0.8-3 2.6-4.5 5-4.5s4.2 1.5 5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 7.5a2.4 2.4 0 100-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.3 12.6c2.1.3 3.6 1.7 4.3 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="nav-label">Cuentas registradas</span>
+          </button>
         </nav>
 
-        <button id="logoutBtn" class="logout-btn" type="button">Cerrar sesion</button>
+        <div class="sidebar-user">
+          <div id="userMenuPopover" class="user-menu-popover" hidden role="menu">
+            <button class="user-menu-item" type="button" data-section="accountSection" role="menuitem">
+              <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="6.5" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 17c1.2-3.4 4-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Configuracion de cuenta</span>
+            </button>
+            <button id="logoutBtn" class="user-menu-item danger" type="button" role="menuitem">
+              <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 17H4.5a1.5 1.5 0 01-1.5-1.5v-11A1.5 1.5 0 014.5 3H8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 13.5L17 10l-4.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 10H7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <span class="logout-btn-label">Cerrar sesion</span>
+            </button>
+          </div>
+
+          <button id="userMenuToggle" class="user-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" title="Cuenta">
+            <span class="user-avatar-icon">
+              <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="7" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M3.2 17c1.2-3.6 4.1-5.3 6.8-5.3s5.6 1.7 6.8 5.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="user-menu-text nav-label">
+              <span id="sidebarUserName" class="user-menu-name">-</span>
+              <span id="sidebarUserPlan" class="user-menu-plan">-</span>
+            </span>
+          </button>
+        </div>
       </aside>
 
       <section class="platform-content">

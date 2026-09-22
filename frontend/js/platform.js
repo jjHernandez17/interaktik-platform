@@ -1,6 +1,67 @@
 const navButtons = document.querySelectorAll('.nav-item');
 const sections = document.querySelectorAll('.content-card');
 const logoutBtn = document.getElementById('logoutBtn');
+
+const userMenuToggle = document.getElementById('userMenuToggle');
+const userMenuPopover = document.getElementById('userMenuPopover');
+const sidebarUserName = document.getElementById('sidebarUserName');
+const sidebarUserPlan = document.getElementById('sidebarUserPlan');
+
+// Fondo decorativo del menu lateral (version en miniatura del de la landing
+// / login): puntitos sembrados al azar en un lienzo virtual angosto que
+// coincide con el ancho tipico del sidebar, para que no se desperdicien
+// estrellas fuera de vista.
+(function initSidebarStarfield() {
+  const el = document.getElementById('sidebarStars');
+  if (!el) return;
+
+  const colors = ['#fff', '#fff', '#fff', '#c4b5fd', '#67e8f9'];
+  const parts = [];
+  for (let i = 0; i < 45; i++) {
+    const x = Math.floor(Math.random() * 300);
+    const y = Math.floor(Math.random() * 1200);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    parts.push(`${x}px ${y}px ${color}`);
+  }
+  el.style.setProperty('--sidebar-star-shadow', parts.join(', '));
+})();
+
+// Menu lateral colapsable: preferencia puramente visual de este navegador,
+// asi que localStorage es suficiente (no necesita persistir en el servidor
+// ni sincronizarse entre dispositivos).
+const platformShell = document.querySelector('.platform-shell');
+const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+
+function applySidebarCollapsed(collapsed) {
+  if (!platformShell) return;
+  platformShell.classList.toggle('sidebar-collapsed', collapsed);
+  if (sidebarToggleBtn) {
+    sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Contraer menu');
+    sidebarToggleBtn.title = collapsed ? 'Expandir menu' : 'Contraer menu';
+  }
+}
+
+(function initSidebarCollapsed() {
+  let collapsed = false;
+  try {
+    collapsed = window.localStorage.getItem('interaktik.sidebarCollapsed') === '1';
+  } catch (_error) {
+    collapsed = false;
+  }
+  applySidebarCollapsed(collapsed);
+})();
+
+if (sidebarToggleBtn) {
+  sidebarToggleBtn.addEventListener('click', () => {
+    const collapsed = !platformShell.classList.contains('sidebar-collapsed');
+    applySidebarCollapsed(collapsed);
+    try {
+      window.localStorage.setItem('interaktik.sidebarCollapsed', collapsed ? '1' : '0');
+    } catch (_error) {
+      // Sin localStorage disponible (modo privado, etc.) simplemente no persiste.
+    }
+  });
+}
 const userName = document.getElementById('userName');
 const userEmail = document.getElementById('userEmail');
 const changePasswordForm = document.getElementById('changePasswordForm');
@@ -265,6 +326,8 @@ function renderAccessBanners() {
     if (plansAccessStatus) plansAccessStatus.classList.add('hidden');
     return;
   }
+
+  if (sidebarUserPlan) sidebarUserPlan.textContent = accessStatus?.planLabel || '-';
 
   const message = formatAccessMessage(accessStatus);
   const isWarning = !accessStatus?.hasAccess;
@@ -1090,6 +1153,51 @@ function makeModalToggle(toggleEl, modalEl) {
   return { open, close };
 }
 
+// Popover de la tarjeta de usuario, al fondo del sidebar: mismo click-fuera
+// / Escape para cerrar que los modales, pero se abre/cierra con el mismo
+// boton (toggle) en vez de un boton de cierre dedicado.
+function setupUserMenuPopover() {
+  if (!userMenuToggle || !userMenuPopover) return null;
+
+  function open() {
+    userMenuPopover.hidden = false;
+    userMenuToggle.setAttribute('aria-expanded', 'true');
+  }
+
+  function close() {
+    userMenuPopover.hidden = true;
+    userMenuToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  userMenuToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (userMenuPopover.hidden) open();
+    else close();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (userMenuPopover.hidden) return;
+    if (userMenuPopover.contains(event.target) || userMenuToggle.contains(event.target)) return;
+    close();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !userMenuPopover.hidden) close();
+  });
+
+  const accountMenuItem = userMenuPopover.querySelector('[data-section="accountSection"]');
+  if (accountMenuItem) {
+    accountMenuItem.addEventListener('click', () => {
+      showSection('accountSection');
+      close();
+    });
+  }
+
+  return { open, close };
+}
+
+const userMenuControls = setupUserMenuPopover();
+
 const overlayModalControls = makeModalToggle(overlayCardToggle, overlayConfigModal);
 if (overlayConfigCloseBtn) overlayConfigCloseBtn.addEventListener('click', overlayModalControls.close);
 
@@ -1459,6 +1567,8 @@ async function loadMe() {
     console.log('Autenticacion exitosa:', currentUser?.email);
     userName.textContent = currentUser?.name || '-';
     userEmail.textContent = currentUser?.email || '-';
+    if (sidebarUserName) sidebarUserName.textContent = currentUser?.name || '-';
+    if (sidebarUserPlan && currentUser?.isSuperUser) sidebarUserPlan.textContent = 'Superusuario';
 
     if (currentUser?.isSuperUser) {
       adminNavItem.classList.remove('hidden');
@@ -1556,7 +1666,8 @@ document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
 
 logoutBtn.addEventListener('click', async () => {
   logoutBtn.disabled = true;
-  logoutBtn.textContent = 'Cerrando...';
+  const label = logoutBtn.querySelector('.logout-btn-label');
+  if (label) label.textContent = 'Cerrando...';
 
   try {
     await fetch('/api/auth/logout', {

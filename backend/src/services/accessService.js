@@ -16,6 +16,25 @@ async function grantTrial(userId) {
   );
 }
 
+// Nombre del plan a mostrar en la UI (ej. en el menu lateral). No hay una
+// columna "plan actual" en user_access — para una compra real se toma el
+// nombre del ultimo pago confirmado; para prueba gratuita o sin acceso se
+// usa una etiqueta fija.
+async function getPlanLabel(userId, { isTrial, hasAccess }) {
+  if (!hasAccess) return 'Sin plan activo';
+  if (isTrial) return 'Prueba gratuita';
+
+  const result = await pool.query(
+    `SELECT p.name FROM payments pay
+     JOIN plans p ON p.id = pay.plan_id
+     WHERE pay.user_id = $1 AND pay.status = 'paid'
+     ORDER BY pay.paid_at DESC LIMIT 1`,
+    [userId],
+  );
+
+  return result.rowCount > 0 ? result.rows[0].name : 'Plan activo';
+}
+
 async function getUserAccess(userId) {
   const result = await pool.query(
     'SELECT access_expires_at, is_trial FROM user_access WHERE user_id = $1',
@@ -23,21 +42,25 @@ async function getUserAccess(userId) {
   );
 
   if (result.rowCount === 0) {
-    return { accessExpiresAt: null, isTrial: false, hasAccess: false, daysRemaining: 0 };
+    return { accessExpiresAt: null, isTrial: false, hasAccess: false, daysRemaining: 0, planLabel: 'Sin plan activo' };
   }
 
   const row = result.rows[0];
   const expiresAt = row.access_expires_at ? new Date(row.access_expires_at) : null;
   const hasAccess = Boolean(expiresAt && expiresAt.getTime() > Date.now());
+  const isTrial = Boolean(row.is_trial);
   const daysRemaining = hasAccess
     ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
     : 0;
 
+  const planLabel = await getPlanLabel(userId, { isTrial, hasAccess });
+
   return {
     accessExpiresAt: row.access_expires_at,
-    isTrial: Boolean(row.is_trial),
+    isTrial,
     hasAccess,
     daysRemaining,
+    planLabel,
   };
 }
 

@@ -1,14 +1,44 @@
-/* PlayTik Live — Landing page (usa tokens de design-system.css) */
+/* PlayTik Live — Landing page (usa tokens de design-system.css).
+   El fondo animado (aurora, estrellas, estrellas fugaces, scroll suave)
+   vive en assets/css/bg-effects.css + js/bg-effects.js, compartido con
+   login/registro — este archivo solo tiene lo especifico de la landing. */
 
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   color: var(--ds-text);
   background:
     radial-gradient(circle at 12% -10%, rgba(124, 92, 255, 0.24), transparent 42%),
     radial-gradient(circle at 88% 8%, rgba(34, 211, 238, 0.16), transparent 40%),
     linear-gradient(180deg, var(--ds-bg) 0%, #05070d 100%);
   background-attachment: fixed;
+}
+
+/* --- Brillo que cruza los botones principales al pasar el mouse --- */
+
+.landing-shell .btn.solid,
+.landing-shell .btn.discord {
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-shell .btn.solid::after,
+.landing-shell .btn.discord::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 550ms ease;
+}
+
+.landing-shell .btn.solid:hover::after,
+.landing-shell .btn.discord:hover::after {
+  left: 130%;
 }
 
 .landing-shell {
@@ -93,11 +123,29 @@ body {
 }
 
 .hero-media {
+  position: relative;
   border-radius: var(--ds-radius-lg);
-  overflow: hidden;
   border: 1px solid var(--ds-border);
   box-shadow: var(--ds-shadow-md);
   background: #05070d;
+  z-index: 1;
+}
+
+/* Anillo de color que gira despacio alrededor del video, asomando apenas
+   por detras del borde — le da vida al recuadro sin distraer del contenido. */
+.hero-media::before {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  background: conic-gradient(from 0deg, var(--ds-primary), var(--ds-accent), #a855f7, var(--ds-primary));
+  filter: blur(28px);
+  animation: spin-ring 8s linear infinite;
+  z-index: -1;
+  opacity: 0.45;
+}
+
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
 }
 
 .hero-video {
@@ -106,6 +154,7 @@ body {
   height: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
+  border-radius: inherit;
 }
 
 .hero-head {
@@ -133,6 +182,12 @@ body {
   border-radius: 50%;
   background: var(--ds-accent);
   box-shadow: 0 0 12px var(--ds-accent);
+  animation: tag-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes tag-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.3); }
 }
 
 h1 {
@@ -172,11 +227,33 @@ h1 {
 }
 
 .hero-stats div {
+  position: relative;
   padding: 18px 20px;
   border-radius: var(--ds-radius-lg);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--ds-border);
   backdrop-filter: blur(12px);
+  overflow: hidden;
+  transition: transform 220ms ease, border-color 220ms ease;
+}
+
+.hero-stats div:hover {
+  transform: translateY(-3px);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.hero-stats div::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.12), transparent 55%);
+  opacity: 0;
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
+
+.hero-stats div:hover::after {
+  opacity: 1;
 }
 
 .hero-stats strong {
@@ -205,19 +282,80 @@ h1 {
 }
 
 .info-card {
+  position: relative;
+  isolation: isolate;
   background: var(--ds-surface-solid);
   background-image: var(--ds-gradient-surface);
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-lg);
   box-shadow: var(--ds-shadow-sm);
   padding: 28px;
+  overflow: hidden;
   transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
 }
 
 .info-card:hover {
   transform: translateY(-4px);
-  border-color: var(--ds-border-strong);
+  border-color: transparent;
   box-shadow: var(--ds-shadow-md);
+}
+
+/* Borde con degradado que gira despacio — apenas visible en reposo, se
+   enciende del todo al pasar el mouse. Truco: dos capas de fondo (una para
+   el borde, otra transparente para el relleno) recortadas con mask para
+   que solo se vea el anillo de 1px. */
+.info-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from 0deg, var(--ds-primary), var(--ds-accent), #a855f7, var(--ds-primary));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.4;
+  animation: spin-ring 6s linear infinite;
+  transition: opacity 260ms ease;
+}
+
+.info-card:hover::before {
+  opacity: 1;
+}
+
+/* Brillo suave que sigue al cursor dentro de la tarjeta (--mx/--my los
+   actualiza landing-effects.js en mousemove). */
+.info-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.08), transparent 55%);
+  opacity: 0;
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
+
+.info-card:hover::after {
+  opacity: 1;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-gradient-brand);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(124, 92, 255, 0.28);
+}
+
+.info-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .info-card h2 {
@@ -231,6 +369,118 @@ h1 {
   color: var(--ds-text-muted);
   line-height: 1.6;
   font-size: 0.94rem;
+}
+
+/* --- Footer --- */
+
+.landing-footer {
+  margin-top: 64px;
+  padding-top: 44px;
+  border-top: 1px solid var(--ds-border);
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.footer-brand {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  max-width: 320px;
+}
+
+.footer-logo {
+  width: 150px;
+  height: 42px;
+  object-fit: contain;
+  display: block;
+}
+
+.footer-brand p {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.footer-brand .btn.discord {
+  justify-self: start;
+}
+
+.footer-col {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.footer-col h3 {
+  margin: 0 0 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+
+.footer-col a {
+  color: var(--ds-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 160ms ease;
+}
+
+.footer-col a:hover {
+  color: var(--ds-text);
+}
+
+.btn.discord {
+  background: rgba(88, 101, 242, 0.14);
+  border-color: rgba(88, 101, 242, 0.4);
+  color: #b3b9ff;
+}
+
+.btn.discord:hover {
+  background: rgba(88, 101, 242, 0.24);
+  color: #fff;
+}
+
+.discord-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.footer-bottom {
+  margin-top: 40px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  text-align: center;
+}
+
+.footer-bottom p {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 900px) {
+  .footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .footer-top {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -266,4 +516,18 @@ h1 {
 .scroll-reveal.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Quien prefiere menos movimiento no necesita ver las manchas de fondo
+   flotando ni los bordes girando sin parar — se quedan estaticos. */
+@media (prefers-reduced-motion: reduce) {
+  .tag::before,
+  .hero-media::before,
+  .info-card::before {
+    animation: none !important;
+  }
+
+  .scroll-reveal {
+    transition: none;
+  }
 }

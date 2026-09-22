@@ -16,4 +16,13 @@ function initLandingScrollReveal() {
   revealElements.forEach((element) => observer.observe(element));
 }
 
-window.addEventListener('DOMContentLoaded', initLandingScrollReveal);
+function initFooterYear() {
+  const yearEl = document.getElementById('footerYear');
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initLandingScrollReveal();
+  initFooterYear();
+  initBackgroundEffects('.info-card, .hero-stats > div');
+});

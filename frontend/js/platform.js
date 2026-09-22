@@ -386,6 +386,47 @@ function formatPrice(amount, currency) {
   }
 }
 
+// Beneficios y estilo por plan — los planes en si (nombre/precio/duracion)
+// vienen del backend, pero los puntos de venta y el acento de color son
+// puramente de presentacion, asi que se definen aca en vez de agregar
+// columnas nuevas a la tabla `plans`.
+const PLAN_BENEFITS = {
+  pass_2d: [
+    'Acceso completo a todos los juegos por 2 dias',
+    'Sin limite de partidas ni espectadores',
+    'Ideal para probar la plataforma antes de un live grande',
+  ],
+  monthly: [
+    'Acceso completo a todos los juegos por 30 dias',
+    'Overlays personalizables para OBS incluidos',
+    'Soporte prioritario por Discord',
+    'Cancela cuando quieras',
+  ],
+  yearly: [
+    'Acceso completo a todos los juegos por 1 año',
+    'Overlays personalizables para OBS incluidos',
+    'El precio mas bajo por mes de todos los planes',
+    'Soporte prioritario por Discord',
+  ],
+};
+
+const PLAN_ACCENTS = {
+  pass_2d: 'cyan',
+  monthly: 'violet',
+  yearly: 'gold',
+};
+
+const PLAN_POPULAR_ID = 'yearly';
+
+// Precio "ancla" tachado junto al precio real — tactica clasica de "antes
+// $X, ahora $Y". El descuento es puramente de presentacion (el cobro real
+// via Wompi siempre es el precio actual del plan, nunca el tachado).
+const PLAN_DISCOUNT_PERCENT = {
+  pass_2d: 50,
+  monthly: 50,
+  yearly: 50,
+};
+
 function renderPlanCards() {
   if (!plansGrid) return;
 
@@ -409,12 +450,39 @@ function renderPlanCards() {
     const showUsdHint = plan.display && plan.display.currency !== 'USD';
     const usdHint = showUsdHint ? `<p class="plan-price-hint">≈ ${formatPrice(Number(plan.price_usd_cents || 0) / 100, 'USD')}</p>` : '';
 
+    const accent = PLAN_ACCENTS[plan.id] || 'violet';
+    const isPopular = plan.id === PLAN_POPULAR_ID;
+    const benefits = PLAN_BENEFITS[plan.id] || [];
+    const benefitsHtml = benefits.length
+      ? `<ul class="plan-benefits">${benefits.map((benefit) => `<li>${escapeHtml(benefit)}</li>`).join('')}</ul>`
+      : '';
+
+    const discountPercent = PLAN_DISCOUNT_PERCENT[plan.id] || 0;
+    let discountHtml = '';
+    let originalPriceHtml = '';
+    if (discountPercent > 0) {
+      const rawAmount = plan.display ? plan.display.amount : Number(plan.price_usd_cents || 0) / 100;
+      const rawCurrency = plan.display ? plan.display.currency : 'USD';
+      const originalAmount = rawAmount / (1 - discountPercent / 100);
+      const originalPrice = formatPrice(originalAmount, rawCurrency);
+      discountHtml = `<span class="plan-discount-tag">-${discountPercent}% · Oferta por tiempo limitado</span>`;
+      originalPriceHtml = `<span class="plan-price-original">${originalPrice}</span>`;
+    }
+
     return `
-    <article class="plan-card" data-plan-id="${escapeHtml(plan.id)}">
+    <article class="plan-card plan-card--${accent}${isPopular ? ' plan-card--popular' : ''}" data-plan-id="${escapeHtml(plan.id)}">
+      ${isPopular ? '<span class="plan-badge">Mas popular</span>' : ''}
       <h3>${escapeHtml(plan.name)}</h3>
-      <p class="plan-price">${mainPrice}</p>
+      <div class="plan-pricing">
+        ${discountHtml}
+        <div class="plan-price-line">
+          ${originalPriceHtml}
+          <p class="plan-price">${mainPrice}</p>
+        </div>
+      </div>
       ${usdHint}
       <p class="plan-description">${escapeHtml(plan.description)}</p>
+      ${benefitsHtml}
       <div class="plan-actions">
         <button class="btn primary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="wompi" ${availableGateways.wompi ? '' : 'disabled'}>
           Pagar con Wompi
@@ -1412,7 +1480,8 @@ async function loadAdminUsers({ force = false } = {}) {
   }
 
   setupAdminSearch();
-  adminUsersMeta.textContent = 'Cargando cuentas...';
+  adminUsersMeta.innerHTML = '<span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando cuentas...';
+  adminUsersMeta.classList.add('loading-row');
   adminUsersList.innerHTML = '';
   if (refreshUsersBtn) refreshUsersBtn.disabled = true;
 
@@ -1583,6 +1652,8 @@ async function loadMe() {
     await loadAccessStatus();
     await loadPlans();
     await handlePaymentRedirectParams();
+
+    document.getElementById('pageLoader')?.setAttribute('hidden', '');
   } catch (_error) {
     console.log('Error al verificar autenticacion:', _error);
     redirectWithLog('/login.html', 'Error al cargar datos de usuario');

@@ -777,4 +777,4 @@ function bootstrapEventListeners() {
   await restoreTiktokConnection();
   await loadRules();
   await loadGiftCatalog(true);
-})();
+})().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

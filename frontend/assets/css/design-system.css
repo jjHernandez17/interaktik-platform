@@ -277,3 +277,127 @@ h1, h2, h3, h4 {
   background: var(--ds-accent);
   box-shadow: 0 0 12px var(--ds-accent);
 }
+
+/* ===========================================================
+   Animacion de carga de la marca (pt-orbit): dos puntitos morado/cian
+   orbitando a distinta velocidad — el "loading" oficial de la plataforma,
+   compartido por todas las vistas (botones, tarjetas, pantalla completa).
+   Uso minimo: <span class="pt-orbit"><i><b></b></i><i><b></b></i></span>
+   =========================================================== */
+
+@keyframes pt-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pt-orbit {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+
+.pt-orbit i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  animation: pt-spin 2.4s linear infinite;
+}
+
+.pt-orbit i:nth-child(2) {
+  animation-duration: 1.2s;
+}
+
+.pt-orbit i > b {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  transform: translateY(-14px);
+  background: var(--ds-primary);
+  box-shadow: 0 0 10px 2px rgba(124, 92, 255, 0.8);
+}
+
+.pt-orbit i:nth-child(2) > b {
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  transform: translateY(-9px) rotate(140deg);
+  background: var(--ds-accent);
+  box-shadow: 0 0 9px 2px rgba(34, 211, 238, 0.8);
+}
+
+/* Tamaños: por defecto 34px (junto a texto/botones); --sm para espacios
+   chicos (inputs, chips); --lg para el loader de pantalla completa. */
+.pt-orbit--sm {
+  width: 20px;
+  height: 20px;
+}
+
+.pt-orbit--sm i > b {
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  transform: translateY(-8px);
+}
+
+.pt-orbit--sm i:nth-child(2) > b {
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  transform: translateY(-5px) rotate(140deg);
+}
+
+.pt-orbit--lg {
+  width: 56px;
+  height: 56px;
+}
+
+.pt-orbit--lg i > b {
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  transform: translateY(-23px);
+}
+
+.pt-orbit--lg i:nth-child(2) > b {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  transform: translateY(-15px) rotate(140deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-orbit i {
+    animation-duration: 6s;
+  }
+}
+
+/* Overlay de pantalla completa mientras una vista carga sus datos
+   iniciales (ver platform.html). Se oculta con el atributo hidden una vez
+   listo — nunca con display:none inline, para poder animar la salida. */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--ds-bg);
+  color: var(--ds-text-muted);
+  transition: opacity 220ms ease;
+}
+
+.page-loader[hidden] {
+  display: none;
+}
+
+.page-loader span.ds-eyebrow {
+  font-size: 0.76rem;
+}

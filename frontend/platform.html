@@ -12,6 +12,11 @@
     <link rel="stylesheet" href="assets/css/platform.css?v=20260906a" />
   </head>
   <body>
+    <div id="pageLoader" class="page-loader">
+      <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+      <span class="ds-eyebrow">Cargando tu panel</span>
+    </div>
+
     <main class="platform-shell">
       <aside class="platform-sidebar">
         <div class="sidebar-bg-layer" aria-hidden="true">
@@ -53,6 +58,12 @@
               <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="6.5" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 17c1.2-3.4 4-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Configuracion de cuenta</span>
             </button>
+            <a class="user-menu-item discord" href="https://discord.gg/b6we5kSZy" target="_blank" rel="noopener noreferrer" role="menuitem">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M20.317 4.369A19.79 19.79 0 0016.558 3c-.211.375-.444.879-.608 1.278a18.27 18.27 0 00-3.9 0A12.64 12.64 0 0011.442 3a19.736 19.736 0 00-3.76 1.37C4.34 8.88 3.53 13.28 3.936 17.617a19.9 19.9 0 006.058 3.058c.49-.664.926-1.37 1.302-2.11a12.87 12.87 0 01-2.051-.98c.172-.125.34-.256.503-.39a14.1 14.1 0 0012.503 0c.166.134.334.265.503.39-.652.386-1.34.71-2.054.981.377.74.812 1.446 1.303 2.11a19.83 19.83 0 006.062-3.06c.478-5.02-.795-9.377-3.748-13.246zM9.68 14.98c-1.11 0-2.018-1.02-2.018-2.27 0-1.25.892-2.271 2.018-2.271 1.135 0 2.043 1.03 2.017 2.27 0 1.25-.892 2.271-2.017 2.271zm6.64 0c-1.11 0-2.018-1.02-2.018-2.27 0-1.25.892-2.271 2.018-2.271 1.135 0 2.043 1.03 2.017 2.27 0 1.25-.883 2.271-2.017 2.271z"/>
+              </svg>
+              <span>Unete a nuestro Discord</span>
+            </a>
             <button id="logoutBtn" class="user-menu-item danger" type="button" role="menuitem">
               <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 17H4.5a1.5 1.5 0 01-1.5-1.5v-11A1.5 1.5 0 014.5 3H8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 13.5L17 10l-4.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 10H7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
               <span class="logout-btn-label">Cerrar sesion</span>
@@ -284,7 +295,7 @@
           <div id="plansAccessStatus" class="access-status-banner hidden"></div>
 
           <div id="plansGrid" class="plans-grid">
-            <p class="muted">Cargando planes...</p>
+            <p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando planes...</p>
           </div>
 
           <p id="plansGatewayNotice" class="muted plans-gateway-notice hidden"></p>
@@ -299,7 +310,7 @@
             <button id="refreshUsersBtn" class="btn secondary" type="button">Actualizar</button>
           </div>
 
-          <div id="adminUsersMeta" class="admin-meta muted">Cargando cuentas...</div>
+          <div id="adminUsersMeta" class="admin-meta muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando cuentas...</div>
           <div id="adminUsersList" class="admin-users-list"></div>
         </section>
       </section>

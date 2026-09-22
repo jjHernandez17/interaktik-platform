@@ -2442,9 +2442,13 @@ window.addEventListener('beforeunload', () => {
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
-  bindUIActions();
-  await loadDominanceState();
-  initializeCombatEngine();
-  startSoldiersAnimation();
-  startDominanceCenterTimer();
+  try {
+    bindUIActions();
+    await loadDominanceState();
+    initializeCombatEngine();
+    startSoldiersAnimation();
+    startDominanceCenterTimer();
+  } finally {
+    document.getElementById('pageLoader')?.setAttribute('hidden', '');
+  }
 });

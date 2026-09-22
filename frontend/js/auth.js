@@ -6,6 +6,18 @@ function setMessage(text, isError = false) {
   message.style.color = isError ? "#fca5a5" : "#86efac";
 }
 
+// Reemplaza el contenido del boton por el spinner de marca (pt-orbit)
+// mientras dura la peticion, y lo devuelve a su texto original al terminar.
+function setButtonLoading(button, loading, originalHtml) {
+  if (!button) return;
+  button.disabled = loading;
+  if (loading) {
+    button.innerHTML = '<span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span>';
+  } else if (typeof originalHtml === "string") {
+    button.innerHTML = originalHtml;
+  }
+}
+
 function ensureResendButton() {
   let btn = document.getElementById("resendVerificationBtn");
   if (btn) return btn;
@@ -132,6 +144,8 @@ if (form) {
   showVerifyQueryMessage();
   showResetQueryMessage();
   const refreshPasswordRules = setupPasswordRules();
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const submitBtnOriginalHtml = submitBtn ? submitBtn.innerHTML : "";
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -147,6 +161,8 @@ if (form) {
       payload.name = String(form.name.value || "").trim();
     }
 
+    setButtonLoading(submitBtn, true);
+
     try {
       const response = await fetch(`/api/auth/${mode}`, {
         method: "POST",
@@ -159,6 +175,7 @@ if (form) {
 
       if (!response.ok) {
         if (data.code === "EMAIL_NOT_VERIFIED") {
+          setButtonLoading(submitBtn, false, submitBtnOriginalHtml);
           setMessage(data.error, true);
           const resendBtn = ensureResendButton();
           resendBtn.onclick = () => resendVerification(payload.email);
@@ -168,6 +185,11 @@ if (form) {
       }
 
       if (mode === "register" && data.requiresVerification) {
+        // El orden importa: restaurar el boton ANTES de resetear el
+        // formulario, para que setupPasswordRules() (llamado dentro de
+        // refreshPasswordRules) sea quien decida el estado final de
+        // disabled segun los campos ya vacios, no este helper.
+        setButtonLoading(submitBtn, false, submitBtnOriginalHtml);
         setMessage("¡Cuenta creada! Revisa tu correo y confirma tu cuenta antes de iniciar sesión.");
         form.reset();
         if (refreshPasswordRules) refreshPasswordRules();
@@ -177,6 +199,7 @@ if (form) {
       setMessage("Autenticacion correcta. Redirigiendo...");
       redirectWithLog("/platform.html", `Login exitoso para ${payload.email}`);
     } catch (error) {
+      setButtonLoading(submitBtn, false, submitBtnOriginalHtml);
       setMessage(error.message, true);
     }
   });

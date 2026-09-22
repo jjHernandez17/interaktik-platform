@@ -2977,4 +2977,4 @@ async function initializeApp() {
   startGameLoop();
 }
 
-initializeApp();
+initializeApp().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

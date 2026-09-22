@@ -6,13 +6,25 @@ function setMessage(text, isError = false) {
   message.style.color = isError ? "#fca5a5" : "#86efac";
 }
 
+function setButtonLoading(button, loading, originalHtml) {
+  if (!button) return;
+  button.disabled = loading;
+  if (loading) {
+    button.innerHTML = '<span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span>';
+  } else if (typeof originalHtml === "string") {
+    button.innerHTML = originalHtml;
+  }
+}
+
+const submitBtn = form.querySelector("button[type=submit]");
+const submitBtnOriginalHtml = submitBtn ? submitBtn.innerHTML : "";
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const email = String(form.email.value || "").trim();
-  const submitBtn = form.querySelector("button[type=submit]");
 
-  submitBtn.disabled = true;
+  setButtonLoading(submitBtn, true);
   try {
     const response = await fetch("/api/auth/forgot-password", {
       method: "POST",
@@ -26,6 +38,6 @@ form.addEventListener("submit", async (event) => {
   } catch (_error) {
     setMessage("No se pudo enviar el correo. Intenta de nuevo.", true);
   } finally {
-    submitBtn.disabled = false;
+    setButtonLoading(submitBtn, false, submitBtnOriginalHtml);
   }
 });

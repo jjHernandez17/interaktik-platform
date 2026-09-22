@@ -1287,4 +1287,4 @@ async function initializeRace() {
   await restoreTiktokConnectionRace();
 }
 
-initializeRace();
+initializeRace().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

@@ -11,6 +11,16 @@ function getToken() {
   return new URLSearchParams(window.location.search).get("token") || "";
 }
 
+function setButtonLoading(button, loading, originalHtml) {
+  if (!button) return;
+  button.disabled = loading;
+  if (loading) {
+    button.innerHTML = '<span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span>';
+  } else if (typeof originalHtml === "string") {
+    button.innerHTML = originalHtml;
+  }
+}
+
 // Checklist de requisitos de contrasena, igual que en register.html.
 function setupPasswordRules() {
   const passwordInput = document.getElementById("passwordInput");
@@ -79,10 +89,15 @@ async function init() {
     return;
   }
 
+  const submitBtn = document.getElementById("submitBtn");
+  const submitBtnOriginalHtml = submitBtn ? submitBtn.innerHTML : "";
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const newPassword = String(form.newPassword.value || "");
+
+    setButtonLoading(submitBtn, true);
 
     try {
       const response = await fetch("/api/auth/reset-password", {
@@ -102,6 +117,7 @@ async function init() {
       form.reset();
       redirectWithLog("/login.html?reset=success", "Contrasena restablecida, redirigiendo a login");
     } catch (error) {
+      setButtonLoading(submitBtn, false, submitBtnOriginalHtml);
       setMessage(error.message, true);
     }
   });

@@ -1486,4 +1486,4 @@ async function initializeApp() {
   updateScoreboardFullscreenButton();
 }
 
-initializeApp();
+initializeApp().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

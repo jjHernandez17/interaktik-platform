@@ -1071,4 +1071,4 @@ async function initializeShellGame() {
   await restoreTiktokConnection();
 }
 
-initializeShellGame();
+initializeShellGame().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

@@ -401,3 +401,265 @@ h1, h2, h3, h4 {
 .page-loader span.ds-eyebrow {
   font-size: 0.76rem;
 }
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.muted {
+  color: var(--ds-text-muted);
+}
+
+/* ===========================================================
+   Tarjetas de planes (precios): compartidas entre el panel
+   (checkout real) y la landing (CTA "Crear cuenta"). El HTML se arma con
+   buildPlanCardHtml() en js/plans-shared.js.
+   =========================================================== */
+
+.plans-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 28px 20px;
+}
+
+/* Acento de color por plan: cian para el pase corto, morado para el
+   mensual, dorado para el anual (el "mas popular"). */
+.plan-card--cyan {
+  --plan-accent: #22d3ee;
+  --plan-accent-2: #7c5cff;
+  --plan-accent-soft: rgba(34, 211, 238, 0.16);
+}
+
+.plan-card--violet {
+  --plan-accent: #7c5cff;
+  --plan-accent-2: #a855f7;
+  --plan-accent-soft: rgba(124, 92, 255, 0.18);
+}
+
+.plan-card--gold {
+  --plan-accent: #facc15;
+  --plan-accent-2: #fb7185;
+  --plan-accent-soft: rgba(250, 204, 21, 0.18);
+}
+
+.plan-card {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--ds-border);
+  border-radius: 20px;
+  padding: 22px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(10, 14, 26, 0.92));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.plan-card:hover {
+  transform: translateY(-6px);
+}
+
+/* Anillo neon con degradado que gira despacio — dos fondos, uno recortado
+   con mask a solo el borde de 1.5px. */
+.plan-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from 0deg, var(--plan-accent), var(--plan-accent-2), var(--plan-accent));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.75;
+  animation: plan-neon-spin 5s linear infinite;
+}
+
+/* Halo difuminado detras de la tarjeta, mas intenso en hover — el "brillo
+   neon" que se asoma por fuera del borde. */
+.plan-card::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  z-index: -2;
+  background: radial-gradient(circle, var(--plan-accent), transparent 65%);
+  opacity: 0.16;
+  filter: blur(30px);
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+.plan-card:hover::after {
+  opacity: 0.3;
+}
+
+@keyframes plan-neon-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card::before {
+    animation: none;
+  }
+}
+
+.plan-card--popular {
+  transform: scale(1.02);
+}
+
+.plan-card--popular::before {
+  opacity: 1;
+}
+
+.plan-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1a1200;
+  background: linear-gradient(135deg, var(--plan-accent), var(--plan-accent-2));
+  box-shadow: 0 8px 18px rgba(250, 204, 21, 0.35);
+}
+
+.plan-card h3 {
+  margin: 0;
+  padding-right: 70px;
+}
+
+.plan-benefits {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1;
+}
+
+.plan-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ds-text);
+}
+
+.plan-benefits li::before {
+  content: '✓';
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--plan-accent-soft);
+  color: var(--plan-accent);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.plan-pricing {
+  display: grid;
+  gap: 6px;
+}
+
+/* Etiqueta roja de "oferta" — pulso sutil para llamar la atencion sin
+   volverse molesto. Tactica clasica de urgencia junto al precio tachado. */
+.plan-discount-tag {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.35);
+  animation: plan-discount-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes plan-discount-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-discount-tag {
+    animation: none;
+  }
+}
+
+.plan-price-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-price-original {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ds-text-muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(239, 68, 68, 0.75);
+  text-decoration-thickness: 2px;
+}
+
+.plan-price {
+  font-family: var(--ds-font-display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, var(--plan-accent, var(--ds-primary)), var(--plan-accent-2, var(--ds-accent)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.plan-price-hint {
+  margin: -4px 0 0;
+  color: var(--ds-text-muted);
+  font-size: 0.82rem;
+}
+
+.plan-description {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.plan-cop-note {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+  color: var(--ds-text-muted);
+  font-size: 0.78rem;
+}
+
+.plan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plan-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

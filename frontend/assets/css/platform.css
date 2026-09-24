@@ -1192,6 +1192,11 @@ a {
   --overlay-accent-glow: rgba(56, 189, 248, 0.35);
 }
 
+.overlay-preview-stage--follow-alert {
+  --overlay-accent: #fb923c;
+  --overlay-accent-glow: rgba(251, 146, 60, 0.35);
+}
+
 .overlay-connection-card {
   margin: 16px 0 0;
   padding: 20px;
@@ -1452,6 +1457,27 @@ a {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 14px;
+}
+
+.sound-select-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sound-select-row select {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.sound-select-row .btn {
+  flex: 0 0 auto;
+  padding: 0 14px;
 }
 
 .field-label-value {

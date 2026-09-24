@@ -234,7 +234,7 @@ app.get('/events/overlay', async (req, res) => {
   const ownerPrefix = `user:${resolved.userId}:`;
 
   const pushEvent = ({ eventName, payload }) => {
-    const allowedEvents = ['gift', 'overlay-goal-update', 'overlay-gifters-update', 'overlay-likes-update', 'overlay-likers-update'];
+    const allowedEvents = ['gift', 'follow', 'overlay-goal-update', 'overlay-gifters-update', 'overlay-likes-update', 'overlay-likers-update'];
     if (!allowedEvents.includes(eventName)) return;
     if (!payload || !String(payload.ownerKey || '').startsWith(ownerPrefix)) return;
 

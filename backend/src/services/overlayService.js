@@ -12,6 +12,7 @@ const WIDGET_KEY_COLUMNS = {
   topGifters: 'top_gifters_key',
   likeCounter: 'like_counter_key',
   topLikers: 'top_likers_key',
+  followAlert: 'follow_alert_key',
 };
 
 const KEY_COLUMNS_SQL = Object.values(WIDGET_KEY_COLUMNS).join(', ');
@@ -23,16 +24,18 @@ function mapKeysRow(row) {
     topGifters: row.top_gifters_key,
     likeCounter: row.like_counter_key,
     topLikers: row.top_likers_key,
+    followAlert: row.follow_alert_key,
   };
 }
 
 function defaultOverlayState() {
   return {
-    giftAlert: { enabled: true, durationSeconds: 5, minCoins: 0 },
+    giftAlert: { enabled: true, durationSeconds: 5, minCoins: 0, sound: 'none' },
     goalBar: { enabled: true, label: 'Meta de la transmisión', targetCoins: 500, currentCoins: 0 },
     topGifters: { enabled: true, title: 'Top Regaladores', maxEntries: 5, entries: [] },
     likeCounter: { enabled: true, label: 'Likes en vivo', totalLikes: 0 },
     topLikers: { enabled: true, title: 'Top Likes', maxEntries: 5, entries: [] },
+    followAlert: { enabled: true, durationSeconds: 5, sound: 'none' },
   };
 }
 
@@ -119,15 +122,16 @@ async function getOrCreateOverlayConfig(userId) {
     topGifters: generateOverlayKey(),
     likeCounter: generateOverlayKey(),
     topLikers: generateOverlayKey(),
+    followAlert: generateOverlayKey(),
   };
 
   const inserted = await pool.query(
     `INSERT INTO overlay_config
-       (user_id, gift_alert_key, goal_bar_key, top_gifters_key, like_counter_key, top_likers_key, state, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
+       (user_id, gift_alert_key, goal_bar_key, top_gifters_key, like_counter_key, top_likers_key, follow_alert_key, state, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW())
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
      RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
-    [userId, keys.giftAlert, keys.goalBar, keys.topGifters, keys.likeCounter, keys.topLikers, JSON.stringify(state)],
+    [userId, keys.giftAlert, keys.goalBar, keys.topGifters, keys.likeCounter, keys.topLikers, keys.followAlert, JSON.stringify(state)],
   );
 
   const row = inserted.rows[0];
@@ -499,13 +503,9 @@ async function resolveByOverlayKey(key) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return null;
 
+  const whereClause = Object.values(WIDGET_KEY_COLUMNS).map((column) => `${column} = $1`).join(' OR ');
   const result = await pool.query(
-    `SELECT user_id, state FROM overlay_config
-     WHERE gift_alert_key = $1
-        OR goal_bar_key = $1
-        OR top_gifters_key = $1
-        OR like_counter_key = $1
-        OR top_likers_key = $1`,
+    `SELECT user_id, state FROM overlay_config WHERE ${whereClause}`,
     [cleanKey],
   );
 

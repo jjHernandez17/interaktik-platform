@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Overlay: Alerta de regalos</title>
+  <title>Overlay: Alerta de nuevo seguidor</title>
   <style>
     html, body {
       margin: 0;
@@ -16,7 +16,7 @@
       font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
     }
 
-    #giftAlertRoot {
+    #followAlertRoot {
       position: fixed;
       left: 50%;
       bottom: 6%;
@@ -26,26 +26,26 @@
       gap: 16px;
       padding: 16px 28px 16px 16px;
       border-radius: 20px;
-      background: linear-gradient(135deg, rgba(124, 92, 255, 0.92), rgba(34, 211, 238, 0.88));
+      background: linear-gradient(135deg, rgba(251, 146, 60, 0.92), rgba(244, 63, 94, 0.88));
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
       opacity: 0;
       pointer-events: none;
       transition: opacity 260ms ease, transform 260ms ease;
     }
 
-    #giftAlertRoot.visible {
+    #followAlertRoot.visible {
       opacity: 1;
       transform: translateX(-50%) translateY(0);
-      animation: gift-alert-pop 260ms ease;
+      animation: follow-alert-pop 260ms ease;
     }
 
-    @keyframes gift-alert-pop {
+    @keyframes follow-alert-pop {
       0% { transform: translateX(-50%) translateY(24px) scale(0.92); opacity: 0; }
       60% { transform: translateX(-50%) translateY(-4px) scale(1.02); opacity: 1; }
       100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
     }
 
-    #giftAlertAvatar {
+    #followAlertAvatar {
       width: 64px;
       height: 64px;
       border-radius: 50%;
@@ -55,44 +55,39 @@
       flex: 0 0 auto;
     }
 
-    #giftAlertText {
+    #followAlertText {
       color: #fff;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 
-    #giftAlertName {
+    #followAlertName {
       font-weight: 800;
       font-size: 1.15rem;
       margin: 0 0 2px;
     }
 
-    #giftAlertDetail {
+    #followAlertDetail {
       font-weight: 600;
       font-size: 0.98rem;
       margin: 0;
       opacity: 0.95;
     }
-
-    #giftAlertCoins {
-      font-weight: 800;
-      color: #fff176;
-    }
   </style>
 </head>
 
 <body>
-  <div id="giftAlertRoot">
-    <img id="giftAlertAvatar" src="" alt="" />
-    <div id="giftAlertText">
-      <p id="giftAlertName"></p>
-      <p id="giftAlertDetail"></p>
+  <div id="followAlertRoot">
+    <img id="followAlertAvatar" src="" alt="" />
+    <div id="followAlertText">
+      <p id="followAlertName"></p>
+      <p id="followAlertDetail">empezó a seguirte ✨</p>
     </div>
   </div>
 
   <script src="../js/config.js"></script>
   <script src="../js/runtime.js"></script>
   <script src="../js/overlay-sounds.js"></script>
-  <script src="../js/overlay-gift-alert.js"></script>
+  <script src="../js/overlay-follow-alert.js"></script>
 </body>
 
 </html>

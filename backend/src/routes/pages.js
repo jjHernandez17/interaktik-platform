@@ -150,6 +150,19 @@ router.get('/overlay/gift-alert.html', async (req, res) => {
   }
 });
 
+// Overlay de alerta de nuevo seguidor: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/follow-alert.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/follow-alert.html', 'Overlay follow-alert page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/follow-alert.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
 // Overlay de barra de meta: mismo criterio que gift-alert.html arriba.
 router.get('/overlay/goal-bar.html', async (req, res) => {
   try {

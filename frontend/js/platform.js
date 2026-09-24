@@ -96,6 +96,8 @@ const overlayEnabledToggle = document.getElementById('overlayEnabledToggle');
 const overlayDurationInput = document.getElementById('overlayDurationInput');
 const overlayDurationValue = document.getElementById('overlayDurationValue');
 const overlayMinCoinsInput = document.getElementById('overlayMinCoinsInput');
+const overlaySoundSelect = document.getElementById('overlaySoundSelect');
+const overlaySoundPreviewBtn = document.getElementById('overlaySoundPreviewBtn');
 const overlaySaveBtn = document.getElementById('overlaySaveBtn');
 const overlayTestGiftBtn = document.getElementById('overlayTestGiftBtn');
 
@@ -161,6 +163,22 @@ const topLikersMaxEntriesValue = document.getElementById('topLikersMaxEntriesVal
 const topLikersSaveBtn = document.getElementById('topLikersSaveBtn');
 const topLikersTestBtn = document.getElementById('topLikersTestBtn');
 const topLikersResetBtn = document.getElementById('topLikersResetBtn');
+
+const followAlertPreviewFrame = document.getElementById('followAlertPreviewFrame');
+const followAlertCardToggle = document.getElementById('followAlertCardToggle');
+const followAlertConfigModal = document.getElementById('followAlertConfigModal');
+const followAlertConfigCloseBtn = document.getElementById('followAlertConfigCloseBtn');
+const followAlertLinkInput = document.getElementById('followAlertLinkInput');
+const followAlertCopyLinkBtn = document.getElementById('followAlertCopyLinkBtn');
+const followAlertRegenerateBtn = document.getElementById('followAlertRegenerateBtn');
+const followAlertLinkHint = document.getElementById('followAlertLinkHint');
+const followAlertEnabledToggle = document.getElementById('followAlertEnabledToggle');
+const followAlertDurationInput = document.getElementById('followAlertDurationInput');
+const followAlertDurationValue = document.getElementById('followAlertDurationValue');
+const followAlertSoundSelect = document.getElementById('followAlertSoundSelect');
+const followAlertSoundPreviewBtn = document.getElementById('followAlertSoundPreviewBtn');
+const followAlertSaveBtn = document.getElementById('followAlertSaveBtn');
+const followAlertTestBtn = document.getElementById('followAlertTestBtn');
 
 const overlayConnectionForm = document.getElementById('overlayConnectionForm');
 const overlayConnectionStatusBadge = document.getElementById('overlayConnectionStatusBadge');
@@ -641,6 +659,7 @@ function showSection(sectionId) {
     if (topGiftersPreviewFrame) topGiftersPreviewFrame.src = 'about:blank';
     if (likeCounterPreviewFrame) likeCounterPreviewFrame.src = 'about:blank';
     if (topLikersPreviewFrame) topLikersPreviewFrame.src = 'about:blank';
+    if (followAlertPreviewFrame) followAlertPreviewFrame.src = 'about:blank';
   }
 }
 
@@ -655,6 +674,7 @@ const OVERLAY_WIDGETS = {
   topGifters: { page: 'top-gifters', previewFrame: () => topGiftersPreviewFrame, linkInput: () => topGiftersLinkInput, linkHint: () => topGiftersLinkHint },
   likeCounter: { page: 'like-counter', previewFrame: () => likeCounterPreviewFrame, linkInput: () => likeCounterLinkInput, linkHint: () => likeCounterLinkHint },
   topLikers: { page: 'top-likers', previewFrame: () => topLikersPreviewFrame, linkInput: () => topLikersLinkInput, linkHint: () => topLikersLinkHint },
+  followAlert: { page: 'follow-alert', previewFrame: () => followAlertPreviewFrame, linkInput: () => followAlertLinkInput, linkHint: () => followAlertLinkHint },
 };
 
 // Link real, el que se copia para pegar en OBS/Streamlabs/TikTok LIVE Studio
@@ -683,6 +703,23 @@ function reloadOverlayPreviewFrames() {
   });
 }
 
+// Llena los <select> de sonido con el catálogo de overlay-sounds.js — se
+// carga antes que platform.js, así que window.OVERLAY_SOUNDS ya existe.
+function populateSoundSelects() {
+  const sounds = window.OVERLAY_SOUNDS || { none: { label: 'Ninguno' } };
+  [overlaySoundSelect, followAlertSoundSelect].forEach((select) => {
+    if (!select || select.options.length > 0) return;
+    Object.entries(sounds).forEach(([id, { label }]) => {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = label;
+      select.appendChild(option);
+    });
+  });
+}
+
+populateSoundSelects();
+
 function applyOverlayStateToInputs(state) {
   currentOverlayState = state;
 
@@ -691,6 +728,7 @@ function applyOverlayStateToInputs(state) {
   if (overlayDurationInput) overlayDurationInput.value = giftAlert.durationSeconds || 5;
   if (overlayDurationValue) overlayDurationValue.textContent = `${giftAlert.durationSeconds || 5}s`;
   if (overlayMinCoinsInput) overlayMinCoinsInput.value = giftAlert.minCoins || 0;
+  if (overlaySoundSelect) overlaySoundSelect.value = giftAlert.sound || 'none';
 
   const goalBar = state?.goalBar || {};
   if (goalBarEnabledToggle) goalBarEnabledToggle.checked = goalBar.enabled !== false;
@@ -714,6 +752,12 @@ function applyOverlayStateToInputs(state) {
   if (topLikersTitleInput) topLikersTitleInput.value = topLikers.title || 'Top Likes';
   if (topLikersMaxEntriesInput) topLikersMaxEntriesInput.value = topLikers.maxEntries || 5;
   if (topLikersMaxEntriesValue) topLikersMaxEntriesValue.textContent = topLikers.maxEntries || 5;
+
+  const followAlert = state?.followAlert || {};
+  if (followAlertEnabledToggle) followAlertEnabledToggle.checked = followAlert.enabled !== false;
+  if (followAlertDurationInput) followAlertDurationInput.value = followAlert.durationSeconds || 5;
+  if (followAlertDurationValue) followAlertDurationValue.textContent = `${followAlert.durationSeconds || 5}s`;
+  if (followAlertSoundSelect) followAlertSoundSelect.value = followAlert.sound || 'none';
 }
 
 // Los overlays reciben regalos/likes reales solo si el backend tiene una
@@ -862,6 +906,7 @@ async function saveOverlayConfig() {
           enabled: overlayEnabledToggle.checked,
           durationSeconds: Number(overlayDurationInput.value) || 5,
           minCoins: Number(overlayMinCoinsInput.value) || 0,
+          sound: overlaySoundSelect?.value || 'none',
         },
       }),
     });
@@ -988,12 +1033,40 @@ async function saveTopLikersConfig() {
   }
 }
 
+async function saveFollowAlertConfig() {
+  try {
+    followAlertSaveBtn.disabled = true;
+    const response = await fetch('/api/overlay/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentOverlayState,
+        followAlert: {
+          enabled: followAlertEnabledToggle.checked,
+          durationSeconds: Number(followAlertDurationInput.value) || 5,
+          sound: followAlertSoundSelect?.value || 'none',
+        },
+      }),
+    });
+    if (!response.ok) throw new Error('No se pudo guardar la configuración.');
+    const data = await response.json();
+    applyOverlayStateToInputs(data.state);
+    reloadOverlayPreviewFrames();
+    showAppAlert('Configuración del overlay guardada.', 'Overlays');
+  } catch (error) {
+    showAppAlert(error.message, 'Error al guardar');
+  } finally {
+    followAlertSaveBtn.disabled = false;
+  }
+}
+
 const OVERLAY_WIDGET_LABELS = {
   giftAlert: 'alerta de regalos',
   goalBar: 'barra de meta',
   topGifters: 'top de regaladores',
   likeCounter: 'contador de likes',
   topLikers: 'top de likes',
+  followAlert: 'alerta de nuevo seguidor',
 };
 
 // Regenera SOLO la key del widget indicado — los otros 4 links siguen
@@ -1051,6 +1124,17 @@ async function sendOverlayTestLike(hintEl) {
   }
 }
 
+async function sendOverlayTestFollow(hintEl) {
+  try {
+    const response = await fetch('/api/overlay/test-follow', { method: 'POST' });
+    if (!response.ok) throw new Error('No se pudo enviar el seguidor de prueba.');
+    const data = await response.json();
+    if (hintEl) hintEl.textContent = `Seguidor de prueba enviado: ${data.sender}.`;
+  } catch (error) {
+    showAppAlert(error.message, 'Error');
+  }
+}
+
 function copyOverlayLink(inputEl, hintEl) {
   return async () => {
     if (!inputEl?.value) return;
@@ -1084,6 +1168,10 @@ if (topLikersCopyLinkBtn) {
   topLikersCopyLinkBtn.addEventListener('click', copyOverlayLink(topLikersLinkInput, topLikersLinkHint));
 }
 
+if (followAlertCopyLinkBtn) {
+  followAlertCopyLinkBtn.addEventListener('click', copyOverlayLink(followAlertLinkInput, followAlertLinkHint));
+}
+
 if (overlayRegenerateBtn) {
   overlayRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('giftAlert'));
 }
@@ -1104,6 +1192,10 @@ if (topLikersRegenerateBtn) {
   topLikersRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('topLikers'));
 }
 
+if (followAlertRegenerateBtn) {
+  followAlertRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('followAlert'));
+}
+
 if (overlaySaveBtn) {
   overlaySaveBtn.addEventListener('click', saveOverlayConfig);
 }
@@ -1122,6 +1214,10 @@ if (likeCounterSaveBtn) {
 
 if (topLikersSaveBtn) {
   topLikersSaveBtn.addEventListener('click', saveTopLikersConfig);
+}
+
+if (followAlertSaveBtn) {
+  followAlertSaveBtn.addEventListener('click', saveFollowAlertConfig);
 }
 
 if (overlayTestGiftBtn) {
@@ -1161,6 +1257,14 @@ if (topLikersTestBtn) {
     topLikersTestBtn.disabled = true;
     await sendOverlayTestLike(topLikersLinkHint);
     topLikersTestBtn.disabled = false;
+  });
+}
+
+if (followAlertTestBtn) {
+  followAlertTestBtn.addEventListener('click', async () => {
+    followAlertTestBtn.disabled = true;
+    await sendOverlayTestFollow(followAlertLinkHint);
+    followAlertTestBtn.disabled = false;
   });
 }
 
@@ -1321,9 +1425,30 @@ if (likeCounterConfigCloseBtn) likeCounterConfigCloseBtn.addEventListener('click
 const topLikersModalControls = makeModalToggle(topLikersCardToggle, topLikersConfigModal);
 if (topLikersConfigCloseBtn) topLikersConfigCloseBtn.addEventListener('click', topLikersModalControls.close);
 
+const followAlertModalControls = makeModalToggle(followAlertCardToggle, followAlertConfigModal);
+if (followAlertConfigCloseBtn) followAlertConfigCloseBtn.addEventListener('click', followAlertModalControls.close);
+
 if (overlayDurationInput) {
   overlayDurationInput.addEventListener('input', () => {
     overlayDurationValue.textContent = `${overlayDurationInput.value}s`;
+  });
+}
+
+if (followAlertDurationInput) {
+  followAlertDurationInput.addEventListener('input', () => {
+    followAlertDurationValue.textContent = `${followAlertDurationInput.value}s`;
+  });
+}
+
+if (overlaySoundPreviewBtn) {
+  overlaySoundPreviewBtn.addEventListener('click', () => {
+    window.playOverlaySound?.(overlaySoundSelect?.value);
+  });
+}
+
+if (followAlertSoundPreviewBtn) {
+  followAlertSoundPreviewBtn.addEventListener('click', () => {
+    window.playOverlaySound?.(followAlertSoundSelect?.value);
   });
 }
 

@@ -298,6 +298,21 @@
                 <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
               </div>
             </article>
+
+            <article class="overlay-card">
+              <div
+                id="followAlertCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--follow-alert"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="followAlertConfigModal"
+              >
+                <iframe id="followAlertPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Alerta de nuevo seguidor</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -362,6 +377,14 @@
           <label class="field-label" for="overlayMinCoinsInput">
             <span>Monedas mínimas para mostrar la alerta</span>
             <input id="overlayMinCoinsInput" type="number" min="0" max="999999" step="1" value="0" />
+          </label>
+
+          <label class="field-label" for="overlaySoundSelect">
+            <span>Sonido de la alerta</span>
+            <span class="sound-select-row">
+              <select id="overlaySoundSelect"></select>
+              <button id="overlaySoundPreviewBtn" class="btn ghost small" type="button" title="Probar sonido">▶</button>
+            </span>
           </label>
         </div>
 
@@ -544,6 +567,51 @@
       </div>
     </div>
 
+    <div id="followAlertConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="followAlertConfigModalTitle">
+        <div class="card-header">
+          <h3 id="followAlertConfigModalTitle">Configurar: Alerta de nuevo seguidor</h3>
+          <button id="followAlertConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="followAlertLinkInput" type="text" readonly value="Cargando..." />
+          <button id="followAlertCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="followAlertRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="followAlertLinkHint" class="muted overlay-hint"></p>
+
+        <div class="overlay-config-grid">
+          <label class="switch-row" for="followAlertEnabledToggle">
+            <span>Alerta de nuevo seguidor activada</span>
+            <span class="switch">
+              <input id="followAlertEnabledToggle" type="checkbox" checked />
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+
+          <label class="field-label" for="followAlertDurationInput">
+            <span>Duración de la alerta (<span id="followAlertDurationValue" class="field-label-value">5s</span>)</span>
+            <input id="followAlertDurationInput" type="range" min="2" max="15" step="1" value="5" />
+          </label>
+
+          <label class="field-label" for="followAlertSoundSelect">
+            <span>Sonido de la alerta</span>
+            <span class="sound-select-row">
+              <select id="followAlertSoundSelect"></select>
+              <button id="followAlertSoundPreviewBtn" class="btn ghost small" type="button" title="Probar sonido">▶</button>
+            </span>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="followAlertTestBtn" class="btn accent" type="button">Enviar seguidor de prueba</button>
+          <button id="followAlertSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">La vista previa del panel repite la animación sola cada pocos segundos usando tu configuración actual — guarda los cambios para verlos reflejados ahí.</p>
+      </div>
+    </div>
+
     <div id="adminEditModal" class="modal-overlay" hidden>
       <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminEditModalTitle">
         <div class="card-header">
@@ -579,6 +647,7 @@
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>
     <script src="js/plans-shared.js"></script>
+    <script src="js/overlay-sounds.js"></script>
     <script src="js/platform.js?v=20260829b"></script>
   </body>
 </html>

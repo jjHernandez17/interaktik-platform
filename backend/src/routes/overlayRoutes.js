@@ -46,7 +46,7 @@ router.post('/overlay/config', requireAuth, requireActiveAccess, async (req, res
   }
 });
 
-const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers'];
+const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert'];
 
 router.post('/overlay/regenerate-key', requireAuth, requireActiveAccess, async (req, res) => {
   try {
@@ -91,6 +91,27 @@ router.post('/overlay/test-gift', requireAuth, requireActiveAccess, async (req, 
     return res.json({ success: true, giftName, diamondCount, sender: sender.nickname });
   } catch (error) {
     logger.error('Error enviando regalo de prueba de overlay', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// Igual que /overlay/test-gift, pero para probar la alerta de nuevo
+// seguidor sin estar en vivo.
+router.post('/overlay/test-follow', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const sender = TEST_SENDERS[Math.floor(Math.random() * TEST_SENDERS.length)];
+
+    emitLiveEvent('follow', {
+      gameType: 'overlay-test',
+      ownerKey: `user:${userId}:overlay-test`,
+      user: { ...sender, userId: 'test', avatar: null },
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.json({ success: true, sender: sender.nickname });
+  } catch (error) {
+    logger.error('Error enviando seguidor de prueba de overlay', error);
     return res.status(500).json({ error: normalizeError(error) });
   }
 });

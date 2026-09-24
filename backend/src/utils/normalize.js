@@ -667,12 +667,22 @@ function sanitizeTopLikerEntry(entry) {
   };
 }
 
+// Mismo catalogo de sonidos sintetizados que frontend/js/overlay-sounds.js
+// (Web Audio API, sin archivos externos) — se valida aca para que el
+// backend nunca guarde un id de sonido inventado.
+const VALID_OVERLAY_SOUNDS = ['none', 'bell', 'ding', 'pop', 'coin', 'notify'];
+
+function sanitizeOverlaySound(value) {
+  return VALID_OVERLAY_SOUNDS.includes(value) ? value : 'none';
+}
+
 function sanitizeOverlayState(payload) {
   const giftAlert = payload?.giftAlert || {};
   const goalBar = payload?.goalBar || {};
   const topGifters = payload?.topGifters || {};
   const likeCounter = payload?.likeCounter || {};
   const topLikers = payload?.topLikers || {};
+  const followAlert = payload?.followAlert || {};
   const maxEntries = Math.max(3, Math.min(10, Math.round(Number(topGifters.maxEntries)) || 5));
   const maxLikerEntries = Math.max(3, Math.min(10, Math.round(Number(topLikers.maxEntries)) || 5));
 
@@ -681,6 +691,12 @@ function sanitizeOverlayState(payload) {
       enabled: giftAlert.enabled !== false,
       durationSeconds: Math.max(2, Math.min(15, Number(giftAlert.durationSeconds) || 5)),
       minCoins: Math.max(0, Math.min(999999, Math.round(Number(giftAlert.minCoins)) || 0)),
+      sound: sanitizeOverlaySound(giftAlert.sound),
+    },
+    followAlert: {
+      enabled: followAlert.enabled !== false,
+      durationSeconds: Math.max(2, Math.min(15, Number(followAlert.durationSeconds) || 5)),
+      sound: sanitizeOverlaySound(followAlert.sound),
     },
     goalBar: {
       enabled: goalBar.enabled !== false,

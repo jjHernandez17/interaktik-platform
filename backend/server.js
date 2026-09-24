@@ -30,6 +30,8 @@ const overlayRouter = require('./src/routes/overlayRoutes');
 const overlayService = require('./src/services/overlayService');
 const overlayAccumulator = require('./src/services/overlayAccumulator');
 const overlayAutoConnect = require('./src/services/overlayAutoConnect');
+const streamStatsTracker = require('./src/services/streamStatsTracker');
+const streamStatsRouter = require('./src/routes/streamStatsRoutes');
 const { hub } = require('./src/services/liveHub');
 const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest } = require('./src/services/tiktokLiveManager');
 
@@ -108,8 +110,10 @@ app.use('/api', tiktokRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', robloxDanceRouter);
 app.use('/api', overlayRouter);
+app.use('/api', streamStatsRouter);
 overlayAccumulator.start();
 overlayAutoConnect.start();
+streamStatsTracker.start();
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {

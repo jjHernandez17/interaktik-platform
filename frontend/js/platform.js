@@ -189,6 +189,8 @@ const overlayDisconnectTiktokBtn = document.getElementById('overlayDisconnectTik
 
 let overlayKeyLoaded = false;
 
+const statsSessionsList = document.getElementById('statsSessionsList');
+
 const accessStatusBanner = document.getElementById('accessStatusBanner');
 const plansAccessStatus = document.getElementById('plansAccessStatus');
 const plansGrid = document.getElementById('plansGrid');
@@ -640,6 +642,10 @@ function showSection(sectionId) {
 
   if (sectionId === 'adminSection' && currentUser?.isSuperUser) {
     loadAdminUsers();
+  }
+
+  if (sectionId === 'statsSection') {
+    loadStreamStats();
   }
 
   if (sectionId === 'overlaysSection') {
@@ -1482,6 +1488,92 @@ function formatDate(value) {
   }
 
   return date.toLocaleString('es-ES');
+}
+
+function formatDuration(startedAt, endedAt) {
+  if (!startedAt || !endedAt) return null;
+
+  const start = new Date(startedAt).getTime();
+  const end = new Date(endedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+
+  const totalMinutes = Math.round((end - start) / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+
+function renderStatsTopGroup(label, entries, amountField, amountLabel) {
+  const top = Array.isArray(entries) && entries.length > 0 ? entries[0] : null;
+  if (!top) return '';
+
+  const avatar = top.avatar || 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%23ffffff" opacity="0.25"/></svg>',
+  );
+
+  return `
+    <span class="stats-top-group">
+      <img src="${escapeHtml(avatar)}" alt="" />
+      <span>${label}: <strong>${escapeHtml(top.nickname)}</strong> — ${top[amountField]} ${amountLabel}</span>
+    </span>
+  `;
+}
+
+function renderStatsSession(session) {
+  const duration = formatDuration(session.started_at, session.ended_at);
+
+  return `
+    <article class="stats-session-card">
+      <div class="stats-session-header">
+        <strong>${formatDate(session.ended_at)}</strong>
+        <span class="muted">${session.tiktok_username ? `@${escapeHtml(session.tiktok_username)}` : ''}${duration ? ` · Duración: ${duration}` : ''}</span>
+      </div>
+
+      <div class="stats-session-metrics">
+        <div class="stats-metric">
+          <span class="stats-metric-value">${session.total_coins.toLocaleString('es')}</span>
+          <span class="stats-metric-label">Monedas</span>
+        </div>
+        <div class="stats-metric">
+          <span class="stats-metric-value">${session.total_likes.toLocaleString('es')}</span>
+          <span class="stats-metric-label">Likes</span>
+        </div>
+        <div class="stats-metric">
+          <span class="stats-metric-value">${session.new_followers.toLocaleString('es')}</span>
+          <span class="stats-metric-label">Nuevos seguidores</span>
+        </div>
+      </div>
+
+      <div class="stats-session-top">
+        ${renderStatsTopGroup('Top regalador', session.top_gifters, 'coins', 'monedas')}
+        ${renderStatsTopGroup('Top like', session.top_likers, 'likes', 'likes')}
+      </div>
+    </article>
+  `;
+}
+
+async function loadStreamStats() {
+  if (!statsSessionsList) return;
+
+  statsSessionsList.innerHTML = '<p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando estadísticas...</p>';
+
+  try {
+    const response = await fetch('/api/stream-stats');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo cargar el resumen de transmisiones.');
+
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    if (sessions.length === 0) {
+      statsSessionsList.innerHTML = '<p class="muted">Todavía no hay transmisiones registradas. En cuanto termines tu próximo live, aparece aquí.</p>';
+      return;
+    }
+
+    statsSessionsList.innerHTML = sessions.map(renderStatsSession).join('');
+  } catch (error) {
+    statsSessionsList.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 async function showAlert(message, title = 'Aviso') {

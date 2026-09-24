@@ -1,4 +1,4 @@
-// PlayTik Live — Fondo decorativo compartido (aurora + estrellas + parallax
+// Interaktik — Fondo decorativo compartido (aurora + estrellas + parallax
 // + scroll suave). Usado por la landing, login y registro. Requiere el
 // marcado de .aurora-layer (con .aurora-blob, .shooting-star, #stars/
 // #stars2/#stars3 dentro de .starfield-layer) y assets/css/bg-effects.css.

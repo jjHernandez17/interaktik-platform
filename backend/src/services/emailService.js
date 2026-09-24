@@ -55,7 +55,7 @@ async function sendEmail({ to, subject, html, text, logLabel, fallbackMessage })
 
 async function sendVerificationEmail({ to, name, verifyUrl }) {
   const html = wrapEmailHtml({
-    eyebrow: 'PlayTik Live',
+    eyebrow: 'Interaktik',
     title: 'Confirma tu cuenta',
     bodyHtml: `
       <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">
@@ -73,7 +73,7 @@ async function sendVerificationEmail({ to, name, verifyUrl }) {
 
   return sendEmail({
     to,
-    subject: 'Verifica tu cuenta en PlayTik Live',
+    subject: 'Verifica tu cuenta en Interaktik',
     html,
     text: `Hola ${name || ''}, verifica tu cuenta entrando a: ${verifyUrl} (vence en 24 horas)`,
     logLabel: 'correo de verificacion',
@@ -83,7 +83,7 @@ async function sendVerificationEmail({ to, name, verifyUrl }) {
 
 async function sendPasswordChangedEmail({ to, name }) {
   const html = wrapEmailHtml({
-    eyebrow: 'PlayTik Live',
+    eyebrow: 'Interaktik',
     title: 'Tu contrasena fue cambiada',
     bodyHtml: `
       <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">
@@ -97,7 +97,7 @@ async function sendPasswordChangedEmail({ to, name }) {
 
   return sendEmail({
     to,
-    subject: 'Tu contrasena en PlayTik Live fue cambiada',
+    subject: 'Tu contrasena en Interaktik fue cambiada',
     html,
     text: `Hola ${name || ''}, la contrasena de tu cuenta (${to}) acaba de ser cambiada. Si no fuiste tu, contacta a soporte de inmediato.`,
     logLabel: 'aviso de cambio de contrasena',
@@ -107,7 +107,7 @@ async function sendPasswordChangedEmail({ to, name }) {
 
 async function sendPasswordResetEmail({ to, name, resetUrl }) {
   const html = wrapEmailHtml({
-    eyebrow: 'PlayTik Live',
+    eyebrow: 'Interaktik',
     title: 'Restablece tu contraseña',
     bodyHtml: `
       <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">
@@ -125,7 +125,7 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
 
   return sendEmail({
     to,
-    subject: 'Restablece tu contraseña en PlayTik Live',
+    subject: 'Restablece tu contraseña en Interaktik',
     html,
     text: `Hola ${name || ''}, restablece tu contraseña entrando a: ${resetUrl} (vence en 1 hora). Si no pediste este cambio, ignora este correo.`,
     logLabel: 'correo de restablecimiento de contrasena',
@@ -163,7 +163,7 @@ async function sendPaymentReceiptEmail({
     : null;
 
   const html = wrapEmailHtml({
-    eyebrow: 'PlayTik Live',
+    eyebrow: 'Interaktik',
     title: 'Pago confirmado',
     bodyHtml: `
       <p style="color:#94a3b8; line-height:1.6; margin:0 0 24px;">

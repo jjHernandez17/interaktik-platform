@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /platform.html
+Disallow: /app.html
+Disallow: /race.html
+Disallow: /dominance.html
+Disallow: /snake-vs-snake.html
+Disallow: /shell-game.html
+Disallow: /roblox-dance.html
+Disallow: /reset-password.html
+Disallow: /overlay/
+Disallow: /api/
+
+Sitemap: https://www.interaktik.com/sitemap.xml

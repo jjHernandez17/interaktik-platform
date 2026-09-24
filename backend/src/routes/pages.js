@@ -221,6 +221,14 @@ router.get('/landing.css', (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/assets/css/landing.css'));
 });
 
+router.get('/robots.txt', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/robots.txt'));
+});
+
+router.get('/sitemap.xml', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/sitemap.xml'));
+});
+
 router.get('/auth.css', (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/assets/css/auth.css'));
 });

@@ -1,4 +1,4 @@
-// PlayTik Live — Configuracion y helpers de planes compartidos entre la
+// Interaktik — Configuracion y helpers de planes compartidos entre la
 // landing (vista publica, botones "Crear cuenta") y el panel (vista
 // autenticada, botones de pago real). Los planes en si (nombre/precio/
 // duracion) siempre vienen de GET /api/plans; lo de aca es solo

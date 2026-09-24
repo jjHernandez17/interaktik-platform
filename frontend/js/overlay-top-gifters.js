@@ -109,7 +109,7 @@ function startDemoLoop() {
     if (existing) {
       existing.coins += coins;
     } else {
-      demoEntries.push({ nickname: name, avatar: '', coins });
+      demoEntries.push({ nickname: name, avatar: window.generateDemoAvatar?.(name) || '', coins });
     }
 
     demoEntries.sort((a, b) => b.coins - a.coins);

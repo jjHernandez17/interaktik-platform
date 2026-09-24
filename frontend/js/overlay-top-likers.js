@@ -109,7 +109,7 @@ function startDemoLoop() {
     if (existing) {
       existing.likes += likes;
     } else {
-      demoEntries.push({ nickname: name, avatar: '', likes });
+      demoEntries.push({ nickname: name, avatar: window.generateDemoAvatar?.(name) || '', likes });
     }
 
     demoEntries.sort((a, b) => b.likes - a.likes);

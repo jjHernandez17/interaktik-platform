@@ -17,6 +17,7 @@ let alertQueue = [];
 let showingAlert = false;
 
 const DEMO_GIFT_NAMES = ['Rosa', 'Finger Heart', 'Corona', 'León', 'Universo'];
+const DEMO_SENDER_NAMES = ['María', 'Carlos', 'Sofía', 'Andrés', 'Valentina'];
 let demoIntervalId = null;
 
 function getOverlayKey() {
@@ -36,12 +37,13 @@ function startDemoLoop() {
 
   const fireDemoGift = () => {
     const giftName = DEMO_GIFT_NAMES[Math.floor(Math.random() * DEMO_GIFT_NAMES.length)];
+    const nickname = DEMO_SENDER_NAMES[Math.floor(Math.random() * DEMO_SENDER_NAMES.length)];
     handleGiftEvent({
       giftName,
       repeatCount: 1,
       repeatEnd: true,
       diamondCount: 100,
-      user: { nickname: 'Prueba', avatar: '' },
+      user: { nickname, avatar: window.generateDemoAvatar?.(nickname) || '' },
     });
   };
 

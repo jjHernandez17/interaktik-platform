@@ -35,7 +35,7 @@ function startDemoLoop() {
 
   const fireDemoFollow = () => {
     const nickname = DEMO_NAMES[Math.floor(Math.random() * DEMO_NAMES.length)];
-    handleFollowEvent({ user: { nickname, avatar: '' } });
+    handleFollowEvent({ user: { nickname, avatar: window.generateDemoAvatar?.(nickname) || '' } });
   };
 
   const durationSeconds = Math.max(2, overlayState.followAlert?.durationSeconds || 5);

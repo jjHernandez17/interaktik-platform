@@ -46,10 +46,18 @@ router.post('/overlay/config', requireAuth, requireActiveAccess, async (req, res
   }
 });
 
+const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers'];
+
 router.post('/overlay/regenerate-key', requireAuth, requireActiveAccess, async (req, res) => {
   try {
     const userId = getSessionUserId(req);
-    const config = await overlayService.regenerateOverlayKey(userId);
+    const widget = String(req.body?.widget || '').trim();
+
+    if (!VALID_OVERLAY_WIDGETS.includes(widget)) {
+      return res.status(400).json({ error: 'Debes indicar que overlay regenerar.' });
+    }
+
+    const config = await overlayService.regenerateOverlayKey(userId, widget);
     return res.json(config);
   } catch (error) {
     logger.error('Error regenerando la key del overlay', error);

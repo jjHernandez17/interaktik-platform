@@ -644,12 +644,23 @@ function showSection(sectionId) {
   }
 }
 
-let currentOverlayKey = null;
+let currentOverlayKeys = null;
 let currentOverlayState = null;
 
+// Mapea cada widget a su página de overlay y al input/hint de su modal, para
+// no repetir un bloque casi idéntico por cada uno.
+const OVERLAY_WIDGETS = {
+  giftAlert: { page: 'gift-alert', previewFrame: () => overlayPreviewFrame, linkInput: () => overlayLinkInput, linkHint: () => overlayLinkHint },
+  goalBar: { page: 'goal-bar', previewFrame: () => goalBarPreviewFrame, linkInput: () => goalBarLinkInput, linkHint: () => goalBarLinkHint },
+  topGifters: { page: 'top-gifters', previewFrame: () => topGiftersPreviewFrame, linkInput: () => topGiftersLinkInput, linkHint: () => topGiftersLinkHint },
+  likeCounter: { page: 'like-counter', previewFrame: () => likeCounterPreviewFrame, linkInput: () => likeCounterLinkInput, linkHint: () => likeCounterLinkHint },
+  topLikers: { page: 'top-likers', previewFrame: () => topLikersPreviewFrame, linkInput: () => topLikersLinkInput, linkHint: () => topLikersLinkHint },
+};
+
 // Link real, el que se copia para pegar en OBS/Streamlabs/TikTok LIVE Studio
-// — ahí SOLO deben verse regalos reales o el de prueba manual. Todos los
-// overlays de una cuenta comparten la misma key, solo cambia la página.
+// — ahí SOLO deben verse regalos reales o el de prueba manual. Cada overlay
+// tiene su PROPIA key (ver overlayService.js) para que regenerar el link de
+// uno no invalide los otros ni haya colisiones al pegar varios a la vez.
 function buildOverlayUrl(overlayKey, page) {
   return `${window.location.origin}/overlay/${page}.html?key=${overlayKey}`;
 }
@@ -663,12 +674,13 @@ function buildOverlayPreviewUrl(overlayKey, page) {
 }
 
 function reloadOverlayPreviewFrames() {
-  if (!currentOverlayKey) return;
-  if (overlayPreviewFrame) overlayPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'gift-alert');
-  if (goalBarPreviewFrame) goalBarPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'goal-bar');
-  if (topGiftersPreviewFrame) topGiftersPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'top-gifters');
-  if (likeCounterPreviewFrame) likeCounterPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'like-counter');
-  if (topLikersPreviewFrame) topLikersPreviewFrame.src = buildOverlayPreviewUrl(currentOverlayKey, 'top-likers');
+  if (!currentOverlayKeys) return;
+
+  Object.entries(OVERLAY_WIDGETS).forEach(([widget, config]) => {
+    const frame = config.previewFrame();
+    const key = currentOverlayKeys[widget];
+    if (frame && key) frame.src = buildOverlayPreviewUrl(key, config.page);
+  });
 }
 
 function applyOverlayStateToInputs(state) {
@@ -819,12 +831,14 @@ async function loadOverlayConfig() {
     const response = await fetch('/api/overlay/config');
     if (!response.ok) throw new Error('No se pudo cargar la configuración del overlay.');
     const data = await response.json();
-    currentOverlayKey = data.overlayKey;
-    if (overlayLinkInput) overlayLinkInput.value = buildOverlayUrl(data.overlayKey, 'gift-alert');
-    if (goalBarLinkInput) goalBarLinkInput.value = buildOverlayUrl(data.overlayKey, 'goal-bar');
-    if (topGiftersLinkInput) topGiftersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-gifters');
-    if (likeCounterLinkInput) likeCounterLinkInput.value = buildOverlayUrl(data.overlayKey, 'like-counter');
-    if (topLikersLinkInput) topLikersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-likers');
+    currentOverlayKeys = data.overlayKeys;
+
+    Object.entries(OVERLAY_WIDGETS).forEach(([widget, config]) => {
+      const input = config.linkInput();
+      const key = currentOverlayKeys?.[widget];
+      if (input && key) input.value = buildOverlayUrl(key, config.page);
+    });
+
     applyOverlayStateToInputs(data.state);
     reloadOverlayPreviewFrames();
   } catch (error) {
@@ -974,25 +988,42 @@ async function saveTopLikersConfig() {
   }
 }
 
-async function regenerateOverlayKey() {
+const OVERLAY_WIDGET_LABELS = {
+  giftAlert: 'alerta de regalos',
+  goalBar: 'barra de meta',
+  topGifters: 'top de regaladores',
+  likeCounter: 'contador de likes',
+  topLikers: 'top de likes',
+};
+
+// Regenera SOLO la key del widget indicado — los otros 4 links siguen
+// funcionando igual, cada uno con su propia key independiente.
+async function regenerateOverlayKey(widget) {
+  const config = OVERLAY_WIDGETS[widget];
+  if (!config) return;
+
   const confirmed = await showAppConfirm(
-    'Esto invalida TODOS los links de overlay anteriores (alerta de regalos, barra de meta, top de regaladores, contador de likes y top de likes) — tendrás que actualizarlos en tu software de transmisión. ¿Seguro que quieres regenerarlos?',
-    'Regenerar links de overlay',
+    `Esto invalida el link anterior de ${OVERLAY_WIDGET_LABELS[widget]} — tendrás que actualizarlo en tu software de transmisión. Los demás overlays no se ven afectados. ¿Seguro que quieres regenerarlo?`,
+    'Regenerar link de overlay',
   );
   if (!confirmed) return;
 
   try {
-    const response = await fetch('/api/overlay/regenerate-key', { method: 'POST' });
+    const response = await fetch('/api/overlay/regenerate-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widget }),
+    });
     if (!response.ok) throw new Error('No se pudo regenerar el link.');
     const data = await response.json();
-    currentOverlayKey = data.overlayKey;
-    if (overlayLinkInput) overlayLinkInput.value = buildOverlayUrl(data.overlayKey, 'gift-alert');
-    if (goalBarLinkInput) goalBarLinkInput.value = buildOverlayUrl(data.overlayKey, 'goal-bar');
-    if (topGiftersLinkInput) topGiftersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-gifters');
-    if (likeCounterLinkInput) likeCounterLinkInput.value = buildOverlayUrl(data.overlayKey, 'like-counter');
-    if (topLikersLinkInput) topLikersLinkInput.value = buildOverlayUrl(data.overlayKey, 'top-likers');
+    currentOverlayKeys = data.overlayKeys;
+
+    const input = config.linkInput();
+    const key = currentOverlayKeys?.[widget];
+    if (input && key) input.value = buildOverlayUrl(key, config.page);
+
     reloadOverlayPreviewFrames();
-    showAppAlert('Links regenerados. Actualízalos en tu software de transmisión.', 'Overlays');
+    showAppAlert('Link regenerado. Actualízalo en tu software de transmisión.', 'Overlays');
   } catch (error) {
     showAppAlert(error.message, 'Error');
   }
@@ -1054,23 +1085,23 @@ if (topLikersCopyLinkBtn) {
 }
 
 if (overlayRegenerateBtn) {
-  overlayRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+  overlayRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('giftAlert'));
 }
 
 if (goalBarRegenerateBtn) {
-  goalBarRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+  goalBarRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('goalBar'));
 }
 
 if (topGiftersRegenerateBtn) {
-  topGiftersRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+  topGiftersRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('topGifters'));
 }
 
 if (likeCounterRegenerateBtn) {
-  likeCounterRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+  likeCounterRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('likeCounter'));
 }
 
 if (topLikersRegenerateBtn) {
-  topLikersRegenerateBtn.addEventListener('click', regenerateOverlayKey);
+  topLikersRegenerateBtn.addEventListener('click', () => regenerateOverlayKey('topLikers'));
 }
 
 if (overlaySaveBtn) {

@@ -195,7 +195,10 @@ app.get('/events', (req, res) => {
 app.get('/events/overlay', async (req, res) => {
   const origin = req.headers.origin;
 
-  const resolved = await overlayService.resolveByOverlayKey(req.query?.key).catch(() => null);
+  const resolved = await overlayService.resolveByOverlayKey(req.query?.key).catch((error) => {
+    logger.error('Error resolviendo overlay_key en /events/overlay', error);
+    return null;
+  });
   if (!resolved) {
     return res.status(403).json({ error: 'Link de overlay invalido.' });
   }

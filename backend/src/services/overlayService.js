@@ -2,6 +2,30 @@ const crypto = require('crypto');
 const pool = require('../database/pool');
 const { sanitizeOverlayState } = require('../utils/normalize');
 
+// Cada overlay tiene su PROPIA overlay_key (columna dedicada) en vez de
+// compartir una sola por usuario — así regenerar el link de uno no invalida
+// los otros 4, y pegar dos overlays distintos en TikTok LIVE Studio al mismo
+// tiempo nunca comparte identificador.
+const WIDGET_KEY_COLUMNS = {
+  giftAlert: 'gift_alert_key',
+  goalBar: 'goal_bar_key',
+  topGifters: 'top_gifters_key',
+  likeCounter: 'like_counter_key',
+  topLikers: 'top_likers_key',
+};
+
+const KEY_COLUMNS_SQL = Object.values(WIDGET_KEY_COLUMNS).join(', ');
+
+function mapKeysRow(row) {
+  return {
+    giftAlert: row.gift_alert_key,
+    goalBar: row.goal_bar_key,
+    topGifters: row.top_gifters_key,
+    likeCounter: row.like_counter_key,
+    topLikers: row.top_likers_key,
+  };
+}
+
 function defaultOverlayState() {
   return {
     giftAlert: { enabled: true, durationSeconds: 5, minCoins: 0 },
@@ -18,33 +42,67 @@ function generateOverlayKey() {
 
 async function getOrCreateOverlayConfig(userId) {
   const existing = await pool.query(
-    'SELECT overlay_key, state, updated_at FROM overlay_config WHERE user_id = $1',
+    `SELECT ${KEY_COLUMNS_SQL}, state, updated_at FROM overlay_config WHERE user_id = $1`,
     [userId],
   );
 
   if (existing.rowCount > 0) {
     const row = existing.rows[0];
+
+    // Cuentas creadas antes de que cada overlay tuviera su propia key traen
+    // NULL en las columnas nuevas — se rellenan aquí mismo, una sola vez.
+    const missingColumns = Object.values(WIDGET_KEY_COLUMNS).filter((column) => !row[column]);
+
+    if (missingColumns.length > 0) {
+      const values = [userId];
+      const setClauses = missingColumns.map((column) => {
+        values.push(generateOverlayKey());
+        return `${column} = $${values.length}`;
+      });
+
+      const backfilled = await pool.query(
+        `UPDATE overlay_config SET ${setClauses.join(', ')}, updated_at = NOW()
+         WHERE user_id = $1
+         RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
+        values,
+      );
+
+      const backfilledRow = backfilled.rows[0];
+      return {
+        overlayKeys: mapKeysRow(backfilledRow),
+        state: sanitizeOverlayState(backfilledRow.state || {}),
+        updated_at: backfilledRow.updated_at,
+      };
+    }
+
     return {
-      overlayKey: row.overlay_key,
+      overlayKeys: mapKeysRow(row),
       state: sanitizeOverlayState(row.state || {}),
       updated_at: row.updated_at,
     };
   }
 
-  const overlayKey = generateOverlayKey();
   const state = defaultOverlayState();
+  const keys = {
+    giftAlert: generateOverlayKey(),
+    goalBar: generateOverlayKey(),
+    topGifters: generateOverlayKey(),
+    likeCounter: generateOverlayKey(),
+    topLikers: generateOverlayKey(),
+  };
 
   const inserted = await pool.query(
-    `INSERT INTO overlay_config (user_id, overlay_key, state, updated_at)
-     VALUES ($1, $2, $3::jsonb, NOW())
+    `INSERT INTO overlay_config
+       (user_id, gift_alert_key, goal_bar_key, top_gifters_key, like_counter_key, top_likers_key, state, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
-     RETURNING overlay_key, state, updated_at`,
-    [userId, overlayKey, JSON.stringify(state)],
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
+    [userId, keys.giftAlert, keys.goalBar, keys.topGifters, keys.likeCounter, keys.topLikers, JSON.stringify(state)],
   );
 
   const row = inserted.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -58,32 +116,39 @@ async function saveOverlayState(userId, nextState) {
   const result = await pool.query(
     `UPDATE overlay_config SET state = $2::jsonb, updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId, JSON.stringify(normalized)],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
 }
 
-async function regenerateOverlayKey(userId) {
+// `widget` decide QUÉ columna se regenera — así invalidar el link de un
+// overlay nunca afecta a los otros 4.
+async function regenerateOverlayKey(userId, widget) {
+  const column = WIDGET_KEY_COLUMNS[widget];
+  if (!column) {
+    throw new Error('Tipo de overlay invalido.');
+  }
+
   await getOrCreateOverlayConfig(userId);
 
-  const overlayKey = generateOverlayKey();
+  const newKey = generateOverlayKey();
   const result = await pool.query(
-    `UPDATE overlay_config SET overlay_key = $2, updated_at = NOW()
+    `UPDATE overlay_config SET ${column} = $2, updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
-    [userId, overlayKey],
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
+    [userId, newKey],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -110,7 +175,7 @@ async function incrementGoalBarCoins(userId, coins) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId, cleanCoins],
   );
 
@@ -118,7 +183,7 @@ async function incrementGoalBarCoins(userId, coins) {
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -137,13 +202,13 @@ async function resetGoalBar(userId) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -163,7 +228,7 @@ async function incrementTopGifter(userId, user, coins) {
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT overlay_key, state FROM overlay_config WHERE user_id = $1 FOR UPDATE',
+      'SELECT state FROM overlay_config WHERE user_id = $1 FOR UPDATE',
       [userId],
     );
 
@@ -203,7 +268,7 @@ async function incrementTopGifter(userId, user, coins) {
     const updated = await client.query(
       `UPDATE overlay_config SET state = $2::jsonb, updated_at = NOW()
        WHERE user_id = $1
-       RETURNING overlay_key, state, updated_at`,
+       RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
       [userId, JSON.stringify(nextState)],
     );
 
@@ -211,7 +276,7 @@ async function incrementTopGifter(userId, user, coins) {
 
     const row = updated.rows[0];
     return {
-      overlayKey: row.overlay_key,
+      overlayKeys: mapKeysRow(row),
       state: sanitizeOverlayState(row.state || {}),
       updated_at: row.updated_at,
     };
@@ -236,13 +301,13 @@ async function resetTopGifters(userId) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -264,7 +329,7 @@ async function incrementLikeCounter(userId, likes) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId, cleanLikes],
   );
 
@@ -272,7 +337,7 @@ async function incrementLikeCounter(userId, likes) {
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -291,13 +356,13 @@ async function resetLikeCounter(userId) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -315,7 +380,7 @@ async function incrementTopLiker(userId, user, likes) {
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT overlay_key, state FROM overlay_config WHERE user_id = $1 FOR UPDATE',
+      'SELECT state FROM overlay_config WHERE user_id = $1 FOR UPDATE',
       [userId],
     );
 
@@ -355,7 +420,7 @@ async function incrementTopLiker(userId, user, likes) {
     const updated = await client.query(
       `UPDATE overlay_config SET state = $2::jsonb, updated_at = NOW()
        WHERE user_id = $1
-       RETURNING overlay_key, state, updated_at`,
+       RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
       [userId, JSON.stringify(nextState)],
     );
 
@@ -363,7 +428,7 @@ async function incrementTopLiker(userId, user, likes) {
 
     const row = updated.rows[0];
     return {
-      overlayKey: row.overlay_key,
+      overlayKeys: mapKeysRow(row),
       state: sanitizeOverlayState(row.state || {}),
       updated_at: row.updated_at,
     };
@@ -388,13 +453,13 @@ async function resetTopLikers(userId) {
      ),
      updated_at = NOW()
      WHERE user_id = $1
-     RETURNING overlay_key, state, updated_at`,
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
     [userId],
   );
 
   const row = result.rows[0];
   return {
-    overlayKey: row.overlay_key,
+    overlayKeys: mapKeysRow(row),
     state: sanitizeOverlayState(row.state || {}),
     updated_at: row.updated_at,
   };
@@ -405,7 +470,12 @@ async function resolveByOverlayKey(key) {
   if (!cleanKey) return null;
 
   const result = await pool.query(
-    'SELECT user_id, state FROM overlay_config WHERE overlay_key = $1',
+    `SELECT user_id, state FROM overlay_config
+     WHERE gift_alert_key = $1
+        OR goal_bar_key = $1
+        OR top_gifters_key = $1
+        OR like_counter_key = $1
+        OR top_likers_key = $1`,
     [cleanKey],
   );
 

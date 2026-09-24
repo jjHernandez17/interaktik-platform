@@ -162,6 +162,13 @@ const topLikersSaveBtn = document.getElementById('topLikersSaveBtn');
 const topLikersTestBtn = document.getElementById('topLikersTestBtn');
 const topLikersResetBtn = document.getElementById('topLikersResetBtn');
 
+const overlayConnectionForm = document.getElementById('overlayConnectionForm');
+const overlayConnectionStatusBadge = document.getElementById('overlayConnectionStatusBadge');
+const overlayConnectionDetails = document.getElementById('overlayConnectionDetails');
+const overlayTiktokUsernameInput = document.getElementById('overlayTiktokUsernameInput');
+const overlayConnectTiktokBtn = document.getElementById('overlayConnectTiktokBtn');
+const overlayDisconnectTiktokBtn = document.getElementById('overlayDisconnectTiktokBtn');
+
 let overlayKeyLoaded = false;
 
 const accessStatusBanner = document.getElementById('accessStatusBanner');
@@ -618,6 +625,7 @@ function showSection(sectionId) {
   }
 
   if (sectionId === 'overlaysSection') {
+    restoreOverlayTiktokConnection();
     if (!overlayKeyLoaded) {
       overlayKeyLoaded = true;
       loadOverlayConfig();
@@ -694,6 +702,116 @@ function applyOverlayStateToInputs(state) {
   if (topLikersTitleInput) topLikersTitleInput.value = topLikers.title || 'Top Likes';
   if (topLikersMaxEntriesInput) topLikersMaxEntriesInput.value = topLikers.maxEntries || 5;
   if (topLikersMaxEntriesValue) topLikersMaxEntriesValue.textContent = topLikers.maxEntries || 5;
+}
+
+// Los overlays reciben regalos/likes reales solo si el backend tiene una
+// conexión activa a TikTok Live para este usuario (en CUALQUIER gameType,
+// incluido este 'overlay' dedicado). Sin esto, un streamer que solo pega
+// los overlays en OBS (sin abrir ningún juego) nunca recibe eventos reales
+// — el botón "enviar regalo de prueba" sí funciona porque no depende de
+// esta conexión, lo cual puede confundir.
+function setOverlayConnectionStatus(status, details = '') {
+  if (!overlayConnectionStatusBadge || !overlayConnectionDetails) return;
+
+  const labels = {
+    disconnected: 'Desconectado',
+    connecting: 'cargando...',
+    connected: 'Conectado',
+    live_off: 'live apagado',
+    error: 'Error',
+  };
+
+  overlayConnectionStatusBadge.textContent = labels[status] || labels.disconnected;
+  overlayConnectionStatusBadge.className = `status-badge ${status}`;
+  overlayConnectionDetails.textContent = details || 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.';
+}
+
+async function restoreOverlayTiktokConnection() {
+  try {
+    const [connectionRes, statusRes] = await Promise.all([
+      fetch('/api/tiktok-connection/overlay'),
+      fetch('/api/status?gameType=overlay'),
+    ]);
+
+    const connectionData = connectionRes.ok ? await connectionRes.json() : null;
+    if (connectionData?.tiktok_username && overlayTiktokUsernameInput) {
+      overlayTiktokUsernameInput.value = `@${connectionData.tiktok_username}`;
+    }
+
+    const statusData = statusRes.ok ? await statusRes.json() : null;
+    if (statusData?.status === 'connected') {
+      setOverlayConnectionStatus('connected', `Conectado a @${statusData.uniqueId}.`);
+    } else if (connectionData?.tiktok_username) {
+      setOverlayConnectionStatus('disconnected', `Cuenta vinculada a @${connectionData.tiktok_username}, pero sin conexión activa.`);
+    } else {
+      setOverlayConnectionStatus('disconnected');
+    }
+  } catch (error) {
+    setOverlayConnectionStatus('error', 'No se pudo leer el estado de la conexión.');
+  }
+}
+
+async function connectOverlayTiktok() {
+  const uniqueId = overlayTiktokUsernameInput?.value.trim().replace(/^@/, '');
+  if (!uniqueId) return;
+
+  overlayConnectTiktokBtn.disabled = true;
+  setOverlayConnectionStatus('connecting');
+
+  try {
+    await fetch('/api/tiktok-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'overlay', tiktokUsername: uniqueId }),
+    });
+
+    const response = await fetch('/api/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uniqueId, gameType: 'overlay' }),
+    });
+    const payload = await response.json();
+
+    if (payload.status === 'connected') {
+      setOverlayConnectionStatus('connected', payload.message || `Conectado a @${uniqueId}.`);
+    } else if (payload.status === 'live_off') {
+      setOverlayConnectionStatus('live_off', 'live apagado');
+    } else {
+      setOverlayConnectionStatus('error', payload.message || payload.error || 'No se pudo conectar.');
+    }
+  } catch (error) {
+    setOverlayConnectionStatus('error', error.message || 'No se pudo conectar.');
+  } finally {
+    overlayConnectTiktokBtn.disabled = false;
+  }
+}
+
+async function disconnectOverlayTiktok() {
+  overlayDisconnectTiktokBtn.disabled = true;
+  try {
+    await fetch('/api/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'overlay' }),
+    });
+    setOverlayConnectionStatus('disconnected', 'Conexión cerrada.');
+  } catch (error) {
+    setOverlayConnectionStatus('error', 'No se pudo desconectar.');
+  } finally {
+    overlayDisconnectTiktokBtn.disabled = false;
+  }
+}
+
+if (overlayConnectTiktokBtn) {
+  overlayConnectTiktokBtn.addEventListener('click', connectOverlayTiktok);
+}
+
+if (overlayDisconnectTiktokBtn) {
+  overlayDisconnectTiktokBtn.addEventListener('click', disconnectOverlayTiktok);
+}
+
+if (overlayConnectionForm) {
+  overlayConnectionForm.addEventListener('submit', (event) => event.preventDefault());
 }
 
 async function loadOverlayConfig() {

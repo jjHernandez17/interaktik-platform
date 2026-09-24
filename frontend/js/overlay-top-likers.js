@@ -47,7 +47,7 @@ function render() {
   listEl.innerHTML = entries.map((entry, index) => `
     <div class="top-liker-row">
       <span class="top-liker-rank">${index + 1}</span>
-      <img class="top-liker-avatar" src="${entry.avatar || DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'" />
+      <img class="top-liker-avatar" src="${escapeHtml(entry.avatar || DEFAULT_AVATAR)}" onerror="this.src='${DEFAULT_AVATAR}'" />
       <span class="top-liker-name">${escapeHtml(entry.nickname)}</span>
       <span class="top-liker-count">${entry.likes}</span>
     </div>

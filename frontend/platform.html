@@ -203,10 +203,27 @@
             <h2>Overlays</h2>
           </div>
           <p class="muted">
-            Pega estos links como "Browser Source" en OBS, Streamlabs o TikTok LIVE Studio — funcionan con cualquier
-            juego que tengas conectado, no hace falta que abras sesión dentro de tu software de transmisión. Haz clic
-            en cada vista previa para configurarlo.
+            Pega estos links como "Browser Source" en OBS, Streamlabs o TikTok LIVE Studio. Para que reciban regalos y
+            likes reales, conecta abajo tu cuenta de TikTok — no hace falta tener abierto ningún juego mientras
+            transmites. Haz clic en cada vista previa para configurarlo.
           </p>
+
+          <section class="card connection-card overlay-connection-card">
+            <div class="connection-header">
+              <h3>Conexión TikTok Live de los overlays</h3>
+              <span id="overlayConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+            </div>
+
+            <form id="overlayConnectionForm" class="connection-form">
+              <input id="overlayTiktokUsernameInput" type="text" placeholder="@usuario_en_vivo" required />
+              <button id="overlayConnectTiktokBtn" class="btn primary" type="button">Conectar</button>
+              <button id="overlayDisconnectTiktokBtn" class="btn ghost" type="button">Desconectar</button>
+            </form>
+
+            <p id="overlayConnectionDetails" class="hint">
+              Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.
+            </p>
+          </section>
 
           <div class="overlay-cards-grid">
             <article class="overlay-card">

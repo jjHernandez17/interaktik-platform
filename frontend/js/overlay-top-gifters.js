@@ -47,7 +47,7 @@ function render() {
   listEl.innerHTML = entries.map((entry, index) => `
     <div class="top-gifter-row">
       <span class="top-gifter-rank">${index + 1}</span>
-      <img class="top-gifter-avatar" src="${entry.avatar || DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'" />
+      <img class="top-gifter-avatar" src="${escapeHtml(entry.avatar || DEFAULT_AVATAR)}" onerror="this.src='${DEFAULT_AVATAR}'" />
       <span class="top-gifter-name">${escapeHtml(entry.nickname)}</span>
       <span class="top-gifter-coins">${entry.coins}</span>
     </div>

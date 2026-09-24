@@ -140,7 +140,7 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'shellgame'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'shellgame', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     return gameType;
@@ -191,6 +191,41 @@ function getEmptyState(gameType) {
   };
 }
 
+// El objeto "User" del protobuf de tiktok-live-connector (ver
+// node_modules/tiktok-live-connector/dist/types/tiktok/data.d.ts) NO tiene
+// un campo "avatar": la foto vive en "profilePicture" (y sus variantes
+// profilePictureMedium/Large, avatarJpg), cada una como un objeto Image
+// ({ url: string[] }), no como string. Se revisan varios campos porque no
+// todos vienen siempre llenos según el evento.
+function firstImageUrl(image) {
+  if (!image) return null;
+  if (typeof image === 'string' && image.trim()) return image.trim();
+  if (Array.isArray(image.url) && image.url.length > 0) return image.url[0];
+  if (Array.isArray(image.urlList) && image.urlList.length > 0) return image.urlList[0];
+  return null;
+}
+
+function resolveAvatarUrl(user) {
+  const candidates = [
+    user?.profilePicture,
+    user?.profilePictureMedium,
+    user?.profilePictureLarge,
+    user?.avatarJpg,
+    user?.avatar,
+    user?.avatarThumb,
+    user?.profilePictureUrl,
+    user?.avatarMedium,
+    user?.avatarLarge,
+  ];
+
+  for (const candidate of candidates) {
+    const url = firstImageUrl(candidate);
+    if (url) return url;
+  }
+
+  return null;
+}
+
 function simplifyGiftEvent(data) {
   return {
     giftId: data?.giftId || data?.giftDetails?.giftId || data?.giftDetails?.id || null,
@@ -202,7 +237,7 @@ function simplifyGiftEvent(data) {
       uniqueId: data?.user?.uniqueId || (data?.user?.uniqueId || '').trim() || '',
       nickname: data?.user?.nickname || '',
       userId: data?.user?.userId || null,
-      avatar: data?.user?.avatar || data?.user?.avatarThumb || data?.user?.profilePicture || null,
+      avatar: resolveAvatarUrl(data?.user),
     },
     diamondCount: data?.giftDetails?.diamondCount ?? data?.diamondCount ?? null,
     extendedGiftInfo: data?.extendedGiftInfo || null,
@@ -218,14 +253,7 @@ function simplifyChatEvent(data) {
       nickname: data?.user?.nickname || '',
       userId: data?.user?.userId || null,
 
-      avatar:
-        data?.user?.profilePictureUrl ||
-        data?.user?.avatar ||
-        data?.user?.profilePicture ||
-        data?.user?.avatarThumb ||
-        data?.user?.avatarMedium ||
-        data?.user?.avatarLarge ||
-        null,
+      avatar: resolveAvatarUrl(data?.user),
     },
     timestamp: new Date().toISOString(),
   };
@@ -504,6 +532,7 @@ connection.on(WebcastEvent.CHAT, (data) => {
         uniqueId: data?.user?.uniqueId || '',
         nickname: data?.user?.nickname || '',
         userId: data?.user?.userId || null,
+        avatar: resolveAvatarUrl(data?.user),
       },
     });
   });

@@ -754,7 +754,7 @@ async function restoreOverlayTiktokConnection() {
     if (statusData?.status === 'connected') {
       setOverlayConnectionStatus('connected', `Conectado a @${statusData.uniqueId}.`);
     } else if (connectionData?.tiktok_username) {
-      setOverlayConnectionStatus('disconnected', `Cuenta vinculada a @${connectionData.tiktok_username}, pero sin conexión activa.`);
+      setOverlayConnectionStatus('disconnected', `Cuenta vinculada a @${connectionData.tiktok_username}. Te conectaremos automáticamente en cuanto salgas en vivo.`);
     } else {
       setOverlayConnectionStatus('disconnected');
     }
@@ -787,7 +787,7 @@ async function connectOverlayTiktok() {
     if (payload.status === 'connected') {
       setOverlayConnectionStatus('connected', payload.message || `Conectado a @${uniqueId}.`);
     } else if (payload.status === 'live_off') {
-      setOverlayConnectionStatus('live_off', 'live apagado');
+      setOverlayConnectionStatus('live_off', 'live apagado — te conectaremos automáticamente en cuanto salgas en vivo.');
     } else {
       setOverlayConnectionStatus('error', payload.message || payload.error || 'No se pudo conectar.');
     }

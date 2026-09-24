@@ -746,6 +746,24 @@ async function disconnectGame(gameType = 'app', { userId = null, sessionId = nul
   return getEmptyState(normalizedGameType);
 }
 
+// Pregunta liviana "¿esta @uniqueId en vivo ahora?" sin abrir una conexion
+// real (usa fetchIsLive() de la libreria, que solo hace un fetch HTML/API,
+// no un WebSocket) — pensada para que un vigilante en segundo plano pueda
+// revisar esto cada cierto tiempo sin gastar una conexion por cada intento.
+async function checkIsLive(uniqueId) {
+  if (!TikTokLiveConnection) return false;
+
+  const normalizedUniqueId = String(uniqueId || '').trim().replace(/^@/, '');
+  if (!normalizedUniqueId) return false;
+
+  const probe = new TikTokLiveConnection(normalizedUniqueId);
+  try {
+    return await probe.fetchIsLive();
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   connectGame,
   disconnectGame,
@@ -755,4 +773,5 @@ module.exports = {
   normalizeGameType,
   getOwnerKeyFromRequest,
   cleanupStaleConnection,
+  checkIsLive,
 };

@@ -74,6 +74,18 @@ async function deleteTiktokConnection(userId, gameType) {
   );
 }
 
+// Todas las cuentas de TikTok vinculadas para un gameType dado (ej. 'overlay')
+// — usado por el vigilante que revisa periodicamente quien ya salio en vivo.
+async function getLinkedConnectionsByGameType(gameType) {
+  const result = await pool.query(
+    `SELECT user_id, tiktok_username FROM user_tiktok_connections
+     WHERE game_type = $1 AND is_linked = true`,
+    [gameType],
+  );
+
+  return result.rows;
+}
+
 async function getGiftCatalog() {
   try {
     const cached = await loadGiftCache();
@@ -158,6 +170,7 @@ module.exports = {
   saveTiktokConnection,
   getTiktokConnection,
   deleteTiktokConnection,
+  getLinkedConnectionsByGameType,
   getGiftCatalog,
   saveUserGiftCatalog,
   getUserGiftCatalog,

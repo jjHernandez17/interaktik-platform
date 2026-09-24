@@ -40,6 +40,36 @@ function generateOverlayKey() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Misma logica de ranking que usan incrementTopGifter/incrementTopLiker,
+// pero SIN tocar la base de datos — para poder mostrarle al streamer una
+// vista previa de "asi se veria" (con el boton de prueba) sin que ese dato
+// falso quede guardado y termine apareciendole a la audiencia real.
+function computeRankedEntries(entries, maxEntries, user, amount, amountField) {
+  const cleanAmount = Math.max(0, Math.round(Number(amount) || 0));
+  const entryKey = String(user?.uniqueId || user?.nickname || '').trim() || 'anonimo';
+  const nextEntries = entries.slice();
+  const existingIndex = nextEntries.findIndex((entry) => entry.uniqueId === entryKey);
+
+  if (existingIndex >= 0) {
+    nextEntries[existingIndex] = {
+      ...nextEntries[existingIndex],
+      nickname: user?.nickname || nextEntries[existingIndex].nickname,
+      avatar: user?.avatar || nextEntries[existingIndex].avatar,
+      [amountField]: nextEntries[existingIndex][amountField] + cleanAmount,
+    };
+  } else {
+    nextEntries.push({
+      uniqueId: entryKey,
+      nickname: user?.nickname || entryKey,
+      avatar: user?.avatar || null,
+      [amountField]: cleanAmount,
+    });
+  }
+
+  nextEntries.sort((a, b) => b[amountField] - a[amountField]);
+  return nextEntries.slice(0, maxEntries);
+}
+
 async function getOrCreateOverlayConfig(userId) {
   const existing = await pool.query(
     `SELECT ${KEY_COLUMNS_SQL}, state, updated_at FROM overlay_config WHERE user_id = $1`,
@@ -500,4 +530,5 @@ module.exports = {
   incrementTopLiker,
   resetTopLikers,
   resolveByOverlayKey,
+  computeRankedEntries,
 };

@@ -17,6 +17,18 @@ function extractUserId(ownerKey) {
   return match ? Number(match[1]) : null;
 }
 
+// Los botones "Enviar regalo/likes de prueba" (overlayRoutes.js) publican un
+// evento gift/like real con gameType 'overlay-test' para que el streamer vea
+// el efecto en su overlay real sin estar en vivo. Antes esto se acumulaba
+// IGUAL que un regalo real — asi que probar el boton dejaba nombres falsos
+// (Maria, Carlos, etc.) guardados para siempre en el ranking que ve la
+// audiencia real. Ahora, para eventos de prueba, se calcula una vista previa
+// (con computeRankedEntries) y se manda por el canal en vivo SIN guardarla:
+// el overlay real reacciona igual, pero al recargar vuelve al dato real.
+function isTestEvent(payload) {
+  return payload?.gameType === 'overlay-test';
+}
+
 async function handleGiftEvent(payload) {
   if (!payload?.repeatEnd) return;
 
@@ -27,6 +39,32 @@ async function handleGiftEvent(payload) {
   const repeatCount = Number(payload.repeatCount || 1) || 1;
   const coins = diamondCount * repeatCount;
   if (coins <= 0) return;
+
+  if (isTestEvent(payload)) {
+    try {
+      const config = await overlayService.getOrCreateOverlayConfig(userId);
+      emitLiveEvent('overlay-goal-update', {
+        ownerKey: `user:${userId}:overlay-goal`,
+        goalBar: { ...config.state.goalBar, currentCoins: config.state.goalBar.currentCoins + coins },
+      });
+      emitLiveEvent('overlay-gifters-update', {
+        ownerKey: `user:${userId}:overlay-gifters`,
+        topGifters: {
+          ...config.state.topGifters,
+          entries: overlayService.computeRankedEntries(
+            config.state.topGifters.entries,
+            config.state.topGifters.maxEntries,
+            payload.user,
+            coins,
+            'coins',
+          ),
+        },
+      });
+    } catch (error) {
+      logger.warn('No se pudo previsualizar el regalo de prueba', error);
+    }
+    return;
+  }
 
   try {
     const updatedGoalBar = await overlayService.incrementGoalBarCoins(userId, coins);
@@ -59,6 +97,32 @@ async function handleLikeEvent(payload) {
 
   const likes = Number(payload.likeCount || 0) || 0;
   if (likes <= 0) return;
+
+  if (isTestEvent(payload)) {
+    try {
+      const config = await overlayService.getOrCreateOverlayConfig(userId);
+      emitLiveEvent('overlay-likes-update', {
+        ownerKey: `user:${userId}:overlay-likes`,
+        likeCounter: { ...config.state.likeCounter, totalLikes: config.state.likeCounter.totalLikes + likes },
+      });
+      emitLiveEvent('overlay-likers-update', {
+        ownerKey: `user:${userId}:overlay-likers`,
+        topLikers: {
+          ...config.state.topLikers,
+          entries: overlayService.computeRankedEntries(
+            config.state.topLikers.entries,
+            config.state.topLikers.maxEntries,
+            payload.user,
+            likes,
+            'likes',
+          ),
+        },
+      });
+    } catch (error) {
+      logger.warn('No se pudo previsualizar los likes de prueba', error);
+    }
+    return;
+  }
 
   try {
     const updated = await overlayService.incrementLikeCounter(userId, likes);

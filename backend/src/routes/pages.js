@@ -229,6 +229,13 @@ router.get('/sitemap.xml', (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/sitemap.xml'));
 });
 
+// Archivo de verificacion de propiedad de Google Search Console — debe
+// quedar servido en la raiz del dominio y nunca borrarse (Google lo revisita
+// para confirmar que la verificacion sigue vigente).
+router.get('/googlec478aac72d0b335d.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/googlec478aac72d0b335d.html'));
+});
+
 router.get('/auth.css', (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/assets/css/auth.css'));
 });

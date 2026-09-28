@@ -5,10 +5,14 @@
 // normal y solo falla al intentar cobrar.
 //
 // Nota: MercadoPago opera principalmente en moneda local segun el pais de la
-// cuenta del vendedor. MERCADOPAGO_CURRENCY es configurable por variable de
-// entorno (default USD) — hay que confirmar cual moneda acepta la cuenta real
-// una vez creada.
+// cuenta del vendedor. El monto/moneda a cobrar NO se calculan aca — los
+// arma routes/payments.js (usando el precio fijo en USD del plan, convertido
+// a MERCADOPAGO_CURRENCY si hace falta) y se pasan ya resueltos como
+// `amount`/`currency`, para que el numero que se registra en la tabla
+// `payments` sea siempre el mismo que el que de verdad se le cobra al
+// usuario.
 
+const crypto = require('crypto');
 const env = require('../config/env');
 
 let configInstance = null;
@@ -34,7 +38,7 @@ function getSdk() {
   return configInstance;
 }
 
-async function createPreference({ plan, paymentId, successUrl, cancelUrl }) {
+async function createPreference({ plan, paymentId, successUrl, cancelUrl, amount, currency }) {
   const client = getSdk();
   const preference = new PreferenceClass(client);
 
@@ -46,8 +50,8 @@ async function createPreference({ plan, paymentId, successUrl, cancelUrl }) {
           title: plan.name,
           description: plan.description || undefined,
           quantity: 1,
-          currency_id: env.MERCADOPAGO_CURRENCY || 'USD',
-          unit_price: plan.price_usd_cents / 100,
+          currency_id: currency,
+          unit_price: amount,
         },
       ],
       external_reference: String(paymentId),
@@ -69,8 +73,47 @@ async function fetchPayment(paymentGatewayId) {
   return payment.get({ id: paymentGatewayId });
 }
 
+// Verifica la firma del webhook (header x-signature: "ts=...,v1=...") segun
+// el esquema documentado por MercadoPago, para confirmar que la notificacion
+// de verdad viene de ellos antes de siquiera consultar su API. Sin esto,
+// cualquiera podria pegarle a este endpoint con un data.id cualquiera.
+function verifyWebhookSignature(req) {
+  if (!env.MERCADOPAGO_WEBHOOK_SECRET) {
+    throw new Error('MERCADOPAGO_WEBHOOK_SECRET no esta configurado.');
+  }
+
+  const signatureHeader = req.headers['x-signature'];
+  const requestId = req.headers['x-request-id'];
+  const dataId = req.query?.['data.id'] || req.query?.id || req.body?.data?.id;
+
+  if (!signatureHeader || !requestId || !dataId) {
+    return false;
+  }
+
+  const parts = String(signatureHeader).split(',').reduce((acc, part) => {
+    const [key, value] = part.split('=').map((piece) => piece && piece.trim());
+    if (key && value) acc[key] = value;
+    return acc;
+  }, {});
+
+  const { ts, v1 } = parts;
+  if (!ts || !v1) return false;
+
+  // MercadoPago pide bajar el data.id a minusculas SOLO si es alfanumerico.
+  const normalizedDataId = /^[a-zA-Z0-9]+$/.test(String(dataId)) ? String(dataId).toLowerCase() : String(dataId);
+  const manifest = `id:${normalizedDataId};request-id:${requestId};ts:${ts};`;
+  const computed = crypto.createHmac('sha256', env.MERCADOPAGO_WEBHOOK_SECRET).update(manifest).digest('hex');
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(v1, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   isConfigured,
   createPreference,
   fetchPayment,
+  verifyWebhookSignature,
 };

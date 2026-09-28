@@ -667,6 +667,60 @@ a {
   margin-top: 12px;
 }
 
+/* Igual criterio visual que .admin-game-toggle: panel translucido oscuro
+   metido dentro de la tarjeta publica, solo visible para el superusuario. */
+.admin-plan-price-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.admin-plan-price-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.admin-plan-price-form label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.admin-plan-price-form input {
+  width: 120px;
+  font-family: var(--ds-font-body);
+  color: var(--ds-text);
+  background: rgba(4, 8, 16, 0.5);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-sm);
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.admin-plan-price-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ds-text-faint);
+}
+
+.admin-plan-price-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #fca5a5;
+  font-weight: 600;
+}
+
 .admin-search {
   margin-top: 16px;
   display: grid;
@@ -1377,6 +1431,30 @@ a {
 
 .overlay-card {
   margin-top: 0;
+}
+
+/* Igual que .game-card.game-locked-by-plan: el ejemplo de overlay se ve
+   (para que el usuario sepa que existe) pero no abre su modal de
+   configuracion mientras no tenga un plan/prueba activos. */
+.overlay-card.overlay-locked-by-plan {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+
+.overlay-card.overlay-locked-by-plan .overlay-preview-stage {
+  pointer-events: none;
+}
+
+.overlay-locked-message {
+  margin: 10px 0 0;
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.overlay-locked-message a {
+  color: #38bdf8;
+  text-decoration: underline;
 }
 
 .overlay-preview-stage {

@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../database/pool');
 const { requireAuth, requireSuperUser } = require('../middleware/auth');
+const plansService = require('../services/plansService');
+const currencyService = require('../services/currencyService');
+const env = require('../config/env');
 const logger = require('../config/logger');
 
 const router = express.Router();
@@ -257,6 +260,79 @@ router.delete('/admin/users/:id', requireAuth, requireSuperUser, async (req, res
   } catch (error) {
     logger.error('Admin user delete error', error);
     return res.status(500).json({ error: 'No se pudo eliminar la cuenta.' });
+  }
+});
+
+// GET /api/admin/plans - lista completa de planes (activos o no) con los
+// precios crudos en centavos, para el editor de precios del admin.
+router.get('/admin/plans', requireAuth, requireSuperUser, async (_req, res) => {
+  try {
+    const plans = await plansService.listAllPlansForAdmin();
+    return res.json({
+      plans,
+      minimums: {
+        wompiCop: env.WOMPI_MIN_AMOUNT_COP,
+        mercadopagoCop: env.MERCADOPAGO_MIN_AMOUNT_COP,
+      },
+    });
+  } catch (error) {
+    logger.error('Admin plans list error', error);
+    return res.status(500).json({ error: 'No se pudo cargar la lista de planes.' });
+  }
+});
+
+// PUT /api/admin/plans/:id/price - actualiza el precio real de un plan.
+// price_cop_cents es lo que cobra Wompi (fijo); price_usd_cents es lo que
+// cobra MercadoPago, convertido a su moneda con la tasa de cambio del
+// momento del pago (ver checkout en payments.js) — por eso el chequeo contra
+// el minimo de MercadoPago usa la tasa de HOY como resguardo, no una
+// garantia permanente: si el dolar cae mucho despues, convendria revisar los
+// precios de nuevo.
+router.put('/admin/plans/:id/price', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const planId = String(req.params.id || '');
+    const priceUsdCents = Math.round(Number(req.body?.priceUsdCents));
+    const priceCopCents = Math.round(Number(req.body?.priceCopCents));
+
+    if (!planId) {
+      return res.status(400).json({ error: 'Plan invalido.' });
+    }
+    if (!Number.isFinite(priceUsdCents) || priceUsdCents <= 0) {
+      return res.status(400).json({ error: 'Precio en USD invalido.' });
+    }
+    if (!Number.isFinite(priceCopCents) || priceCopCents <= 0) {
+      return res.status(400).json({ error: 'Precio en COP invalido.' });
+    }
+
+    const wompiMinCents = env.WOMPI_MIN_AMOUNT_COP * 100;
+    if (priceCopCents < wompiMinCents) {
+      return res.status(400).json({
+        error: `El precio en COP (para Wompi) debe ser de al menos $${env.WOMPI_MIN_AMOUNT_COP} COP.`,
+      });
+    }
+
+    const mercadopagoMinCents = env.MERCADOPAGO_MIN_AMOUNT_COP * 100;
+    const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
+
+    if (mpCurrency === 'COP') {
+      const converted = await currencyService.convertUsdCentsToDisplay(priceUsdCents, mpCurrency);
+      const convertedCents = Math.round(converted.amount * 100);
+      if (convertedCents < mercadopagoMinCents) {
+        return res.status(400).json({
+          error: `Con la tasa de cambio de hoy, el precio en USD equivale a menos del minimo de MercadoPago ($${env.MERCADOPAGO_MIN_AMOUNT_COP} COP). Sube el precio en USD.`,
+        });
+      }
+    }
+
+    const plan = await plansService.updatePlanPrice(planId, { priceUsdCents, priceCopCents });
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan no encontrado.' });
+    }
+
+    return res.json({ plan });
+  } catch (error) {
+    logger.error('Admin plan price update error', error);
+    return res.status(500).json({ error: 'No se pudo actualizar el precio del plan.' });
   }
 });
 

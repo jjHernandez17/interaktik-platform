@@ -92,9 +92,32 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
       return res.status(503).json({ error: `${gatewayNames[gateway]} todavia no esta configurado en el servidor.` });
     }
 
-    // Wompi cobra en COP con precio fijo; Stripe/MercadoPago usan el precio en USD.
-    const amountForRecord = gateway === 'wompi' ? plan.price_cop_cents : plan.price_usd_cents;
-    const currencyForRecord = gateway === 'wompi' ? 'COP' : 'USD';
+    // Wompi cobra en COP con precio fijo. Stripe siempre en USD. MercadoPago
+    // cobra en la moneda de la cuenta del vendedor (MERCADOPAGO_CURRENCY) — si
+    // no es USD, hay que convertir el precio base en USD a esa moneda ANTES de
+    // armar la preferencia, o se termina cobrando el numero de USD tal cual
+    // pero etiquetado con otra moneda (ej. "10 COP" en vez del equivalente de
+    // $10 USD en COP).
+    let amountForRecord;
+    let currencyForRecord;
+    let mercadopagoCharge = null;
+
+    if (gateway === 'wompi') {
+      amountForRecord = plan.price_cop_cents;
+      currencyForRecord = 'COP';
+    } else if (gateway === 'mercadopago') {
+      const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
+      if (mpCurrency === 'USD') {
+        mercadopagoCharge = { currency: 'USD', amount: plan.price_usd_cents / 100 };
+      } else {
+        mercadopagoCharge = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, mpCurrency);
+      }
+      currencyForRecord = mercadopagoCharge.currency;
+      amountForRecord = Math.round(mercadopagoCharge.amount * 100);
+    } else {
+      amountForRecord = plan.price_usd_cents;
+      currencyForRecord = 'USD';
+    }
 
     const paymentInsert = await pool.query(
       `INSERT INTO payments (user_id, plan_id, gateway, amount_cents, currency, status)
@@ -126,6 +149,8 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
         paymentId,
         successUrl,
         cancelUrl,
+        amount: mercadopagoCharge.amount,
+        currency: mercadopagoCharge.currency,
       });
       checkoutUrl = preference.url;
       gatewaySessionId = preference.preferenceId;
@@ -183,6 +208,18 @@ router.get('/payments/:id/status', requireAuth, async (req, res) => {
 // POST /api/payments/webhook/mercadopago
 router.post('/payments/webhook/mercadopago', async (req, res) => {
   try {
+    let signatureValid = false;
+    try {
+      signatureValid = mercadopagoClient.verifyWebhookSignature(req);
+    } catch (verifyError) {
+      logger.error('Error verificando firma de MercadoPago', verifyError);
+    }
+
+    if (!signatureValid) {
+      logger.warn('[payments] Webhook MercadoPago con firma invalida, ignorado');
+      return res.status(200).json({ received: true });
+    }
+
     const paymentGatewayId = req.body?.data?.id || req.query['data.id'] || req.query.id;
 
     if (!paymentGatewayId) {
@@ -250,7 +287,7 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     await client.query('BEGIN');
 
     const paymentResult = await client.query(
-      `SELECT id, user_id, plan_id, status, gateway, currency FROM payments WHERE id = $1 FOR UPDATE`,
+      `SELECT id, user_id, plan_id, status, gateway, currency, amount_cents FROM payments WHERE id = $1 FOR UPDATE`,
       [paymentId],
     );
 
@@ -267,7 +304,7 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     }
 
     const planResult = await client.query(
-      'SELECT name, duration_days, price_usd_cents, price_cop_cents FROM plans WHERE id = $1',
+      'SELECT name, duration_days FROM plans WHERE id = $1',
       [payment.plan_id],
     );
     if (planResult.rowCount === 0) {
@@ -295,7 +332,7 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
         to: user.email,
         name: user.name,
         planName: plan.name,
-        amountCents: payment.currency === 'COP' ? plan.price_cop_cents : plan.price_usd_cents,
+        amountCents: payment.amount_cents,
         currency: payment.currency,
         gateway: payment.gateway,
         paymentId,

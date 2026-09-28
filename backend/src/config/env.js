@@ -13,6 +13,13 @@ module.exports = {
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || null,
   MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN || null,
   MERCADOPAGO_CURRENCY: process.env.MERCADOPAGO_CURRENCY || 'USD',
+  MERCADOPAGO_WEBHOOK_SECRET: process.env.MERCADOPAGO_WEBHOOK_SECRET || null,
+  // Monto minimo (en PESOS COP, no centavos) que cada pasarela deja cobrar.
+  // Valores por defecto tomados de lo publicado por cada pasarela al momento
+  // de escribir esto — verificalos en el dashboard/docs de cada una antes de
+  // confiar en ellos a ciegas, y ajustalos aca si cambian.
+  WOMPI_MIN_AMOUNT_COP: Number(process.env.WOMPI_MIN_AMOUNT_COP) || 1500,
+  MERCADOPAGO_MIN_AMOUNT_COP: Number(process.env.MERCADOPAGO_MIN_AMOUNT_COP) || 1500,
   WOMPI_PUBLIC_KEY: process.env.WOMPI_PUBLIC_KEY || null,
   WOMPI_PRIVATE_KEY: process.env.WOMPI_PRIVATE_KEY || null,
   WOMPI_INTEGRITY_SECRET: process.env.WOMPI_INTEGRITY_SECRET || null,

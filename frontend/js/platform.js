@@ -345,6 +345,48 @@ function applyPlanLockToCards() {
   });
 }
 
+// Igual que applyPlanLockToCards() pero para los ejemplos de overlay: la
+// tarjeta se sigue viendo (para que el usuario sepa que el overlay existe),
+// pero no abre su modal de configuracion mientras no tenga plan/prueba
+// activos. El bloqueo real del click es CSS (pointer-events: none sobre
+// .overlay-preview-stage); aca solo togglea clases/mensaje y el foco por
+// teclado (tabIndex).
+function applyOverlayPlanLockToCards() {
+  const locked = accessStatus !== null && accessStatus.hasAccess === false && !currentUser?.isSuperUser;
+
+  document.querySelectorAll('.overlay-card').forEach((card) => {
+    const toggle = card.querySelector('.overlay-preview-stage');
+    if (!toggle) return;
+
+    card.classList.toggle('overlay-locked-by-plan', locked);
+    let message = card.querySelector('.overlay-locked-message');
+
+    if (locked) {
+      toggle.tabIndex = -1;
+      toggle.setAttribute('aria-disabled', 'true');
+
+      if (!message) {
+        message = document.createElement('p');
+        message.className = 'overlay-locked-message';
+        card.appendChild(message);
+      }
+      message.innerHTML = '🔒 Necesitas un plan o prueba activos para usar este overlay. <a href="#" data-go-to-plans>Ver planes</a>';
+
+      const plansLink = message.querySelector('[data-go-to-plans]');
+      if (plansLink) {
+        plansLink.addEventListener('click', (event) => {
+          event.preventDefault();
+          showSection('plansSection');
+        });
+      }
+    } else {
+      toggle.tabIndex = 0;
+      toggle.removeAttribute('aria-disabled');
+      if (message) message.remove();
+    }
+  });
+}
+
 function formatAccessMessage(status) {
   if (!status) return '';
 
@@ -390,6 +432,7 @@ async function loadAccessStatus() {
     accessStatus = data;
     renderAccessBanners();
     applyPlanLockToCards();
+    applyOverlayPlanLockToCards();
   } catch (error) {
     console.warn('[PLATFORM] Access status unavailable:', error.message);
   }
@@ -420,7 +463,7 @@ function renderPlanCards() {
       <button class="btn primary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="wompi" ${availableGateways.wompi ? '' : 'disabled'}>
         Pagar con Wompi
       </button>
-      <button class="btn secondary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="mercadopago" disabled title="Próximamente: pendiente de un problema en la plataforma de MercadoPago">
+      <button class="btn secondary" type="button" data-checkout data-plan-id="${escapeHtml(plan.id)}" data-gateway="mercadopago" ${availableGateways.mercadopago ? '' : 'disabled'}>
         Pagar con MercadoPago
       </button>
     `;
@@ -430,6 +473,100 @@ function renderPlanCards() {
   plansGrid.querySelectorAll('[data-checkout]').forEach((button) => {
     button.addEventListener('click', () => {
       startCheckout(button.dataset.planId, button.dataset.gateway, button);
+    });
+  });
+
+  if (currentUser?.isSuperUser) {
+    setupAdminPlanPriceControls();
+  }
+}
+
+let adminPriceMinimums = { wompiCop: 1500, mercadopagoCop: 1500 };
+
+// Inyecta, solo para el superusuario, un mini formulario de precio real
+// dentro de cada tarjeta de plan (mismo criterio que el toggle de
+// habilitar/deshabilitar juego: el control admin vive sobre la tarjeta que
+// ya ve todo el mundo, no en una pantalla CRUD aparte).
+async function setupAdminPlanPriceControls() {
+  if (!plansGrid) return;
+
+  let adminPlans = {};
+  try {
+    const response = await fetch('/api/admin/plans');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los precios.');
+
+    adminPlans = (data.plans || []).reduce((accumulator, plan) => {
+      accumulator[plan.id] = plan;
+      return accumulator;
+    }, {});
+    adminPriceMinimums = data.minimums || adminPriceMinimums;
+  } catch (error) {
+    console.warn('[PLATFORM] Admin plan prices unavailable:', error.message);
+    return;
+  }
+
+  plansGrid.querySelectorAll('.plan-card').forEach((card) => {
+    const planId = card.dataset.planId;
+    const plan = adminPlans[planId];
+    if (!plan) return;
+
+    const existingForm = card.querySelector('[data-admin-price-form]');
+    if (existingForm) existingForm.remove();
+
+    const usdValue = (plan.price_usd_cents / 100).toFixed(2);
+    const copValue = Math.round(plan.price_cop_cents / 100);
+
+    const form = document.createElement('form');
+    form.className = 'admin-plan-price-form';
+    form.dataset.adminPriceForm = planId;
+    form.innerHTML = `
+      <p class="admin-plan-price-title">Precio real (admin)</p>
+      <label>
+        <span>USD</span>
+        <input type="number" step="0.01" min="0.01" name="priceUsd" value="${usdValue}" required />
+      </label>
+      <label>
+        <span>COP</span>
+        <input type="number" step="1" min="1" name="priceCop" value="${copValue}" required />
+      </label>
+      <p class="admin-plan-price-hint">Minimo: $${escapeHtml(String(adminPriceMinimums.wompiCop))} COP (Wompi) · $${escapeHtml(String(adminPriceMinimums.mercadopagoCop))} COP (MercadoPago)</p>
+      <button class="btn small secondary" type="submit">Guardar precio</button>
+      <p class="admin-plan-price-error hidden"></p>
+    `;
+
+    card.appendChild(form);
+
+    form.addEventListener('click', (event) => event.stopPropagation());
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const errorEl = form.querySelector('.admin-plan-price-error');
+      errorEl.classList.add('hidden');
+      errorEl.textContent = '';
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch(`/api/admin/plans/${encodeURIComponent(planId)}/price`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            priceUsdCents: Math.round(Number(form.priceUsd.value) * 100),
+            priceCopCents: Math.round(Number(form.priceCop.value) * 100),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'No se pudo actualizar el precio.');
+
+        await loadPlans();
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+      }
     });
   });
 }

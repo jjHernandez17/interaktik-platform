@@ -13,7 +13,14 @@
       return url;
     }
 
-    if (url.startsWith('/api/') || url.startsWith('/events')) {
+    // /api/* se deja relativa a propósito: en produccion, vercel.json la
+    // reescribe hacia el backend de Railway por detras sin que el navegador
+    // note que son dominios distintos, para que la cookie de sesion sea de
+    // PRIMERA parte (si no, Incognito/Safari con bloqueo de cookies de
+    // terceros la descarta y el login queda en loop). /events NO pasa por
+    // ese proxy (son conexiones SSE largas, mal soportadas por el proxy de
+    // Vercel) y sigue yendo directo a Railway con la URL completa.
+    if (url.startsWith('/events')) {
       return `${apiBaseUrl}${url}`;
     }
 

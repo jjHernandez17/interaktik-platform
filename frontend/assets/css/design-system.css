@@ -53,7 +53,13 @@
   --ds-shadow-glow: 0 0 0 1px rgba(124, 92, 255, 0.24), 0 18px 50px rgba(124, 92, 255, 0.16);
 
   /* --- Gradientes --- */
-  --ds-gradient-brand: linear-gradient(135deg, var(--ds-primary), #a855f7 55%, var(--ds-accent));
+  /* Paradas mas oscuras que --ds-primary/--ds-accent a proposito: este
+     gradiente lleva texto/iconos blancos encima (botones, CTA, icon
+     chips) y el extremo cian original (#22d3ee) bajaba a ~1.6:1 de
+     contraste con blanco, muy por debajo del 4.5:1 que pide WCAG AA.
+     Estas paradas mantienen la progresion violeta -> cian de la marca
+     pero cada una pasa >=4.5:1 con texto blanco. */
+  --ds-gradient-brand: linear-gradient(135deg, #6d3ff2, #9333ea 55%, #0e7490);
   --ds-gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
 }
 
@@ -463,23 +469,6 @@ h1, h2, h3, h4 {
   transform: translateY(-6px);
 }
 
-/* Anillo neon con degradado que gira despacio — dos fondos, uno recortado
-   con mask a solo el borde de 1.5px. */
-.plan-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(from 0deg, var(--plan-accent), var(--plan-accent-2), var(--plan-accent));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.75;
-  animation: plan-neon-spin 5s linear infinite;
-}
-
 /* Halo difuminado detras de la tarjeta, mas intenso en hover — el "brillo
    neon" que se asoma por fuera del borde. */
 .plan-card::after {
@@ -498,22 +487,8 @@ h1, h2, h3, h4 {
   opacity: 0.3;
 }
 
-@keyframes plan-neon-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .plan-card::before {
-    animation: none;
-  }
-}
-
 .plan-card--popular {
   transform: scale(1.02);
-}
-
-.plan-card--popular::before {
-  opacity: 1;
 }
 
 .plan-badge {

@@ -33,11 +33,15 @@
 
   const originalFetch = window.fetch.bind(window);
   window.fetch = function fetchWithApiBase(input, init = {}) {
-    // Asegurarnos de que enviamos cookies cross-origin en todas las peticiones a la API
-    init.credentials = init.credentials || 'include';
-
     if (typeof input === 'string') {
       const targetUrl = withBase(input);
+
+      // Cookies cross-origin solo hacia nuestra propia API (frontend y backend
+      // pueden vivir en dominios distintos, ej. Vercel + Railway) — nunca hacia
+      // un origen ajeno que la página llame a fetch (ej. herramientas de dev).
+      if (targetUrl.startsWith(apiBaseUrl)) {
+        init.credentials = init.credentials || 'include';
+      }
 
       if (targetUrl !== input) {
         console.info(`[fetch] API request: ${input} -> ${targetUrl}`);
@@ -50,6 +54,10 @@
 
     if (input && typeof input.url === 'string') {
       const targetUrl = withBase(input.url);
+
+      if (targetUrl.startsWith(apiBaseUrl)) {
+        init.credentials = init.credentials || 'include';
+      }
 
       if (targetUrl !== input.url) {
         console.info(`[fetch] API request: ${input.url} -> ${targetUrl}`);
@@ -66,8 +74,12 @@
 
   const OriginalEventSource = window.EventSource;
   window.EventSource = function EventSourceWithApiBase(url, config = {}) {
-    config.withCredentials = true;
     const targetUrl = withBase(url);
+
+    if (targetUrl.startsWith(apiBaseUrl)) {
+      config.withCredentials = true;
+    }
+
     console.info(`[sse] EventSource request: ${url} -> ${targetUrl}`);
     return new OriginalEventSource(targetUrl, config);
   };

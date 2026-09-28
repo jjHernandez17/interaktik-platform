@@ -1274,12 +1274,15 @@ a {
   --overlay-accent-glow: rgba(251, 146, 60, 0.35);
 }
 
+/* Vive dentro de .content-card (#overlaysSection): un divisor superior
+   en vez de un segundo marco con borde+fondo propio evita el "card
+   dentro de card" (doble caja visible) que tenia antes. */
 .overlay-connection-card {
   margin: 16px 0 0;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--ds-radius-lg);
-  background: rgba(15, 20, 34, 0.6);
+  padding: 20px 0 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
 }
 
 .connection-header {

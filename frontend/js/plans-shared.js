@@ -72,7 +72,7 @@ const PLAN_ACCENTS = {
   yearly: 'gold',
 };
 
-const PLAN_POPULAR_ID = 'yearly';
+const PLAN_POPULAR_ID = 'monthly';
 
 // Precio "ancla" tachado junto al precio real — tactica clasica de "antes
 // $X, ahora $Y". El descuento es puramente de presentacion (el cobro real

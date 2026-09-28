@@ -69,53 +69,6 @@ function initStarfieldParallax() {
   applyParallax();
 }
 
-// Suaviza el scroll de la ruedita del mouse: en vez de saltar de golpe a la
-// nueva posicion, la acerca poco a poco cada frame (lerp) para que se
-// sienta con inercia, como en sitios "premium". Solo intercepta la rueda
-// — scroll por teclado, barra o gestos tactiles sigue siendo nativo, y si
-// alguno de esos mueve la pagina mientras no estamos animando, se
-// resincroniza para no pegar un salto raro en la siguiente rueda.
-function initSmoothWheelScroll() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-  const maxScroll = () => document.documentElement.scrollHeight - window.innerHeight;
-
-  let current = window.scrollY;
-  let target = window.scrollY;
-  let animating = false;
-
-  function resync() {
-    if (animating) return;
-    current = window.scrollY;
-    target = window.scrollY;
-  }
-  window.addEventListener('scroll', resync, { passive: true });
-
-  function step() {
-    current += (target - current) * 0.1;
-
-    if (Math.abs(target - current) < 0.4) {
-      current = target;
-      animating = false;
-      window.scrollTo(0, current);
-      return;
-    }
-
-    window.scrollTo(0, current);
-    requestAnimationFrame(step);
-  }
-
-  window.addEventListener('wheel', (event) => {
-    event.preventDefault();
-    target = Math.max(0, Math.min(target + event.deltaY, maxScroll()));
-
-    if (!animating) {
-      animating = true;
-      requestAnimationFrame(step);
-    }
-  }, { passive: false });
-}
-
 // Actualiza --mx/--my (posicion del cursor en % dentro de cada tarjeta) para
 // el brillo que la sigue por CSS. Solo mueve variables CSS, nunca toca el
 // layout. `selector` es configurable porque cada pagina tiene sus propias
@@ -140,6 +93,5 @@ function initSpotlightCards(selector) {
 function initBackgroundEffects(spotlightSelector) {
   initStarfield();
   initStarfieldParallax();
-  initSmoothWheelScroll();
   if (spotlightSelector) initSpotlightCards(spotlightSelector);
 }

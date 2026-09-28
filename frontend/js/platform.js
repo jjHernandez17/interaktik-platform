@@ -191,6 +191,19 @@ let overlayKeyLoaded = false;
 
 const statsSessionsList = document.getElementById('statsSessionsList');
 
+// Los eventos "error" de <img> no burbujean, pero sí se ven en la fase de
+// captura de un ancestro — un solo listener delegado aquí reemplaza el
+// onerror="..." inline que el CSP del sitio bloquea (script-src-attr 'none').
+if (statsSessionsList) {
+  statsSessionsList.addEventListener('error', (event) => {
+    const target = event.target;
+    const fallback = target?.dataset?.fallbackAvatar;
+    if (target?.tagName === 'IMG' && fallback && target.src !== fallback) {
+      target.src = fallback;
+    }
+  }, true);
+}
+
 const accessStatusBanner = document.getElementById('accessStatusBanner');
 const plansAccessStatus = document.getElementById('plansAccessStatus');
 const plansGrid = document.getElementById('plansGrid');
@@ -1505,17 +1518,23 @@ function formatDuration(startedAt, endedAt) {
   return `${hours}h ${minutes}m`;
 }
 
+const STATS_DEFAULT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%23ffffff" opacity="0.25"/></svg>',
+);
+
 function renderStatsTopGroup(label, entries, amountField, amountLabel) {
   const top = Array.isArray(entries) && entries.length > 0 ? entries[0] : null;
   if (!top) return '';
 
-  const avatar = top.avatar || 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%23ffffff" opacity="0.25"/></svg>',
-  );
+  const avatar = top.avatar || STATS_DEFAULT_AVATAR;
 
+  // Nada de onerror="..." inline: el CSP del sitio bloquea los atributos de
+  // evento en HTML (script-src-attr 'none'), aunque scriptSrc permita
+  // 'unsafe-inline' para bloques <script>. El respaldo se maneja con un solo
+  // listener delegado en el contenedor (ver loadStreamStats).
   return `
     <span class="stats-top-group">
-      <img src="${escapeHtml(avatar)}" alt="" />
+      <img src="${escapeHtml(avatar)}" data-fallback-avatar="${escapeHtml(STATS_DEFAULT_AVATAR)}" alt="" />
       <span>${label}: <strong>${escapeHtml(top.nickname)}</strong> — ${top[amountField]} ${amountLabel}</span>
     </span>
   `;

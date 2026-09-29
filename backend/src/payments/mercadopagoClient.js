@@ -77,14 +77,13 @@ async function fetchPayment(paymentGatewayId) {
 // el esquema documentado por MercadoPago, para confirmar que la notificacion
 // de verdad viene de ellos antes de siquiera consultar su API. Sin esto,
 // cualquiera podria pegarle a este endpoint con un data.id cualquiera.
-function verifyWebhookSignature(req) {
+function verifyWebhookSignature(req, dataId) {
   if (!env.MERCADOPAGO_WEBHOOK_SECRET) {
     throw new Error('MERCADOPAGO_WEBHOOK_SECRET no esta configurado.');
   }
 
   const signatureHeader = req.headers['x-signature'];
   const requestId = req.headers['x-request-id'];
-  const dataId = req.query?.['data.id'] || req.query?.id || req.body?.data?.id;
 
   if (!signatureHeader || !requestId || !dataId) {
     return false;

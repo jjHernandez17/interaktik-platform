@@ -208,9 +208,15 @@ router.get('/payments/:id/status', requireAuth, async (req, res) => {
 // POST /api/payments/webhook/mercadopago
 router.post('/payments/webhook/mercadopago', async (req, res) => {
   try {
+    // MercadoPago firma el manifest con el data.id tal como viene en la URL
+    // (query string), no el del body — se extrae UNA sola vez y se usa tanto
+    // para verificar la firma como para pedirle el pago a su API, para que
+    // nunca se firme un id y se actue sobre otro.
+    const paymentGatewayId = req.query?.['data.id'] || req.query?.id || req.body?.data?.id;
+
     let signatureValid = false;
     try {
-      signatureValid = mercadopagoClient.verifyWebhookSignature(req);
+      signatureValid = mercadopagoClient.verifyWebhookSignature(req, paymentGatewayId);
     } catch (verifyError) {
       logger.error('Error verificando firma de MercadoPago', verifyError);
     }
@@ -219,8 +225,6 @@ router.post('/payments/webhook/mercadopago', async (req, res) => {
       logger.warn('[payments] Webhook MercadoPago con firma invalida, ignorado');
       return res.status(200).json({ received: true });
     }
-
-    const paymentGatewayId = req.body?.data?.id || req.query['data.id'] || req.query.id;
 
     if (!paymentGatewayId) {
       return res.status(200).json({ received: true });

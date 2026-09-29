@@ -87,10 +87,49 @@ async function extendAccess(userId, durationDays) {
   return result.rows[0].access_expires_at;
 }
 
+// Ajuste manual del admin: suma dias+horas al acceso de un usuario (misma
+// logica de "sumar a partir de lo que le quedaba" que extendAccess, pero en
+// horas para poder dar tiempos mas finos que un dia completo).
+async function adminAddAccessTime(userId, { days = 0, hours = 0 } = {}) {
+  const totalHours = (Number(days) || 0) * 24 + (Number(hours) || 0);
+  if (!Number.isFinite(totalHours) || totalHours <= 0) {
+    throw new Error('La cantidad de tiempo a agregar debe ser mayor a cero.');
+  }
+
+  const result = await pool.query(
+    `INSERT INTO user_access (user_id, access_expires_at, is_trial, updated_at)
+     VALUES ($1, NOW() + ($2 || ' hours')::interval, false, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       access_expires_at = GREATEST(COALESCE(user_access.access_expires_at, NOW()), NOW()) + ($2 || ' hours')::interval,
+       is_trial = false,
+       updated_at = NOW()
+     RETURNING access_expires_at`,
+    [userId, totalHours],
+  );
+
+  return result.rows[0].access_expires_at;
+}
+
+// Quita el plan/acceso de un usuario por completo (queda igual que una
+// cuenta que nunca tuvo prueba ni plan).
+async function adminRevokeAccess(userId) {
+  await pool.query(
+    `INSERT INTO user_access (user_id, access_expires_at, is_trial, updated_at)
+     VALUES ($1, NULL, false, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       access_expires_at = NULL,
+       is_trial = false,
+       updated_at = NOW()`,
+    [userId],
+  );
+}
+
 module.exports = {
   TRIAL_DAYS,
   grantTrial,
   getUserAccess,
   hasActiveAccess,
   extendAccess,
+  adminAddAccessTime,
+  adminRevokeAccess,
 };

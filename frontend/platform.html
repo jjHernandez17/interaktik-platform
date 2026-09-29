@@ -661,6 +661,44 @@
       </div>
     </div>
 
+    <div id="adminPlanModal" class="modal-overlay" hidden>
+      <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminPlanModalTitle">
+        <div class="card-header">
+          <h3 id="adminPlanModalTitle">Administrar plan</h3>
+          <button id="adminPlanCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <p class="muted">
+          Cuenta: <strong id="adminPlanUserName">-</strong> (<span id="adminPlanUserEmail">-</span>)
+        </p>
+        <p id="adminPlanCurrentStatus" class="admin-user-info">-</p>
+
+        <form id="adminPlanAddForm" class="modal-form">
+          <input type="hidden" id="adminPlanUserId" />
+          <h4>Agregar tiempo</h4>
+          <div class="admin-plan-time-fields">
+            <label class="field">
+              <span>Días</span>
+              <input id="adminPlanAddDays" type="number" min="0" step="1" value="0" />
+            </label>
+            <label class="field">
+              <span>Horas</span>
+              <input id="adminPlanAddHours" type="number" min="0" step="1" value="0" />
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button id="adminPlanAddBtn" class="btn primary" type="submit">Agregar tiempo</button>
+          </div>
+        </form>
+
+        <div class="admin-plan-danger-zone">
+          <h4>Quitar plan</h4>
+          <p class="muted">Elimina el acceso activo (o la prueba gratuita) de esta cuenta de inmediato.</p>
+          <button id="adminPlanRevokeBtn" class="btn danger" type="button">Quitar plan a esta cuenta</button>
+        </div>
+      </div>
+    </div>
+
     <script src="js/config.js?v=20260606c"></script>
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>

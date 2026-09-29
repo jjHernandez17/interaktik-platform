@@ -1031,6 +1031,29 @@ a {
   background: rgba(2, 6, 23, 0.42);
 }
 
+.admin-plan-time-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.admin-plan-danger-zone {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(239, 68, 68, 0.3);
+}
+
+.admin-plan-danger-zone h4 {
+  margin: 0 0 6px;
+  color: #fca5a5;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-plan-danger-zone .btn.danger {
+  margin-top: 10px;
+}
+
 .admin-connections-grid {
   margin-top: 12px;
   display: grid;

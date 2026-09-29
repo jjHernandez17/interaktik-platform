@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../database/pool');
 const { requireAuth, requireSuperUser } = require('../middleware/auth');
 const plansService = require('../services/plansService');
+const accessService = require('../services/accessService');
 const currencyService = require('../services/currencyService');
 const env = require('../config/env');
 const logger = require('../config/logger');
@@ -260,6 +261,60 @@ router.delete('/admin/users/:id', requireAuth, requireSuperUser, async (req, res
   } catch (error) {
     logger.error('Admin user delete error', error);
     return res.status(500).json({ error: 'No se pudo eliminar la cuenta.' });
+  }
+});
+
+// PUT /api/admin/users/:id/access - agrega dias/horas al plan de un usuario
+// (suma a partir de lo que le quedaba, igual que una compra real).
+router.put('/admin/users/:id/access', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ error: 'ID de usuario invalido.' });
+    }
+
+    const days = Number(req.body?.days) || 0;
+    const hours = Number(req.body?.hours) || 0;
+
+    if (days < 0 || hours < 0) {
+      return res.status(400).json({ error: 'Los valores no pueden ser negativos.' });
+    }
+
+    await accessService.adminAddAccessTime(userId, { days, hours });
+
+    const users = await loadAdminUsers();
+    const user = users.find((item) => item.id === userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Cuenta no encontrada.' });
+    }
+
+    return res.json({ user });
+  } catch (error) {
+    logger.error('Admin add access time error', error);
+    return res.status(400).json({ error: error.message || 'No se pudo agregar tiempo al plan.' });
+  }
+});
+
+// DELETE /api/admin/users/:id/access - quita el plan/acceso del usuario.
+router.delete('/admin/users/:id/access', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ error: 'ID de usuario invalido.' });
+    }
+
+    await accessService.adminRevokeAccess(userId);
+
+    const users = await loadAdminUsers();
+    const user = users.find((item) => item.id === userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Cuenta no encontrada.' });
+    }
+
+    return res.json({ user });
+  } catch (error) {
+    logger.error('Admin revoke access error', error);
+    return res.status(500).json({ error: 'No se pudo quitar el plan.' });
   }
 });
 

@@ -83,6 +83,17 @@ const adminEditConnections = document.getElementById('adminEditConnections');
 const adminEditCloseBtn = document.getElementById('adminEditCloseBtn');
 const adminEditCancelBtn = document.getElementById('adminEditCancelBtn');
 const adminEditSaveBtn = document.getElementById('adminEditSaveBtn');
+const adminPlanModal = document.getElementById('adminPlanModal');
+const adminPlanUserId = document.getElementById('adminPlanUserId');
+const adminPlanUserName = document.getElementById('adminPlanUserName');
+const adminPlanUserEmail = document.getElementById('adminPlanUserEmail');
+const adminPlanCurrentStatus = document.getElementById('adminPlanCurrentStatus');
+const adminPlanAddForm = document.getElementById('adminPlanAddForm');
+const adminPlanAddDays = document.getElementById('adminPlanAddDays');
+const adminPlanAddHours = document.getElementById('adminPlanAddHours');
+const adminPlanAddBtn = document.getElementById('adminPlanAddBtn');
+const adminPlanRevokeBtn = document.getElementById('adminPlanRevokeBtn');
+const adminPlanCloseBtn = document.getElementById('adminPlanCloseBtn');
 
 const overlayPreviewFrame = document.getElementById('overlayPreviewFrame');
 const overlayCardToggle = document.getElementById('overlayCardToggle');
@@ -594,9 +605,8 @@ const GATEWAY_LABELS = { wompi: 'Wompi', mercadopago: 'MercadoPago' };
 // monto va a aparecer en pesos colombianos (COP) sin importar la moneda que
 // vio en la tarjeta de plan, y que es el mismo precio, sin cargos extra —
 // para que no le sorprenda ni piense que es un error. Barra de progreso de
-// `seconds` que redirige sola al terminar; "Continuar ahora" salta la
-// espera, "Cancelar" se queda en la plataforma.
-function showGatewayRedirectNotice(gateway, seconds = 6) {
+// `seconds` que redirige sola al terminar; "Continuar ahora" salta la espera.
+function showGatewayRedirectNotice(gateway, seconds = 10) {
   const gatewayName = GATEWAY_LABELS[gateway] || 'la pasarela de pago';
 
   return new Promise((resolve) => {
@@ -618,7 +628,6 @@ function showGatewayRedirectNotice(gateway, seconds = 6) {
         </div>
         <p class="gateway-notice-countdown">Te llevaremos a ${escapeHtml(gatewayName)} en <span data-countdown>${seconds}</span>s</p>
         <div class="app-dialog-actions">
-          <button class="app-dialog-button ghost" type="button" data-cancel>Cancelar</button>
           <button class="app-dialog-button primary" type="button" data-continue>Continuar ahora</button>
         </div>
       </div>
@@ -640,23 +649,19 @@ function showGatewayRedirectNotice(gateway, seconds = 6) {
     }, 1000);
 
     let settled = false;
-    function finish(shouldContinue) {
+    function finish() {
       if (settled) return;
       settled = true;
       clearInterval(tick);
       clearTimeout(timer);
       backdrop.classList.remove('open');
       setTimeout(() => backdrop.remove(), 180);
-      resolve(shouldContinue);
+      resolve();
     }
 
-    const timer = setTimeout(() => finish(true), seconds * 1000);
+    const timer = setTimeout(finish, seconds * 1000);
 
-    backdrop.querySelector('[data-continue]').addEventListener('click', () => finish(true));
-    backdrop.querySelector('[data-cancel]').addEventListener('click', () => finish(false));
-    backdrop.addEventListener('click', (event) => {
-      if (event.target === backdrop) finish(false);
-    });
+    backdrop.querySelector('[data-continue]').addEventListener('click', finish);
   });
 }
 
@@ -678,12 +683,7 @@ async function startCheckout(planId, gateway, button) {
       throw new Error(data.error || 'No se pudo iniciar el pago.');
     }
 
-    const shouldContinue = await showGatewayRedirectNotice(gateway);
-    if (!shouldContinue) {
-      renderPlanCards();
-      return;
-    }
-
+    await showGatewayRedirectNotice(gateway);
     window.location.href = data.url;
   } catch (error) {
     await showAlert(error.message, 'Error al iniciar el pago');
@@ -1944,6 +1944,7 @@ function renderAdminUsers() {
           </div>
           <div class="admin-user-actions">
             <button class="btn secondary edit-user" type="button">Editar cuenta</button>
+            <button class="btn secondary manage-plan" type="button">Administrar plan</button>
             <button class="btn danger delete-user" type="button">Eliminar cuenta</button>
           </div>
         </div>
@@ -1957,6 +1958,10 @@ function renderAdminUsers() {
 
     card.querySelector('.edit-user').addEventListener('click', () => {
       openEditModal(userId);
+    });
+
+    card.querySelector('.manage-plan').addEventListener('click', () => {
+      openPlanModal(userId);
     });
 
     card.querySelector('.delete-user').addEventListener('click', () => {
@@ -2103,6 +2108,131 @@ async function deleteAdminUser(userId) {
     await showAlert(`La cuenta de ${user.name} fue eliminada.`, 'Cuenta eliminada');
   } catch (error) {
     await showAlert(error.message, 'Error');
+  }
+}
+
+function formatAdminPlanStatus(access) {
+  if (!access) return 'Sin acceso.';
+  if (access.hasAccess && access.isTrial) {
+    return `Prueba gratuita activa — vence el ${formatDate(access.accessExpiresAt)}.`;
+  }
+  if (access.hasAccess) {
+    return `Plan activo — vence el ${formatDate(access.accessExpiresAt)}.`;
+  }
+  if (access.accessExpiresAt) {
+    return `Acceso vencido el ${formatDate(access.accessExpiresAt)}.`;
+  }
+  return 'Sin acceso ni prueba activa.';
+}
+
+function openPlanModal(userId) {
+  const user = adminUsers.find((item) => item.id === userId);
+  if (!user) return;
+
+  adminPlanUserId.value = String(user.id);
+  if (adminPlanUserName) adminPlanUserName.textContent = user.name || '-';
+  if (adminPlanUserEmail) adminPlanUserEmail.textContent = user.email || '-';
+  if (adminPlanCurrentStatus) adminPlanCurrentStatus.textContent = formatAdminPlanStatus(user.access);
+  if (adminPlanAddDays) adminPlanAddDays.value = '0';
+  if (adminPlanAddHours) adminPlanAddHours.value = '0';
+
+  adminPlanModal.hidden = false;
+  if (adminPlanAddDays) {
+    adminPlanAddDays.focus();
+    adminPlanAddDays.select();
+  }
+}
+
+function closePlanModal() {
+  adminPlanModal.hidden = true;
+  adminPlanAddForm.reset();
+  adminPlanUserId.value = '';
+}
+
+async function addAccessTimeToUser(event) {
+  event.preventDefault();
+
+  const userId = Number(adminPlanUserId.value);
+  const days = Number(adminPlanAddDays.value) || 0;
+  const hours = Number(adminPlanAddHours.value) || 0;
+
+  if (!userId) {
+    await showAlert('No se encontro la cuenta.', 'Cuenta no encontrada');
+    return;
+  }
+
+  if (days <= 0 && hours <= 0) {
+    await showAlert('Ingresa al menos un dia o una hora para agregar.', 'Cantidad invalida');
+    return;
+  }
+
+  adminPlanAddBtn.disabled = true;
+  adminPlanAddBtn.textContent = 'Agregando...';
+
+  try {
+    const response = await fetch(`/api/admin/users/${userId}/access`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days, hours }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo agregar tiempo al plan.');
+    }
+
+    adminUsers = adminUsers.map((user) => (user.id === userId ? data.user : user));
+    renderAdminUsers();
+    if (adminPlanCurrentStatus) adminPlanCurrentStatus.textContent = formatAdminPlanStatus(data.user.access);
+    if (adminPlanAddDays) adminPlanAddDays.value = '0';
+    if (adminPlanAddHours) adminPlanAddHours.value = '0';
+
+    await showAlert('Tiempo agregado correctamente.', 'Plan actualizado');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    adminPlanAddBtn.disabled = false;
+    adminPlanAddBtn.textContent = 'Agregar tiempo';
+  }
+}
+
+async function revokeAccessFromUser() {
+  const userId = Number(adminPlanUserId.value);
+  const user = adminUsers.find((item) => item.id === userId);
+  if (!user) return;
+
+  const confirmed = await showConfirm(
+    `¿Seguro que quieres quitarle el plan a ${user.name}? Perderá el acceso de inmediato.`,
+    'Quitar plan',
+    'Quitar plan',
+    'Cancelar',
+  );
+
+  if (!confirmed) return;
+
+  adminPlanRevokeBtn.disabled = true;
+  adminPlanRevokeBtn.textContent = 'Quitando...';
+
+  try {
+    const response = await fetch(`/api/admin/users/${userId}/access`, {
+      method: 'DELETE',
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo quitar el plan.');
+    }
+
+    adminUsers = adminUsers.map((item) => (item.id === userId ? data.user : item));
+    renderAdminUsers();
+    if (adminPlanCurrentStatus) adminPlanCurrentStatus.textContent = formatAdminPlanStatus(data.user.access);
+
+    await showAlert(`Se le quitó el plan a ${user.name}.`, 'Plan actualizado');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    adminPlanRevokeBtn.disabled = false;
+    adminPlanRevokeBtn.textContent = 'Quitar plan a esta cuenta';
   }
 }
 
@@ -2275,7 +2405,30 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && adminEditModal && !adminEditModal.hidden) {
     closeEditModal();
   }
+  if (event.key === 'Escape' && adminPlanModal && !adminPlanModal.hidden) {
+    closePlanModal();
+  }
 });
+
+if (adminPlanAddForm) {
+  adminPlanAddForm.addEventListener('submit', addAccessTimeToUser);
+}
+
+if (adminPlanRevokeBtn) {
+  adminPlanRevokeBtn.addEventListener('click', revokeAccessFromUser);
+}
+
+if (adminPlanCloseBtn) {
+  adminPlanCloseBtn.addEventListener('click', closePlanModal);
+}
+
+if (adminPlanModal) {
+  adminPlanModal.addEventListener('click', (event) => {
+    if (event.target === adminPlanModal) {
+      closePlanModal();
+    }
+  });
+}
 
 if (changePasswordForm) {
   changePasswordForm.addEventListener('submit', handleChangePassword);

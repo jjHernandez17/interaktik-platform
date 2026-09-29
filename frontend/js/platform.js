@@ -515,22 +515,23 @@ async function setupAdminPlanPriceControls() {
     if (existingForm) existingForm.remove();
 
     const usdValue = (plan.price_usd_cents / 100).toFixed(2);
-    const copValue = Math.round(plan.price_cop_cents / 100);
+    const copEstimateText = plan.wompiEstimateCop
+      ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(plan.wompiEstimateCop.amount)
+      : '—';
 
     const form = document.createElement('form');
     form.className = 'admin-plan-price-form';
     form.dataset.adminPriceForm = planId;
     form.innerHTML = `
-      <p class="admin-plan-price-title">Precio real (admin)</p>
+      <p class="admin-plan-price-title">Precio real (admin) — solo USD</p>
       <label>
         <span>USD</span>
         <input type="number" step="0.01" min="0.01" name="priceUsd" value="${usdValue}" required />
       </label>
-      <label>
-        <span>COP</span>
-        <input type="number" step="1" min="1" name="priceCop" value="${copValue}" required />
-      </label>
-      <p class="admin-plan-price-hint">Minimo: $${escapeHtml(String(adminPriceMinimums.wompiCop))} COP (Wompi) · $${escapeHtml(String(adminPriceMinimums.mercadopagoCop))} COP (MercadoPago)</p>
+      <p class="admin-plan-price-hint">
+        ≈ ${escapeHtml(copEstimateText)} COP hoy (Wompi/MercadoPago convierten en vivo al momento del pago)<br />
+        Minimo: $${escapeHtml(String(adminPriceMinimums.wompiCop))} COP (Wompi) · $${escapeHtml(String(adminPriceMinimums.mercadopagoCop))} COP (MercadoPago)
+      </p>
       <button class="btn small secondary" type="submit">Guardar precio</button>
       <p class="admin-plan-price-error hidden"></p>
     `;
@@ -555,7 +556,6 @@ async function setupAdminPlanPriceControls() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             priceUsdCents: Math.round(Number(form.priceUsd.value) * 100),
-            priceCopCents: Math.round(Number(form.priceCop.value) * 100),
           }),
         });
         const data = await response.json().catch(() => ({}));

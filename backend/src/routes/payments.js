@@ -27,23 +27,31 @@ function getFrontendBaseUrl(req) {
 
 // GET /api/plans - publico, catalogo de planes
 // ?currency=XXX (opcional): agrega un precio ESTIMADO en esa moneda a cada
-// plan, solo para mostrar. El cobro real siempre usa el precio fijo de cada
-// pasarela (price_usd_cents para Stripe/MercadoPago, price_cop_cents para Wompi).
+// plan, solo para mostrar. El cobro real de Wompi/MercadoPago se calcula
+// convirtiendo price_usd_cents a la moneda de esa pasarela EN VIVO al
+// momento de pagar (ver /payments/checkout) — por eso tambien va aca un
+// estimado en COP (wompiEstimateCop) para la nota "Cobro real vía Wompi" de
+// la tarjeta, sin importar la moneda que el visitante tenga detectada.
 router.get('/plans', async (req, res) => {
   try {
     const plans = await plansService.listActivePlans();
     const requestedCurrency = String(req.query?.currency || '').toUpperCase();
 
-    let plansWithDisplay = plans;
-    if (requestedCurrency && requestedCurrency !== 'USD') {
-      plansWithDisplay = await Promise.all(plans.map(async (plan) => {
-        const display = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, requestedCurrency);
-        return { ...plan, display };
-      }));
-    }
+    const plansWithEstimates = await Promise.all(plans.map(async (plan) => {
+      const wompiEstimateCop = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, 'COP');
+
+      let display;
+      if (requestedCurrency && requestedCurrency !== 'USD') {
+        display = requestedCurrency === 'COP'
+          ? wompiEstimateCop
+          : await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, requestedCurrency);
+      }
+
+      return { ...plan, display, wompiEstimateCop };
+    }));
 
     return res.json({
-      plans: plansWithDisplay,
+      plans: plansWithEstimates,
       gateways: {
         stripe: stripeClient.isConfigured(),
         mercadopago: mercadopagoClient.isConfigured(),
@@ -92,28 +100,28 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
       return res.status(503).json({ error: `${gatewayNames[gateway]} todavia no esta configurado en el servidor.` });
     }
 
-    // Wompi cobra en COP con precio fijo. Stripe siempre en USD. MercadoPago
-    // cobra en la moneda de la cuenta del vendedor (MERCADOPAGO_CURRENCY) — si
-    // no es USD, hay que convertir el precio base en USD a esa moneda ANTES de
-    // armar la preferencia, o se termina cobrando el numero de USD tal cual
-    // pero etiquetado con otra moneda (ej. "10 COP" en vez del equivalente de
-    // $10 USD en COP).
+    // El admin solo fija price_usd_cents. Wompi siempre cobra en COP,
+    // convertido en vivo desde ese precio base; MercadoPago cobra en la
+    // moneda de la cuenta del vendedor (MERCADOPAGO_CURRENCY), tambien
+    // convertida en vivo si no es USD. Stripe cobra directo en USD. La
+    // conversion se hace UNA sola vez aca y el mismo numero se usa para lo
+    // que se le manda a la pasarela, lo que se guarda en `payments` y lo
+    // que sale despues en el recibo.
     let amountForRecord;
     let currencyForRecord;
-    let mercadopagoCharge = null;
+    let gatewayCharge = null; // { amount: unidad completa, currency } — wompi/mercadopago
 
     if (gateway === 'wompi') {
-      amountForRecord = plan.price_cop_cents;
-      currencyForRecord = 'COP';
+      gatewayCharge = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, 'COP');
+      currencyForRecord = gatewayCharge.currency;
+      amountForRecord = Math.round(gatewayCharge.amount * 100);
     } else if (gateway === 'mercadopago') {
       const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
-      if (mpCurrency === 'USD') {
-        mercadopagoCharge = { currency: 'USD', amount: plan.price_usd_cents / 100 };
-      } else {
-        mercadopagoCharge = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, mpCurrency);
-      }
-      currencyForRecord = mercadopagoCharge.currency;
-      amountForRecord = Math.round(mercadopagoCharge.amount * 100);
+      gatewayCharge = mpCurrency === 'USD'
+        ? { currency: 'USD', amount: plan.price_usd_cents / 100 }
+        : await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, mpCurrency);
+      currencyForRecord = gatewayCharge.currency;
+      amountForRecord = Math.round(gatewayCharge.amount * 100);
     } else {
       amountForRecord = plan.price_usd_cents;
       currencyForRecord = 'USD';
@@ -149,16 +157,16 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
         paymentId,
         successUrl,
         cancelUrl,
-        amount: mercadopagoCharge.amount,
-        currency: mercadopagoCharge.currency,
+        amount: gatewayCharge.amount,
+        currency: gatewayCharge.currency,
       });
       checkoutUrl = preference.url;
       gatewaySessionId = preference.preferenceId;
     } else {
       const checkout = wompiClient.buildCheckoutUrl({
         paymentId,
-        amountInCents: plan.price_cop_cents,
-        currency: 'COP',
+        amountInCents: amountForRecord,
+        currency: gatewayCharge.currency,
         redirectUrl: successUrl,
       });
       checkoutUrl = checkout.url;

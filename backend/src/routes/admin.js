@@ -268,8 +268,13 @@ router.delete('/admin/users/:id', requireAuth, requireSuperUser, async (req, res
 router.get('/admin/plans', requireAuth, requireSuperUser, async (_req, res) => {
   try {
     const plans = await plansService.listAllPlansForAdmin();
+    const plansWithEstimates = await Promise.all(plans.map(async (plan) => {
+      const wompiEstimateCop = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, 'COP');
+      return { ...plan, wompiEstimateCop };
+    }));
+
     return res.json({
-      plans,
+      plans: plansWithEstimates,
       minimums: {
         wompiCop: env.WOMPI_MIN_AMOUNT_COP,
         mercadopagoCop: env.MERCADOPAGO_MIN_AMOUNT_COP,
@@ -282,17 +287,17 @@ router.get('/admin/plans', requireAuth, requireSuperUser, async (_req, res) => {
 });
 
 // PUT /api/admin/plans/:id/price - actualiza el precio real de un plan.
-// price_cop_cents es lo que cobra Wompi (fijo); price_usd_cents es lo que
-// cobra MercadoPago, convertido a su moneda con la tasa de cambio del
-// momento del pago (ver checkout en payments.js) — por eso el chequeo contra
-// el minimo de MercadoPago usa la tasa de HOY como resguardo, no una
-// garantia permanente: si el dolar cae mucho despues, convendria revisar los
-// precios de nuevo.
+// El admin SOLO digita en USD. Lo que se le cobra al usuario en cada
+// pasarela (COP via Wompi, la moneda de la cuenta via MercadoPago) se
+// convierte en vivo al momento de pagar — ver checkout en payments.js. Aca
+// se valida con la tasa de HOY, como resguardo: si el dolar se mueve mucho
+// despues, un precio que hoy pasa el minimo podria dejar de pasarlo manana;
+// no es una garantia permanente, conviene revisar los precios de vez en
+// cuando.
 router.put('/admin/plans/:id/price', requireAuth, requireSuperUser, async (req, res) => {
   try {
     const planId = String(req.params.id || '');
     const priceUsdCents = Math.round(Number(req.body?.priceUsdCents));
-    const priceCopCents = Math.round(Number(req.body?.priceCopCents));
 
     if (!planId) {
       return res.status(400).json({ error: 'Plan invalido.' });
@@ -300,31 +305,29 @@ router.put('/admin/plans/:id/price', requireAuth, requireSuperUser, async (req, 
     if (!Number.isFinite(priceUsdCents) || priceUsdCents <= 0) {
       return res.status(400).json({ error: 'Precio en USD invalido.' });
     }
-    if (!Number.isFinite(priceCopCents) || priceCopCents <= 0) {
-      return res.status(400).json({ error: 'Precio en COP invalido.' });
-    }
 
+    const wompiConverted = await currencyService.convertUsdCentsToDisplay(priceUsdCents, 'COP');
+    const wompiConvertedCents = Math.round(wompiConverted.amount * 100);
     const wompiMinCents = env.WOMPI_MIN_AMOUNT_COP * 100;
-    if (priceCopCents < wompiMinCents) {
+    if (wompiConvertedCents < wompiMinCents) {
       return res.status(400).json({
-        error: `El precio en COP (para Wompi) debe ser de al menos $${env.WOMPI_MIN_AMOUNT_COP} COP.`,
+        error: `Con la tasa de cambio de hoy, ese precio en USD equivale a menos del minimo de Wompi ($${env.WOMPI_MIN_AMOUNT_COP} COP). Sube el precio en USD.`,
       });
     }
 
-    const mercadopagoMinCents = env.MERCADOPAGO_MIN_AMOUNT_COP * 100;
     const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
-
     if (mpCurrency === 'COP') {
-      const converted = await currencyService.convertUsdCentsToDisplay(priceUsdCents, mpCurrency);
-      const convertedCents = Math.round(converted.amount * 100);
-      if (convertedCents < mercadopagoMinCents) {
+      // Ya convertimos arriba para Wompi y MercadoPago cobra en la misma
+      // moneda (COP) en esta cuenta — reusamos el mismo numero.
+      const mercadopagoMinCents = env.MERCADOPAGO_MIN_AMOUNT_COP * 100;
+      if (wompiConvertedCents < mercadopagoMinCents) {
         return res.status(400).json({
-          error: `Con la tasa de cambio de hoy, el precio en USD equivale a menos del minimo de MercadoPago ($${env.MERCADOPAGO_MIN_AMOUNT_COP} COP). Sube el precio en USD.`,
+          error: `Con la tasa de cambio de hoy, ese precio en USD equivale a menos del minimo de MercadoPago ($${env.MERCADOPAGO_MIN_AMOUNT_COP} COP). Sube el precio en USD.`,
         });
       }
     }
 
-    const plan = await plansService.updatePlanPrice(planId, { priceUsdCents, priceCopCents });
+    const plan = await plansService.updatePlanPrice(planId, { priceUsdCents });
     if (!plan) {
       return res.status(404).json({ error: 'Plan no encontrado.' });
     }

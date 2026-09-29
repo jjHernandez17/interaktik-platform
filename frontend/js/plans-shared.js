@@ -88,7 +88,12 @@ const PLAN_DISCOUNT_PERCENT = {
 // cuenta" en la landing) — asi la tarjeta se ve identica en ambos lados
 // aunque el llamado a la accion sea distinto.
 function buildPlanCardHtml(plan, actionsHtml) {
-  const copPrice = formatPrice(Number(plan.price_cop_cents || 0) / 100, 'COP');
+  // Estimado en vivo (viene de GET /api/plans, convertido de price_usd_cents
+  // con la tasa de cambio de ahorita) — el cobro real vía Wompi se calcula
+  // igual, en el momento exacto del pago, así que puede variar un poco.
+  const copPrice = plan.wompiEstimateCop
+    ? formatPrice(plan.wompiEstimateCop.amount, 'COP')
+    : formatPrice(0, 'COP');
   const mainPrice = plan.display
     ? formatPrice(plan.display.amount, plan.display.currency)
     : formatPrice(Number(plan.price_usd_cents || 0) / 100, 'USD');
@@ -131,7 +136,7 @@ function buildPlanCardHtml(plan, actionsHtml) {
       <div class="plan-actions">
         ${actionsHtml}
       </div>
-      <p class="plan-cop-note">Cobro real vía Wompi: ${copPrice}</p>
+      <p class="plan-cop-note">Cobro vía Wompi: ≈ ${copPrice}</p>
     </article>
   `;
 }

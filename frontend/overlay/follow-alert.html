@@ -72,10 +72,31 @@
       margin: 0;
       opacity: 0.95;
     }
+
+    /* Vista previa embebida en el panel (?demo=1): centra el widget dentro
+       del recuadro chico en vez de mantener su posicion real de esquina/
+       borde (pensada para un canvas de stream completo, no una miniatura).
+       No afecta al overlay real pegado en OBS. */
+    body.preview-mode {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    body.preview-mode #followAlertRoot {
+      position: static !important;
+      transform: none !important;
+      animation: none !important;
+    }
   </style>
 </head>
 
 <body>
+  <script>
+    if (new URLSearchParams(location.search).get('demo') === '1') {
+      document.body.classList.add('preview-mode');
+    }
+  </script>
   <div id="followAlertRoot">
     <img id="followAlertAvatar" src="" alt="" />
     <div id="followAlertText">

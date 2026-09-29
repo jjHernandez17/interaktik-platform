@@ -18,6 +18,11 @@ const router = express.Router();
 
 const VALID_GATEWAYS = ['stripe', 'mercadopago', 'wompi'];
 
+// Monedas sin decimales (no manejan centavos): MercadoPago exige que
+// unit_price sea entero para estas, o rechaza la preferencia con
+// "unit_price must be a integer".
+const ZERO_DECIMAL_CURRENCIES = new Set(['COP', 'CLP', 'PYG']);
+
 function getFrontendBaseUrl(req) {
   if (env.NODE_ENV === 'production') {
     return env.FRONTEND_URL;
@@ -120,6 +125,11 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
       gatewayCharge = mpCurrency === 'USD'
         ? { currency: 'USD', amount: plan.price_usd_cents / 100 }
         : await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, mpCurrency);
+
+      if (ZERO_DECIMAL_CURRENCIES.has(gatewayCharge.currency)) {
+        gatewayCharge = { ...gatewayCharge, amount: Math.round(gatewayCharge.amount) };
+      }
+
       currencyForRecord = gatewayCharge.currency;
       amountForRecord = Math.round(gatewayCharge.amount * 100);
     } else {

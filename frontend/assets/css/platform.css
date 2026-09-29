@@ -1642,3 +1642,35 @@ a {
   color: var(--accent);
   font-weight: 800;
 }
+
+/* Aviso previo a salir hacia Wompi/MercadoPago (showGatewayRedirectNotice
+   en platform.js) — reusa .app-dialog-* de dialog.js, esto solo agrega la
+   barra de progreso y el contador. */
+.gateway-notice-progress-track {
+  margin: 4px 22px 0 84px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.gateway-notice-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #8b5cf6);
+  transition: width linear;
+}
+
+.gateway-notice-countdown {
+  margin: 8px 22px 0 84px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  .gateway-notice-progress-track,
+  .gateway-notice-countdown {
+    margin-left: 22px;
+  }
+}

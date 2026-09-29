@@ -588,10 +588,82 @@ async function loadPlans() {
   }
 }
 
+const GATEWAY_LABELS = { wompi: 'Wompi', mercadopago: 'MercadoPago' };
+
+// Aviso previo a salir hacia la pasarela: le explica al usuario que ahi el
+// monto va a aparecer en pesos colombianos (COP) sin importar la moneda que
+// vio en la tarjeta de plan, y que es el mismo precio, sin cargos extra —
+// para que no le sorprenda ni piense que es un error. Barra de progreso de
+// `seconds` que redirige sola al terminar; "Continuar ahora" salta la
+// espera, "Cancelar" se queda en la plataforma.
+function showGatewayRedirectNotice(gateway, seconds = 6) {
+  const gatewayName = GATEWAY_LABELS[gateway] || 'la pasarela de pago';
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'app-dialog-backdrop';
+    backdrop.innerHTML = `
+      <div class="app-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="gatewayNoticeTitle" aria-describedby="gatewayNoticeMessage" tabindex="-1">
+        <div class="app-dialog-header">
+          <div class="app-dialog-icon" aria-hidden="true">💳</div>
+          <div class="app-dialog-heading">
+            <h2 id="gatewayNoticeTitle" class="app-dialog-title">Antes de continuar</h2>
+          </div>
+        </div>
+        <div id="gatewayNoticeMessage" class="app-dialog-message">
+          Vas a completar tu pago en <strong>${escapeHtml(gatewayName)}</strong>. Ahí el monto se mostrará en pesos colombianos (COP): es el mismo precio que viste en la sección de Planes, solo que la pasarela opera únicamente en esa moneda. No se te cobrará nada adicional.
+        </div>
+        <div class="gateway-notice-progress-track">
+          <div class="gateway-notice-progress-fill"></div>
+        </div>
+        <p class="gateway-notice-countdown">Te llevaremos a ${escapeHtml(gatewayName)} en <span data-countdown>${seconds}</span>s</p>
+        <div class="app-dialog-actions">
+          <button class="app-dialog-button ghost" type="button" data-cancel>Cancelar</button>
+          <button class="app-dialog-button primary" type="button" data-continue>Continuar ahora</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => {
+      backdrop.classList.add('open');
+      const fill = backdrop.querySelector('.gateway-notice-progress-fill');
+      fill.style.transitionDuration = `${seconds}s`;
+      requestAnimationFrame(() => { fill.style.width = '100%'; });
+    });
+
+    const countdownEl = backdrop.querySelector('[data-countdown]');
+    let remaining = seconds;
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (countdownEl) countdownEl.textContent = Math.max(0, remaining);
+    }, 1000);
+
+    let settled = false;
+    function finish(shouldContinue) {
+      if (settled) return;
+      settled = true;
+      clearInterval(tick);
+      clearTimeout(timer);
+      backdrop.classList.remove('open');
+      setTimeout(() => backdrop.remove(), 180);
+      resolve(shouldContinue);
+    }
+
+    const timer = setTimeout(() => finish(true), seconds * 1000);
+
+    backdrop.querySelector('[data-continue]').addEventListener('click', () => finish(true));
+    backdrop.querySelector('[data-cancel]').addEventListener('click', () => finish(false));
+    backdrop.addEventListener('click', (event) => {
+      if (event.target === backdrop) finish(false);
+    });
+  });
+}
+
 async function startCheckout(planId, gateway, button) {
   if (button) {
     button.disabled = true;
-    button.textContent = 'Redirigiendo...';
+    button.textContent = 'Preparando pago...';
   }
 
   try {
@@ -604,6 +676,12 @@ async function startCheckout(planId, gateway, button) {
 
     if (!response.ok) {
       throw new Error(data.error || 'No se pudo iniciar el pago.');
+    }
+
+    const shouldContinue = await showGatewayRedirectNotice(gateway);
+    if (!shouldContinue) {
+      renderPlanCards();
+      return;
     }
 
     window.location.href = data.url;

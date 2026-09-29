@@ -2064,9 +2064,15 @@ async function loadMe() {
     await loadGameAvailability();
     await loadAccessStatus();
     await loadPlans();
-    await handlePaymentRedirectParams();
 
+    // El loader se oculta ANTES de handlePaymentRedirectParams() a proposito:
+    // esa funcion puede mostrar un dialogo (showAlert, z-index 4000) que
+    // queda tapado por el loader de pantalla completa (z-index 9999) si
+    // sigue visible — el usuario nunca puede hacerle click a "Entendido" y
+    // la pantalla se ve trabada en "cargando" para siempre.
     document.getElementById('pageLoader')?.setAttribute('hidden', '');
+
+    await handlePaymentRedirectParams();
   } catch (_error) {
     console.log('Error al verificar autenticacion:', _error);
     redirectWithLog('/login.html', 'Error al cargar datos de usuario');

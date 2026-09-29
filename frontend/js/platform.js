@@ -92,8 +92,15 @@ const adminPlanAddForm = document.getElementById('adminPlanAddForm');
 const adminPlanAddDays = document.getElementById('adminPlanAddDays');
 const adminPlanAddHours = document.getElementById('adminPlanAddHours');
 const adminPlanAddBtn = document.getElementById('adminPlanAddBtn');
+const adminPlanSubtractForm = document.getElementById('adminPlanSubtractForm');
+const adminPlanSubtractDays = document.getElementById('adminPlanSubtractDays');
+const adminPlanSubtractHours = document.getElementById('adminPlanSubtractHours');
+const adminPlanSubtractBtn = document.getElementById('adminPlanSubtractBtn');
 const adminPlanRevokeBtn = document.getElementById('adminPlanRevokeBtn');
 const adminPlanCloseBtn = document.getElementById('adminPlanCloseBtn');
+const adminInfoModal = document.getElementById('adminInfoModal');
+const adminInfoContent = document.getElementById('adminInfoContent');
+const adminInfoCloseBtn = document.getElementById('adminInfoCloseBtn');
 
 const overlayPreviewFrame = document.getElementById('overlayPreviewFrame');
 const overlayCardToggle = document.getElementById('overlayCardToggle');
@@ -1872,6 +1879,16 @@ function formatAdminMoney(amountCents, currency) {
 
 const ADMIN_GATEWAY_LABELS = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
 
+// Iconos inline (mismo lenguaje visual que .info-icon svg en la landing:
+// viewBox 24x24, stroke currentColor 1.7, sin relleno) — los botones de la
+// tarjeta de admin son solo-icono, el texto vive en title/aria-label.
+const ADMIN_ICONS = {
+  edit: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4L18.5 9.5a2.121 2.121 0 00-3-3L5 17v3z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  plan: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9.5h17M8 3v3M16 3v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 13v2.6l1.8 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.3" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="8" r="0.9" fill="currentColor"/></svg>',
+  delete: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h14M9.5 7V5a1.5 1.5 0 011.5-1.5h2A1.5 1.5 0 0114.5 5v2M7 7l1 12.5A1.5 1.5 0 009.5 21h5a1.5 1.5 0 001.5-1.5L17 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
 function renderAdminUserPlanInfo(user) {
   const access = user.access || {};
   const verifiedBadge = user.email_verified
@@ -1888,6 +1905,8 @@ function renderAdminUserPlanInfo(user) {
   } else {
     accessBadge = '<span class="admin-badge admin-badge-muted">Sin acceso</span>';
   }
+
+  const registeredLine = `<p class="admin-user-info">Registrado: ${escapeHtml(formatDate(user.created_at))}</p>`;
 
   const expiresLine = access.accessExpiresAt
     ? `<p class="admin-user-info">Vence: ${escapeHtml(formatDate(access.accessExpiresAt))}</p>`
@@ -1906,6 +1925,7 @@ function renderAdminUserPlanInfo(user) {
         ${accessBadge}
         ${verifiedBadge}
       </div>
+      ${registeredLine}
       ${expiresLine}
       ${lastPaymentLine}
       ${paidCountLine}
@@ -1940,15 +1960,14 @@ function renderAdminUsers() {
           <div>
             <h3 class="admin-user-name">${escapeHtml(user.name)}</h3>
             <p class="admin-user-email">${escapeHtml(user.email)}</p>
-            <p class="admin-user-info">Registrado: ${escapeHtml(formatDate(user.created_at))}</p>
           </div>
           <div class="admin-user-actions">
-            <button class="btn secondary edit-user" type="button">Editar cuenta</button>
-            <button class="btn secondary manage-plan" type="button">Administrar plan</button>
-            <button class="btn danger delete-user" type="button">Eliminar cuenta</button>
+            <button class="btn icon-btn secondary edit-user" type="button" title="Editar cuenta" aria-label="Editar cuenta">${ADMIN_ICONS.edit}</button>
+            <button class="btn icon-btn secondary manage-plan" type="button" title="Administrar plan" aria-label="Administrar plan">${ADMIN_ICONS.plan}</button>
+            <button class="btn icon-btn secondary account-info" type="button" title="Información de la cuenta" aria-label="Información de la cuenta">${ADMIN_ICONS.info}</button>
+            <button class="btn icon-btn danger delete-user" type="button" title="Eliminar cuenta" aria-label="Eliminar cuenta">${ADMIN_ICONS.delete}</button>
           </div>
         </div>
-        ${renderAdminUserPlanInfo(user)}
       </article>
     `)
     .join('');
@@ -1962,6 +1981,10 @@ function renderAdminUsers() {
 
     card.querySelector('.manage-plan').addEventListener('click', () => {
       openPlanModal(userId);
+    });
+
+    card.querySelector('.account-info').addEventListener('click', () => {
+      openInfoModal(userId);
     });
 
     card.querySelector('.delete-user').addEventListener('click', () => {
@@ -2135,6 +2158,8 @@ function openPlanModal(userId) {
   if (adminPlanCurrentStatus) adminPlanCurrentStatus.textContent = formatAdminPlanStatus(user.access);
   if (adminPlanAddDays) adminPlanAddDays.value = '0';
   if (adminPlanAddHours) adminPlanAddHours.value = '0';
+  if (adminPlanSubtractDays) adminPlanSubtractDays.value = '0';
+  if (adminPlanSubtractHours) adminPlanSubtractHours.value = '0';
 
   adminPlanModal.hidden = false;
   if (adminPlanAddDays) {
@@ -2146,7 +2171,20 @@ function openPlanModal(userId) {
 function closePlanModal() {
   adminPlanModal.hidden = true;
   adminPlanAddForm.reset();
+  if (adminPlanSubtractForm) adminPlanSubtractForm.reset();
   adminPlanUserId.value = '';
+}
+
+function openInfoModal(userId) {
+  const user = adminUsers.find((item) => item.id === userId);
+  if (!user || !adminInfoModal) return;
+
+  if (adminInfoContent) adminInfoContent.innerHTML = renderAdminUserPlanInfo(user);
+  adminInfoModal.hidden = false;
+}
+
+function closeInfoModal() {
+  if (adminInfoModal) adminInfoModal.hidden = true;
 }
 
 async function addAccessTimeToUser(event) {
@@ -2196,14 +2234,61 @@ async function addAccessTimeToUser(event) {
   }
 }
 
+async function subtractAccessTimeFromUser(event) {
+  event.preventDefault();
+
+  const userId = Number(adminPlanUserId.value);
+  const days = Number(adminPlanSubtractDays.value) || 0;
+  const hours = Number(adminPlanSubtractHours.value) || 0;
+
+  if (!userId) {
+    await showAlert('No se encontro la cuenta.', 'Cuenta no encontrada');
+    return;
+  }
+
+  if (days <= 0 && hours <= 0) {
+    await showAlert('Ingresa al menos un dia o una hora para quitar.', 'Cantidad invalida');
+    return;
+  }
+
+  adminPlanSubtractBtn.disabled = true;
+  adminPlanSubtractBtn.textContent = 'Quitando...';
+
+  try {
+    const response = await fetch(`/api/admin/users/${userId}/access`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days, hours }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo quitar tiempo del plan.');
+    }
+
+    adminUsers = adminUsers.map((user) => (user.id === userId ? data.user : user));
+    renderAdminUsers();
+    if (adminPlanCurrentStatus) adminPlanCurrentStatus.textContent = formatAdminPlanStatus(data.user.access);
+    if (adminPlanSubtractDays) adminPlanSubtractDays.value = '0';
+    if (adminPlanSubtractHours) adminPlanSubtractHours.value = '0';
+
+    await showAlert('Tiempo quitado correctamente.', 'Plan actualizado');
+  } catch (error) {
+    await showAlert(error.message, 'Error');
+  } finally {
+    adminPlanSubtractBtn.disabled = false;
+    adminPlanSubtractBtn.textContent = 'Quitar tiempo';
+  }
+}
+
 async function revokeAccessFromUser() {
   const userId = Number(adminPlanUserId.value);
   const user = adminUsers.find((item) => item.id === userId);
   if (!user) return;
 
   const confirmed = await showConfirm(
-    `¿Seguro que quieres quitarle el plan a ${user.name}? Perderá el acceso de inmediato.`,
-    'Quitar plan',
+    `¿Seguro que quieres quitarle el plan completo a ${user.name}? Perderá el acceso de inmediato, sin importar cuanto tiempo le quedara.`,
+    'Quitar plan por completo',
     'Quitar plan',
     'Cancelar',
   );
@@ -2408,10 +2493,17 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && adminPlanModal && !adminPlanModal.hidden) {
     closePlanModal();
   }
+  if (event.key === 'Escape' && adminInfoModal && !adminInfoModal.hidden) {
+    closeInfoModal();
+  }
 });
 
 if (adminPlanAddForm) {
   adminPlanAddForm.addEventListener('submit', addAccessTimeToUser);
+}
+
+if (adminPlanSubtractForm) {
+  adminPlanSubtractForm.addEventListener('submit', subtractAccessTimeFromUser);
 }
 
 if (adminPlanRevokeBtn) {
@@ -2426,6 +2518,18 @@ if (adminPlanModal) {
   adminPlanModal.addEventListener('click', (event) => {
     if (event.target === adminPlanModal) {
       closePlanModal();
+    }
+  });
+}
+
+if (adminInfoCloseBtn) {
+  adminInfoCloseBtn.addEventListener('click', closeInfoModal);
+}
+
+if (adminInfoModal) {
+  adminInfoModal.addEventListener('click', (event) => {
+    if (event.target === adminInfoModal) {
+      closeInfoModal();
     }
   });
 }

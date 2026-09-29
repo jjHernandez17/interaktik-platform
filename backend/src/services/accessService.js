@@ -110,6 +110,29 @@ async function adminAddAccessTime(userId, { days = 0, hours = 0 } = {}) {
   return result.rows[0].access_expires_at;
 }
 
+// Ajuste manual del admin: resta dias+horas del acceso de un usuario. Nunca
+// deja el vencimiento en el pasado (se limita a NOW()) — si se resta mas de
+// lo que le quedaba, el resultado es simplemente "sin acceso ya mismo", no
+// una fecha vencida arbitraria. Si el usuario no tenia fila en user_access
+// (nunca tuvo prueba ni plan), no hay nada que restar y no hace nada.
+async function adminSubtractAccessTime(userId, { days = 0, hours = 0 } = {}) {
+  const totalHours = (Number(days) || 0) * 24 + (Number(hours) || 0);
+  if (!Number.isFinite(totalHours) || totalHours <= 0) {
+    throw new Error('La cantidad de tiempo a quitar debe ser mayor a cero.');
+  }
+
+  const result = await pool.query(
+    `UPDATE user_access
+     SET access_expires_at = GREATEST(NOW(), COALESCE(access_expires_at, NOW()) - ($2 || ' hours')::interval),
+         updated_at = NOW()
+     WHERE user_id = $1
+     RETURNING access_expires_at`,
+    [userId, totalHours],
+  );
+
+  return result.rows[0]?.access_expires_at ?? null;
+}
+
 // Quita el plan/acceso de un usuario por completo (queda igual que una
 // cuenta que nunca tuvo prueba ni plan).
 async function adminRevokeAccess(userId) {
@@ -131,5 +154,6 @@ module.exports = {
   hasActiveAccess,
   extendAccess,
   adminAddAccessTime,
+  adminSubtractAccessTime,
   adminRevokeAccess,
 };

@@ -295,6 +295,37 @@ router.put('/admin/users/:id/access', requireAuth, requireSuperUser, async (req,
   }
 });
 
+// PATCH /api/admin/users/:id/access - quita dias/horas puntuales del plan de
+// un usuario (nunca deja el vencimiento en el pasado, ver adminSubtractAccessTime).
+router.patch('/admin/users/:id/access', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ error: 'ID de usuario invalido.' });
+    }
+
+    const days = Number(req.body?.days) || 0;
+    const hours = Number(req.body?.hours) || 0;
+
+    if (days < 0 || hours < 0) {
+      return res.status(400).json({ error: 'Los valores no pueden ser negativos.' });
+    }
+
+    await accessService.adminSubtractAccessTime(userId, { days, hours });
+
+    const users = await loadAdminUsers();
+    const user = users.find((item) => item.id === userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Cuenta no encontrada.' });
+    }
+
+    return res.json({ user });
+  } catch (error) {
+    logger.error('Admin subtract access time error', error);
+    return res.status(400).json({ error: error.message || 'No se pudo quitar tiempo del plan.' });
+  }
+});
+
 // DELETE /api/admin/users/:id/access - quita el plan/acceso del usuario.
 router.delete('/admin/users/:id/access', requireAuth, requireSuperUser, async (req, res) => {
   try {

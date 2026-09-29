@@ -934,9 +934,27 @@ a {
 
 .admin-user-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+/* Botones de solo-icono de las tarjetas de admin: el texto vive en
+   title/aria-label (aparece como tooltip nativo al pasar el mouse), no
+   como texto visible en el boton. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .modal-overlay {
@@ -1296,6 +1314,12 @@ a {
   .admin-user-actions .btn,
   .modal-actions .btn {
     width: 100%;
+  }
+
+  .admin-user-actions .icon-btn {
+    width: 38px;
+    flex: 1 1 auto;
+    max-width: 60px;
   }
 }
 

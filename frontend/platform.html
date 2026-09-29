@@ -673,8 +673,9 @@
         </p>
         <p id="adminPlanCurrentStatus" class="admin-user-info">-</p>
 
+        <input type="hidden" id="adminPlanUserId" />
+
         <form id="adminPlanAddForm" class="modal-form">
-          <input type="hidden" id="adminPlanUserId" />
           <h4>Agregar tiempo</h4>
           <div class="admin-plan-time-fields">
             <label class="field">
@@ -691,11 +692,38 @@
           </div>
         </form>
 
+        <form id="adminPlanSubtractForm" class="modal-form">
+          <h4>Quitar tiempo</h4>
+          <div class="admin-plan-time-fields">
+            <label class="field">
+              <span>Días</span>
+              <input id="adminPlanSubtractDays" type="number" min="0" step="1" value="0" />
+            </label>
+            <label class="field">
+              <span>Horas</span>
+              <input id="adminPlanSubtractHours" type="number" min="0" step="1" value="0" />
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button id="adminPlanSubtractBtn" class="btn secondary" type="submit">Quitar tiempo</button>
+          </div>
+        </form>
+
         <div class="admin-plan-danger-zone">
-          <h4>Quitar plan</h4>
-          <p class="muted">Elimina el acceso activo (o la prueba gratuita) de esta cuenta de inmediato.</p>
+          <h4>Quitar plan por completo</h4>
+          <p class="muted">Elimina el acceso activo (o la prueba gratuita) de esta cuenta de inmediato, sin importar cuanto tiempo le quedara.</p>
           <button id="adminPlanRevokeBtn" class="btn danger" type="button">Quitar plan a esta cuenta</button>
         </div>
+      </div>
+    </div>
+
+    <div id="adminInfoModal" class="modal-overlay" hidden>
+      <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminInfoModalTitle">
+        <div class="card-header">
+          <h3 id="adminInfoModalTitle">Información de la cuenta</h3>
+          <button id="adminInfoCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+        <div id="adminInfoContent"></div>
       </div>
     </div>
 

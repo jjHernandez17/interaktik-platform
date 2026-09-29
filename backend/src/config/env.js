@@ -1,10 +1,20 @@
 require('dotenv').config();
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const DEFAULT_SESSION_SECRET = 'dev-secret-change-this';
+
+// En produccion, un SESSION_SECRET adivinable (o el default de desarrollo)
+// permite falsificar la cookie de sesion de cualquier usuario, incluido el
+// superusuario — mejor no arrancar que arrancar inseguro.
+if (NODE_ENV === 'production' && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === DEFAULT_SESSION_SECRET)) {
+  throw new Error('[FATAL] SESSION_SECRET no esta configurado (o usa el valor por defecto de desarrollo). Define una clave larga y aleatoria en las variables de entorno de produccion antes de iniciar.');
+}
+
 module.exports = {
   PORT: process.env.PORT || 3000,
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV,
   DATABASE_URL: process.env.DATABASE_URL,
-  SESSION_SECRET: process.env.SESSION_SECRET || 'dev-secret-change-this',
+  SESSION_SECRET: process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,
   DATABASE_SSL: process.env.DATABASE_SSL === 'true',
   REDIS_URL: process.env.REDIS_URL || null,
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',

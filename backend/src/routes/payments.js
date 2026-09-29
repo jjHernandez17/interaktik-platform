@@ -10,7 +10,7 @@ const wompiClient = require('../payments/wompiClient');
 const currencyService = require('../services/currencyService');
 const emailService = require('../services/emailService');
 const pool = require('../database/pool');
-const { normalizeError } = require('../utils/normalize');
+const { normalizeError, sanitizeHostHeader } = require('../utils/normalize');
 const env = require('../config/env');
 const logger = require('../config/logger');
 
@@ -27,7 +27,8 @@ function getFrontendBaseUrl(req) {
   if (env.NODE_ENV === 'production') {
     return env.FRONTEND_URL;
   }
-  return `${req.protocol}://${req.get('host')}`;
+  const safeHost = sanitizeHostHeader(req.get('host')) || sanitizeHostHeader(env.FRONTEND_URL.replace(/^https?:\/\//, ''));
+  return `${req.protocol}://${safeHost}`;
 }
 
 // GET /api/plans - publico, catalogo de planes

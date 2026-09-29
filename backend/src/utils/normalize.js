@@ -2,6 +2,19 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+// Valida que un Host header tenga forma de host valido (nombre de dominio o
+// IP, con puerto opcional) antes de usarlo para construir una URL que se
+// inyecta en HTML/JS servido al navegador. El header Host lo manda el
+// cliente y normalmente un proxy confiable lo sobreescribe con el dominio
+// real, pero si alguien golpea el servidor directo con un Host arbitrario
+// (ej. `evil"></script><script>...`), esto evita que ese texto termine
+// reflejado tal cual en una pagina. Si no es valido, devuelve null para que
+// quien llama use un fallback seguro (env.FRONTEND_URL).
+function sanitizeHostHeader(value) {
+  const host = String(value || '').split(',')[0].trim();
+  return /^[a-zA-Z0-9.-]+(:\d{1,5})?$/.test(host) ? host : null;
+}
+
 function normalizeColor(value, fallback = '#8b5cf6') {
   const color = String(value || '').trim();
   return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
@@ -738,6 +751,7 @@ function sanitizeJoinKeyword(value) {
 
 module.exports = {
   normalizeEmail,
+  sanitizeHostHeader,
   normalizeColor,
   normalizeIsoDate,
   clampNumber,

@@ -1,4 +1,12 @@
 const bcrypt = require('bcryptjs');
+// Hash de relleno (sin contraseña real detras) usado solo para que, cuando
+// el correo no existe, igual se pague el costo de un bcrypt.compare — sin
+// esto, un intento de login con correo inexistente responde notablemente
+// mas rapido que uno con correo real y contraseña incorrecta, lo que deja
+// adivinar por tiempo que correos estan registrados. Se genera una vez al
+// cargar el modulo (en vez de un literal fijo) para no depender de que un
+// hash escrito a mano sea valido.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('no-such-password-for-timing-only', 10);
 const pool = require('../database/pool');
 const { normalizeEmail, normalizeError } = require('../utils/normalize');
 const { attachAuthFlags } = require('../middleware/auth');
@@ -76,13 +84,11 @@ async function login(email, password) {
       'SELECT id, name, email, password_hash, email_verified FROM app_users WHERE email = $1',
       [normalizedEmail],
     );
-    if (result.rowCount === 0) {
-      throw new Error('Credenciales invalidas.');
-    }
 
-    const user = result.rows[0];
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) {
+    const user = result.rowCount > 0 ? result.rows[0] : null;
+    const isValid = await bcrypt.compare(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
+
+    if (!user || !isValid) {
       throw new Error('Credenciales invalidas.');
     }
 

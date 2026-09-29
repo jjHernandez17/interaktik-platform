@@ -23,11 +23,6 @@ function isOriginAllowed(origin) {
     return true;
   }
 
-  if (/^https:\/\/[^\s]+\.up\.railway\.app$/i.test(origin)) {
-    logger.success(`CORS: Origin Railway permitido - ${origin}`);
-    return true;
-  }
-
   const allowed = ALLOWED_ORIGINS.includes(origin);
   if (allowed) {
     logger.success(`CORS: Origin permitido - ${origin}`);

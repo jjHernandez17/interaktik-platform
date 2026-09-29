@@ -69,7 +69,15 @@ function verifyEventChecksum(event) {
   const raw = `${concatenatedProperties}${event.timestamp}${env.WOMPI_EVENTS_SECRET}`;
   const computedChecksum = crypto.createHash('sha256').update(raw).digest('hex').toLowerCase();
 
-  return computedChecksum === providedChecksum;
+  if (!/^[0-9a-f]+$/.test(providedChecksum) || providedChecksum.length !== computedChecksum.length) {
+    return false;
+  }
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(computedChecksum, 'hex'), Buffer.from(providedChecksum, 'hex'));
+  } catch {
+    return false;
+  }
 }
 
 module.exports = {

@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 const { requireAuth, requireAuthPage, requireGuestPage, getSessionUserId, isSuperUserEmail } = require('../middleware/auth');
-const { normalizeError } = require('../utils/normalize');
+const { normalizeError, sanitizeHostHeader } = require('../utils/normalize');
 const env = require('../config/env');
 const logger = require('../config/logger');
 const pool = require('../database/pool');
@@ -104,8 +104,9 @@ async function injectApiBaseUrl(filePath, apiBaseUrl) {
 function getApiBaseUrl(req) {
   const origin = req.headers.origin;
   const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-  const protocol = forwardedProto || req.protocol || 'http';
-  let apiBaseUrl = `${protocol}://${req.get('host')}`;
+  const protocol = forwardedProto === 'https' ? 'https' : (forwardedProto === 'http' ? 'http' : (req.protocol || 'http'));
+  const safeHost = sanitizeHostHeader(req.get('host')) || sanitizeHostHeader(env.FRONTEND_URL.replace(/^https?:\/\//, ''));
+  let apiBaseUrl = `${protocol}://${safeHost}`;
 
   if (origin) {
     // Lista de origins permitidos

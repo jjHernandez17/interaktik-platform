@@ -1,9 +1,10 @@
 const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
+const { loginLimiter, registerLimiter, emailActionLimiter, passwordChangeLimiter } = require('../middleware/rateLimit');
 const authService = require('../services/authService');
 const verificationService = require('../services/verificationService');
 const discordNotifier = require('../services/discordNotifier');
-const { normalizeError } = require('../utils/normalize');
+const { normalizeError, sanitizeHostHeader } = require('../utils/normalize');
 const env = require('../config/env');
 const logger = require('../config/logger');
 
@@ -14,8 +15,9 @@ const router = express.Router();
 // frontend estatico.
 function getOwnBaseUrl(req) {
   const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-  const protocol = forwardedProto || req.protocol || 'http';
-  return `${protocol}://${req.get('host')}`;
+  const protocol = forwardedProto === 'https' ? 'https' : (forwardedProto === 'http' ? 'http' : (req.protocol || 'http'));
+  const safeHost = sanitizeHostHeader(req.get('host')) || sanitizeHostHeader(env.FRONTEND_URL.replace(/^https?:\/\//, ''));
+  return `${protocol}://${safeHost}`;
 }
 
 function getFrontendBaseUrl(req) {
@@ -25,7 +27,7 @@ function getFrontendBaseUrl(req) {
   return getOwnBaseUrl(req);
 }
 
-router.post('/auth/register', async (req, res, next) => {
+router.post('/auth/register', registerLimiter, async (req, res, next) => {
   try {
     const name = String(req.body?.name || '').trim();
     const email = req.body?.email;
@@ -42,7 +44,7 @@ router.post('/auth/register', async (req, res, next) => {
   }
 });
 
-router.post('/auth/login', async (req, res, next) => {
+router.post('/auth/login', loginLimiter, async (req, res, next) => {
   try {
     const email = req.body?.email;
     const password = String(req.body?.password || '');
@@ -60,7 +62,7 @@ router.post('/auth/login', async (req, res, next) => {
   }
 });
 
-router.post('/auth/resend-verification', async (req, res) => {
+router.post('/auth/resend-verification', emailActionLimiter, async (req, res) => {
   try {
     const email = req.body?.email;
     await authService.resendVerification(email, getOwnBaseUrl(req));
@@ -94,7 +96,7 @@ router.get('/auth/verify-email', async (req, res) => {
   }
 });
 
-router.post('/auth/forgot-password', async (req, res) => {
+router.post('/auth/forgot-password', emailActionLimiter, async (req, res) => {
   try {
     const email = req.body?.email;
     await authService.requestPasswordReset(email, getFrontendBaseUrl(req));
@@ -115,7 +117,7 @@ router.get('/auth/check-reset-token', async (req, res) => {
   }
 });
 
-router.post('/auth/reset-password', async (req, res) => {
+router.post('/auth/reset-password', passwordChangeLimiter, async (req, res) => {
   try {
     const token = req.body?.token;
     const newPassword = String(req.body?.newPassword || '');
@@ -160,7 +162,7 @@ router.get('/auth/me', (req, res) => {
   return res.json({ user: req.session.user });
 });
 
-router.put('/auth/password', requireAuth, async (req, res) => {
+router.put('/auth/password', requireAuth, passwordChangeLimiter, async (req, res) => {
   try {
     const userId = getSessionUserId(req);
     const currentPassword = String(req.body?.currentPassword || '');

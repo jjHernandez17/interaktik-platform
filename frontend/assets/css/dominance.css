@@ -169,6 +169,311 @@
     height:72px;
 }
 
+/* =========================
+   DOMINANCE - COHETE (SVG)
+   ========================= */
+
+.proj-rocket{
+    overflow:visible;
+}
+
+.rocket-svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
+}
+
+.rocket-flame-outer,
+.rocket-flame-inner{
+    transform-box:fill-box;
+    transform-origin:100% 50%;
+}
+
+.rocket-flame-outer{
+    animation:rocket-flame-outer-flicker 140ms ease-in-out infinite;
+}
+
+.rocket-flame-inner{
+    animation:rocket-flame-inner-flicker 90ms ease-in-out infinite;
+}
+
+@keyframes rocket-flame-outer-flicker{
+    0%,100%{ opacity:.85; transform:scaleX(1); }
+    50%{ opacity:1; transform:scaleX(1.15); }
+}
+
+@keyframes rocket-flame-inner-flicker{
+    0%,100%{ opacity:.9; transform:scaleX(.92); }
+    40%{ opacity:.6; transform:scaleX(1.08); }
+    70%{ opacity:1; transform:scaleX(.85); }
+}
+
+.combat-trail-spark{
+    position:absolute;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    animation:combat-trail-spark-fade 380ms ease-out forwards;
+}
+
+@keyframes combat-trail-spark-fade{
+    0%{ opacity:.9; transform:translate(-50%,-50%) scale(1); }
+    100%{ opacity:0; transform:translate(-50%,-50%) scale(.25); }
+}
+
+.combat-shockwave{
+    position:absolute;
+    border-radius:50%;
+    border:3px solid currentColor;
+    pointer-events:none;
+    transform:translate(-50%,-50%) scale(.3);
+    opacity:.85;
+    animation:combat-shockwave-expand 420ms ease-out forwards;
+}
+
+@keyframes combat-shockwave-expand{
+    0%{ transform:translate(-50%,-50%) scale(.3); opacity:.85; }
+    100%{ transform:translate(-50%,-50%) scale(1); opacity:0; }
+}
+
+.combat-debris{
+    position:absolute;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    pointer-events:none;
+    animation:combat-debris-fly 420ms ease-out forwards;
+}
+
+@keyframes combat-debris-fly{
+    0%{ transform:translate(-50%,-50%) translate(0,0); opacity:1; }
+    100%{ transform:translate(-50%,-50%) translate(var(--dx),var(--dy)); opacity:0; }
+}
+
+/* =========================
+   DOMINANCE - BALAS (básica/pesada)
+   ========================= */
+
+.proj-bullet svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+    filter:drop-shadow(0 0 4px var(--proj-color));
+}
+
+.proj-bullet-heavy svg{
+    filter:drop-shadow(0 0 7px var(--proj-color));
+}
+
+/* =========================
+   DOMINANCE - METEORO
+   ========================= */
+
+.proj-meteor svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));
+}
+
+.meteor-glow,
+.meteor-ember{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+}
+
+.meteor-glow{
+    animation:meteor-glow-pulse 180ms ease-in-out infinite;
+}
+
+.meteor-ember{
+    animation:meteor-ember-twinkle 220ms ease-in-out infinite;
+}
+
+@keyframes meteor-glow-pulse{
+    0%,100%{ opacity:.55; transform:scale(1); }
+    50%{ opacity:.85; transform:scale(1.12); }
+}
+
+@keyframes meteor-ember-twinkle{
+    0%,100%{ opacity:.4; }
+    50%{ opacity:1; }
+}
+
+/* =========================
+   DOMINANCE - BOLA DE FUEGO
+   ========================= */
+
+.proj-fireball svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+}
+
+.fireball-outer,
+.fireball-core{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+}
+
+.fireball-outer{
+    animation:fireball-outer-flicker 150ms ease-in-out infinite;
+}
+
+.fireball-core{
+    animation:fireball-core-flicker 95ms ease-in-out infinite;
+}
+
+@keyframes fireball-outer-flicker{
+    0%,100%{ opacity:.85; transform:scale(1); }
+    50%{ opacity:1; transform:scale(1.1); }
+}
+
+@keyframes fireball-core-flicker{
+    0%,100%{ opacity:.9; transform:scale(.9); }
+    50%{ opacity:1; transform:scale(1.08); }
+}
+
+/* =========================
+   DOMINANCE - BOMBA
+   ========================= */
+
+.proj-bomb svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));
+}
+
+.bomb-spark{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+    animation:bomb-spark-pulse 130ms ease-in-out infinite;
+}
+
+@keyframes bomb-spark-pulse{
+    0%,100%{ opacity:.6; transform:scale(.8); }
+    50%{ opacity:1; transform:scale(1.3); }
+}
+
+/* =========================
+   DOMINANCE - CURACIÓN / ESCUDO
+   ========================= */
+
+.proj-heal svg,
+.proj-shield svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+}
+
+.heal-glow{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+    animation:heal-glow-pulse 420ms ease-in-out infinite;
+}
+
+@keyframes heal-glow-pulse{
+    0%,100%{ opacity:.2; transform:scale(1); }
+    50%{ opacity:.4; transform:scale(1.15); }
+}
+
+.heal-sparkle{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+    animation:heal-sparkle-twinkle 340ms ease-in-out infinite;
+}
+
+.heal-sparkle-b{
+    animation-delay:170ms;
+}
+
+@keyframes heal-sparkle-twinkle{
+    0%,100%{ opacity:.3; }
+    50%{ opacity:1; }
+}
+
+.shield-emblem{
+    transform-box:fill-box;
+    transform-origin:50% 50%;
+    animation:shield-emblem-shimmer 500ms ease-in-out infinite;
+}
+
+@keyframes shield-emblem-shimmer{
+    0%,100%{ opacity:.9; }
+    50%{ opacity:1; filter:brightness(1.25); }
+}
+
+/* =========================
+   DOMINANCE - LÁSER (núcleo brillante) Y CHISPAZOS DE IMPACTO
+   ========================= */
+
+.combat-laser-core{
+    position:absolute;
+    height:2px;
+    border-radius:2px;
+    background:#ffffff;
+    box-shadow:0 0 6px #fff, 0 0 10px #fff;
+    transform-origin:left center;
+    pointer-events:none;
+    animation:combat-laser-fade 180ms ease-out forwards;
+}
+
+.combat-spark-shard{
+    position:absolute;
+    width:2px;
+    height:0;
+    margin-left:-1px;
+    border-radius:2px;
+    pointer-events:none;
+    transform-origin:top center;
+    animation:combat-spark-shard-grow 220ms ease-out forwards;
+}
+
+@keyframes combat-spark-shard-grow{
+    0%{ height:0; opacity:1; }
+    55%{ opacity:1; }
+    100%{ height:var(--shard-len); opacity:0; }
+}
+
+/* =========================
+   DOMINANCE - BLOOM SUAVE (curación/escudo al llegar)
+   ========================= */
+
+.combat-soft-bloom{
+    position:absolute;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border:2px solid currentColor;
+    pointer-events:none;
+    transform:translate(-50%,-50%) scale(.4);
+    opacity:.8;
+    animation:combat-soft-bloom-expand 520ms ease-out forwards;
+}
+
+@keyframes combat-soft-bloom-expand{
+    0%{ transform:translate(-50%,-50%) scale(.4); opacity:.8; }
+    100%{ transform:translate(-50%,-50%) scale(3.2); opacity:0; }
+}
+
+.combat-heal-sparkle{
+    position:absolute;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    pointer-events:none;
+    animation:combat-heal-sparkle-float 620ms ease-out forwards;
+}
+
+@keyframes combat-heal-sparkle-float{
+    0%{ transform:translate(-50%,-50%) translate(0,0) scale(1); opacity:1; }
+    100%{ transform:translate(-50%,-50%) translate(var(--dx),var(--dy)) scale(.3); opacity:0; }
+}
+
 .dominance-history-item{
     padding:12px;
     border-radius:12px;
@@ -254,6 +559,210 @@
     padding:8px 10px;
     border-radius:10px;
     border:none;
+}
+
+/* =========================
+   DOMINANCE - PICKER DE REGALOS (imagen + monedas + filtro)
+   Reusa los tokens --ds-* del design system (mismos que ya usan los
+   botones/tarjetas de esta página), así combina automáticamente con la
+   paleta sin tener que hardcodear colores nuevos.
+   ========================= */
+
+.gift-picker{
+    position:relative;
+}
+
+.gift-picker-toggle{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    font-family:var(--ds-font-body);
+    font-size:.92rem;
+    color:var(--ds-text);
+    border:1px solid var(--ds-border-strong);
+    background:rgba(4,8,16,.5);
+    border-radius:var(--ds-radius-md);
+    padding:9px 12px;
+    cursor:pointer;
+    transition:border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.gift-picker-toggle:hover{
+    border-color:var(--ds-border-strong);
+}
+
+.gift-picker-toggle.open{
+    border-color:var(--ds-primary);
+    box-shadow:0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-selected{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    min-width:0;
+    text-align:left;
+}
+
+.gift-picker-selected.placeholder{
+    color:var(--ds-text-muted);
+}
+
+.gift-picker-selected-image{
+    width:24px;
+    height:24px;
+    object-fit:contain;
+    border-radius:6px;
+    background:rgba(255,255,255,.04);
+    flex-shrink:0;
+}
+
+.gift-picker-selected-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.gift-picker-selected-coins{
+    flex-shrink:0;
+    margin-left:auto;
+    padding:3px 9px;
+    border-radius:var(--ds-radius-pill);
+    background:var(--ds-primary-soft);
+    color:var(--ds-primary);
+    font-size:.74rem;
+    font-weight:700;
+}
+
+.gift-picker-chevron{
+    flex-shrink:0;
+    color:var(--ds-text-muted);
+    transition:transform 160ms ease;
+}
+
+.gift-picker-toggle.open .gift-picker-chevron{
+    transform:rotate(180deg);
+}
+
+.gift-picker-panel{
+    position:absolute;
+    z-index:30;
+    top:calc(100% + 8px);
+    left:0;
+    width:max(100%, 340px);
+    background:var(--ds-surface-solid);
+    border:1px solid var(--ds-border-strong);
+    border-radius:var(--ds-radius-lg);
+    box-shadow:var(--ds-shadow-lg);
+    padding:14px;
+    display:grid;
+    gap:12px;
+}
+
+.gift-picker-panel.hidden{
+    display:none;
+}
+
+.gift-picker-filters{
+    display:grid;
+    gap:8px;
+}
+
+.gift-picker-filters input{
+    font-family:var(--ds-font-body);
+    font-size:.86rem;
+    color:var(--ds-text);
+    border:1px solid var(--ds-border);
+    background:rgba(4,8,16,.5);
+    border-radius:var(--ds-radius-md);
+    padding:9px 12px;
+}
+
+.gift-picker-filters input:focus{
+    outline:none;
+    border-color:var(--ds-primary);
+    box-shadow:0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-coins-filter{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+.gift-picker-list{
+    display:grid;
+    gap:4px;
+    max-height:280px;
+    overflow-y:auto;
+    padding-right:2px;
+}
+
+.gift-picker-list .muted{
+    margin:8px 4px;
+    font-size:.86rem;
+    color:var(--ds-text-muted);
+}
+
+.gift-picker-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    text-align:left;
+    font-family:var(--ds-font-body);
+    font-size:.86rem;
+    color:var(--ds-text);
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:var(--ds-radius-md);
+    padding:8px 10px;
+    cursor:pointer;
+    transition:background 140ms ease, border-color 140ms ease;
+}
+
+.gift-picker-item:hover{
+    background:var(--ds-primary-soft);
+    border-color:var(--ds-border);
+}
+
+.gift-picker-item.selected{
+    background:var(--ds-primary-soft);
+    border-color:var(--ds-primary);
+}
+
+.gift-picker-item-image{
+    width:28px;
+    height:28px;
+    object-fit:contain;
+    border-radius:6px;
+    background:rgba(255,255,255,.04);
+    flex-shrink:0;
+}
+
+.gift-picker-item-name{
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.gift-picker-item-coins{
+    flex-shrink:0;
+    padding:3px 9px;
+    border-radius:var(--ds-radius-pill);
+    background:rgba(255,255,255,.06);
+    color:var(--ds-text-muted);
+    font-size:.74rem;
+    font-weight:700;
+}
+
+.gift-picker-item.selected .gift-picker-item-coins{
+    background:rgba(124,92,255,.22);
+    color:var(--ds-primary);
 }
 
 .power-catalog-section{

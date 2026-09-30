@@ -13,7 +13,6 @@
     let worldProvider = options.getWorld || (() => ({}));
     let animationHandle = null;
     let running = false;
-    let lastFrameAt = 0;
 
     function getWorldSnapshot() {
       const world = worldProvider() || {};
@@ -285,21 +284,23 @@
       };
     }
 
-    function tick(frameTime) {
-      if (!running) return;
-      if (!lastFrameAt) {
-        lastFrameAt = frameTime;
-      }
+    // Antes esto corria con requestAnimationFrame, que los navegadores
+    // PAUSAN por completo cuando la pestaña no esta en primer plano (ej. el
+    // streamer mirando OBS) — los ataques quedaban encolados para siempre,
+    // nunca se aplicaba daño, sin ningun error visible. setInterval si sigue
+    // corriendo en segundo plano (el navegador lo frena a ~1 vez/seg tras
+    // varios minutos oculto, pero nunca lo detiene del todo).
+    const TICK_INTERVAL_MS = 100;
 
+    function tick() {
+      if (!running) return;
       update();
-      lastFrameAt = frameTime;
-      animationHandle = window.requestAnimationFrame(tick);
     }
 
     function start() {
       if (running) return;
       running = true;
-      animationHandle = window.requestAnimationFrame(tick);
+      animationHandle = window.setInterval(tick, TICK_INTERVAL_MS);
       eventBus?.emit?.('CombatEngineStarted', { running });
     }
 
@@ -307,7 +308,7 @@
       if (!running) return;
       running = false;
       if (animationHandle) {
-        window.cancelAnimationFrame(animationHandle);
+        window.clearInterval(animationHandle);
         animationHandle = null;
       }
       eventBus?.emit?.('CombatEngineStopped', { running });

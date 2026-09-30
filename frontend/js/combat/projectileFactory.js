@@ -24,6 +24,8 @@
       healing: Number(ability?.healing || 0),
       shield: Number(ability?.shield || 0),
       size: Number(ability?.projectileSize || 8),
+      explosionRadius: Number(ability?.explosionRadius || 0),
+      color: ability?.color || null,
       directionX: dx / distance,
       directionY: dy / distance,
       createdAt: now,

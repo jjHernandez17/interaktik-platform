@@ -449,6 +449,8 @@ connection.on(WebcastEvent.GIFT, (data) => {
     giftId: data?.giftId,
     repeatCount: data?.repeatCount,
     repeatEnd: data?.repeatEnd,
+    combo: data?.giftDetails?.combo,
+    giftType: data?.giftDetails?.giftType,
     createTime: data?.createTime,
     userId: data?.user?.userId,
     uniqueId: data?.user?.uniqueId,
@@ -458,6 +460,20 @@ connection.on(WebcastEvent.GIFT, (data) => {
   if (!currentEntry || currentEntry.connection !== connection) return;
   if (isDuplicateMessage(currentEntry, data)) {
     logger.warn(`Regalo duplicado ignorado para ${normalizedGameType} (msgId repetido)`);
+    return;
+  }
+
+  // Los regalos "en racha" (ej. Rosa: se puede mantener presionado para
+  // mandar varios seguidos) llegan como VARIOS mensajes mientras dura la
+  // racha — uno por cada incremento, con repeatCount subiendo y
+  // repeatEnd:false, y uno final con repeatEnd:true que confirma el total
+  // real. Sin este filtro, cada mensaje intermedio se publicaba como si
+  // fuera un regalo completo aparte: hasta un solo regalo (que igual pasa
+  // por este protocolo aunque se mande una sola vez) terminaba disparando 2
+  // veces en todos los juegos. combo:false = regalo que no tiene racha
+  // (siempre viene ya "final", se deja pasar directo).
+  const isStreakableGift = Boolean(data?.giftDetails?.combo);
+  if (isStreakableGift && !data?.repeatEnd) {
     return;
   }
 

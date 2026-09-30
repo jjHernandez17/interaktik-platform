@@ -226,31 +226,6 @@ function updateArenaMessage(message, active = false) {
   dominanceArenaMessage.classList.toggle('active', active);
 }
 
-// Deduplication helpers to avoid processing the same gift twice
-const processedLiveEventFingerprints = new Map();
-function buildLiveEventFingerprint(payload) {
-  if (!payload) return '';
-  const giftId = String(payload.giftId || payload.extendedGiftInfo?.id || '');
-  const giftName = String(payload.giftName || '').trim().toLowerCase();
-  const repeatCount = String(payload.repeatCount || payload.giftCount || 1);
-  const user = String(payload.user?.uniqueId || payload.user?.nickname || '').trim().toLowerCase();
-  const timeBucket = Math.floor(new Date(payload.timestamp || Date.now()).getTime() / 1000);
-  return [giftId, giftName, repeatCount, user, timeBucket].join('|');
-}
-
-function markLiveEventFingerprintProcessed(fp) {
-  if (!fp) return;
-  processedLiveEventFingerprints.set(fp, Date.now());
-  const ttl = 8 * 1000;
-  for (const [k, v] of processedLiveEventFingerprints.entries()) {
-    if (Date.now() - v > ttl) processedLiveEventFingerprints.delete(k);
-  }
-}
-
-function hasProcessedLiveEventFingerprint(fp) {
-  return fp && processedLiveEventFingerprints.has(fp);
-}
-
 function getTeam(side) {
   return dominanceState.teams[side];
 }
@@ -1328,6 +1303,14 @@ async function handleSoldierKilled({ soldierId } = {}) {
     )
   );
 
+  // El soldado caído desaparece del campo; el espectador puede volver a
+  // comentar el nombre de su equipo para reaparecer con vida completa
+  // (ver el guard en el handler de "comment" que detecta que ya no tiene
+  // un soldado vivo en el campo).
+  dominanceState.soldiers[match.side] = dominanceState.soldiers[match.side].filter(
+    (soldier) => soldier.id !== soldierId
+  );
+
   const killsConfigState = dominanceState.killsConfig || {};
   if (killsConfigState.victoryType === 'target') {
     const targetKills = Math.max(1, Number(killsConfigState.targetKills || 20));
@@ -1421,9 +1404,17 @@ function connectToEvents() {
       dominanceState.viewer_bindings =
         dominanceState.viewer_bindings || {};
 
-      if (dominanceState.viewer_bindings[userId]) return;
+      const existingSide = dominanceState.viewer_bindings[userId];
 
-      dominanceState.viewer_bindings[userId] = selectedSide;
+      if (existingSide) {
+        // Ya tiene equipo asignado: solo puede "reaparecer" comentando el
+        // nombre de ESE mismo equipo, y solo si su soldado anterior ya no
+        // sigue vivo en el campo (si sigue vivo, se ignora para no duplicar).
+        if (existingSide !== selectedSide) return;
+        if (findSoldierByUserId(userId)) return;
+      } else {
+        dominanceState.viewer_bindings[userId] = selectedSide;
+      }
 
       const startPosition = getRandomSoldierTarget(selectedSide);
       const firstTarget = getRandomSoldierTarget(selectedSide);
@@ -1494,9 +1485,6 @@ function connectToEvents() {
 
       if (dominanceState.winner_team_id) return;
 
-      const fp = buildLiveEventFingerprint(payload);
-      if (hasProcessedLiveEventFingerprint(fp)) return;
-
       const sender = String(
         payload.user?.uniqueId ||
         payload.user?.nickname ||
@@ -1507,6 +1495,17 @@ function connectToEvents() {
 
       const senderSide = dominanceState.viewer_bindings?.[sender];
 
+      // repeatCount: TikTok manda combos de un mismo regalo (ej. tocarlo 2
+      // veces seguidas) como repeticiones del mismo evento — cada unidad es
+      // un "disparo" real y debe pegar por separado, si no un combo de 2
+      // pega como si fuera 1 solo. (El backend ya filtra reenvios exactos
+      // del mismo mensaje por msgId antes de publicar, asi que aca no hace
+      // falta — ni conviene — deduplicar de nuevo: dos regalos SEPARADOS
+      // mandados en el mismo segundo tienen el mismo repeatCount=1 y se
+      // veian identicos para el fingerprint viejo, que los pisaba a uno).
+      const giftRepeatCount = Math.max(1, Number(payload.repeatCount || payload.giftCount || 1) || 1);
+      const giftName = payload.giftName || '';
+
       if (!senderSide) {
         dominanceState.history.push(
           createDominanceHistoryEntry(
@@ -1516,13 +1515,9 @@ function connectToEvents() {
         );
 
         renderState();
-        markLiveEventFingerprintProcessed(fp);
         await saveDominanceState();
         return;
       }
-
-      const giftRepeatCount = Number(payload.repeatCount || payload.giftCount || 1) || 1;
-      const giftName = payload.giftName || '';
 
       // Crecimiento del soldado por regalos (aplica en ambos modos)
       const senderMatch = findSoldierByUserId(sender);
@@ -1534,19 +1529,18 @@ function connectToEvents() {
       const binding = resolveAbilityBindingForAction('gift', giftName);
       const abilityId = binding?.powerId || 'basic-shot';
       // 0 = usa el valor propio del poder; > 0 lo reemplaza con lo que el
-      // streamer asigno puntualmente para este regalo.
+      // streamer asigno puntualmente para este regalo. Este es el daño POR
+      // UNIDAD del regalo — se aplica una vez por cada unidad (repeatCount).
       const configuredDamage = Number(binding?.damage || 0);
 
       if (isKillsMode()) {
         if (!dominanceState.killsCombatStarted) {
-          markLiveEventFingerprintProcessed(fp);
           renderState();
           await saveDominanceState();
           return;
         }
 
         if (!senderMatch?.soldier || senderMatch.soldier.isDead) {
-          markLiveEventFingerprintProcessed(fp);
           return;
         }
 
@@ -1563,12 +1557,16 @@ function connectToEvents() {
 
         const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
         if (engine) {
-          engine.queueAbility(senderMatch.soldier.id, abilityId, null, overrides);
+          for (let i = 0; i < giftRepeatCount; i += 1) {
+            engine.queueAbility(senderMatch.soldier.id, abilityId, null, overrides);
+          }
         }
 
         dominanceState.history.push(
           createDominanceHistoryEntry(
-            `${payload.user?.nickname || sender} activó ${ability?.name || abilityId} con ${giftName || 'un regalo'}`,
+            giftRepeatCount > 1
+              ? `${payload.user?.nickname || sender} activó ${ability?.name || abilityId} x${giftRepeatCount} con ${giftName || 'un regalo'}`
+              : `${payload.user?.nickname || sender} activó ${ability?.name || abilityId} con ${giftName || 'un regalo'}`,
             'live'
           )
         );
@@ -1578,7 +1576,6 @@ function connectToEvents() {
           true
         );
 
-        markLiveEventFingerprintProcessed(fp);
         renderState();
         await saveDominanceState();
         return;
@@ -1586,10 +1583,11 @@ function connectToEvents() {
 
       // Modo vida de equipo: mismo poder/asignacion que en Kills, aplicado
       // directo a la vida del equipo (sin HP individual ni proyectil visual
-      // todavia en este modo).
-      applyPowerToTeams(senderSide, abilityId, configuredDamage, payload.user?.nickname || sender);
+      // todavia en este modo) — una vez por cada unidad del regalo.
+      for (let i = 0; i < giftRepeatCount; i += 1) {
+        applyPowerToTeams(senderSide, abilityId, configuredDamage, payload.user?.nickname || sender);
+      }
 
-      markLiveEventFingerprintProcessed(fp);
       renderState();
       await saveDominanceState();
 
@@ -1728,6 +1726,59 @@ async function disconnectTikTokLive() {
   }
 }
 
+// Los regalos de TikTok traen la imagen en formas bien distintas según de
+// dónde salga el catálogo (a veces es un string, a veces un objeto con
+// urlList/url, a veces un array) — se prueba cada campo conocido hasta
+// encontrar algo usable. Mismo patrón ya probado en app.js/roblox-dance.js.
+function pickFirstUrl(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const picked = pickFirstUrl(item);
+      if (picked) return picked;
+    }
+    return '';
+  }
+
+  if (typeof value === 'object') {
+    return (
+      pickFirstUrl(value.url) ||
+      pickFirstUrl(value.urlList) ||
+      pickFirstUrl(value.url_list) ||
+      pickFirstUrl(value.urls) ||
+      pickFirstUrl(value.uri) ||
+      ''
+    );
+  }
+
+  return '';
+}
+
+function getGiftImageUrl(gift) {
+  return (
+    pickFirstUrl(gift?.imageUrl) ||
+    pickFirstUrl(gift?.giftImage) ||
+    pickFirstUrl(gift?.previewImage) ||
+    pickFirstUrl(gift?.icon) ||
+    pickFirstUrl(gift?.giftLabelIcon) ||
+    pickFirstUrl(gift?.image) ||
+    pickFirstUrl(gift?.staticImage) ||
+    pickFirstUrl(gift?.dynamicImage) ||
+    ''
+  );
+}
+
+function sanitizeDominanceGiftCatalog(rawGifts) {
+  return (Array.isArray(rawGifts) ? rawGifts : []).map((gift) => ({
+    id: String(gift?.id ?? gift?.giftId ?? ''),
+    name: String(gift?.name || gift?.giftName || `Regalo ${gift?.id ?? ''}`).trim(),
+    diamondCount: Number(gift?.diamondCount || gift?.diamond_count || 1) || 1,
+    imageUrl: getGiftImageUrl(gift),
+  }));
+}
+
 async function loadGiftCatalog() {
   if (dominanceGiftCatalogLoading) {
     return dominanceGiftCatalog;
@@ -1743,7 +1794,7 @@ async function loadGiftCatalog() {
       throw new Error(result.error || 'No se pudo cargar el catálogo.');
     }
 
-    dominanceGiftCatalog = Array.isArray(result.gifts) ? result.gifts : [];
+    dominanceGiftCatalog = sanitizeDominanceGiftCatalog(result.gifts);
     dominanceGiftCatalogLoaded = true;
 
     if (typeof renderCombatPowerConfig === 'function') {
@@ -1914,17 +1965,131 @@ function powerSelectOptions(catalog, selectedId) {
     .join('');
 }
 
-function giftNameSelectOptions(selectedName) {
+function findGiftInCatalogByName(name) {
+  const normalized = String(name || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return dominanceGiftCatalog.find((gift) => gift.name.toLowerCase() === normalized) || null;
+}
+
+// Contenido del botón cerrado del picker: imagen + nombre + monedas si el
+// regalo está en el catálogo cargado; si el streamer ya lo había guardado
+// pero el catálogo todavía no cargó (o el regalo ya no existe), se muestra
+// solo el nombre en vez de perder la selección.
+function renderGiftPickerToggleLabel(actionName) {
+  if (!actionName) {
+    return '<span class="gift-picker-selected placeholder">Elige un regalo...</span>';
+  }
+
+  const gift = findGiftInCatalogByName(actionName);
+  if (!gift) {
+    return `<span class="gift-picker-selected"><span class="gift-picker-selected-name">${escapeHtml(actionName)}</span></span>`;
+  }
+
+  return `
+    <span class="gift-picker-selected">
+      <img class="gift-picker-selected-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" onerror="this.style.visibility='hidden'" />
+      <span class="gift-picker-selected-name">${escapeHtml(gift.name)}</span>
+      <span class="gift-picker-selected-coins">${gift.diamondCount}</span>
+    </span>
+  `;
+}
+
+// Lista filtrable (nombre + rango de monedas) que se dibuja SOLO al abrir
+// el picker o al cambiar un filtro — no en cada render de la tabla, porque
+// el catálogo real tiene cientos de regalos y renderCombatPowerConfig()
+// puede correr varias veces por segundo mientras hay actividad en el live.
+function giftPickerListMarkup(selectedName, nameFilter = '', min = null, max = null) {
+  if (dominanceGiftCatalog.length === 0) {
+    return '<p class="muted">Carga el catálogo primero.</p>';
+  }
+
+  const normalizedFilter = nameFilter.trim().toLowerCase();
   const normalizedSelected = String(selectedName || '').trim().toLowerCase();
-  return dominanceGiftCatalog
-    .map((gift) => {
-      const giftName = String(gift?.name || gift?.giftName || gift?.id || '').trim();
-      if (!giftName) return '';
-      const isSelected = normalizedSelected === giftName.toLowerCase();
-      return `<option value="${escapeHtml(giftName)}" ${isSelected ? 'selected' : ''}>${escapeHtml(giftName)}</option>`;
-    })
-    .filter(Boolean)
-    .join('');
+
+  const filtered = dominanceGiftCatalog.filter((gift) => {
+    if (normalizedFilter && !gift.name.toLowerCase().includes(normalizedFilter)) return false;
+    if (min !== null && !Number.isNaN(min) && gift.diamondCount < min) return false;
+    if (max !== null && !Number.isNaN(max) && gift.diamondCount > max) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    return '<p class="muted">Sin resultados para ese filtro.</p>';
+  }
+
+  return filtered.map((gift) => `
+    <button type="button" class="gift-picker-item${normalizedSelected === gift.name.toLowerCase() ? ' selected' : ''}" data-gift-name="${escapeHtml(gift.name)}">
+      <img class="gift-picker-item-image" src="${escapeHtml(gift.imageUrl || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+      <span class="gift-picker-item-name">${escapeHtml(gift.name)}</span>
+      <span class="gift-picker-item-coins">${gift.diamondCount}</span>
+    </button>
+  `).join('');
+}
+
+function giftPickerMarkup(binding) {
+  return `
+    <div class="gift-picker" data-gift-picker>
+      <button type="button" class="gift-picker-toggle">
+        ${renderGiftPickerToggleLabel(binding.actionName)}
+        <svg class="gift-picker-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.5 4.5L7 9L11.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <div class="gift-picker-panel hidden">
+        <div class="gift-picker-filters">
+          <input type="text" class="gift-picker-filter-name" placeholder="Buscar por nombre..." autocomplete="off" />
+          <div class="gift-picker-coins-filter">
+            <input type="number" min="0" class="gift-picker-filter-min" placeholder="Monedas mín." />
+            <input type="number" min="0" class="gift-picker-filter-max" placeholder="Monedas máx." />
+          </div>
+        </div>
+        <div class="gift-picker-list"></div>
+      </div>
+      <input type="hidden" data-field="actionName" value="${escapeHtml(binding.actionName || '')}" />
+    </div>
+  `;
+}
+
+// --- Interacción del picker (delegada desde dominancePowersConfigTable,
+// ver bindUIActions) ---
+
+function closeAllGiftPickers() {
+  document.querySelectorAll('.gift-picker-panel').forEach((panel) => panel.classList.add('hidden'));
+  document.querySelectorAll('.gift-picker-toggle').forEach((toggle) => toggle.classList.remove('open'));
+}
+
+function refreshGiftPickerList(picker) {
+  const nameInput = picker.querySelector('.gift-picker-filter-name');
+  const minInput = picker.querySelector('.gift-picker-filter-min');
+  const maxInput = picker.querySelector('.gift-picker-filter-max');
+  const hiddenInput = picker.querySelector('[data-field="actionName"]');
+  const listEl = picker.querySelector('.gift-picker-list');
+  if (!listEl) return;
+
+  const min = minInput?.value !== '' ? Number(minInput.value) : null;
+  const max = maxInput?.value !== '' ? Number(maxInput.value) : null;
+
+  listEl.innerHTML = giftPickerListMarkup(hiddenInput?.value, nameInput?.value || '', min, max);
+}
+
+function openGiftPickerPanel(picker) {
+  if (!dominanceGiftCatalogLoaded && !dominanceGiftCatalogLoading) {
+    void loadGiftCatalog();
+  }
+  picker.querySelector('.gift-picker-panel')?.classList.remove('hidden');
+  picker.querySelector('.gift-picker-toggle')?.classList.add('open');
+  refreshGiftPickerList(picker);
+}
+
+function selectGiftInPicker(picker, giftName) {
+  const hiddenInput = picker.querySelector('[data-field="actionName"]');
+  if (hiddenInput) hiddenInput.value = giftName;
+
+  const toggle = picker.querySelector('.gift-picker-toggle');
+  const chevron = toggle?.querySelector('.gift-picker-chevron');
+  if (toggle && chevron) {
+    toggle.innerHTML = renderGiftPickerToggleLabel(giftName) + chevron.outerHTML;
+  }
 }
 
 function renderCombatPowerConfig() {
@@ -1963,22 +2128,26 @@ function renderCombatPowerConfig() {
     `;
   }).join('');
 
+  // La fila "cualquier otro regalo" se identifica por su id reservado, NUNCA
+  // por tener el campo de regalo vacio — una fila recien agregada (antes de
+  // que el streamer elija un regalo puntual) tambien arranca vacia, y si se
+  // la identificara asi quedaria confundida con esta y jamas se mostraria
+  // como fila nueva (el bug que reportó el streamer: "no me deja crear más
+  // reglas").
+  const DEFAULT_GIFT_BINDING_ID = 'binding-gift-default';
   const giftBindings = bindings.filter((entry) => entry.actionType === 'gift');
-  const defaultGiftBinding = giftBindings.find((entry) => !String(entry.actionName || '').trim()) || {
-    id: `binding-gift-default-${Date.now()}`,
+  const defaultGiftBinding = giftBindings.find((entry) => String(entry.id || '').startsWith(DEFAULT_GIFT_BINDING_ID)) || {
+    id: DEFAULT_GIFT_BINDING_ID,
     actionType: 'gift',
     actionName: '',
     powerId: catalog[0]?.id || '',
     damage: 50,
   };
-  const specificGiftBindings = giftBindings.filter((entry) => String(entry.actionName || '').trim());
+  const specificGiftBindings = giftBindings.filter((entry) => !String(entry.id || '').startsWith(DEFAULT_GIFT_BINDING_ID));
 
   function giftRow(binding, { removable }) {
     const giftCell = removable
-      ? `<select data-field="actionName">
-          <option value="">Elige un regalo...</option>
-          ${giftNameSelectOptions(binding.actionName)}
-        </select>`
+      ? giftPickerMarkup(binding)
       : `<strong>Cualquier otro regalo</strong>`;
 
     return `
@@ -2164,9 +2333,44 @@ function bindUIActions() {
       if (event.target.closest('#dominanceAddGiftBindingBtn')) {
         savePowerBindingsFromUI();
         addGiftBinding();
+        return;
+      }
+
+      const pickerToggle = event.target.closest('.gift-picker-toggle');
+      if (pickerToggle) {
+        const picker = pickerToggle.closest('.gift-picker');
+        const wasOpen = !picker.querySelector('.gift-picker-panel')?.classList.contains('hidden');
+        closeAllGiftPickers();
+        if (!wasOpen) {
+          openGiftPickerPanel(picker);
+        }
+        return;
+      }
+
+      const pickerItem = event.target.closest('.gift-picker-item');
+      if (pickerItem) {
+        const picker = pickerItem.closest('.gift-picker');
+        selectGiftInPicker(picker, pickerItem.dataset.giftName);
+        closeAllGiftPickers();
       }
     });
+
+    dominancePowersConfigTable.addEventListener('input', (event) => {
+      if (!event.target.matches('.gift-picker-filter-name, .gift-picker-filter-min, .gift-picker-filter-max')) return;
+      const picker = event.target.closest('.gift-picker');
+      if (picker) refreshGiftPickerList(picker);
+    });
   }
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.gift-picker')) {
+      closeAllGiftPickers();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAllGiftPickers();
+  });
 
   if (dominanceConnectLiveBtn) {
     dominanceConnectLiveBtn.addEventListener('click', () => connectTikTokLive());

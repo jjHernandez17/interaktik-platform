@@ -10,8 +10,8 @@
 .dominance-battlefield{
     position:relative;
     display:grid;
-    grid-template-columns:1fr 220px 1fr;
-    gap:20px;
+    grid-template-columns:1fr 64px 1fr;
+    gap:12px;
     min-height:700px;
 }
 
@@ -350,55 +350,6 @@
 
 
 /* =========================
-   DOMINANCE - CENTRO / TIMER
-   ========================= */
-
-.battlefield {
-  position: relative;
-  width: 120px; /* más delgado que antes */
-  min-width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-  min-height: 220px;
-}
-
-.dominance-timer-pill {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 96px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #18181b, #27272a);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-  white-space: nowrap;
-}
-
-.dominance-center-status {
-  width: 100%;
-  text-align: center;
-  padding: 18px 10px;
-  font-size: 0.82rem;
-  line-height: 1.25;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-/* =========================
    DOMINANCE - SOLDADOS
    ========================= */
 
@@ -461,9 +412,9 @@ body:not(.kills-mode) .soldier-hp {
 
 .battlefield {
   position: relative;
-  width: 140px;
-  min-width: 140px;
-  border-radius: 24px;
+  width: 64px;
+  min-width: 64px;
+  border-radius: 16px;
   background:
     linear-gradient(
       180deg,
@@ -475,7 +426,7 @@ body:not(.kills-mode) .soldier-hp {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 34px 12px 20px;
+  padding: 34px 4px 20px;
   overflow: visible;
   border: 1px solid rgba(255,255,255,.08);
 }

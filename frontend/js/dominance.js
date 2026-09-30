@@ -1531,6 +1531,12 @@ function connectToEvents() {
           Number(senderMatch.soldier.giftScore || 0) + giftRepeatCount;
       }
 
+      const binding = resolveAbilityBindingForAction('gift', giftName);
+      const abilityId = binding?.powerId || 'basic-shot';
+      // 0 = usa el valor propio del poder; > 0 lo reemplaza con lo que el
+      // streamer asigno puntualmente para este regalo.
+      const configuredDamage = Number(binding?.damage || 0);
+
       if (isKillsMode()) {
         if (!dominanceState.killsCombatStarted) {
           markLiveEventFingerprintProcessed(fp);
@@ -1544,17 +1550,21 @@ function connectToEvents() {
           return;
         }
 
-        const binding = resolveAbilityBindingForAction('gift', giftName);
-        const abilityId = binding?.powerId || 'basic-shot';
-        const configuredDamage = Number(binding?.parameterValue || 0);
-        const overrides = configuredDamage > 0 ? { damage: configuredDamage } : null;
+        const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+
+        const overrides = configuredDamage > 0
+          ? (ability?.type === 'support'
+            ? {
+              ...(Number(ability?.healing) > 0 ? { healing: configuredDamage } : null),
+              ...(Number(ability?.shield) > 0 ? { shield: configuredDamage } : null),
+            }
+            : { damage: configuredDamage })
+          : null;
 
         const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
         if (engine) {
           engine.queueAbility(senderMatch.soldier.id, abilityId, null, overrides);
         }
-
-        const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
 
         dominanceState.history.push(
           createDominanceHistoryEntry(
@@ -1574,51 +1584,12 @@ function connectToEvents() {
         return;
       }
 
-      // Modo vida de equipo (comportamiento existente, sin cambios)
-      const attackerSide = senderSide;
-      const defenderSide = attackerSide === 'left' ? 'right' : 'left';
-
-      const attackerTeam = dominanceState.teams[attackerSide];
-      const defenderTeam = dominanceState.teams[defenderSide];
-
-      if (!attackerTeam || !defenderTeam) {
-        markLiveEventFingerprintProcessed(fp);
-        return;
-      }
-
-      const damage = giftRepeatCount;
-
-      defenderTeam.health = Math.max(
-        0,
-        Number(defenderTeam.health || 0) - damage
-      );
-
-      dominanceState.round =
-        Number(dominanceState.round || 1) + 1;
-
-      dominanceState.active_team_id = attackerSide;
-
-      dominanceState.history.push(
-        createDominanceHistoryEntry(
-          `${defenderTeam.name} recibió un ataque de ${payload.user?.nickname || sender} (-${damage})`,
-          'live'
-        )
-      );
-
-      updateArenaMessage(
-        `${defenderTeam.name} recibió un ataque de ${payload.user?.nickname || sender} (-${damage})`,
-        true
-      );
-
-      if (defenderTeam.health <= 0) {
-        defenderTeam.health = 0;
-        dominanceState.winner_team_id = attackerSide;
-        dominanceState.winner = attackerSide;
-        showVictoryModal(attackerSide);
-      }
+      // Modo vida de equipo: mismo poder/asignacion que en Kills, aplicado
+      // directo a la vida del equipo (sin HP individual ni proyectil visual
+      // todavia en este modo).
+      applyPowerToTeams(senderSide, abilityId, configuredDamage, payload.user?.nickname || sender);
 
       markLiveEventFingerprintProcessed(fp);
-
       renderState();
       await saveDominanceState();
 
@@ -1788,9 +1759,59 @@ async function loadGiftCatalog() {
   }
 }
 
+// Aplica un poder directo a la vida de los equipos — usado en modo "Vida de
+// equipo", donde no hay HP individual por soldado ni proyectil visual
+// todavia (eso queda para cuando mejoremos como se ven los poderes). Ataque
+// resta al equipo rival; soporte le suma al propio equipo (curacion y
+// escudo se tratan igual aca, como vida recuperada, ya que este modo no
+// lleva un contador de escudo aparte). `overrideAmount` > 0 gana sobre el
+// valor propio del poder; en 0 se usa el valor propio.
+function applyPowerToTeams(attackerSide, abilityId, overrideAmount, actorLabel) {
+  const defenderSide = attackerSide === 'left' ? 'right' : 'left';
+  const attackerTeam = dominanceState.teams[attackerSide];
+  const defenderTeam = dominanceState.teams[defenderSide];
+  if (!attackerTeam || !defenderTeam) return;
+
+  const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+  const powerName = ability?.name || abilityId;
+
+  if (ability?.type === 'support') {
+    const amount = overrideAmount > 0 ? overrideAmount : Number(ability?.healing || ability?.shield || 0);
+    if (amount <= 0) return;
+
+    attackerTeam.health = Math.min(
+      Number(attackerTeam.maxHealth || attackerTeam.health || 0) || amount,
+      Number(attackerTeam.health || 0) + amount
+    );
+
+    const message = `${actorLabel} activó ${powerName} y ${attackerTeam.name} recuperó ${amount} de vida`;
+    dominanceState.history.push(createDominanceHistoryEntry(message, 'live'));
+    updateArenaMessage(message, true);
+    return;
+  }
+
+  const amount = overrideAmount > 0 ? overrideAmount : Number(ability?.damage || 0);
+  if (amount <= 0) return;
+
+  defenderTeam.health = Math.max(0, Number(defenderTeam.health || 0) - amount);
+  dominanceState.round = Number(dominanceState.round || 1) + 1;
+  dominanceState.active_team_id = attackerSide;
+
+  const message = `${defenderTeam.name} recibió ${powerName} de ${actorLabel} (-${amount})`;
+  dominanceState.history.push(createDominanceHistoryEntry(message, 'live'));
+  updateArenaMessage(message, true);
+
+  if (defenderTeam.health <= 0) {
+    defenderTeam.health = 0;
+    dominanceState.winner_team_id = attackerSide;
+    dominanceState.winner = attackerSide;
+    showVictoryModal(attackerSide);
+  }
+}
+
 async function triggerThresholdAction(userUniqueId, actionType, incrementCount = 1) {
-  if (!isKillsMode() || !dominanceState.killsCombatStarted) return;
   if (dominanceState.winner_team_id) return;
+  if (isKillsMode() && !dominanceState.killsCombatStarted) return;
 
   const match = findSoldierByUserId(userUniqueId);
   if (!match?.soldier || match.soldier.isDead) return;
@@ -1803,21 +1824,24 @@ async function triggerThresholdAction(userUniqueId, actionType, incrementCount =
   const binding = resolveAbilityBindingForAction(actionType);
   if (!binding) return;
 
-  const threshold = Math.max(1, Number(binding.parameterValue || 1));
+  const threshold = Math.max(1, Number(binding.threshold || 1));
   const abilityId = binding.powerId || 'basic-shot';
-  const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
 
   let triggeredCount = 0;
   while (soldier.actionCounters[actionType] >= threshold) {
     soldier.actionCounters[actionType] -= threshold;
-    if (engine) {
-      engine.queueAbility(soldier.id, abilityId, null);
-    }
     triggeredCount += 1;
   }
 
-  if (triggeredCount > 0) {
-    const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+  if (triggeredCount <= 0) return;
+
+  const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
+
+  if (isKillsMode()) {
+    const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
+    for (let i = 0; i < triggeredCount; i += 1) {
+      if (engine) engine.queueAbility(soldier.id, abilityId, null);
+    }
 
     dominanceState.history.push(
       createDominanceHistoryEntry(
@@ -1825,12 +1849,15 @@ async function triggerThresholdAction(userUniqueId, actionType, incrementCount =
         'live'
       )
     );
-
     updateArenaMessage(`${soldier.nickname} lanzó ${ability?.name || abilityId}`, true);
-
-    renderState();
-    await saveDominanceState();
+  } else {
+    for (let i = 0; i < triggeredCount; i += 1) {
+      applyPowerToTeams(match.side, abilityId, 0, soldier.nickname);
+    }
   }
+
+  renderState();
+  await saveDominanceState();
 }
 
 function resolveAbilityBindingForAction(actionType, actionName) {
@@ -1847,103 +1874,57 @@ function resolveAbilityBindingForAction(actionType, actionName) {
     if (exactMatch) return exactMatch;
   }
 
-  return typeBindings[0];
+  // Sin match exacto (regalo no asignado puntualmente): se usa el binding
+  // "cualquier otro regalo" (actionName vacío) en vez de uno al azar.
+  const catchAll = typeBindings.find((binding) => !String(binding.actionName || '').trim());
+  return catchAll || typeBindings[0];
 }
 
+// El catalogo de poderes ya NO es editable por el streamer: siempre es el
+// catalogo fijo de combat/abilities.js (getPowerCatalog() mas abajo). Aca
+// solo se asegura que powerBindings exista, con los defaults la primera vez.
 function ensureCombatStateShape() {
-  const defaultCombat = window.DominanceCombat?.createCombatState?.() || {
-    powerCatalog: [],
-    powerBindings: [],
-  };
+  const defaultBindings = window.DominanceCombat?.createDefaultPowerBindings?.() || [];
 
   if (!dominanceState.combat) {
-    dominanceState.combat = {
-      powerCatalog: [],
-      powerBindings: [],
-    };
+    dominanceState.combat = { powerCatalog: [], powerBindings: [] };
   }
 
-  if (!Array.isArray(dominanceState.combat.powerCatalog)) {
-    dominanceState.combat.powerCatalog = defaultCombat.powerCatalog || [];
+  if (!Array.isArray(dominanceState.combat.powerBindings) || dominanceState.combat.powerBindings.length === 0) {
+    dominanceState.combat.powerBindings = defaultBindings;
   }
 
-  if (!Array.isArray(dominanceState.combat.powerBindings)) {
-    dominanceState.combat.powerBindings = defaultCombat.powerBindings || [];
-  }
-
-  if (dominanceState.combat.powerCatalog.length === 0) {
-    dominanceState.combat.powerCatalog = defaultCombat.powerCatalog || [];
-  }
-
-  if (dominanceState.combat.powerBindings.length === 0) {
-    dominanceState.combat.powerBindings = defaultCombat.powerBindings || [];
-  }
+  // Ya no se guarda un catalogo custom por cuenta (ver getPowerCatalog) —
+  // se limpia cualquier resto viejo para que el motor use siempre el fijo.
+  dominanceState.combat.powerCatalog = [];
 
   return dominanceState.combat;
 }
 
-function renderPowerCatalogCard(power) {
-  const projectileTypes = window.DominanceCombat?.abilities?.PROJECTILE_TYPES || [];
-  const projectileOptions = projectileTypes
-    .map((option) => `<option value="${option.value}" ${option.value === power.projectileType ? 'selected' : ''}>${escapeHtml(option.label)}</option>`)
-    .join('');
-
-  return `
-    <div class="power-card" data-power-id="${power.id}">
-      <div class="power-card-header">
-        <input class="power-card-name" data-power-id="${power.id}" data-field="name" value="${escapeHtml(power.name)}" maxlength="40" />
-        <button class="power-card-remove" data-power-id="${power.id}" type="button" title="Eliminar poder">✕</button>
-      </div>
-      <div class="power-card-grid">
-        <label>Tipo
-          <select data-power-id="${power.id}" data-field="type">
-            <option value="attack" ${power.type !== 'support' ? 'selected' : ''}>Ataque</option>
-            <option value="support" ${power.type === 'support' ? 'selected' : ''}>Soporte (aliados)</option>
-          </select>
-        </label>
-        <label>Estilo visual
-          <select data-power-id="${power.id}" data-field="projectileType">${projectileOptions}</select>
-        </label>
-        <label>Color
-          <input type="color" data-power-id="${power.id}" data-field="color" value="${escapeHtml(power.color || '#f59e0b')}" />
-        </label>
-        <label>Daño
-          <input type="number" min="0" data-power-id="${power.id}" data-field="damage" value="${Number(power.damage || 0)}" />
-        </label>
-        <label>Curación
-          <input type="number" min="0" data-power-id="${power.id}" data-field="healing" value="${Number(power.healing || 0)}" />
-        </label>
-        <label>Escudo otorgado
-          <input type="number" min="0" data-power-id="${power.id}" data-field="shield" value="${Number(power.shield || 0)}" />
-        </label>
-        <label>Disparos
-          <input type="number" min="1" max="20" data-power-id="${power.id}" data-field="shots" value="${Number(power.shots || 1)}" />
-        </label>
-        <label>Radio de explosión (px)
-          <input type="number" min="0" data-power-id="${power.id}" data-field="explosionRadius" value="${Number(power.explosionRadius || 0)}" />
-        </label>
-        <label>Velocidad
-          <input type="number" min="0.1" step="0.1" data-power-id="${power.id}" data-field="projectileSpeed" value="${Number(power.projectileSpeed || 1)}" />
-        </label>
-        <label>Tamaño (px)
-          <input type="number" min="2" max="40" data-power-id="${power.id}" data-field="projectileSize" value="${Number(power.projectileSize || 8)}" />
-        </label>
-        <label>Cooldown (ms)
-          <input type="number" min="0" step="10" data-power-id="${power.id}" data-field="cooldownMs" value="${Number(power.cooldownMs || 0)}" />
-        </label>
-        <label>Duración animación (ms)
-          <input type="number" min="50" step="10" data-power-id="${power.id}" data-field="animationDuration" value="${Number(power.animationDuration || 280)}" />
-        </label>
-      </div>
-    </div>
-  `;
+// Catalogo fijo de poderes (ver combat/abilities.js) — ya no se guarda por
+// cuenta ni se edita desde la UI, solo se elige de esta lista al armar cada
+// asignacion.
+function getPowerCatalog() {
+  return window.DominanceCombat?.abilities?.createAbilityCatalog?.() || [];
 }
 
-function getBindingParameterHint(actionType) {
-  if (actionType === 'gift') {
-    return 'Daño/curación extra (0 = usa el valor del poder)';
-  }
-  return 'Cada cuántas veces se activa el poder';
+function powerSelectOptions(catalog, selectedId) {
+  return catalog
+    .map((power) => `<option value="${power.id}" ${power.id === selectedId ? 'selected' : ''}>${escapeHtml(power.name)}${power.type === 'support' ? ' (soporte)' : ''}</option>`)
+    .join('');
+}
+
+function giftNameSelectOptions(selectedName) {
+  const normalizedSelected = String(selectedName || '').trim().toLowerCase();
+  return dominanceGiftCatalog
+    .map((gift) => {
+      const giftName = String(gift?.name || gift?.giftName || gift?.id || '').trim();
+      if (!giftName) return '';
+      const isSelected = normalizedSelected === giftName.toLowerCase();
+      return `<option value="${escapeHtml(giftName)}" ${isSelected ? 'selected' : ''}>${escapeHtml(giftName)}</option>`;
+    })
+    .filter(Boolean)
+    .join('');
 }
 
 function renderCombatPowerConfig() {
@@ -1951,112 +1932,91 @@ function renderCombatPowerConfig() {
 
   if (!dominancePowersConfigTable) return;
 
-  const combatState = dominanceState.combat;
-  const catalog = Array.isArray(combatState.powerCatalog) && combatState.powerCatalog.length > 0
-    ? combatState.powerCatalog
-    : (window.DominanceCombat?.createDefaultPowerCatalog?.() || []);
-  const bindings = Array.isArray(combatState.powerBindings) && combatState.powerBindings.length > 0
-    ? combatState.powerBindings
-    : (window.DominanceCombat?.createDefaultPowerBindings?.() || []);
-
-  const actionTypes = [
-    { value: 'comment', label: 'Comentario' },
-    { value: 'like', label: 'Me gusta' },
-    { value: 'follow', label: 'Follow' },
-    { value: 'gift', label: 'Regalo' },
-    { value: 'share', label: 'Share' },
-  ];
+  const catalog = getPowerCatalog();
+  const bindings = dominanceState.combat.powerBindings;
 
   if (!dominanceGiftCatalogLoaded && !dominanceGiftCatalogLoading) {
     void loadGiftCatalog();
   }
 
-  const normalizedBindings = [];
-  actionTypes.forEach((actionTypeItem) => {
-    const existingBinding = bindings.find((binding) => binding.actionType === actionTypeItem.value);
-    normalizedBindings.push(existingBinding || {
-      id: `binding-${actionTypeItem.value}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      actionType: actionTypeItem.value,
-      actionName: actionTypeItem.value === 'gift' ? '' : actionTypeItem.label,
+  const interactionTypes = [
+    { value: 'like', label: 'Me gusta' },
+    { value: 'follow', label: 'Follow' },
+    { value: 'share', label: 'Share' },
+  ];
+
+  const interactionRows = interactionTypes.map((item) => {
+    const binding = bindings.find((entry) => entry.actionType === item.value) || {
+      id: `binding-${item.value}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      actionType: item.value,
+      actionName: item.label,
       powerId: catalog[0]?.id || '',
-      parameterValue: 1,
-    });
-  });
-
-  const extraBindings = bindings.filter((binding) => !actionTypes.some((actionTypeItem) => actionTypeItem.value === binding.actionType));
-  normalizedBindings.push(...extraBindings);
-
-  const rows = normalizedBindings.map((binding) => {
-    const actionType = actionTypes.find((item) => item.value === binding.actionType) || actionTypes[0];
-    const selectedPower = catalog.find((power) => power.id === binding.powerId) || catalog[0] || null;
-    const actionLabel = String(binding.actionName || '').trim();
-    const actionNameValue = escapeHtml(actionLabel || (actionType.value === 'gift' ? '' : actionType.label));
-    const giftOptions = dominanceGiftCatalog
-      .map((gift) => {
-        const giftName = String(gift?.name || gift?.giftName || gift?.id || '').trim();
-        if (!giftName) return '';
-        const isSelected = actionLabel.toLowerCase() === giftName.toLowerCase();
-        return `<option value="${escapeHtml(giftName)}" ${isSelected ? 'selected' : ''}>${escapeHtml(giftName)}</option>`;
-      })
-      .filter(Boolean)
-      .join('');
-
-    const actionInput = actionType.value === 'gift'
-      ? `<select data-binding-id="${binding.id}" data-field="actionName">
-          <option value="">Sin regalo específico</option>
-          ${giftOptions}
-        </select>`
-      : `<input data-binding-id="${binding.id}" data-field="actionName" value="${actionNameValue}" placeholder="${escapeHtml(actionType.label)}" />`;
+      threshold: 1,
+    };
 
     return `
-      <tr>
-        <td>
-          <select data-binding-id="${binding.id}" data-field="actionType">
-            ${actionTypes.map((item) => `<option value="${item.value}" ${item.value === binding.actionType ? 'selected' : ''}>${item.label}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          ${actionInput}
-        </td>
-        <td>
-          <select data-binding-id="${binding.id}" data-field="powerId">
-            ${catalog.map((power) => `<option value="${power.id}" ${selectedPower?.id === power.id ? 'selected' : ''}>${escapeHtml(power.name)}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <input data-binding-id="${binding.id}" data-field="parameterValue" type="number" min="0" value="${Number(binding.parameterValue || 1)}" />
-          <small class="power-binding-hint">${getBindingParameterHint(binding.actionType)}</small>
-        </td>
+      <tr data-binding-id="${binding.id}" data-action-type="${item.value}">
+        <td>${escapeHtml(item.label)}</td>
+        <td><select data-field="powerId">${powerSelectOptions(catalog, binding.powerId)}</select></td>
+        <td><input data-field="threshold" type="number" min="1" value="${Number(binding.threshold || 1)}" /></td>
       </tr>
     `;
   }).join('');
 
+  const giftBindings = bindings.filter((entry) => entry.actionType === 'gift');
+  const defaultGiftBinding = giftBindings.find((entry) => !String(entry.actionName || '').trim()) || {
+    id: `binding-gift-default-${Date.now()}`,
+    actionType: 'gift',
+    actionName: '',
+    powerId: catalog[0]?.id || '',
+    damage: 50,
+  };
+  const specificGiftBindings = giftBindings.filter((entry) => String(entry.actionName || '').trim());
+
+  function giftRow(binding, { removable }) {
+    const giftCell = removable
+      ? `<select data-field="actionName">
+          <option value="">Elige un regalo...</option>
+          ${giftNameSelectOptions(binding.actionName)}
+        </select>`
+      : `<strong>Cualquier otro regalo</strong>`;
+
+    return `
+      <tr data-binding-id="${binding.id}" data-action-type="gift">
+        <td>${giftCell}</td>
+        <td><select data-field="powerId">${powerSelectOptions(catalog, binding.powerId)}</select></td>
+        <td><input data-field="damage" type="number" min="0" value="${Number(binding.damage || 0)}" /></td>
+        <td>${removable ? `<button class="power-card-remove" type="button" data-remove-binding="${binding.id}" title="Quitar regalo">✕</button>` : ''}</td>
+      </tr>
+    `;
+  }
+
+  const giftRows = [
+    giftRow(defaultGiftBinding, { removable: false }),
+    ...specificGiftBindings.map((binding) => giftRow(binding, { removable: true })),
+  ].join('');
+
   dominancePowersConfigTable.innerHTML = `
-    <div class="power-catalog-section">
-      <div class="power-catalog-header">
-        <h3>Poderes disponibles</h3>
-        <button id="dominanceAddPowerBtn" class="btn accent" type="button">+ Nuevo poder</button>
-      </div>
-      <p class="hint">Cada poder define su propio daño/curación/escudo, cuántos proyectiles dispara, si golpea en área, qué tan rápido viaja y con qué estilo visual se dibuja.</p>
-      <div class="power-catalog-grid">
-        ${catalog.map(renderPowerCatalogCard).join('')}
-      </div>
+    <div class="power-bindings-section">
+      <h3>Me gusta, Follow y Share</h3>
+      <p class="hint">Elige qué poder se activa con cada interacción, y cada cuántas veces (por espectador) se dispara.</p>
+      <table class="power-config-table">
+        <thead><tr><th>Interacción</th><th>Poder</th><th>Cada cuántos</th></tr></thead>
+        <tbody>${interactionRows}</tbody>
+      </table>
     </div>
 
-    <div class="power-bindings-section">
-      <h3>Asignación de eventos de TikTok</h3>
-      <p class="hint">Decide qué poder se activa con cada tipo de evento (y, para regalos, con cuál regalo específico).</p>
+    <div class="power-bindings-section" style="margin-top:24px;">
+      <h3>Regalos</h3>
+      <p class="hint">
+        Elige qué poder dispara cada regalo y cuánto daño hace (o curación/escudo, si el poder es de soporte).
+        "Cualquier otro regalo" cubre los que no asignes puntualmente.
+      </p>
       <table class="power-config-table">
-        <thead>
-          <tr>
-            <th>Tipo de acción</th>
-            <th>Acción o regalo</th>
-            <th>Poder asignado</th>
-            <th>Parámetro</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
+        <thead><tr><th>Regalo</th><th>Poder</th><th>Daño / curación / escudo</th><th></th></tr></thead>
+        <tbody>${giftRows}</tbody>
       </table>
+      <button id="dominanceAddGiftBindingBtn" class="btn accent" type="button" style="margin-top:12px;">+ Agregar regalo específico</button>
     </div>
   `;
 }
@@ -2069,120 +2029,48 @@ function savePowerBindingsFromUI() {
   const rows = dominancePowersConfigTable.querySelectorAll('tbody tr');
   const bindings = [];
 
-  rows.forEach((row, index) => {
-    const actionType = row.querySelector('[data-field="actionType"]')?.value || 'like';
-    const actionName = row.querySelector('[data-field="actionName"]')?.value || '';
+  rows.forEach((row) => {
+    const bindingId = row.dataset.bindingId;
+    const actionType = row.dataset.actionType;
     const powerId = row.querySelector('[data-field="powerId"]')?.value || '';
-    const parameterValue = Number(row.querySelector('[data-field="parameterValue"]')?.value || 0);
 
-    const binding = dominanceState.combat.powerBindings[index] || {
-      id: `binding-${Date.now()}-${index}`,
-    };
+    if (actionType === 'gift') {
+      const actionName = row.querySelector('[data-field="actionName"]')?.value || '';
+      const damage = Number(row.querySelector('[data-field="damage"]')?.value || 0);
+      bindings.push({ id: bindingId, actionType: 'gift', actionName, powerId, damage: Math.max(0, damage) });
+      return;
+    }
 
-    bindings.push({
-      ...binding,
-      actionType,
-      actionName,
-      powerId,
-      // 0 es válido: para regalos significa "usar el valor del poder";
-      // para like/follow/share, quien lo consume ya exige un mínimo de 1.
-      parameterValue: Math.max(0, parameterValue),
-    });
+    const threshold = Number(row.querySelector('[data-field="threshold"]')?.value || 1);
+    bindings.push({ id: bindingId, actionType, actionName: actionType, powerId, threshold: Math.max(1, threshold) });
   });
 
   dominanceState.combat.powerBindings = bindings;
 }
 
-function savePowerCatalogFromUI() {
+function addGiftBinding() {
   ensureCombatStateShape();
 
-  if (!dominancePowersConfigTable) return;
-
-  const cards = dominancePowersConfigTable.querySelectorAll('.power-card');
-  if (!cards.length) return;
-
-  const catalog = [];
-
-  cards.forEach((card) => {
-    const powerId = card.dataset.powerId;
-    const field = (name) => card.querySelector(`[data-field="${name}"]`)?.value;
-
-    catalog.push({
-      id: powerId,
-      name: String(field('name') || 'Poder').trim().slice(0, 40) || 'Poder',
-      type: field('type') === 'support' ? 'support' : 'attack',
-      projectileType: field('projectileType') || 'basic-bullet',
-      color: field('color') || '#f59e0b',
-      damage: Math.max(0, Number(field('damage')) || 0),
-      healing: Math.max(0, Number(field('healing')) || 0),
-      shield: Math.max(0, Number(field('shield')) || 0),
-      shots: Math.max(1, Math.min(20, Number(field('shots')) || 1)),
-      explosionRadius: Math.max(0, Number(field('explosionRadius')) || 0),
-      projectileSpeed: Math.max(0.1, Number(field('projectileSpeed')) || 1),
-      projectileSize: Math.max(2, Math.min(60, Number(field('projectileSize')) || 8)),
-      cooldownMs: Math.max(0, Number(field('cooldownMs')) || 0),
-      animationDuration: Math.max(50, Number(field('animationDuration')) || 280),
-    });
-  });
-
-  dominanceState.combat.powerCatalog = catalog;
-}
-
-function addNewPower() {
-  ensureCombatStateShape();
-
-  dominanceState.combat.powerCatalog.push({
-    id: `power-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    name: 'Nuevo poder',
-    type: 'attack',
-    projectileType: 'basic-bullet',
-    color: '#f59e0b',
-    damage: 20,
-    healing: 0,
-    shield: 0,
-    shots: 1,
-    explosionRadius: 0,
-    projectileSpeed: 1.2,
-    projectileSize: 8,
-    cooldownMs: 200,
-    animationDuration: 280,
+  const catalog = getPowerCatalog();
+  dominanceState.combat.powerBindings.push({
+    id: `binding-gift-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    actionType: 'gift',
+    actionName: '',
+    powerId: catalog[0]?.id || '',
+    damage: 50,
   });
 
   renderCombatPowerConfig();
 }
 
-async function removePower(powerId) {
+function removeGiftBinding(bindingId) {
   ensureCombatStateShape();
-
-  if (dominanceState.combat.powerCatalog.length <= 1) {
-    await showAppAlert('Debe quedar al menos un poder disponible.', 'No se puede eliminar');
-    return;
-  }
-
-  const usedByBinding = dominanceState.combat.powerBindings.some((binding) => binding.powerId === powerId);
-  if (usedByBinding) {
-    const confirmed = await showAppConfirm(
-      'Este poder está asignado a un evento de TikTok. Si lo eliminas, ese evento pasará a usar el primer poder disponible. ¿Eliminar de todas formas?',
-      'Poder en uso',
-      'Eliminar',
-      'Cancelar',
-    );
-    if (!confirmed) return;
-  }
-
-  dominanceState.combat.powerCatalog = dominanceState.combat.powerCatalog.filter((power) => power.id !== powerId);
-  const fallbackId = dominanceState.combat.powerCatalog[0]?.id || '';
-
-  dominanceState.combat.powerBindings = dominanceState.combat.powerBindings.map((binding) =>
-    binding.powerId === powerId ? { ...binding, powerId: fallbackId } : binding
-  );
-
+  dominanceState.combat.powerBindings = dominanceState.combat.powerBindings.filter((binding) => binding.id !== bindingId);
   renderCombatPowerConfig();
 }
 
 async function savePowerConfig() {
   ensureCombatStateShape();
-  savePowerCatalogFromUI();
   savePowerBindingsFromUI();
   renderState();
   await saveDominanceState();
@@ -2260,31 +2148,22 @@ function bindUIActions() {
   if (dominanceSavePowersConfigBtn) {
     dominanceSavePowersConfigBtn.addEventListener('click', async () => {
       await savePowerConfig();
-      await showAppAlert('Configuración de poderes guardada.', 'Dominance');
+      await showAppAlert('Configuración de juego guardada.', 'Dominance');
     });
   }
 
   if (dominancePowersConfigTable) {
-    dominancePowersConfigTable.addEventListener('change', () => {
-      savePowerCatalogFromUI();
-      savePowerBindingsFromUI();
-    });
-
     dominancePowersConfigTable.addEventListener('click', (event) => {
-      const removeBtn = event.target.closest('.power-card-remove');
+      const removeBtn = event.target.closest('[data-remove-binding]');
       if (removeBtn) {
-        savePowerCatalogFromUI();
         savePowerBindingsFromUI();
-        removePower(removeBtn.dataset.powerId).catch((error) => {
-          console.warn('[DOMINANCE] Error eliminando poder', error);
-        });
+        removeGiftBinding(removeBtn.dataset.removeBinding);
         return;
       }
 
-      if (event.target.closest('#dominanceAddPowerBtn')) {
-        savePowerCatalogFromUI();
+      if (event.target.closest('#dominanceAddGiftBindingBtn')) {
         savePowerBindingsFromUI();
-        addNewPower();
+        addGiftBinding();
       }
     });
   }

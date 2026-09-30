@@ -37,4 +37,9 @@ module.exports = {
   RESEND_API_KEY: process.env.RESEND_API_KEY || null,
   EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev',
   DISCORD_SIGNUP_WEBHOOK_URL: process.env.DISCORD_SIGNUP_WEBHOOK_URL || null,
+  // tiktok-live-connector firma la conexion al WebSocket de TikTok a traves
+  // de Euler Stream (eulerstream.com) — sin esta key, comparte el limite
+  // gratuito de la comunidad (facil de agotar); con una key gratuita propia,
+  // cada cuenta tiene su propio limite. Se consigue gratis en su dashboard.
+  EULERSTREAM_API_KEY: process.env.EULERSTREAM_API_KEY || null,
 };

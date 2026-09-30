@@ -1,4 +1,5 @@
 const logger = require('../config/logger');
+const env = require('../config/env');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
 const robloxDanceService = require('./robloxDanceService');
@@ -416,6 +417,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
     processInitialData: true,
     fetchRoomInfoOnConnect: true,
     enableExtendedGiftInfo: true,
+    ...(env.EULERSTREAM_API_KEY ? { signApiKey: env.EULERSTREAM_API_KEY } : null),
   });
 
   const entry = {
@@ -758,7 +760,9 @@ async function checkIsLive(uniqueId) {
   const normalizedUniqueId = String(uniqueId || '').trim().replace(/^@/, '');
   if (!normalizedUniqueId) return false;
 
-  const probe = new TikTokLiveConnection(normalizedUniqueId);
+  const probe = new TikTokLiveConnection(normalizedUniqueId, {
+    ...(env.EULERSTREAM_API_KEY ? { signApiKey: env.EULERSTREAM_API_KEY } : null),
+  });
   try {
     return await probe.fetchIsLive();
   } catch (error) {

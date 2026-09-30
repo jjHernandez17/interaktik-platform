@@ -334,14 +334,19 @@ function sanitizeDominancePower(power, index) {
   };
 }
 
+// actionType 'gift': 'damage' es el daño/curación/escudo directo que asigna
+// el streamer para ese regalo puntual (0 = usa el valor propio del poder).
+// 'like'/'follow'/'share': 'threshold' es cada cuantas veces se activa el
+// poder (con su valor propio, no hay override de daño por evento).
 function sanitizeDominancePowerBinding(binding, index) {
-  const validActionTypes = ['comment', 'like', 'follow', 'gift', 'share'];
+  const validActionTypes = ['like', 'follow', 'gift', 'share'];
   return {
     id: String(binding?.id || `binding-${index + 1}-${Math.random().toString(36).slice(2, 8)}`),
     actionType: validActionTypes.includes(binding?.actionType) ? binding.actionType : 'like',
     actionName: String(binding?.actionName || '').trim().slice(0, 60),
     powerId: String(binding?.powerId || '').trim().slice(0, 80),
-    parameterValue: Math.max(0, Math.min(999999, Number(binding?.parameterValue) || 0)),
+    threshold: Math.max(1, Math.min(999999, Number(binding?.threshold) || 1)),
+    damage: Math.max(0, Math.min(999999, Number(binding?.damage) || 0)),
   };
 }
 

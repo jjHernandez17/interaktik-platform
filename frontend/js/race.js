@@ -9,9 +9,7 @@ const raceFullscreenBtn = document.getElementById('raceFullscreenBtn');
 const raceTrack = document.getElementById('raceTrack');
 const raceHistoryList = document.getElementById('raceHistoryList');
 const raceUsername = document.getElementById('raceUsername');
-const raceLinkBtn = document.getElementById('raceLinkBtn');
 const raceConnectLiveBtn = document.getElementById('raceConnectLiveBtn');
-const raceLoadCatalogBtn = document.getElementById('raceLoadCatalogBtn');
 const raceConnectionForm = document.getElementById('raceConnectionForm');
 const raceDisconnectBtn = document.getElementById('raceDisconnectBtn');
 const raceLiveIndicator = document.getElementById('raceLiveIndicatorBadge');
@@ -70,13 +68,11 @@ function applyLikesConfigToInputs() {
 
 function lockRaceUsernameInput() {
   if (raceUsername) raceUsername.disabled = true;
-  if (raceLinkBtn) raceLinkBtn.disabled = true;
   if (raceConnectLiveBtn) raceConnectLiveBtn.disabled = false;
 }
 
 function unlockRaceUsernameInput() {
-  if (raceUsername) raceUsername.disabled = false;
-  if (raceLinkBtn) raceLinkBtn.disabled = false;
+  if (raceUsername) raceUsername.disabled = true;
   if (raceConnectLiveBtn) raceConnectLiveBtn.disabled = true;
 }
 
@@ -1040,29 +1036,6 @@ if (resetRaceBtn) resetRaceBtn.addEventListener('click', resetRace);
 if (clearParticipantsBtn) clearParticipantsBtn.addEventListener('click', clearParticipants);
 if (raceFullscreenBtn) raceFullscreenBtn.addEventListener('click', toggleFullscreenTrack);
 
-if (raceLinkBtn) {
-  raceLinkBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const uniqueId = raceUsername.value.trim().replace(/^@/, '');
-    if (!uniqueId) {
-      showAppAlert('Por favor ingresa un usuario de TikTok.', 'Usuario requerido');
-      return;
-    }
-
-    if (confirm(`¿Estás seguro de que quieres vincular el juego a @${uniqueId}?\n\nNo podrás cambiar esta cuenta después.`)) {
-      try {
-        await saveTiktokConnectionRaceToDB(uniqueId);
-        raceUsername.value = `@${uniqueId}`;
-        lockRaceUsernameInput();
-        setRaceConnectionStatus('disconnected', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-        addHistoryEntry(`Cuenta vinculada a TikTok Live: @${uniqueId}`);
-      } catch (error) {
-        showAppAlert(error.message, 'Error al guardar la cuenta');
-      }
-    }
-  });
-}
-
 if (raceConnectLiveBtn) {
   raceConnectLiveBtn.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -1116,38 +1089,6 @@ if (raceDisconnectBtn) {
   });
 }
 
-if (raceLoadCatalogBtn) {
-  raceLoadCatalogBtn.addEventListener('click', async () => {
-    try {
-      const response = await fetch('/api/gifts');
-      if (!response.ok) throw new Error('No se pudo cargar el catálogo');
-      const payload = await response.json();
-      const gifts = Array.isArray(payload) ? payload : (Array.isArray(payload.gifts) ? payload.gifts : []);
-      addHistoryEntry(`Catálogo cargado: ${gifts.length} regalos disponibles`);
-      showAppAlert(`Se cargaron ${gifts.length} regalos de TikTok.`, 'Catálogo actualizado');
-    } catch (error) {
-      showAppAlert(error.message, 'Error al cargar catálogo');
-    }
-  });
-}
-
-async function saveTiktokConnectionRaceToDB(uniqueId) {
-  try {
-    const response = await fetch('/api/tiktok-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameType: 'race', tiktokUsername: uniqueId }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || 'No se pudo guardar la cuenta.');
-    }
-  } catch (error) {
-    console.error('[RACE] Error saving TikTok connection to DB:', error.message);
-    throw error;
-  }
-}
 
 async function restoreTiktokConnectionRace() {
   try {
@@ -1162,7 +1103,7 @@ async function restoreTiktokConnectionRace() {
     } else {
       raceUsername.value = '';
       unlockRaceUsernameInput();
-      setRaceConnectionStatus('disconnected', 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.');
+      setRaceConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     console.error('[RACE] Error restoring TikTok connection from DB:', error.message);

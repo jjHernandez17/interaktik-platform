@@ -4,7 +4,6 @@ const robloxConnectionForm = document.getElementById('robloxConnectionForm');
 const usernameInput = document.getElementById('robloxUsernameInput');
 const statusBadge = document.getElementById('robloxConnectionStatusBadge');
 const connectionDetails = document.getElementById('robloxConnectionDetails');
-const linkBtn = document.getElementById('robloxLinkBtn');
 const connectLiveBtn = document.getElementById('robloxConnectLiveBtn');
 const disconnectBtn = document.getElementById('robloxDisconnectBtn');
 
@@ -72,39 +71,24 @@ function setStatus(status, message = '') {
 
 function lockUsernameInput() {
   usernameInput.disabled = true;
-  linkBtn.disabled = true;
   connectLiveBtn.disabled = false;
 }
 
 function unlockUsernameInput() {
-  usernameInput.disabled = false;
-  linkBtn.disabled = false;
+  usernameInput.disabled = true;
   connectLiveBtn.disabled = true;
 }
 
-async function saveTiktokConnectionToDB() {
-  const uniqueId = normalizeText(usernameInput.value).replace(/^@/, '');
-  if (!uniqueId) return;
-
-  const response = await fetch('/api/tiktok-connection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ gameType: GAME_TYPE, tiktokUsername: uniqueId }),
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || 'No se pudo guardar la cuenta.');
-  }
-}
-
+// El usuario de TikTok se vincula desde la sección "Juegos" del panel (una
+// sola vez, para todos los juegos) — ver platform.js. Aca solo se lee lo que
+// ya haya quedado vinculado, para reflejarlo en el input bloqueado.
 async function restoreTiktokConnection() {
   unlockUsernameInput();
 
   try {
     const response = await fetch(`/api/tiktok-connection/${GAME_TYPE}`);
     if (!response.ok) {
-      setStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
+      setStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
       return;
     }
 
@@ -114,30 +98,11 @@ async function restoreTiktokConnection() {
       lockUsernameInput();
       setStatus('linked', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
     } else {
-      setStatus('unlinked', 'Ingresa el nombre de usuario de TikTok que esta transmitiendo en vivo.');
+      setStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     setStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
     console.error('[ROBLOX] Error restaurando conexion TikTok:', error.message);
-  }
-}
-
-async function linkTiktokUsername() {
-  const uniqueId = normalizeText(usernameInput.value).replace(/^@/, '');
-  if (!uniqueId) {
-    setStatus('error', 'Debes indicar un usuario de TikTok.');
-    return;
-  }
-
-  linkBtn.disabled = true;
-  try {
-    await saveTiktokConnectionToDB();
-    usernameInput.value = `@${uniqueId}`;
-    lockUsernameInput();
-    setStatus('linked', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-  } catch (error) {
-    linkBtn.disabled = false;
-    setStatus('error', error.message || 'No se pudo guardar la cuenta.');
   }
 }
 
@@ -747,7 +712,6 @@ function bootstrapEventListeners() {
     robloxConnectionForm.addEventListener('submit', (event) => event.preventDefault());
   }
 
-  linkBtn.addEventListener('click', linkTiktokUsername);
   connectLiveBtn.addEventListener('click', connectLive);
   disconnectBtn.addEventListener('click', disconnectLive);
 

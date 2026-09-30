@@ -1,8 +1,6 @@
 // ===== Elementos del DOM =====
 const shellUsername = document.getElementById('shellUsername');
-const shellLinkBtn = document.getElementById('shellLinkBtn');
 const shellConnectLiveBtn = document.getElementById('shellConnectLiveBtn');
-const shellLoadCatalogBtn = document.getElementById('shellLoadCatalogBtn');
 const shellDisconnectBtn = document.getElementById('shellDisconnectBtn');
 const shellConnectionStatus = document.getElementById('shellConnectionStatusBadge');
 const shellConnectionDetails = document.getElementById('shellConnectionDetails');
@@ -746,13 +744,11 @@ async function loadState() {
 // ===== Conexión TikTok Live =====
 function lockShellUsernameInput() {
   if (shellUsername) shellUsername.disabled = true;
-  if (shellLinkBtn) shellLinkBtn.disabled = true;
   if (shellConnectLiveBtn) shellConnectLiveBtn.disabled = false;
 }
 
 function unlockShellUsernameInput() {
-  if (shellUsername) shellUsername.disabled = false;
-  if (shellLinkBtn) shellLinkBtn.disabled = false;
+  if (shellUsername) shellUsername.disabled = true;
   if (shellConnectLiveBtn) shellConnectLiveBtn.disabled = true;
 }
 
@@ -789,18 +785,6 @@ function setShellConnectionStatus(status, details = '', error = '') {
   }
 }
 
-async function saveTiktokConnectionToDB(uniqueId) {
-  const response = await fetch('/api/tiktok-connection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ gameType: 'shellgame', tiktokUsername: uniqueId }),
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || 'No se pudo guardar la cuenta.');
-  }
-}
-
 async function restoreTiktokConnection() {
   try {
     const response = await fetch('/api/tiktok-connection/shellgame');
@@ -813,7 +797,7 @@ async function restoreTiktokConnection() {
     } else {
       shellUsername.value = '';
       unlockShellUsernameInput();
-      setShellConnectionStatus('disconnected', 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.');
+      setShellConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     console.error('[ShellGame] Error restoring TikTok connection:', error.message);
@@ -850,32 +834,6 @@ function connectToEvents() {
   liveEventsSource.addEventListener('error', () => {
     if (isConnected) {
       setShellConnectionStatus('connecting', 'Reconectando eventos del servidor...');
-    }
-  });
-}
-
-if (shellLinkBtn) {
-  shellLinkBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const uniqueId = shellUsername.value.trim().replace(/^@/, '');
-    if (!uniqueId) {
-      showAppAlert('Por favor ingresa un usuario de TikTok.', 'Usuario requerido');
-      return;
-    }
-
-    const confirmed = await showAppConfirm(
-      `¿Estás seguro de que quieres vincular el juego a @${uniqueId}?\n\nNo podrás cambiar esta cuenta después.`,
-      'Vincular cuenta',
-    );
-    if (!confirmed) return;
-
-    try {
-      await saveTiktokConnectionToDB(uniqueId);
-      shellUsername.value = `@${uniqueId}`;
-      lockShellUsernameInput();
-      setShellConnectionStatus('disconnected', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-    } catch (error) {
-      showAppAlert(error.message, 'Error al guardar la cuenta');
     }
   });
 }
@@ -927,20 +885,20 @@ if (shellDisconnectBtn) {
   });
 }
 
-if (shellLoadCatalogBtn) {
-  shellLoadCatalogBtn.addEventListener('click', async () => {
-    try {
-      const response = await fetch('/api/gifts');
-      if (!response.ok) throw new Error('No se pudo cargar el catálogo');
-      const payload = await response.json();
-      const rawGifts = Array.isArray(payload) ? payload : (Array.isArray(payload.gifts) ? payload.gifts : []);
-      catalogGifts = sanitizeGiftCatalog(rawGifts);
-      renderGiftRulesPanel();
-      showAppAlert(`Se cargaron ${catalogGifts.length} regalos de TikTok.`, 'Catálogo actualizado');
-    } catch (error) {
-      showAppAlert(error.message, 'Error al cargar catálogo');
-    }
-  });
+// El catalogo de regalos ya no depende de un boton manual: se vincula desde
+// la seccion "Juegos" del panel (platform.js) y aca solo se lee, silencioso,
+// para tener listos los nombres/imagenes al asignar un regalo a un vaso.
+async function loadGiftCatalog() {
+  try {
+    const response = await fetch('/api/gifts?gameType=shellgame');
+    if (!response.ok) throw new Error('No se pudo cargar el catálogo');
+    const payload = await response.json();
+    const rawGifts = Array.isArray(payload) ? payload : (Array.isArray(payload.gifts) ? payload.gifts : []);
+    catalogGifts = sanitizeGiftCatalog(rawGifts);
+    renderGiftRulesPanel();
+  } catch (error) {
+    console.error('[ShellGame] Error cargando catálogo:', error.message);
+  }
 }
 
 // ===== Controles de configuración =====
@@ -1069,6 +1027,7 @@ async function initializeShellGame() {
   layoutCups();
   renderActivityEmpty();
   await restoreTiktokConnection();
+  await loadGiftCatalog();
 }
 
 initializeShellGame().finally(() => document.getElementById('pageLoader')?.setAttribute('hidden', ''));

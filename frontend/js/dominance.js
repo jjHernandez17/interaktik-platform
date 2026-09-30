@@ -1,9 +1,7 @@
 // TIKTOKINTERACTIVE/frontend/js/dominance.js
 const dominanceConnectionForm = document.getElementById('dominanceConnectionForm');
 const dominanceUsernameInput = document.getElementById('dominanceUsername');
-const dominanceLinkBtn = document.getElementById('dominanceLinkBtn');
 const dominanceConnectLiveBtn = document.getElementById('dominanceConnectLiveBtn');
-const dominanceLoadCatalogBtn = document.getElementById('dominanceLoadCatalogBtn');
 const dominanceDisconnectBtn = document.getElementById('dominanceDisconnectBtn');
 const dominanceConnectionStatusBadge = document.getElementById('dominanceConnectionStatusBadge');
 const dominanceConnectionDetails = document.getElementById('dominanceConnectionDetails');
@@ -1696,28 +1694,23 @@ function showVictoryModal(winningTeamId) {
   }
 }
 
-async function linkTikTok() {
-  const uniqueId = dominanceUsernameInput.value.trim().replace(/^@/, '');
-  if (!uniqueId) {
-    await showAppAlert('Ingresa un usuario de TikTok.', 'Falta usuario');
-    return;
-  }
-
+// El usuario de TikTok se vincula desde la sección "Juegos" del panel (una
+// sola vez, para todos los juegos) — ver platform.js. Aca solo se lee lo que
+// ya haya quedado vinculado, para reflejarlo en el input bloqueado.
+async function restoreLinkedTiktokUsername() {
   try {
-    const response = await fetch('/api/tiktok-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameType: 'dominance', tiktokUsername: uniqueId }),
-    });
-    const result = await response.json();
+    const response = await fetch('/api/tiktok-connection/dominance');
+    const data = response.ok ? await response.json() : null;
 
-    if (!response.ok) {
-      throw new Error(result.error || 'No se pudo vincular TikTok.');
+    if (data?.tiktok_username) {
+      dominanceUsernameInput.value = `@${data.tiktok_username}`;
+      setConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Presiona "Conectar a live" cuando ya estés transmitiendo.`);
+    } else {
+      dominanceUsernameInput.value = '';
+      setConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
-
-    await showAppAlert('TikTok vinculado correctamente.', 'Éxito');
   } catch (error) {
-    await showAppAlert(error.message, 'Error');
+    setConnectionStatus('error', 'No se pudo leer tu usuario vinculado.', error.message);
   }
 }
 
@@ -1786,7 +1779,6 @@ async function loadGiftCatalog() {
       renderCombatPowerConfig();
     }
 
-    await showAppAlert('Catálogo cargado correctamente.', 'TikTok catálogo');
     return dominanceGiftCatalog;
   } catch (error) {
     await showAppAlert(error.message, 'Error');
@@ -2297,20 +2289,12 @@ function bindUIActions() {
     });
   }
 
-  if (dominanceLinkBtn) {
-    dominanceLinkBtn.addEventListener('click', () => linkTikTok());
-  }
-
   if (dominanceConnectLiveBtn) {
     dominanceConnectLiveBtn.addEventListener('click', () => connectTikTokLive());
   }
 
   if (dominanceDisconnectBtn) {
     dominanceDisconnectBtn.addEventListener('click', () => disconnectTikTokLive());
-  }
-
-  if (dominanceLoadCatalogBtn) {
-    dominanceLoadCatalogBtn.addEventListener('click', () => loadGiftCatalog());
   }
 
   if (leftTeamName) {
@@ -2444,6 +2428,7 @@ window.addEventListener('beforeunload', () => {
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     bindUIActions();
+    await restoreLinkedTiktokUsername();
     await loadDominanceState();
     initializeCombatEngine();
     startSoldiersAnimation();

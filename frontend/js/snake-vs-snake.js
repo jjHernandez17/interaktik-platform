@@ -47,9 +47,7 @@ let rightGiftCoinsFilter = '';
 
 const snakeConnectionForm = document.getElementById('snakeConnectionForm');
 const snakeUsernameInput = document.getElementById('snakeUsername');
-const snakeLinkBtn = document.getElementById('snakeLinkBtn');
 const snakeConnectLiveBtn = document.getElementById('snakeConnectLiveBtn');
-const snakeLoadCatalogBtn = document.getElementById('snakeLoadCatalogBtn');
 const snakeDisconnectBtn = document.getElementById('snakeDisconnectBtn');
 const snakeResetBtn = document.getElementById('snakeResetBtn');
 const snakeConnectionStatus = document.getElementById('snakeConnectionStatusBadge');
@@ -552,13 +550,11 @@ function setLiveStatus(status, message = '', error = '') {
 }
 function lockUsernameInput() {
   snakeUsernameInput.disabled = true;
-  if (snakeLinkBtn) snakeLinkBtn.disabled = true;
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = false;
 }
 
 function unlockUsernameInput() {
-  snakeUsernameInput.disabled = false;
-  if (snakeLinkBtn) snakeLinkBtn.disabled = false;
+  snakeUsernameInput.disabled = true;
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = true;
 }
 
@@ -1527,40 +1523,6 @@ async function loadGiftCatalog() {
   }
 }
 
-async function refreshGiftCatalogFromLive() {
-  const uniqueId = normalizeText(snakeUsernameInput.value).replace(/^@/, '');
-  if (!uniqueId) {
-    setText(snakeConnectionStatus, 'Escribe un usuario de TikTok para refrescar el catálogo.');
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/catalog?gameType=snake', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uniqueId }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      throw new Error(payload?.error || 'No se pudo cargar el catálogo en vivo.');
-    }
-
-    const payload = await response.json();
-    state.catalog = sanitizeCatalog(payload.gifts || []);
-    syncSnakeGiftCatalogSelection();
-    updateRuleGiftOptions();
-    renderCatalog();
-    renderSnakeGiftCatalogMenus();
-    setText(snakeConnectionStatus, payload.message || payload.warning || 'Catálogo actualizado.');
-  } catch (error) {
-    updateRuleGiftOptions();
-    renderLeftGiftCatalogMenu();
-    renderRightGiftCatalogMenu();
-    setText(snakeConnectionStatus, error.message || 'No se pudo actualizar el catálogo.');
-  }
-}
-
 function getFreeFutureCells(side) {
   const snake = getSnake(side);
   const pathLength = getPathLength();
@@ -2106,27 +2068,6 @@ async function disconnectTikTok() {
 }
 
 
-async function saveTiktokConnectionSnakeToDB() {
-  try {
-    const uniqueId = normalizeText(snakeUsernameInput.value).replace(/^@/, '');
-    if (!uniqueId) return;
-
-    const response = await fetch('/api/tiktok-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameType: 'snake', tiktokUsername: uniqueId }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || 'No se pudo guardar la cuenta.');
-    }
-  } catch (error) {
-    console.error('[SNAKE] Error saving TikTok connection to DB:', error.message);
-    throw error;
-  }
-}
-
 async function restoreTiktokConnectionSnake() {
   unlockUsernameInput();
 
@@ -2146,7 +2087,7 @@ async function restoreTiktokConnectionSnake() {
     } else {
       snakeUsernameInput.value = '';
       unlockUsernameInput();
-      setLiveStatus('disconnected', 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.');
+      setLiveStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     snakeUsernameInput.value = '';
@@ -2161,25 +2102,6 @@ async function deleteTiktokConnectionSnakeFromDB() {
     await fetch('/api/tiktok-connection/snake', { method: 'DELETE' });
   } catch (error) {
     console.error('[SNAKE] Error deleting TikTok connection from DB:', error.message);
-  }
-}
-
-async function linkTiktokUsernameSnake() {
-  const uniqueId = normalizeText(snakeUsernameInput.value).replace(/^@/, '');
-  if (!uniqueId) {
-    setLiveStatus('error', 'Debes indicar un usuario de TikTok.');
-    return;
-  }
-
-  if (snakeLinkBtn) snakeLinkBtn.disabled = true;
-  try {
-    await saveTiktokConnectionSnakeToDB();
-    snakeUsernameInput.value = `@${uniqueId}`;
-    lockUsernameInput();
-    setLiveStatus('disconnected', `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-  } catch (error) {
-    if (snakeLinkBtn) snakeLinkBtn.disabled = false;
-    setLiveStatus('error', error.message || 'No se pudo guardar la cuenta.');
   }
 }
 
@@ -2618,30 +2540,12 @@ function renderRightGiftCatalogMenu() {
 
 function bootstrapEventListeners() {
 
-  snakeLinkBtn.addEventListener('click', (event) => {
-    event.preventDefault();
-    const username = normalizeText(snakeUsernameInput.value).replace(/^@/, '');
-    if (!username) {
-      setLiveStatus('error', 'Debes indicar un usuario de TikTok.');
-      return;
-    }
-    if (confirm(`¿Estás seguro de que quieres vincular el juego a @${username}?\n\nNo podrás cambiar esta cuenta después.`)) {
-      linkTiktokUsernameSnake();
-    }
-  });
-
   if (snakeConnectLiveBtn) {
     snakeConnectLiveBtn.addEventListener('click', async (event) => {
       event.preventDefault();
       await connectSnakeLiveFromSavedUsername();
     });
   }
-
-  snakeLoadCatalogBtn.addEventListener('click', () => {
-    refreshGiftCatalogFromLive().catch((error) => {
-      setText(snakeConnectionStatus, error.message || 'No se pudo actualizar el catálogo.');
-    });
-  });
 
   snakeDisconnectBtn.addEventListener('click', () => {
     disconnectTikTok().catch((error) => {

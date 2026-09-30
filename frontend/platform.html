@@ -138,6 +138,24 @@
 
           <div id="accessStatusBanner" class="access-status-banner hidden"></div>
 
+          <section class="connection-card games-connection-card">
+            <div class="connection-header">
+              <h3>Conexión TikTok Live</h3>
+              <span id="gamesConnectionStatusBadge" class="status-badge disconnected">Sin vincular</span>
+            </div>
+
+            <form id="gamesConnectionForm" class="connection-form">
+              <input id="gamesTiktokUsernameInput" type="text" placeholder="@usuario_en_vivo" />
+              <button id="gamesLinkTiktokBtn" class="btn primary" type="button">Vincular</button>
+              <button id="gamesLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
+            </form>
+
+            <p id="gamesConnectionDetails" class="hint">
+              Este usuario queda vinculado para todos tus juegos. Dentro de cada juego solo tendrás que darle a
+              "Conectar a live" cuando ya estés transmitiendo.
+            </p>
+          </section>
+
           <div class="games-category">
             <h3 class="games-category-title">Plataforma 2D</h3>
             <div class="games-grid">

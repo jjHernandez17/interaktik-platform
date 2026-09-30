@@ -205,6 +205,13 @@ const overlayTiktokUsernameInput = document.getElementById('overlayTiktokUsernam
 const overlayConnectTiktokBtn = document.getElementById('overlayConnectTiktokBtn');
 const overlayDisconnectTiktokBtn = document.getElementById('overlayDisconnectTiktokBtn');
 
+const gamesConnectionForm = document.getElementById('gamesConnectionForm');
+const gamesConnectionStatusBadge = document.getElementById('gamesConnectionStatusBadge');
+const gamesConnectionDetails = document.getElementById('gamesConnectionDetails');
+const gamesTiktokUsernameInput = document.getElementById('gamesTiktokUsernameInput');
+const gamesLinkTiktokBtn = document.getElementById('gamesLinkTiktokBtn');
+const gamesLoadCatalogBtn = document.getElementById('gamesLoadCatalogBtn');
+
 let overlayKeyLoaded = false;
 
 const statsSessionsList = document.getElementById('statsSessionsList');
@@ -1109,6 +1116,111 @@ if (overlayDisconnectTiktokBtn) {
 
 if (overlayConnectionForm) {
   overlayConnectionForm.addEventListener('submit', (event) => event.preventDefault());
+}
+
+// Mismos gameType que administra el panel de admin (EDITABLE_GAME_TYPES en
+// backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
+// en la conexion de cada uno, para que "un solo usuario de TikTok para toda
+// la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'shellgame'];
+
+function setGamesConnectionStatus(status, details = '') {
+  if (!gamesConnectionStatusBadge || !gamesConnectionDetails) return;
+
+  const labels = {
+    disconnected: 'Sin vincular',
+    linked: 'Vinculado',
+    connecting: 'Vinculando...',
+    error: 'Error',
+  };
+
+  gamesConnectionStatusBadge.textContent = labels[status] || labels.disconnected;
+  gamesConnectionStatusBadge.className = `status-badge ${status === 'linked' ? 'connected' : status}`;
+  gamesConnectionDetails.textContent = details
+    || 'Este usuario queda vinculado para todos tus juegos. Dentro de cada juego solo tendrás que darle a "Conectar a live" cuando ya estés transmitiendo.';
+}
+
+async function restoreGamesTiktokConnection() {
+  try {
+    const response = await fetch('/api/tiktok-connection/app');
+    const data = response.ok ? await response.json() : null;
+
+    if (data?.tiktok_username && gamesTiktokUsernameInput) {
+      gamesTiktokUsernameInput.value = `@${data.tiktok_username}`;
+      setGamesConnectionStatus('linked', `Vinculado a @${data.tiktok_username}.`);
+    } else {
+      setGamesConnectionStatus('disconnected');
+    }
+  } catch (error) {
+    setGamesConnectionStatus('error', 'No se pudo leer tu usuario vinculado.');
+  }
+}
+
+async function linkGamesTiktokUsername() {
+  const uniqueId = gamesTiktokUsernameInput?.value.trim().replace(/^@/, '');
+  if (!uniqueId) {
+    await showAlert('Ingresa un usuario de TikTok.', 'Falta usuario');
+    return;
+  }
+
+  if (gamesLinkTiktokBtn) gamesLinkTiktokBtn.disabled = true;
+  setGamesConnectionStatus('connecting');
+
+  try {
+    const responses = await Promise.all(
+      ALL_GAME_TYPES.map((gameType) => fetch('/api/tiktok-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameType, tiktokUsername: uniqueId }),
+      })),
+    );
+
+    if (responses.some((response) => !response.ok)) {
+      throw new Error('No se pudo vincular la cuenta en todos los juegos.');
+    }
+
+    gamesTiktokUsernameInput.value = `@${uniqueId}`;
+    setGamesConnectionStatus('linked', `Vinculado a @${uniqueId} en todos tus juegos.`);
+  } catch (error) {
+    setGamesConnectionStatus('error', error.message || 'No se pudo vincular la cuenta.');
+  } finally {
+    if (gamesLinkTiktokBtn) gamesLinkTiktokBtn.disabled = false;
+  }
+}
+
+async function loadGamesGiftCatalog() {
+  if (gamesLoadCatalogBtn) gamesLoadCatalogBtn.disabled = true;
+
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'app' }),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'No se pudo cargar el catálogo.');
+    }
+
+    await showAlert(`Se cargaron ${payload.total || 0} regalos de TikTok, ya disponibles en todos tus juegos.`, 'Catálogo actualizado');
+  } catch (error) {
+    await showAlert(error.message, 'Error al cargar catálogo');
+  } finally {
+    if (gamesLoadCatalogBtn) gamesLoadCatalogBtn.disabled = false;
+  }
+}
+
+if (gamesLinkTiktokBtn) {
+  gamesLinkTiktokBtn.addEventListener('click', linkGamesTiktokUsername);
+}
+
+if (gamesLoadCatalogBtn) {
+  gamesLoadCatalogBtn.addEventListener('click', loadGamesGiftCatalog);
+}
+
+if (gamesConnectionForm) {
+  gamesConnectionForm.addEventListener('submit', (event) => event.preventDefault());
 }
 
 async function loadOverlayConfig() {
@@ -2357,6 +2469,7 @@ async function loadMe() {
     await loadGameAvailability();
     await loadAccessStatus();
     await loadPlans();
+    await restoreGamesTiktokConnection();
 
     // El loader se oculta ANTES de handlePaymentRedirectParams() a proposito:
     // esa funcion puede mostrar un dialogo (showAlert, z-index 4000) que

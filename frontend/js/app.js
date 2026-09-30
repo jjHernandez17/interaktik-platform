@@ -21,9 +21,7 @@ const resetScoresBtn = document.getElementById("resetScoresBtn");
 const applyGiftBtn = document.getElementById("applyGiftBtn");
 const connectionForm = document.getElementById("connectionForm");
 const tiktokUsernameInput = document.getElementById("tiktokUsername");
-const linkBtn = document.getElementById("linkBtn");
 const connectLiveBtn = document.getElementById("connectLiveBtn");
-const loadCatalogBtn = document.getElementById("loadCatalogBtn");
 const disconnectBtn = document.getElementById("disconnectBtn");
 const connectionStatusBadge = document.getElementById("appConnectionStatusBadge");
 const connectionDetails = document.getElementById("connectionDetails");
@@ -641,44 +639,6 @@ async function loadGiftCatalog() {
   }
 }
 
-async function preloadCatalogBeforeLive() {
-  const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
-  if (!uniqueId) {
-    setConnectionStatus("error", "Debes escribir un usuario para cargar catálogo.");
-    return;
-  }
-
-  setConnectionStatus("connecting", `Consultando catálogo de @${uniqueId}...`);
-
-  try {
-    const response = await fetch("/api/catalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uniqueId }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "No se pudo consultar el catálogo.");
-    }
-
-    state.giftCatalog = sanitizeGiftCatalog(payload.gifts);
-    mergeCatalogIntoRules();
-    render();
-
-    if (payload.fromCache) {
-      setConnectionStatus(
-        "disconnected",
-        payload.warning || "Se cargó el último catálogo guardado en cache.",
-      );
-    } else {
-      setConnectionStatus("disconnected", payload.message || `Catálogo listo para @${uniqueId}.`);
-    }
-  } catch (error) {
-    setConnectionStatus("error", "No se pudo cargar catálogo antes del live.", error.message);
-  }
-}
-
 function startEventStream() {
   if (liveEventsSource) {
     liveEventsSource.close();
@@ -771,24 +731,6 @@ async function connectToTikTok() {
     setConnectionStatus('error', 'error al conectar live, por favor contactate con un desarrollador', error.message);
   }
 }
-async function saveLinkedTiktokUsername() {
-  const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
-  if (!uniqueId) return;
-
-  try {
-    await saveTiktokConnectionToDB();
-    connectionState.uniqueId = uniqueId;
-    tiktokUsernameInput.value = `@${uniqueId}`;
-    tiktokUsernameInput.disabled = true;
-    if (linkBtn) linkBtn.disabled = true;
-    if (connectLiveBtn) connectLiveBtn.disabled = false;
-    setConnectionStatus("linked", `Cuenta vinculada a @${uniqueId}. Ahora puedes conectar el live.`);
-  } catch (error) {
-    setConnectionStatus("error", error.message || "No se pudo guardar la cuenta.");
-    throw error;
-  }
-}
-
 async function connectLiveFromSavedUsername() {
   const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
   if (!uniqueId) {
@@ -818,37 +760,15 @@ async function disconnectFromTikTok() {
 }
 
 
-async function saveTiktokConnectionToDB() {
-  try {
-    const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
-    if (!uniqueId) return;
-
-    const response = await fetch(`${APP_API_BASE_URL}/api/tiktok-connection`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameType: "app", tiktokUsername: uniqueId }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || "No se pudo guardar la cuenta.");
-    }
-  } catch (error) {
-    console.error("[APP] Error saving TikTok connection to DB:", error.message);
-    throw error;
-  }
-}
-
 async function restoreTiktokConnection() {
   try {
     const response = await fetch(`${APP_API_BASE_URL}/api/tiktok-connection/app`);
     if (!response.ok) {
       connectionState.uniqueId = "";
       tiktokUsernameInput.value = "";
-      tiktokUsernameInput.disabled = false;
-      if (linkBtn) linkBtn.disabled = false;
+      tiktokUsernameInput.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = true;
-      setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
+      setConnectionStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
       return;
     }
 
@@ -864,25 +784,22 @@ async function restoreTiktokConnection() {
       connectionState.uniqueId = storedUniqueId;
       tiktokUsernameInput.value = `@${storedUniqueId}`;
       tiktokUsernameInput.disabled = true;
-      if (linkBtn) linkBtn.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = false;
       setConnectionStatus('linked', `Cuenta vinculada a @${storedUniqueId}. Ahora puedes conectar el live.`);
     } else {
       connectionState.uniqueId = '';
       tiktokUsernameInput.value = "";
-      tiktokUsernameInput.disabled = false;
-      if (linkBtn) linkBtn.disabled = false;
+      tiktokUsernameInput.disabled = true;
       if (connectLiveBtn) connectLiveBtn.disabled = true;
-      setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
+      setConnectionStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     console.error('[APP] Error restoring TikTok connection from DB:', error.message);
     connectionState.uniqueId = '';
     tiktokUsernameInput.value = "";
-    tiktokUsernameInput.disabled = false;
-    if (linkBtn) linkBtn.disabled = false;
+    tiktokUsernameInput.disabled = true;
     if (connectLiveBtn) connectLiveBtn.disabled = true;
-    setConnectionStatus('unlinked', 'No has vinculado un ID de TikTok Live.');
+    setConnectionStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
   }
 }
 async function deleteTiktokConnectionFromDB() {
@@ -1417,26 +1334,11 @@ scoreAdjustModal.addEventListener("click", (event) => {
 toggleScoreboardFullscreenBtn.addEventListener("click", toggleScoreboardFullscreen);
 document.addEventListener("fullscreenchange", updateScoreboardFullscreenButton);
 
-loadCatalogBtn.addEventListener("click", preloadCatalogBeforeLive);
-
 if (applyGiftBtn && liveGiftSelect) {
   applyGiftBtn.addEventListener("click", async () => {
     await applyGift(liveGiftSelect.value);
   });
 }
-
-linkBtn.addEventListener("click", async (e) => {
-  e.preventDefault();
-  const uniqueId = tiktokUsernameInput.value.trim().replace(/^@/, "");
-  if (!uniqueId) {
-    showAppAlert("Por favor ingresa un usuario de TikTok.", "Usuario requerido");
-    return;
-  }
-
-  if (confirm(`¿Estás seguro de que quieres vincular el juego a @${uniqueId}?\n\nNo podrás cambiar esta cuenta después.`)) {
-    await saveLinkedTiktokUsername();
-  }
-});
 
 if (connectLiveBtn) {
   connectLiveBtn.addEventListener("click", async (e) => {

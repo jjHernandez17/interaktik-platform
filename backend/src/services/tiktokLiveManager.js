@@ -3,6 +3,7 @@ const env = require('../config/env');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
 const robloxDanceService = require('./robloxDanceService');
+const robloxParkourService = require('./robloxParkourService');
 
 let TikTokLiveConnection = null;
 let WebcastEvent = null;
@@ -141,9 +142,10 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
+    if (gameType === 'roblox-parkour') return 'robloxparkour';
     return gameType;
   }
 
@@ -169,6 +171,7 @@ function inferGameTypeFromRequest(req) {
   const referer = String(req.get('referer') || req.get('referrer') || '').toLowerCase();
   if (referer.includes('snake-vs-snake')) return 'snake';
   if (referer.includes('roblox-dance')) return 'roblox';
+  if (referer.includes('roblox-parkour')) return 'robloxparkour';
   if (referer.includes('shell-game')) return 'shellgame';
   if (referer.includes('boy-vs-girl')) return 'boyvsgirl';
   if (referer.includes('race')) return 'race';
@@ -488,6 +491,12 @@ connection.on(WebcastEvent.GIFT, (data) => {
   if (normalizedGameType === 'roblox' && userId) {
     robloxDanceService.handleGift(userId, giftPayload).catch((error) => {
       logger.warn('No se pudo procesar regalo para Roblox Dance', error);
+    });
+  }
+
+  if (normalizedGameType === 'robloxparkour' && userId) {
+    robloxParkourService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Roblox Parkour', error);
     });
   }
 

@@ -699,6 +699,28 @@ router.get('/roblox-dance.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-dance.js'));
 });
 
+// Roblox Parkour
+router.get(['/roblox-parkour', '/roblox-parkour.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'robloxparkour'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/roblox-parkour.html', 'Roblox Parkour page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/roblox-parkour.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/roblox-parkour.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-parkour.js'));
+});
+
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
 router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));

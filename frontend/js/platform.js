@@ -240,6 +240,7 @@ const GAME_LABELS = {
   race: 'Carrera de Colegas',
   dominance: 'Dominance',
   roblox: 'Roblox Dance',
+  robloxparkour: 'Roblox Parkour',
 };
 
 let currentUser = null;
@@ -289,6 +290,7 @@ function setupAdminSearch() {
 function gameTypeFromHref(href = '') {
   if (href.includes('snake-vs-snake')) return 'snake';
   if (href.includes('roblox-dance')) return 'roblox';
+  if (href.includes('roblox-parkour')) return 'robloxparkour';
   if (href.includes('shell-game')) return 'shellgame';
   if (href.includes('boy-vs-girl')) return 'boyvsgirl';
   if (href.includes('race')) return 'race';
@@ -1124,7 +1126,7 @@ if (overlayConnectionForm) {
 // backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
 // en la conexion de cada uno, para que "un solo usuario de TikTok para toda
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
-const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'shellgame', 'boyvsgirl'];
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'shellgame', 'boyvsgirl'];
 
 function setGamesConnectionStatus(status, details = '') {
   if (!gamesConnectionStatusBadge || !gamesConnectionDetails) return;

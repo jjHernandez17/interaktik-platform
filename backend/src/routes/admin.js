@@ -8,7 +8,7 @@ const env = require('../config/env');
 const logger = require('../config/logger');
 
 const router = express.Router();
-const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'shellgame', 'boyvsgirl'];
+const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'shellgame', 'boyvsgirl'];
 
 function buildConnectionsMap(rows = []) {
   return rows.reduce((accumulator, row) => {

@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/styles.css?v=20260829a" />
-  <link rel="stylesheet" href="assets/css/dominance.css?v=20260930e" />
+  <link rel="stylesheet" href="assets/css/dominance.css?v=20261001d" />
 </head>
 
 <body>
@@ -71,6 +71,13 @@
         </div>
 
 
+        <div id="teamHpModeConfig" class="kills-mode-config">
+          <div class="config-group">
+            <label for="dominanceTeamsHealth">Vida inicial de los equipos</label>
+            <input id="dominanceTeamsHealth" type="number" min="1" value="10000">
+          </div>
+        </div>
+
         <div id="killsModeConfig" class="kills-mode-config">
           <div class="config-group">
             <label for="dominanceKillsVictoryType">Condición de victoria</label>
@@ -108,6 +115,12 @@
       </div>
     </section>
 
+    <div id="dominanceStartBattleWrapper" class="dominance-start-battle-wrapper">
+      <button id="dominanceStartBattleBtn" class="btn primary dominance-start-btn" type="button">
+        Iniciar combate
+      </button>
+    </div>
+
     <section class="dominance-battlefield">
 
       <div id="dominanceProjectileLayer" class="projectile-layer"></div>
@@ -132,10 +145,6 @@
         <div id="dominanceTimerPill" class="dominance-timer-pill">
           00:00
         </div>
-
-        <button id="dominanceStartBattleBtn" class="btn primary dominance-start-btn" type="button">
-            Iniciar combate
-        </button>
 
         <div id="dominanceCenterStatus" class="dominance-center-status"></div>
       </div>
@@ -174,11 +183,6 @@
         </div>
 
         <div class="config-group">
-          <label>Vida inicial</label>
-          <input id="leftConfigHealth" type="number" value="10000">
-        </div>
-
-        <div class="config-group">
           <label>Fondo del equipo</label>
           <input id="leftConfigBackground" type="file" accept="image/*">
         </div>
@@ -205,11 +209,6 @@
         <div class="config-group">
           <label>Color principal</label>
           <input id="rightConfigColor" type="color" value="#3b82f6">
-        </div>
-
-        <div class="config-group">
-          <label>Vida inicial</label>
-          <input id="rightConfigHealth" type="number" value="10000">
         </div>
 
         <div class="config-group">
@@ -282,7 +281,7 @@
   <script src="js/combat/projectileManager.js?v=20260704a"></script>
   <script src="js/combat/projectileRenderer.js?v=20260930c"></script>
   <script src="js/combat/engine.js?v=20260930a"></script>
-  <script src="js/dominance.js?v=20260930e"></script>
+  <script src="js/dominance.js?v=20261001e"></script>
 </body>
 
 </html>

@@ -561,6 +561,41 @@
     border:none;
 }
 
+/* Todos los <select> de Dominance (modo de juego, condición de victoria,
+   poder asignado a cada interacción/regalo) usaban la flecha nativa del
+   navegador — gris, cuadrada, sin relación con el resto del diseño. Se
+   reemplaza por una flecha propia (mismo trazo que .gift-picker-chevron)
+   y se homologa el color/borde al resto de los inputs de la plataforma. */
+.dominance-shell select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: rgba(2, 6, 23, .55);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M2.5 4.5L7 9L11.5 4.5' stroke='%2392a0b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    color: var(--ds-text, #f1f5f9);
+    border: 1px solid rgba(148, 163, 184, .22);
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.dominance-shell select:hover {
+    border-color: var(--ds-border-strong, rgba(148, 163, 184, .4));
+}
+
+.dominance-shell select:focus {
+    outline: none;
+    border-color: var(--ds-primary, #7c5cff);
+    box-shadow: 0 0 0 3px var(--ds-primary-soft, rgba(124, 92, 255, .18));
+}
+
+.power-config-table-wrapper select {
+    padding-right: 32px;
+    background-position: right 10px center;
+}
+
 /* =========================
    DOMINANCE - PICKER DE REGALOS (imagen + monedas + filtro)
    Reusa los tokens --ds-* del design system (mismos que ya usan los
@@ -844,9 +879,91 @@
     height:36px;
 }
 
+.power-bindings-mode-badge{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:4px 10px;
+    padding:10px 16px;
+    margin-bottom:20px;
+    border-radius:12px;
+    background:rgba(124,92,255,.1);
+    border:1px solid rgba(124,92,255,.3);
+    color:rgba(255,255,255,.85);
+    font-size:.86rem;
+}
+
+.power-bindings-mode-badge strong{
+    color:#fff;
+}
+
+.power-bindings-mode-badge-hint{
+    color:rgba(255,255,255,.5);
+    font-size:.78rem;
+}
+
 .power-bindings-section{
-    padding-top:8px;
-    border-top:1px solid rgba(255,255,255,.08);
+    padding:20px;
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:16px;
+    background:rgba(255,255,255,.025);
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+}
+
+.power-bindings-section h3{
+    margin:0 0 6px;
+}
+
+.power-bindings-section > .hint{
+    margin:0 0 16px;
+}
+
+.power-bindings-columns{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+    align-items:stretch;
+}
+
+@media (max-width: 900px){
+    .power-bindings-columns{
+        grid-template-columns:1fr;
+    }
+}
+
+.power-bindings-gifts-scroll{
+    max-height:420px;
+    overflow-y:auto;
+    padding-right:6px;
+    margin-right:-6px;
+}
+
+.power-config-table-interactions,
+.power-config-table-gifts{
+    table-layout:fixed;
+}
+
+.power-config-table-interactions th:nth-child(1),
+.power-config-table-interactions td:nth-child(1){ width:30%; }
+.power-config-table-interactions th:nth-child(2),
+.power-config-table-interactions td:nth-child(2){ width:46%; }
+.power-config-table-interactions th:nth-child(3),
+.power-config-table-interactions td:nth-child(3){ width:24%; }
+
+.power-config-table-gifts th:nth-child(1),
+.power-config-table-gifts td:nth-child(1){ width:46%; }
+.power-config-table-gifts th:nth-child(2),
+.power-config-table-gifts td:nth-child(2){ width:28%; }
+.power-config-table-gifts th:nth-child(3),
+.power-config-table-gifts td:nth-child(3){ width:18%; }
+.power-config-table-gifts th:nth-child(4),
+.power-config-table-gifts td:nth-child(4){ width:8%; }
+
+.power-config-table-gifts td:nth-child(4){
+    padding-left:4px;
+    padding-right:4px;
 }
 
 .power-binding-hint{
@@ -965,10 +1082,16 @@ body:not(.kills-mode) .soldier-hp {
   white-space: nowrap;
 }
 
+.dominance-start-battle-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 16px;
+}
+
 .dominance-start-btn {
   display: none;
-  width: 100%;
   justify-content: center;
+  min-width: 220px;
   font-weight: 700;
 }
 

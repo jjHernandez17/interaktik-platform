@@ -1,4 +1,9 @@
 // TIKTOKINTERACTIVE/frontend/js/dominance.js
+
+// HP "infinito" (en la práctica) para los soldados en modo "vida de
+// equipo" — ver el comentario donde se usa, en la creación del soldado.
+const TEAM_HP_MODE_SOLDIER_HP_POOL = 999999999;
+
 const dominanceConnectionForm = document.getElementById('dominanceConnectionForm');
 const dominanceUsernameInput = document.getElementById('dominanceUsername');
 const dominanceConnectLiveBtn = document.getElementById('dominanceConnectLiveBtn');
@@ -31,6 +36,7 @@ const killsTargetGroup = document.getElementById('killsTargetGroup');
 const dominanceCenterStatus = document.getElementById('dominanceCenterStatus');
 const dominanceTimerPill = document.getElementById('dominanceTimerPill');
 const dominanceStartBattleBtn = document.getElementById('dominanceStartBattleBtn');
+const dominanceStartBattleWrapper = document.getElementById('dominanceStartBattleWrapper');
 
 const leftArmy = document.getElementById('leftArmy');
 const rightArmy = document.getElementById('rightArmy');
@@ -69,11 +75,11 @@ const leftConfigColor =
 const rightConfigColor =
   document.getElementById('rightConfigColor');
 
-const leftConfigHealth =
-  document.getElementById('leftConfigHealth');
+const dominanceTeamsHealth =
+  document.getElementById('dominanceTeamsHealth');
 
-const rightConfigHealth =
-  document.getElementById('rightConfigHealth');
+const teamHpModeConfig =
+  document.getElementById('teamHpModeConfig');
 
 
 function createInitialDominanceState() {
@@ -145,7 +151,8 @@ function createInitialDominanceState() {
 
     combat: {
       powerCatalog: [],
-      powerBindings: [],
+      powerBindings: [], // reglas de interacciones/regalos del modo "Kills por soldado"
+      teamHpPowerBindings: [], // reglas propias del modo "Vida de equipo" (independientes de las de arriba)
     },
   };
 }
@@ -290,6 +297,14 @@ function renderGameModeConfig() {
     killsModeConfig.style.display = killsModeActive ? 'grid' : 'none';
   }
 
+  if (teamHpModeConfig) {
+    teamHpModeConfig.style.display = killsModeActive ? 'none' : 'grid';
+  }
+
+  if (dominanceTeamsHealth) {
+    dominanceTeamsHealth.value = Number(dominanceState.teams?.left?.maxHealth || 10000);
+  }
+
   const victoryType = killsConfigState.victoryType || 'time';
 
   if (killsDurationGroup) {
@@ -369,8 +384,7 @@ function renderCenterStatus() {
     }
 
     if (dominanceCenterStatus) {
-      dominanceCenterStatus.textContent =
-        'Presiona "Iniciar combate" para arrancar el cronómetro';
+      dominanceCenterStatus.textContent = '';
     }
 
     return;
@@ -396,22 +410,29 @@ function renderCenterStatus() {
 function renderStartBattleButton() {
   if (!dominanceStartBattleBtn) return;
 
+  const setVisible = (visible) => {
+    dominanceStartBattleBtn.style.display = visible ? 'inline-flex' : 'none';
+    if (dominanceStartBattleWrapper) {
+      dominanceStartBattleWrapper.style.display = visible ? 'flex' : 'none';
+    }
+  };
+
   if (!isKillsMode()) {
-    dominanceStartBattleBtn.style.display = 'none';
+    setVisible(false);
     return;
   }
 
   if (dominanceState.winner_team_id) {
-    dominanceStartBattleBtn.style.display = 'none';
+    setVisible(false);
     return;
   }
 
   if (dominanceState.killsCombatStarted) {
-    dominanceStartBattleBtn.style.display = 'none';
+    setVisible(false);
     return;
   }
 
-  dominanceStartBattleBtn.style.display = 'inline-flex';
+  setVisible(true);
 }
 
 
@@ -487,16 +508,6 @@ function renderTeamNames() {
   if (rightConfigColor) {
     rightConfigColor.value =
       dominanceState.teams.right.backgroundColor;
-  }
-
-  if (leftConfigHealth) {
-    leftConfigHealth.value =
-      dominanceState.teams.left.health;
-  }
-
-  if (rightConfigHealth) {
-    rightConfigHealth.value =
-      dominanceState.teams.right.health;
   }
 
 }
@@ -1007,6 +1018,14 @@ async function saveGameModeConfig() {
 
   dominanceState.gameMode = selectedMode;
 
+  if (selectedMode === 'team_hp') {
+    const teamsHealthValue = Math.max(1, Number(dominanceTeamsHealth?.value || 10000));
+    dominanceState.teams.left.health = teamsHealthValue;
+    dominanceState.teams.left.maxHealth = teamsHealthValue;
+    dominanceState.teams.right.health = teamsHealthValue;
+    dominanceState.teams.right.maxHealth = teamsHealthValue;
+  }
+
   dominanceState.killsConfig = {
     ...dominanceState.killsConfig,
     victoryType: selectedVictoryType,
@@ -1018,20 +1037,27 @@ async function saveGameModeConfig() {
     isFinished: false
   };
 
-  // si cambian el HP base, reseteamos HP de soldados existentes
-  const soldierHp = dominanceState.killsConfig.soldierHp;
+  // Si cambian el HP base, reseteamos HP de soldados existentes — pero
+  // SOLO en modo Kills, porque en modo vida de equipo el HP del soldado es
+  // un pool enorme irrelevante (ver TEAM_HP_MODE_SOLDIER_HP_POOL); si se
+  // pisara acá con "Vida por soldado" (pensado solo para Kills), los
+  // soldados de vida de equipo podrían terminar "muriendo" individualmente
+  // por combate normal, cosa que este modo no debe permitir nunca.
+  if (selectedMode === 'soldier_kills') {
+    const soldierHp = dominanceState.killsConfig.soldierHp;
 
-  dominanceState.soldiers.left = (dominanceState.soldiers.left || []).map((soldier) => ({
-    ...soldier,
-    hp: Math.min(Number(soldier.hp || soldierHp), soldierHp),
-    maxHp: soldierHp
-  }));
+    dominanceState.soldiers.left = (dominanceState.soldiers.left || []).map((soldier) => ({
+      ...soldier,
+      hp: Math.min(Number(soldier.hp || soldierHp), soldierHp),
+      maxHp: soldierHp
+    }));
 
-  dominanceState.soldiers.right = (dominanceState.soldiers.right || []).map((soldier) => ({
-    ...soldier,
-    hp: Math.min(Number(soldier.hp || soldierHp), soldierHp),
-    maxHp: soldierHp
-  }));
+    dominanceState.soldiers.right = (dominanceState.soldiers.right || []).map((soldier) => ({
+      ...soldier,
+      hp: Math.min(Number(soldier.hp || soldierHp), soldierHp),
+      maxHp: soldierHp
+    }));
+  }
 
   renderState();
   await saveDominanceState();
@@ -1129,6 +1155,7 @@ async function loadDominanceState() {
       combat: {
         powerCatalog: Array.isArray(combatState.powerCatalog) ? combatState.powerCatalog : [],
         powerBindings: Array.isArray(combatState.powerBindings) ? combatState.powerBindings : [],
+        teamHpPowerBindings: Array.isArray(combatState.teamHpPowerBindings) ? combatState.teamHpPowerBindings : [],
       },
 
       teams: {
@@ -1186,8 +1213,31 @@ async function loadDominanceState() {
 
 
 
+// Red de seguridad para partidas guardadas antes de este cambio (o
+// soldados que hayan quedado con HP inválido por algún otro camino): en
+// modo vida de equipo ningún soldado debe poder quedar "muerto" por
+// combate individual, así que se repara cualquier HP nulo/agotado antes
+// de cada render.
+function ensureTeamHpSoldiersHealthy() {
+  if (isKillsMode()) return;
+
+  ['left', 'right'].forEach((side) => {
+    (dominanceState.soldiers?.[side] || []).forEach((soldier) => {
+      if (!soldier) return;
+      if (!Number(soldier.maxHp) || Number(soldier.maxHp) < TEAM_HP_MODE_SOLDIER_HP_POOL) {
+        soldier.maxHp = TEAM_HP_MODE_SOLDIER_HP_POOL;
+      }
+      if (!Number(soldier.hp) || Number(soldier.hp) <= 0) {
+        soldier.hp = TEAM_HP_MODE_SOLDIER_HP_POOL;
+      }
+      soldier.isDead = false;
+    });
+  });
+}
+
 function renderState() {
   syncBodyModeClass();
+  ensureTeamHpSoldiersHealthy();
   renderBackgrounds();
   renderHealth();
   renderTeamNames();
@@ -1424,10 +1474,16 @@ function connectToEvents() {
 
 
 
+      // En modo "vida de equipo" el soldado sigue recibiendo los mismos
+      // impactos visuales que en Kills (mismo motor de combate), pero nunca
+      // debe "morir" individualmente — la vida real que importa es la del
+      // equipo (ver applyPowerToTeams). Se le da un HP enorme para que el
+      // motor de daño nunca lo marque como isDead; la barra de HP de todos
+      // modos no se muestra en este modo (ver buildSoldierHpBar).
       const soldierMaxHp =
         dominanceState.gameMode === 'soldier_kills'
           ? Number(dominanceState.killsConfig?.soldierHp || 200)
-          : null;
+          : TEAM_HP_MODE_SOLDIER_HP_POOL;
 
       const soldier = {
         id: `soldier-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1581,10 +1637,22 @@ function connectToEvents() {
         return;
       }
 
-      // Modo vida de equipo: mismo poder/asignacion que en Kills, aplicado
-      // directo a la vida del equipo (sin HP individual ni proyectil visual
-      // todavia en este modo) — una vez por cada unidad del regalo.
+      // Modo vida de equipo: mismo poder, mismos efectos visuales y el mismo
+      // ataque a un jugador rival al azar que en Kills por soldado — la
+      // diferencia es que el daño/curación se descuenta de la vida
+      // COMPARTIDA del equipo en vez del HP individual (el soldado nunca
+      // "muere" en este modo: se crea con un HP enorme que la UI nunca
+      // muestra, ver buildSoldierHpBar). Requiere, igual que en Kills, que
+      // el que mandó el regalo tenga un soldado activo en el campo.
+      if (!senderMatch?.soldier || senderMatch.soldier.isDead) {
+        return;
+      }
+
+      const engineForTeamHp = combatEngine || window.DominanceCombat?.getCombatEngine?.();
       for (let i = 0; i < giftRepeatCount; i += 1) {
+        if (engineForTeamHp) {
+          engineForTeamHp.queueAbility(senderMatch.soldier.id, abilityId, null);
+        }
         applyPowerToTeams(senderSide, abilityId, configuredDamage, payload.user?.nickname || sender);
       }
 
@@ -1888,12 +1956,12 @@ async function triggerThresholdAction(userUniqueId, actionType, incrementCount =
 
   const ability = window.DominanceCombat?.abilities?.getAbilityById?.(abilityId) || null;
 
-  if (isKillsMode()) {
-    const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
-    for (let i = 0; i < triggeredCount; i += 1) {
-      if (engine) engine.queueAbility(soldier.id, abilityId, null);
-    }
+  const engine = combatEngine || window.DominanceCombat?.getCombatEngine?.();
+  for (let i = 0; i < triggeredCount; i += 1) {
+    if (engine) engine.queueAbility(soldier.id, abilityId, null);
+  }
 
+  if (isKillsMode()) {
     dominanceState.history.push(
       createDominanceHistoryEntry(
         `${soldier.nickname} activó ${ability?.name || abilityId} x${triggeredCount} (${actionType})`,
@@ -1902,6 +1970,9 @@ async function triggerThresholdAction(userUniqueId, actionType, incrementCount =
     );
     updateArenaMessage(`${soldier.nickname} lanzó ${ability?.name || abilityId}`, true);
   } else {
+    // Modo vida de equipo: mismo efecto visual que Kills (el soldado
+    // dispara contra un rival al azar), pero el daño/curación real se
+    // descuenta de la vida compartida del equipo.
     for (let i = 0; i < triggeredCount; i += 1) {
       applyPowerToTeams(match.side, abilityId, 0, soldier.nickname);
     }
@@ -1912,8 +1983,7 @@ async function triggerThresholdAction(userUniqueId, actionType, incrementCount =
 }
 
 function resolveAbilityBindingForAction(actionType, actionName) {
-  ensureCombatStateShape();
-  const bindings = dominanceState.combat.powerBindings || [];
+  const bindings = getActivePowerBindings() || [];
   const typeBindings = bindings.filter((binding) => binding.actionType === actionType);
   if (!typeBindings.length) return null;
 
@@ -1935,14 +2005,19 @@ function resolveAbilityBindingForAction(actionType, actionName) {
 // catalogo fijo de combat/abilities.js (getPowerCatalog() mas abajo). Aca
 // solo se asegura que powerBindings exista, con los defaults la primera vez.
 function ensureCombatStateShape() {
-  const defaultBindings = window.DominanceCombat?.createDefaultPowerBindings?.() || [];
-
   if (!dominanceState.combat) {
-    dominanceState.combat = { powerCatalog: [], powerBindings: [] };
+    dominanceState.combat = { powerCatalog: [], powerBindings: [], teamHpPowerBindings: [] };
   }
 
   if (!Array.isArray(dominanceState.combat.powerBindings) || dominanceState.combat.powerBindings.length === 0) {
-    dominanceState.combat.powerBindings = defaultBindings;
+    dominanceState.combat.powerBindings = window.DominanceCombat?.createDefaultPowerBindings?.() || [];
+  }
+
+  // Array independiente del de arriba (cada uno con sus propios defaults,
+  // no la misma referencia) — el streamer configura las reglas de "Vida de
+  // equipo" por separado de las de "Kills por soldado".
+  if (!Array.isArray(dominanceState.combat.teamHpPowerBindings) || dominanceState.combat.teamHpPowerBindings.length === 0) {
+    dominanceState.combat.teamHpPowerBindings = window.DominanceCombat?.createDefaultPowerBindings?.() || [];
   }
 
   // Ya no se guarda un catalogo custom por cuenta (ver getPowerCatalog) —
@@ -1950,6 +2025,23 @@ function ensureCombatStateShape() {
   dominanceState.combat.powerCatalog = [];
 
   return dominanceState.combat;
+}
+
+// Cada modo de juego configura sus propias reglas de interacciones/regalos
+// de forma independiente — estos dos helpers son el único lugar que decide
+// cuál de los dos arrays está "activo" según el modo actual.
+function getActivePowerBindings() {
+  ensureCombatStateShape();
+  return isKillsMode() ? dominanceState.combat.powerBindings : dominanceState.combat.teamHpPowerBindings;
+}
+
+function setActivePowerBindings(bindings) {
+  ensureCombatStateShape();
+  if (isKillsMode()) {
+    dominanceState.combat.powerBindings = bindings;
+  } else {
+    dominanceState.combat.teamHpPowerBindings = bindings;
+  }
 }
 
 // Catalogo fijo de poderes (ver combat/abilities.js) — ya no se guarda por
@@ -2076,8 +2168,26 @@ function openGiftPickerPanel(picker) {
   if (!dominanceGiftCatalogLoaded && !dominanceGiftCatalogLoading) {
     void loadGiftCatalog();
   }
-  picker.querySelector('.gift-picker-panel')?.classList.remove('hidden');
-  picker.querySelector('.gift-picker-toggle')?.classList.add('open');
+
+  const panel = picker.querySelector('.gift-picker-panel');
+  const toggle = picker.querySelector('.gift-picker-toggle');
+
+  // La fila de regalos ahora vive dentro de un contenedor con scroll
+  // propio (.power-bindings-gifts-scroll) — si el panel quedara con
+  // position:absolute relativo a la fila, el scroll lo recortaría apenas
+  // se abriera cerca del borde. Se posiciona con position:fixed, anclado
+  // a la posición real del botón en la pantalla, para que siempre se vea
+  // completo sin importar el scroll.
+  if (panel && toggle) {
+    const rect = toggle.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.bottom + 8}px`;
+    panel.style.width = `${Math.max(rect.width, 340)}px`;
+  }
+
+  panel?.classList.remove('hidden');
+  toggle?.classList.add('open');
   refreshGiftPickerList(picker);
 }
 
@@ -2093,12 +2203,10 @@ function selectGiftInPicker(picker, giftName) {
 }
 
 function renderCombatPowerConfig() {
-  ensureCombatStateShape();
-
   if (!dominancePowersConfigTable) return;
 
   const catalog = getPowerCatalog();
-  const bindings = dominanceState.combat.powerBindings;
+  const bindings = getActivePowerBindings();
 
   if (!dominanceGiftCatalogLoaded && !dominanceGiftCatalogLoading) {
     void loadGiftCatalog();
@@ -2166,26 +2274,35 @@ function renderCombatPowerConfig() {
   ].join('');
 
   dominancePowersConfigTable.innerHTML = `
-    <div class="power-bindings-section">
-      <h3>Me gusta, Follow y Share</h3>
-      <p class="hint">Elige qué poder se activa con cada interacción, y cada cuántas veces (por espectador) se dispara.</p>
-      <table class="power-config-table">
-        <thead><tr><th>Interacción</th><th>Poder</th><th>Cada cuántos</th></tr></thead>
-        <tbody>${interactionRows}</tbody>
-      </table>
+    <div class="power-bindings-mode-badge">
+      Configurando reglas para el modo: <strong>${isKillsMode() ? 'Kills por soldado' : 'Vida de equipo'}</strong>
+      <span class="power-bindings-mode-badge-hint">Cada modo tiene sus propias reglas, independientes del otro</span>
     </div>
 
-    <div class="power-bindings-section" style="margin-top:24px;">
-      <h3>Regalos</h3>
-      <p class="hint">
-        Elige qué poder dispara cada regalo y cuánto daño hace (o curación/escudo, si el poder es de soporte).
-        "Cualquier otro regalo" cubre los que no asignes puntualmente.
-      </p>
-      <table class="power-config-table">
-        <thead><tr><th>Regalo</th><th>Poder</th><th>Daño / curación / escudo</th><th></th></tr></thead>
-        <tbody>${giftRows}</tbody>
-      </table>
-      <button id="dominanceAddGiftBindingBtn" class="btn accent" type="button" style="margin-top:12px;">+ Agregar regalo específico</button>
+    <div class="power-bindings-columns">
+      <div class="power-bindings-section">
+        <h3>Me gusta, Follow y Share</h3>
+        <p class="hint">Elige qué poder se activa con cada interacción, y cada cuántas veces (por espectador) se dispara.</p>
+        <table class="power-config-table power-config-table-interactions">
+          <thead><tr><th>Interacción</th><th>Poder</th><th>Cada cuántos</th></tr></thead>
+          <tbody>${interactionRows}</tbody>
+        </table>
+      </div>
+
+      <div class="power-bindings-section">
+        <h3>Regalos</h3>
+        <p class="hint">
+          Elige qué poder dispara cada regalo y cuánto daño hace (o curación/escudo, si el poder es de soporte).
+          "Cualquier otro regalo" cubre los que no asignes puntualmente.
+        </p>
+        <div class="power-bindings-gifts-scroll">
+          <table class="power-config-table power-config-table-gifts">
+            <thead><tr><th>Regalo</th><th>Poder</th><th>Daño</th><th></th></tr></thead>
+            <tbody>${giftRows}</tbody>
+          </table>
+        </div>
+        <button id="dominanceAddGiftBindingBtn" class="btn accent" type="button" style="margin-top:14px;">+ Agregar regalo específico</button>
+      </div>
     </div>
   `;
 }
@@ -2214,14 +2331,12 @@ function savePowerBindingsFromUI() {
     bindings.push({ id: bindingId, actionType, actionName: actionType, powerId, threshold: Math.max(1, threshold) });
   });
 
-  dominanceState.combat.powerBindings = bindings;
+  setActivePowerBindings(bindings);
 }
 
 function addGiftBinding() {
-  ensureCombatStateShape();
-
   const catalog = getPowerCatalog();
-  dominanceState.combat.powerBindings.push({
+  getActivePowerBindings().push({
     id: `binding-gift-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     actionType: 'gift',
     actionName: '',
@@ -2233,8 +2348,7 @@ function addGiftBinding() {
 }
 
 function removeGiftBinding(bindingId) {
-  ensureCombatStateShape();
-  dominanceState.combat.powerBindings = dominanceState.combat.powerBindings.filter((binding) => binding.id !== bindingId);
+  setActivePowerBindings(getActivePowerBindings().filter((binding) => binding.id !== bindingId));
   renderCombatPowerConfig();
 }
 
@@ -2423,13 +2537,6 @@ function bindUIActions() {
       dominanceState.teams.left.backgroundImage =
         '';
 
-      const leftHealthValue =
-        Number(document.getElementById('leftConfigHealth').value) || 10000;
-
-      dominanceState.teams.left.health = leftHealthValue;
-      dominanceState.teams.left.maxHealth = leftHealthValue;
-
-
       const imageFile =
         leftConfigBackground.files[0];
 
@@ -2469,12 +2576,6 @@ function bindUIActions() {
 
       dominanceState.teams.right.backgroundImage =
         '';
-
-      const rightHealthValue =
-        Number(document.getElementById('rightConfigHealth').value) || 10000;
-
-      dominanceState.teams.right.health = rightHealthValue;
-      dominanceState.teams.right.maxHealth = rightHealthValue;
 
       const imageFile =
         rightConfigBackground.files[0];

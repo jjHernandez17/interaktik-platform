@@ -569,6 +569,11 @@ function sanitizeDominanceGameState(payload) {
       powerBindings: Array.isArray(payload?.combat?.powerBindings)
         ? payload.combat.powerBindings.slice(0, 200).map((binding, index) => sanitizeDominancePowerBinding(binding, index))
         : [],
+      // Reglas propias del modo "Vida de equipo" — independientes de
+      // powerBindings (que son las del modo "Kills por soldado").
+      teamHpPowerBindings: Array.isArray(payload?.combat?.teamHpPowerBindings)
+        ? payload.combat.teamHpPowerBindings.slice(0, 200).map((binding, index) => sanitizeDominancePowerBinding(binding, index))
+        : [],
     },
 
     active_team_id: String(payload?.active_team_id || 'left'),

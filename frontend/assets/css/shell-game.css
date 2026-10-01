@@ -427,6 +427,25 @@ h1 {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
+  transition: transform 320ms ease;
+}
+
+/* Vaso "boca abajo": se aplica al hijo (no al slot) para no pelear con las
+   transiciones de left/translateY que ya usa .shell-cup-slot para moverse
+   y levantarse. */
+.shell-cup-slot.inverted .shell-cup-svg {
+  transform: scaleY(-1);
+}
+
+/* El interior blanco simula mirar hacia adentro del vaso parado; volteado
+   no tiene que existir (ahí va la base cerrada), si no el vaso parece
+   hueco/flotando en vez de tapar la bola. Se desvanece junto con el giro. */
+.shell-cup-rim-white {
+  transition: opacity 320ms ease;
+}
+
+.shell-cup-slot.inverted .shell-cup-rim-white {
+  opacity: 0;
 }
 
 .shell-gift-labels {
@@ -449,6 +468,147 @@ h1 {
   box-shadow: var(--ds-shadow-sm);
 }
 
+/* ===== Overlay central: cuenta regresiva, aviso de votación, top 5 ===== */
+
+.shell-center-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 20px;
+}
+
+.shell-center-overlay.hidden {
+  display: none;
+}
+
+.shell-countdown-number {
+  font-family: var(--ds-font-display);
+  font-size: clamp(4rem, 12vw, 7rem);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(124, 92, 255, 0.85), 0 6px 20px rgba(0, 0, 0, 0.6);
+  animation: shell-countdown-pop 700ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes shell-countdown-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  35% { transform: scale(1.15); opacity: 1; }
+  70% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.92); opacity: 0.35; }
+}
+
+.shell-banner-text {
+  font-family: var(--ds-font-display);
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+  padding: 14px 28px;
+  border-radius: var(--ds-radius-lg);
+  background: rgba(8, 12, 24, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  animation: shell-overlay-card-in 420ms ease;
+}
+
+@keyframes shell-overlay-card-in {
+  0% { transform: translateY(10px) scale(0.92); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.shell-overlay-leaderboard {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 10px;
+  padding: 20px 22px;
+  border-radius: var(--ds-radius-lg);
+  background: rgba(8, 12, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  animation: shell-overlay-card-in 420ms ease;
+}
+
+.shell-overlay-leaderboard h3 {
+  margin: 0 0 4px;
+  text-align: center;
+  font-family: var(--ds-font-display);
+  font-size: 1.15rem;
+}
+
+.shell-overlay-leaderboard .muted {
+  text-align: center;
+  margin: 0;
+}
+
+.shell-overlay-leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--ds-radius-md);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shell-overlay-leaderboard-rank {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.78rem;
+  background: var(--ds-primary-soft);
+  color: var(--ds-primary);
+}
+
+.shell-overlay-leaderboard-rank.rank-1 {
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  color: #1c1200;
+}
+
+.shell-overlay-leaderboard-rank.rank-2 {
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  color: #1c1200;
+}
+
+.shell-overlay-leaderboard-rank.rank-3 {
+  background: linear-gradient(135deg, #f0b27a, #c2733a);
+  color: #1c1200;
+}
+
+.shell-overlay-leaderboard-avatar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.shell-overlay-leaderboard-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.shell-overlay-leaderboard-points {
+  flex: 0 0 auto;
+  font-weight: 800;
+  color: var(--ds-accent);
+  font-size: 0.92rem;
+}
+
 .shell-ball {
   position: absolute;
   bottom: 6px;
@@ -466,6 +626,53 @@ h1 {
 
 .shell-ball.visible {
   opacity: 1;
+}
+
+/* Burbuja de votante: nombre + foto flotando sobre el vaso que acaba de
+   recibir una apuesta. Se queda quieta ~1s y se va flotando hacia arriba. */
+.shell-vote-bubble {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 4px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(8, 12, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 25;
+  animation: shell-vote-bubble-float 1300ms ease-out forwards;
+}
+
+.shell-vote-bubble-avatar {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.shell-vote-bubble-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes shell-vote-bubble-float {
+  0% { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.85); }
+  8% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  78% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.92); }
 }
 
 /* ===== Feed / Leaderboard ===== */

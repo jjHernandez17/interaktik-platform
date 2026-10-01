@@ -141,7 +141,7 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'shellgame', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     return gameType;
@@ -170,6 +170,7 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('snake-vs-snake')) return 'snake';
   if (referer.includes('roblox-dance')) return 'roblox';
   if (referer.includes('shell-game')) return 'shellgame';
+  if (referer.includes('boy-vs-girl')) return 'boyvsgirl';
   if (referer.includes('race')) return 'race';
   if (referer.includes('dominance')) return 'dominance';
   if (referer.includes('app')) return 'app';

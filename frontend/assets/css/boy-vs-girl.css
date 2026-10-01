@@ -1,0 +1,677 @@
+/* PlayTik Live — Boy vs Girl (construido directo sobre design-system.css) */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(236, 72, 153, 0.14), transparent 32%),
+    radial-gradient(circle at 10% 100%, rgba(59, 130, 246, 0.16), transparent 34%),
+    var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+
+.back-menu-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface-solid);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.back-menu-btn:hover {
+  border-color: var(--ds-primary);
+  transform: translateX(-2px);
+}
+
+.bvg-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 88px 0 60px;
+  display: grid;
+  gap: 20px;
+}
+
+.bvg-hero {
+  margin-bottom: 4px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--ds-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-family: var(--ds-font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--ds-text-muted);
+  line-height: 1.65;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(19, 24, 38, 0.94), rgba(13, 17, 28, 0.92));
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-md);
+  padding: 24px;
+}
+
+.connection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.connection-header h3 {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.15rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.status-badge.unlinked,
+.status-badge.disconnected {
+  color: var(--ds-text-muted);
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.status-badge.linked {
+  color: var(--ds-accent);
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.status-badge.connecting {
+  color: var(--ds-warning);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.status-badge.connected {
+  color: var(--ds-success);
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.status-badge.error {
+  color: var(--ds-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.connection-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connection-form input {
+  flex: 1 1 220px;
+  font-family: var(--ds-font-body);
+  font-size: 0.95rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 12px 14px;
+}
+
+.connection-form input:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.hint {
+  margin: 12px 0 0;
+  color: var(--ds-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+/* ===== Cancha ===== */
+
+.table-card {
+  overflow: hidden;
+}
+
+.bvg-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.bvg-arena {
+  display: grid;
+  gap: 0;
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+}
+
+/* ===== Carrusel de regalos (arriba del tablero) ===== */
+
+.bvg-gift-ticker {
+  position: relative;
+  width: 50%;
+  margin: 0 auto 14px;
+  padding: 10px 0;
+  border-radius: var(--ds-radius-lg);
+  border: 1px solid var(--ds-border);
+  background: linear-gradient(180deg, rgba(19, 24, 38, 0.9), rgba(13, 17, 28, 0.85));
+  overflow: hidden;
+}
+
+.bvg-gift-ticker.hidden {
+  display: none;
+}
+
+.bvg-gift-ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  width: max-content;
+}
+
+/* Siempre en movimiento, nunca se detiene (ni al pasar el mouse encima).
+   La pista se duplica una vez en el JS para que el loop sea perfectamente
+   continuo (cuando la primera copia termina de salir, la segunda ya está
+   ocupando su lugar, sin salto visible). */
+.bvg-gift-ticker-track.scrolling {
+  animation: bvg-gift-ticker-scroll linear infinite;
+}
+
+@keyframes bvg-gift-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.bvg-gift-ticker-item {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+}
+
+.bvg-team-headers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.bvg-team-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 16px;
+}
+
+.bvg-team-header-girls {
+  background: linear-gradient(135deg, #831843, #db2777);
+}
+
+.bvg-team-header-boys {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+}
+
+.bvg-team-name {
+  font-family: var(--ds-font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bvg-team-wins {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.bvg-field {
+  position: relative;
+  height: 420px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, rgba(6, 10, 20, 0.6), rgba(6, 10, 20, 0.85));
+  overflow: hidden;
+}
+
+.bvg-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transition: left 220ms ease, width 220ms ease;
+}
+
+.bvg-zone-girls {
+  left: 0;
+  background: linear-gradient(135deg, rgba(131, 24, 67, 0.55), rgba(219, 39, 119, 0.32));
+}
+
+.bvg-zone-boys {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.55), rgba(37, 99, 235, 0.32));
+}
+
+.bvg-wall {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  background: linear-gradient(180deg, #ffffff, #cbd5e1);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.65);
+  z-index: 5;
+  transition: left 220ms ease;
+}
+
+.bvg-character {
+  position: absolute;
+  top: 50%;
+  height: 68%;
+  width: auto;
+  max-width: 34%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  transition: left 220ms ease;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.45));
+  z-index: 4;
+}
+
+/* ===== Regalo volando hacia la pared + explosión al impactar =====
+   Mismo lenguaje visual que las explosiones de Dominance (onda de choque +
+   escombros + flash), pero coloreado según el bando que empuja. */
+
+.bvg-gift-projectile {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  transition: left 550ms cubic-bezier(0.35, 0.02, 0.5, 1);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+  z-index: 6;
+  pointer-events: none;
+}
+
+.bvg-gift-flash {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), currentColor 55%, transparent 75%);
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 1;
+  animation: bvg-gift-flash-pop 300ms ease-out forwards;
+  z-index: 8;
+  pointer-events: none;
+}
+
+@keyframes bvg-gift-flash-pop {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+.bvg-gift-shockwave {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 3px solid currentColor;
+  transform: translate(-50%, -50%) scale(0.3);
+  opacity: 0.9;
+  animation: bvg-gift-shockwave-expand 460ms ease-out forwards;
+  z-index: 7;
+  pointer-events: none;
+}
+
+@keyframes bvg-gift-shockwave-expand {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+.bvg-gift-debris {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: bvg-gift-debris-fly 460ms ease-out forwards;
+  z-index: 7;
+  pointer-events: none;
+}
+
+@keyframes bvg-gift-debris-fly {
+  0% { transform: translate(-50%, -50%) translate(0, 0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)); opacity: 0; }
+}
+
+/* ===== Configuración de reglas de regalo ===== */
+
+.config-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--ds-font-display);
+  font-size: 1.15rem;
+}
+
+.bvg-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.power-config-table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ds-text);
+}
+
+.power-config-table-wrapper th,
+.power-config-table-wrapper td {
+  padding: 10px;
+  border-bottom: 1px solid var(--ds-border);
+  text-align: left;
+}
+
+.power-config-table-wrapper select,
+.power-config-table-wrapper input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+
+.power-card-remove {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.power-card-remove:hover {
+  background: rgba(239, 68, 68, 0.32);
+}
+
+/* ===== Picker de regalos (imagen + monedas + filtro), calcado de Dominance ===== */
+
+.gift-picker {
+  position: relative;
+}
+
+.gift-picker-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--ds-font-body);
+  font-size: 0.92rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.gift-picker-toggle.open {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-selected {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  text-align: left;
+}
+
+.gift-picker-selected.placeholder {
+  color: var(--ds-text-muted);
+}
+
+.gift-picker-selected-image {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.gift-picker-selected-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gift-picker-selected-coins {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-primary-soft);
+  color: var(--ds-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.gift-picker-chevron {
+  flex-shrink: 0;
+  color: var(--ds-text-muted);
+  transition: transform 160ms ease;
+}
+
+.gift-picker-toggle.open .gift-picker-chevron {
+  transform: rotate(180deg);
+}
+
+.gift-picker-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  width: max(100%, 340px);
+  background: var(--ds-surface-solid);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-lg);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.gift-picker-panel.hidden {
+  display: none;
+}
+
+.gift-picker-filters {
+  display: grid;
+  gap: 8px;
+}
+
+.gift-picker-filters input {
+  font-family: var(--ds-font-body);
+  font-size: 0.86rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 9px 12px;
+}
+
+.gift-picker-filters input:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-coins-filter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.gift-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.gift-picker-list .muted {
+  margin: 8px 4px;
+  font-size: 0.86rem;
+  color: var(--ds-text-muted);
+}
+
+.gift-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  font-size: 0.86rem;
+  color: var(--ds-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.gift-picker-item:hover {
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-border);
+}
+
+.gift-picker-item.selected {
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary);
+}
+
+.gift-picker-item-image {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.gift-picker-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gift-picker-item-coins {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ds-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.gift-picker-item.selected .gift-picker-item-coins {
+  background: rgba(124, 92, 255, 0.22);
+  color: var(--ds-primary);
+}
+
+/* ===== Modal informativo (reutiliza patrón de otras páginas) ===== */
+
+@media (max-width: 640px) {
+  .bvg-shell {
+    padding-top: 76px;
+  }
+
+  .connection-form {
+    flex-direction: column;
+  }
+
+  .connection-form input,
+  .connection-form button {
+    width: 100%;
+  }
+
+  .bvg-field {
+    height: 320px;
+  }
+
+  .bvg-team-name {
+    font-size: 1.05rem;
+  }
+
+  .bvg-gift-ticker {
+    width: 80%;
+  }
+}

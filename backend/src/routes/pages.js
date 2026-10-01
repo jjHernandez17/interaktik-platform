@@ -613,6 +613,49 @@ router.get('/shell-game.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/shell-game.js'));
 });
 
+// Boy vs Girl
+router.get('/boy-vs-girl', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'boyvsgirl'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/boy-vs-girl.html', 'Boy vs Girl page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/boy-vs-girl.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/boy-vs-girl.html', requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'boyvsgirl'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/boy-vs-girl.html', 'Boy vs Girl HTML request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/boy-vs-girl.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/boy-vs-girl.css', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/assets/css/boy-vs-girl.css'));
+});
+
+router.get('/boy-vs-girl.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/boy-vs-girl.js'));
+});
+
 // Roblox Dance
 router.get('/roblox-dance', requireAuthPage, async (req, res) => {
   try {

@@ -33,6 +33,7 @@ const shellFullscreenBtn = document.getElementById('shellFullscreenBtn');
 const shellTableCard = document.querySelector('.table-card');
 const shellCupsRow = document.getElementById('shellCupsRow');
 const shellGiftLabels = document.getElementById('shellGiftLabels');
+const shellCenterOverlay = document.getElementById('shellCenterOverlay');
 
 const shellActivityList = document.getElementById('shellActivityList');
 const shellLeaderboardList = document.getElementById('shellLeaderboardList');
@@ -72,18 +73,38 @@ const MAX_LEVEL = 15;
 const REVEAL_MS = 1500;
 const COVER_MS = 450;
 
+// Vaso de fiesta rojo (tipo "Solo cup"): cuerpo rojo brilloso con costillas
+// horizontales. El interior blanco (.shell-cup-rim-white) solo tiene sentido
+// cuando el vaso está parado y se lo mira desde arriba; boca abajo no debe
+// verse (si no, parece que el vaso flota y se ve el hueco por debajo, en vez
+// de tapar la bola) — por eso se oculta con CSS en .inverted.
 const CUP_SVG_MARKUP = `
   <svg class="shell-cup-svg" viewBox="0 0 96 130" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="shellCupGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#a855f7" />
-        <stop offset="55%" stop-color="#7c5cff" />
-        <stop offset="100%" stop-color="#22d3ee" />
+      <linearGradient id="shellCupBodyGradient" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#7d0f10" />
+        <stop offset="18%" stop-color="#c81c16" />
+        <stop offset="42%" stop-color="#ff4a3d" />
+        <stop offset="62%" stop-color="#e8241a" />
+        <stop offset="100%" stop-color="#8a0f10" />
       </linearGradient>
+      <radialGradient id="shellCupRimGradient" cx="45%" cy="35%" r="70%">
+        <stop offset="0%" stop-color="#ffffff" />
+        <stop offset="100%" stop-color="#d8dde3" />
+      </radialGradient>
     </defs>
-    <ellipse class="shell-cup-body" cx="48" cy="20" rx="40" ry="12" fill="url(#shellCupGradient)" />
-    <path class="shell-cup-body" d="M8 20 L24 118 Q48 130 72 118 L88 20 Z" fill="url(#shellCupGradient)" />
-    <ellipse cx="48" cy="20" rx="40" ry="12" fill="rgba(255,255,255,0.14)" />
+
+    <ellipse cx="48" cy="20" rx="40" ry="12" fill="#9c1410" />
+    <path class="shell-cup-body" d="M8 20 L24 118 Q48 130 72 118 L88 20 Z" fill="url(#shellCupBodyGradient)" />
+
+    <path d="M10 42 Q48 53 86 42" stroke="rgba(0,0,0,0.2)" stroke-width="2.2" fill="none" />
+    <path d="M13 33 Q48 42.5 83 33" stroke="rgba(0,0,0,0.15)" stroke-width="1.6" fill="none" />
+    <path d="M18 106 Q48 114.5 78 106" stroke="rgba(0,0,0,0.18)" stroke-width="1.6" fill="none" />
+
+    <path d="M25 28 Q20 70 28 112" stroke="rgba(255,255,255,0.32)" stroke-width="5" fill="none" stroke-linecap="round" />
+
+    <ellipse class="shell-cup-rim-white" cx="48" cy="19" rx="34" ry="9.5" fill="url(#shellCupRimGradient)" />
+    <ellipse class="shell-cup-rim-white" cx="48" cy="19" rx="34" ry="9.5" fill="none" stroke="#b5bcc4" stroke-width="0.6" />
   </svg>
 `;
 
@@ -128,6 +149,26 @@ function sanitizeGiftCatalog(rawGifts) {
     diamondCount: Number(gift.diamondCount || gift.diamond_count || 1) || 1,
     imageUrl: gift.imageUrl || getGiftImageUrl(gift),
   }));
+}
+
+// Foto de perfil del espectador (para el top 5 del overlay de resultado).
+// El string vacío como último fallback es intencional: el <img> lo maneja
+// con onerror="this.style.visibility='hidden'" en vez de depender de un
+// archivo de imagen "default" que además no existe en este proyecto.
+function getViewerAvatar(user) {
+  if (!user) return '';
+
+  const avatar = user.avatar;
+  if (typeof avatar === 'string' && avatar.trim()) return avatar.trim();
+  if (avatar && Array.isArray(avatar.url) && avatar.url.length > 0) return avatar.url[0];
+
+  if (typeof user.profilePictureUrl === 'string' && user.profilePictureUrl.trim()) return user.profilePictureUrl.trim();
+  if (typeof user.profilePicture === 'string' && user.profilePicture.trim()) return user.profilePicture.trim();
+  if (typeof user.avatarThumb === 'string' && user.avatarThumb.trim()) return user.avatarThumb.trim();
+  if (typeof user.avatarMedium === 'string' && user.avatarMedium.trim()) return user.avatarMedium.trim();
+  if (typeof user.avatarLarge === 'string' && user.avatarLarge.trim()) return user.avatarLarge.trim();
+
+  return '';
 }
 
 // ===== Helpers de espectador (calcados de race.js) =====
@@ -211,6 +252,25 @@ function computeSlotLeftPercent(index, cupCount) {
   return ((index + 0.5) / cupCount) * 100;
 }
 
+// Burbuja "votante" sobre el vaso apostado: nombre + foto, se queda fija
+// ~1s y luego se desvanece flotando hacia arriba (ver @keyframes
+// shell-vote-bubble-float). cupNumber es el número visible del vaso (1..N),
+// no el id del elemento — coincide con la posición del slot ya que eso es
+// justamente lo que el espectador está votando.
+function spawnVoteBubble(cupNumber, nickname, avatarUrl) {
+  if (!cupNumber || cupNumber < 1 || cupNumber > state.cupCount) return;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'shell-vote-bubble';
+  bubble.style.left = `${computeSlotLeftPercent(cupNumber - 1, state.cupCount)}%`;
+  bubble.innerHTML = `
+    <img class="shell-vote-bubble-avatar" src="${escapeHtml(avatarUrl || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+    <span class="shell-vote-bubble-name">${escapeHtml(nickname)}</span>
+  `;
+  shellCupsRow.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 1300);
+}
+
 function layoutCups() {
   shellCupsRow.innerHTML = '';
   cupElements = [];
@@ -238,10 +298,20 @@ function layoutCups() {
   shellCupsRow.appendChild(ball);
 
   resetSlotOccupants();
+  setCupsInverted(isRunning);
 }
 
 function getBallEl() {
   return document.getElementById('shellBallEl');
+}
+
+// Los vasos están "parados" (boca arriba) solo en reposo, antes de que
+// arranque el juego. Apenas empieza una partida se voltean boca abajo y se
+// quedan así (escondiendo/mezclando/revelando) hasta que se pausa o se
+// reinicia — así se ven como vasos reales tapando la bola, no como vasos
+// para tomar flotando en el aire.
+function setCupsInverted(inverted) {
+  cupElements.forEach((el) => el.classList.toggle('inverted', inverted));
 }
 
 function resetSlotOccupants() {
@@ -298,6 +368,7 @@ function setPhase(next) {
   phase = next;
   const labels = {
     idle: 'Esperando inicio',
+    countdown: '🔜 Prepárate...',
     reveal: '👀 Mostrando la bola',
     cover: 'Cubriendo...',
     voting: '🗳️ ¡Elige tu vaso!',
@@ -306,6 +377,75 @@ function setPhase(next) {
   };
   shellPhaseLabel.textContent = labels[next] || next;
   shellRoundLabel.textContent = `Ronda ${roundsPlayed} · Nivel ${level}`;
+}
+
+// ===== Overlay central (cuenta regresiva, aviso de votación, top 5) =====
+function showCenterOverlay(html) {
+  shellCenterOverlay.innerHTML = html;
+  shellCenterOverlay.classList.remove('hidden');
+}
+
+function hideCenterOverlay() {
+  shellCenterOverlay.classList.add('hidden');
+  shellCenterOverlay.innerHTML = '';
+}
+
+// Cuenta regresiva "3... 2... 1..." antes de mostrar dónde está la bola,
+// para darle suspenso a cada ronda (no solo a la primera).
+async function runCountdown(from) {
+  for (let n = from; n >= 1; n -= 1) {
+    if (!isRunning) return;
+    showCenterOverlay(`<div class="shell-countdown-number">${n}</div>`);
+    // eslint-disable-next-line no-await-in-loop
+    await delay(700);
+  }
+  hideCenterOverlay();
+}
+
+// Aviso breve al arrancar el tiempo de elección; se esconde solo para dejar
+// los vasos visibles mientras se reciben las apuestas.
+async function announceVotingStart() {
+  if (!isRunning) return;
+  showCenterOverlay('<div class="shell-banner-text">¡Elige un vaso!</div>');
+  await delay(1200);
+  if (!isRunning) return;
+  hideCenterOverlay();
+}
+
+function buildLeaderboardOverlayMarkup() {
+  const entries = Object.values(state.leaderboard)
+    .filter((entry) => entry.points > 0)
+    .sort((a, b) => (b.points - a.points) || (b.correctGuesses - a.correctGuesses))
+    .slice(0, 5);
+
+  if (entries.length === 0) {
+    return `
+      <div class="shell-overlay-leaderboard">
+        <h3>🏆 Top jugadores</h3>
+        <p class="muted">Aún no hay puntajes.</p>
+      </div>
+    `;
+  }
+
+  const rows = entries.map((entry, index) => `
+    <div class="shell-overlay-leaderboard-row">
+      <span class="shell-overlay-leaderboard-rank rank-${index + 1}">${index + 1}</span>
+      <img class="shell-overlay-leaderboard-avatar" src="${escapeHtml(entry.avatarUrl || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+      <span class="shell-overlay-leaderboard-name">${escapeHtml(entry.nickname)}</span>
+      <span class="shell-overlay-leaderboard-points">${entry.points} pts</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="shell-overlay-leaderboard">
+      <h3>🏆 Top jugadores</h3>
+      ${rows}
+    </div>
+  `;
+}
+
+function showResultLeaderboardOverlay() {
+  showCenterOverlay(buildLeaderboardOverlayMarkup());
 }
 
 // Duracion (ms) de la transicion de cada vaso al moverse durante la mezcla.
@@ -366,6 +506,12 @@ async function runRound() {
   ballSlotIndex = Math.floor(Math.random() * state.cupCount);
   resetSlotOccupants();
 
+  // Cuenta regresiva "3...2...1..." en el centro, para darle suspenso a la
+  // ronda antes de mostrar dónde quedó la bola.
+  setPhase('countdown');
+  await runCountdown(3);
+  if (!isRunning) return;
+
   setPhase('reveal');
   showBallAtCurrentSlot();
   liftCupAtSlot(ballSlotIndex);
@@ -388,8 +534,11 @@ async function runRound() {
   if (!isRunning) return;
 
   // Tiempo de eleccion: los vasos ya quedaron quietos (revueltos) y la
-  // bola sigue escondida mientras se aceptan apuestas.
+  // bola sigue escondida mientras se aceptan apuestas. El aviso "¡Elige un
+  // vaso!" se muestra solo un instante para no tapar los vasos todo el rato.
   setPhase('voting');
+  await announceVotingStart();
+  if (!isRunning) return;
   await runVotingCountdown(state.timing.votingSeconds);
   if (!isRunning) return;
 
@@ -399,9 +548,11 @@ async function runRound() {
   showBallAtCurrentSlot();
   resolveBets(winningCupNumber);
   renderLeaderboard();
+  showResultLeaderboardOverlay();
   await delay(state.timing.resultSeconds * 1000);
   if (!isRunning) return;
 
+  hideCenterOverlay();
   lowerCupAtSlot(ballSlotIndex);
   hideBall();
 }
@@ -416,13 +567,16 @@ async function gameLoop() {
 function startGame() {
   if (isRunning) return;
   isRunning = true;
+  setCupsInverted(true);
   shellStartPauseBtn.textContent = 'Pausar juego';
   gameLoop();
 }
 
 function pauseGame() {
   isRunning = false;
+  setCupsInverted(false);
   setPhase('idle');
+  hideCenterOverlay();
   shellTimerLabel.classList.add('hidden');
   shellStartPauseBtn.textContent = 'Iniciar juego';
 }
@@ -468,8 +622,9 @@ function resolveBets(winningCupNumber) {
     const coins = Math.max(0, Math.round(bet.coins || 0));
 
     if (isCorrect) {
-      const entry = state.leaderboard[bet.viewerKey] || { nickname: bet.nickname, points: 0, correctGuesses: 0 };
+      const entry = state.leaderboard[bet.viewerKey] || { nickname: bet.nickname, avatarUrl: bet.avatarUrl, points: 0, correctGuesses: 0 };
       entry.nickname = bet.nickname || entry.nickname;
+      entry.avatarUrl = bet.avatarUrl || entry.avatarUrl;
       entry.points += coins;
       entry.correctGuesses += 1;
       state.leaderboard[bet.viewerKey] = entry;
@@ -546,6 +701,7 @@ function handleLiveGift(payload) {
   if (!viewerKey) return;
 
   const nickname = viewerDisplayName(payload);
+  const avatarUrl = getViewerAvatar(payload.user);
 
   if (state.mode === 'gift_rules') {
     const appliedCount = extractAppliedGiftCount(payload);
@@ -558,8 +714,9 @@ function handleLiveGift(payload) {
     const diamondCount = Number(payload.diamondCount || 0) || 0;
     const coins = diamondCount * appliedCount;
 
-    currentRoundBets.push({ viewerKey, nickname, cup: rule.cup, coins });
+    currentRoundBets.push({ viewerKey, nickname, avatarUrl, cup: rule.cup, coins });
     addActivityEntry(`${nickname} apostó al vaso ${rule.cup} con ${payload.giftName || 'un regalo'} (x${appliedCount}, ${coins} monedas).`);
+    spawnVoteBubble(rule.cup, nickname, avatarUrl);
   } else {
     const repeatEnd = payload.repeatEnd === true || payload.repeatEnd === 1 || payload.repeatEnd === '1';
     if (!repeatEnd) return;
@@ -572,8 +729,9 @@ function handleLiveGift(payload) {
     const pending = pendingPicks[viewerKey];
     if (!pending) return;
 
-    currentRoundBets.push({ viewerKey, nickname, cup: pending.cup, coins: totalCoins });
+    currentRoundBets.push({ viewerKey, nickname, avatarUrl, cup: pending.cup, coins: totalCoins });
     addActivityEntry(`${nickname} confirmó su apuesta al vaso ${pending.cup} con ${payload.giftName || 'un regalo'} (${totalCoins} monedas).`);
+    spawnVoteBubble(pending.cup, nickname, avatarUrl);
   }
 }
 

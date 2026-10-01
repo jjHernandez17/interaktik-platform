@@ -7,6 +7,7 @@ const dominanceService = require('../services/dominanceService');
 const snakeService = require('../services/snakeService');
 const raceService = require('../services/raceService');
 const shellGameService = require('../services/shellGameService');
+const boyVsGirlService = require('../services/boyVsGirlService');
 const { normalizeError } = require('../utils/normalize');
 const logger = require('../config/logger');
 
@@ -162,6 +163,37 @@ router.post('/shell-game/state', requireAuth, requireActiveAccess, async (req, r
     return res.json({ success: true, updated_at: saved.updated_at });
   } catch (error) {
     logger.error('Error saving shell game state', error);
+    return res.status(500).json({ error: normalizeError(error), details: error?.message });
+  }
+});
+
+// Boy vs Girl
+router.get('/boy-vs-girl/state', requireAuth, requireActiveAccess, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const state = await boyVsGirlService.loadBoyVsGirlState(userId);
+    return res.json(state);
+  } catch (error) {
+    logger.error('Error loading boy vs girl state', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/boy-vs-girl/state', requireAuth, requireActiveAccess, async (req, res, next) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const saved = await boyVsGirlService.saveBoyVsGirlState(userId, req.body || {});
+    return res.json({ success: true, updated_at: saved.updated_at });
+  } catch (error) {
+    logger.error('Error saving boy vs girl state', error);
     return res.status(500).json({ error: normalizeError(error), details: error?.message });
   }
 });

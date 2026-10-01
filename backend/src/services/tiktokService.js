@@ -60,11 +60,31 @@ async function getTiktokConnection(userId, gameType) {
     [userId, gameType],
   );
 
-  if (result.rowCount === 0) {
+  if (result.rowCount > 0) {
+    return result.rows[0];
+  }
+
+  // El usuario vincula su cuenta de TikTok una sola vez para "todos sus
+  // juegos" (ver ALL_GAME_TYPES en platform.js), pero esa vinculación solo
+  // crea filas para los gameType que existían en ese momento. Si se agrega
+  // un juego nuevo después, su fila nunca se crea aunque el usuario ya
+  // tenga la cuenta vinculada en los demás — por eso, antes de decir "no
+  // vinculado", se busca cualquier otra vinculación activa del mismo
+  // usuario y se adopta (y se persiste bajo este gameType) para que quede
+  // resuelto de una sola vez.
+  const fallback = await pool.query(
+    `SELECT tiktok_username, is_linked, linked_at FROM user_tiktok_connections
+     WHERE user_id = $1 AND game_type <> $2 AND is_linked = true
+     ORDER BY linked_at DESC NULLS LAST
+     LIMIT 1`,
+    [userId, gameType],
+  );
+
+  if (fallback.rowCount === 0) {
     return null;
   }
 
-  return result.rows[0];
+  return saveTiktokConnection(userId, gameType, fallback.rows[0].tiktok_username);
 }
 
 async function deleteTiktokConnection(userId, gameType) {

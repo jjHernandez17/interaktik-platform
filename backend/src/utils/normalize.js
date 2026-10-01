@@ -647,6 +647,51 @@ function sanitizeShellGameHistoryEntry(entry, index) {
   };
 }
 
+const BOYVSGIRL_VALID_SIDES = ['girls', 'boys'];
+const BOYVSGIRL_DEFAULT_GIFT_RULE_ID = 'binding-gift-default';
+
+function sanitizeBoyVsGirlGiftRule(rule) {
+  return {
+    id: String(rule?.id || `binding-gift-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`).slice(0, 80),
+    giftName: String(rule?.giftName || '').trim().slice(0, 120),
+    percent: clampNumber(rule?.percent, 0, 100, 1),
+  };
+}
+
+function sanitizeBoyVsGirlGiftRules(rules) {
+  const list = (Array.isArray(rules) ? rules : []).map(sanitizeBoyVsGirlGiftRule).slice(0, 100);
+  if (!list.some((rule) => rule.id.startsWith(BOYVSGIRL_DEFAULT_GIFT_RULE_ID))) {
+    list.unshift({ id: BOYVSGIRL_DEFAULT_GIFT_RULE_ID, giftName: '', percent: 1 });
+  }
+  return list;
+}
+
+// El espectador se une a un bando comentando "G"/"B"; esto guarda esa
+// asignación para saber a qué bando empujar cuando después llegue un
+// regalo suyo. Igual que viewer_bindings en Dominance, se persiste tal
+// cual en el JSONB del estado.
+function sanitizeBoyVsGirlTeamBindings(bindings) {
+  const result = {};
+  if (bindings && typeof bindings === 'object') {
+    Object.entries(bindings).forEach(([key, value]) => {
+      if (!key || !BOYVSGIRL_VALID_SIDES.includes(value)) return;
+      result[String(key).slice(0, 160)] = value;
+    });
+  }
+  return result;
+}
+
+function sanitizeBoyVsGirlState(payload) {
+  return {
+    girlsPercent: clampNumber(payload?.girlsPercent, 0, 100, 50),
+    girlsWins: Math.max(0, Math.min(999999, Math.round(clampNumber(payload?.girlsWins, 0, 999999, 0)))),
+    boysWins: Math.max(0, Math.min(999999, Math.round(clampNumber(payload?.boysWins, 0, 999999, 0)))),
+    pushingSide: BOYVSGIRL_VALID_SIDES.includes(payload?.pushingSide) ? payload.pushingSide : null,
+    giftRules: sanitizeBoyVsGirlGiftRules(payload?.giftRules),
+    teamBindings: sanitizeBoyVsGirlTeamBindings(payload?.teamBindings),
+  };
+}
+
 function sanitizeShellGameState(payload) {
   const cupCount = Math.max(SHELLGAME_MIN_CUPS, Math.min(SHELLGAME_MAX_CUPS, Math.round(Number(payload?.cupCount) || SHELLGAME_MIN_CUPS)));
   const mode = SHELLGAME_VALID_MODES.includes(payload?.mode) ? payload.mode : 'gift_rules';
@@ -772,6 +817,7 @@ module.exports = {
   sanitizeRaceGameState,
   sanitizeDominanceGameState,
   sanitizeShellGameState,
+  sanitizeBoyVsGirlState,
   sanitizeOverlayState,
   sanitizeJoinKeyword,
 };

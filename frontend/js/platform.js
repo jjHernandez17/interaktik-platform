@@ -289,6 +289,8 @@ function setupAdminSearch() {
 function gameTypeFromHref(href = '') {
   if (href.includes('snake-vs-snake')) return 'snake';
   if (href.includes('roblox-dance')) return 'roblox';
+  if (href.includes('shell-game')) return 'shellgame';
+  if (href.includes('boy-vs-girl')) return 'boyvsgirl';
   if (href.includes('race')) return 'race';
   if (href.includes('dominance')) return 'dominance';
   if (href.includes('app')) return 'app';
@@ -1122,7 +1124,7 @@ if (overlayConnectionForm) {
 // backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
 // en la conexion de cada uno, para que "un solo usuario de TikTok para toda
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
-const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'shellgame'];
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'shellgame', 'boyvsgirl'];
 
 function setGamesConnectionStatus(status, details = '') {
   if (!gamesConnectionStatusBadge || !gamesConnectionDetails) return;

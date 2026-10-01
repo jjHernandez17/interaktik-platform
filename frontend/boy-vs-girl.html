@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boy vs Girl | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/boy-vs-girl.css?v=20261001b" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="bvg-shell">
+    <section class="bvg-hero">
+      <div>
+        <p class="eyebrow">Interaktik • Juego interactivo</p>
+        <h1>Boy vs Girl</h1>
+        <p class="subtitle">
+          Dos bandos empujan la misma pared: Girls a la izquierda, Boys a la derecha. Comentando "G" o "B" el
+          espectador se une a ese bando (puede cambiarse las veces que quiera); después, sus regalos empujan la
+          pared a favor de su bando según el % que configures abajo. Cuando un bando le quita todo el espacio al
+          otro, suma un punto en el marcador de arriba.
+        </p>
+      </div>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="bvgConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+      </div>
+
+      <form id="bvgConnectionForm" class="connection-form">
+        <input id="bvgUsername" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+        <button id="bvgConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="bvgDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="bvgConnectionDetails" class="hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+    </section>
+
+    <section class="card table-card">
+      <div class="bvg-controls-row">
+        <p class="hint" style="margin:0;">Comenta <strong>G</strong> para unirte a Girls, o <strong>B</strong> para unirte a Boys. Tus regalos después empujan la pared a favor de tu bando.</p>
+        <button id="bvgResetBtn" class="btn ghost" type="button">Reiniciar juego</button>
+      </div>
+
+      <div id="bvgGiftTicker" class="bvg-gift-ticker hidden"></div>
+
+      <div class="bvg-arena">
+        <div class="bvg-team-headers">
+          <div class="bvg-team-header bvg-team-header-girls">
+            <span class="bvg-team-name">Girls</span>
+            <span class="bvg-team-wins" id="bvgGirlsWins">0</span>
+          </div>
+          <div class="bvg-team-header bvg-team-header-boys">
+            <span class="bvg-team-name">Boys</span>
+            <span class="bvg-team-wins" id="bvgBoysWins">0</span>
+          </div>
+        </div>
+
+        <div id="bvgField" class="bvg-field">
+          <div id="bvgZoneGirls" class="bvg-zone bvg-zone-girls"></div>
+          <div id="bvgZoneBoys" class="bvg-zone bvg-zone-boys"></div>
+          <div id="bvgWall" class="bvg-wall"></div>
+          <img id="bvgGirlChar" class="bvg-character bvg-character-girls" src="assets/images/Girl-winning.png" alt="Girls" />
+          <img id="bvgBoyChar" class="bvg-character bvg-character-boys" src="assets/images/men-winning.png" alt="Boys" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card config-card">
+      <h3>Reglas de regalo</h3>
+      <p class="hint">
+        Elige qué % de la pared empuja cada regalo a favor del bando del espectador que lo envía.
+        "Cualquier otro regalo" cubre los que no asignes puntualmente.
+      </p>
+      <div id="bvgGiftRulesTable" class="power-config-table-wrapper"></div>
+      <div class="bvg-config-actions">
+        <button id="bvgAddGiftRuleBtn" class="btn accent" type="button">+ Agregar regalo específico</button>
+        <button id="bvgSaveGiftRulesBtn" class="btn primary" type="button">Guardar configuración</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/boy-vs-girl.js?v=20261001c"></script>
+</body>
+
+</html>

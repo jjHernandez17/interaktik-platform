@@ -1,0 +1,308 @@
+/* Snake Vs Snake — tarjetas de configuración de cada serpiente.
+   Solo estilos de las tarjetas de configuración (.snake-config-card); el
+   tablero y el resto de la página no se tocan. Se carga después de
+   snake-vs-snake.css. */
+
+.snake-config-card {
+  --cfg-accent: #8b5cf6;
+  --cfg-ink: #c4b5fd;
+  --cfg-soft: rgba(139, 92, 246, 0.16);
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cfg-accent) 13%, rgba(15, 23, 42, 0.92)), rgba(15, 23, 42, 0.82) 55%);
+}
+
+.snake-config-card--right {
+  --cfg-accent: #06b6d4;
+  --cfg-ink: #67e8f9;
+  --cfg-soft: rgba(6, 182, 212, 0.16);
+}
+
+/* Encabezado */
+.cfg-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.cfg-num {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--cfg-soft);
+  color: var(--cfg-ink);
+  font-family: var(--ds-font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.cfg-top-text {
+  min-width: 0;
+}
+
+.snake-config-card .cfg-top-text h3 {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.snake-config-card .config-status {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Bloques */
+.snake-config-card .snake-config-grid {
+  gap: 0;
+}
+
+.cfg-block {
+  display: grid;
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.cfg-block-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cfg-block-title svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--cfg-ink);
+}
+
+.cfg-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.snake-config-card .field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Apariencia */
+.cfg-appearance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 12px;
+  align-items: end;
+}
+
+.cfg-field--full {
+  grid-column: 1 / -1;
+}
+
+.snake-config-card .snake-config-grid input[type='text'],
+.snake-config-card .snake-config-grid input[type='color'],
+.snake-config-card .snake-config-grid input[type='file'],
+.snake-config-card .rule-inline input {
+  min-height: 46px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.snake-config-card .snake-config-grid input[type='color'] {
+  padding: 4px;
+  height: 46px;
+}
+
+.snake-config-card .snake-config-grid input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.snake-config-card .snake-config-grid input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 10px;
+}
+
+.snake-config-card .snake-config-grid input[type='color']::-moz-color-swatch {
+  border: 0;
+  border-radius: 10px;
+}
+
+.snake-config-card .snake-config-grid input[type='file']::file-selector-button {
+  background: var(--cfg-soft);
+  border: 1px solid color-mix(in srgb, var(--cfg-accent) 45%, transparent);
+  color: var(--cfg-ink);
+  font-weight: 600;
+}
+
+.snake-config-card .snake-config-grid input[type='file']::file-selector-button:hover {
+  background: color-mix(in srgb, var(--cfg-accent) 28%, transparent);
+}
+
+/* Regalo */
+.snake-config-card .gift-preview {
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), var(--cfg-soft));
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.snake-config-card .gift-dropdown-toggle {
+  min-height: 46px;
+}
+
+/* Crear regla */
+.snake-config-card .rule-inline {
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.snake-config-card .rule-inline .btn {
+  min-height: 46px;
+  font-weight: 700;
+  color: var(--cfg-ink);
+  background: var(--cfg-soft);
+  border-color: color-mix(in srgb, var(--cfg-accent) 45%, transparent);
+}
+
+.snake-config-card .rule-inline .btn:hover {
+  background: color-mix(in srgb, var(--cfg-accent) 28%, transparent);
+}
+
+/* Lista de reglas de la serpiente */
+.snake-config-card .config-rules-section {
+  gap: 10px;
+}
+
+.snake-config-card .config-rules-section > .field-label {
+  margin: 0;
+  color: var(--text);
+}
+
+.snake-config-card .config-rules-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.snake-config-card .config-rule-item {
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.5);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.snake-config-card .config-rule-item:hover {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(2, 6, 23, 0.68);
+}
+
+.snake-config-card .config-rule-thumb {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+
+.snake-config-card .config-rule-main {
+  flex: 1;
+}
+
+.snake-config-card .empty {
+  padding: 18px 14px;
+  font-size: 0.86rem;
+}
+
+/* Guardar */
+.snake-config-card .cfg-save {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 2px;
+  font-weight: 700;
+}
+
+@media (max-width: 560px) {
+  .snake-config-card {
+    padding: 16px;
+  }
+
+  .snake-config-card .rule-inline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Botones para agregar manzanas a mano ---------- */
+/* Antes flotaban como círculos entre los tableros; ahora van justo debajo de
+   cada tablero, a todo el ancho, con el color de su serpiente. */
+.board-slot .board-plus-btn.outside {
+  --plus-accent: #8b5cf6;
+  --plus-ink: #c4b5fd;
+  position: static;
+  transform: none;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--plus-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--plus-accent) 16%, rgba(15, 23, 42, 0.85));
+  color: var(--plus-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+#rightAddAppleBtn.board-plus-btn.outside {
+  --plus-accent: #06b6d4;
+  --plus-ink: #67e8f9;
+}
+
+.board-slot .board-plus-btn.outside svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.board-slot .board-plus-btn.outside:hover {
+  background: color-mix(in srgb, var(--plus-accent) 28%, rgba(15, 23, 42, 0.85));
+  border-color: var(--plus-accent);
+  transform: translateY(-1px);
+}
+
+.board-slot .board-plus-btn.outside:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.board-slot .board-plus-btn.outside:focus-visible {
+  outline: 2px solid var(--plus-ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 980px) {
+  .board-slot .board-plus-btn.outside {
+    margin: 0;
+  }
+}

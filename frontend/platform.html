@@ -7,7 +7,8 @@
     <link rel="icon" type="image/png" href="assets/images/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="assets/css/design-system.css" />
-    <link rel="stylesheet" href="assets/css/platform.css?v=20260906a" />
+    <link rel="stylesheet" href="assets/css/platform.css?v=20261003a" />
+    <link rel="stylesheet" href="assets/css/roulette-config.css?v=20261003b" />
   </head>
   <body>
     <div id="pageLoader" class="page-loader">
@@ -40,10 +41,6 @@
             <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 2.5l7.2 3.6L10 9.7l-7.2-3.6L10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.8 10.1L10 13.7l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 13.9L10 17.5l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span class="nav-label">Overlays</span>
           </button>
-          <button class="nav-item" type="button" data-section="statsSection" title="Estadísticas">
-            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 16.5V9.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.5 16.5V4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.5 16.5v-5.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M2.5 16.5h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <span class="nav-label">Estadísticas</span>
-          </button>
           <button class="nav-item" type="button" data-section="plansSection" title="Planes">
             <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="4.5" width="15.6" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M2.2 8.2h15.6" stroke="currentColor" stroke-width="1.6"/><path d="M5 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span class="nav-label">Planes</span>
@@ -58,8 +55,12 @@
           <div id="userMenuPopover" class="user-menu-popover" hidden role="menu">
             <button class="user-menu-item" type="button" data-section="accountSection" role="menuitem">
               <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="6.5" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 17c1.2-3.4 4-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>Configuracion de cuenta</span>
+              <span>Cuenta</span>
             </button>
+            <a class="user-menu-item" href="terminos.html" target="_blank" rel="noopener noreferrer" role="menuitem">
+              <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2.5h7l3.5 3.5v11a1 1 0 01-1 1h-9.5a1 1 0 01-1-1v-13.5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 2.5V6h3.5M7 10h6M7 13h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Terminos y condiciones</span>
+            </a>
             <a class="user-menu-item discord" href="https://discord.gg/b6we5kSZy" target="_blank" rel="noopener noreferrer" role="menuitem">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M20.317 4.369A19.79 19.79 0 0016.558 3c-.211.375-.444.879-.608 1.278a18.27 18.27 0 00-3.9 0A12.64 12.64 0 0011.442 3a19.736 19.736 0 00-3.76 1.37C4.34 8.88 3.53 13.28 3.936 17.617a19.9 19.9 0 006.058 3.058c.49-.664.926-1.37 1.302-2.11a12.87 12.87 0 01-2.051-.98c.172-.125.34-.256.503-.39a14.1 14.1 0 0012.503 0c.166.134.334.265.503.39-.652.386-1.34.71-2.054.981.377.74.812 1.446 1.303 2.11a19.83 19.83 0 006.062-3.06c.478-5.02-.795-9.377-3.748-13.246zM9.68 14.98c-1.11 0-2.018-1.02-2.018-2.27 0-1.25.892-2.271 2.018-2.271 1.135 0 2.043 1.03 2.017 2.27 0 1.25-.892 2.271-2.017 2.271zm6.64 0c-1.11 0-2.018-1.02-2.018-2.27 0-1.25.892-2.271 2.018-2.271 1.135 0 2.043 1.03 2.017 2.27 0 1.25-.883 2.271-2.017 2.271z"/>
@@ -85,48 +86,89 @@
       </aside>
 
       <section class="platform-content">
-        <section id="accountSection" class="content-card hidden">
+        <section id="accountSection" class="content-card account-page hidden">
           <div class="card-header">
-            <h2>Configuracion de cuenta</h2>
-          </div>
-          <p class="muted">Informacion de la sesion actual.</p>
-          <div class="account-grid">
-            <article>
-              <span class="label">Nombre</span>
-              <strong id="userName">-</strong>
-            </article>
-            <article>
-              <span class="label">Correo</span>
-              <strong id="userEmail">-</strong>
-            </article>
-            <article>
-              <span class="label">Estado</span>
-              <strong>Sesion activa</strong>
-            </article>
+            <h2>Cuenta</h2>
           </div>
 
-          <div class="password-section">
-            <h3>Cambiar contraseña</h3>
-            <form id="changePasswordForm" class="password-form">
-              <label class="field">
-                <span>Ingrese la contraseña actual</span>
-                <input id="currentPasswordInput" type="password" autocomplete="current-password" required />
-              </label>
-              <label class="field">
-                <span>Ingrese la nueva contraseña</span>
-                <input id="newPasswordInput" type="password" autocomplete="new-password" required />
-              </label>
-              <label class="field">
-                <span>Repita la nueva contraseña</span>
-                <input id="confirmNewPasswordInput" type="password" autocomplete="new-password" required />
-              </label>
-              <p class="password-rules">
-                La contraseña debe tener mas de 5 caracteres y contener al menos una letra, un numero y un caracter especial.
-              </p>
-              <div class="password-actions">
-                <button id="changePasswordBtn" class="btn primary" type="submit">Actualizar contraseña</button>
+          <!-- Perfil -->
+          <div class="acc-profile">
+            <div id="accountAvatar" class="acc-avatar" aria-hidden="true">?</div>
+            <div class="acc-identity">
+              <h3 id="userName">-</h3>
+              <p id="userEmail">-</p>
+              <span class="acc-session"><i></i>Sesión activa</span>
+            </div>
+            <div class="acc-plan">
+              <span id="accountPlanBadge" class="acc-badge">-</span>
+              <span id="accountPlanDetail" class="acc-plan-detail"></span>
+              <button id="accountGoPlansBtn" class="acc-link-btn" type="button">Ver planes</button>
+            </div>
+          </div>
+
+          <div class="acc-layout">
+            <!-- Últimos lives -->
+            <section class="acc-panel acc-lives" aria-labelledby="accLivesTitle">
+              <div class="acc-panel-head">
+                <span class="acc-icon acc-icon--live">
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M13.8 6.2a5.4 5.4 0 0 1 0 7.6M6.2 13.8a5.4 5.4 0 0 1 0-7.6M16.4 3.6a9 9 0 0 1 0 12.8M3.6 16.4a9 9 0 0 1 0-12.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </span>
+                <div class="acc-panel-title">
+                  <h3 id="accLivesTitle">Últimos 3 lives</h3>
+                  <p>Se guardan solos cuando TikTok avisa que tu live terminó.</p>
+                </div>
+                <div id="statsPager" class="acc-pager" hidden>
+                  <button id="statsPrevBtn" type="button" aria-label="Live anterior">
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 12.5l5-5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <span id="statsPagerLabel">1 / 3</span>
+                  <button id="statsNextBtn" type="button" aria-label="Live siguiente">
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 7.5l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
               </div>
-            </form>
+
+              <div id="statsSessionsList" class="stats-sessions-list" tabindex="0" role="region" aria-label="Resumen de tus últimos lives">
+                <p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando lives...</p>
+              </div>
+            </section>
+
+            <!-- Seguridad -->
+            <section class="acc-panel acc-security" aria-labelledby="accSecurityTitle">
+              <div class="acc-panel-head">
+                <span class="acc-icon acc-icon--lock">
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="4.5" y="9" width="11" height="8" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </span>
+                <div class="acc-panel-title">
+                  <h3 id="accSecurityTitle">Seguridad</h3>
+                  <p>Cambia la contraseña con la que entras.</p>
+                </div>
+              </div>
+
+              <form id="changePasswordForm" class="password-form">
+                <label class="field">
+                  <span>Contraseña actual</span>
+                  <input id="currentPasswordInput" type="password" autocomplete="current-password" required />
+                </label>
+                <label class="field">
+                  <span>Nueva contraseña</span>
+                  <input id="newPasswordInput" type="password" autocomplete="new-password" required />
+                </label>
+                <ul id="passwordRules" class="acc-rules" aria-label="Requisitos de la nueva contraseña">
+                  <li data-rule="length">Más de 5 caracteres</li>
+                  <li data-rule="letter">Una letra</li>
+                  <li data-rule="number">Un número</li>
+                  <li data-rule="special">Un carácter especial</li>
+                </ul>
+                <label class="field">
+                  <span>Repite la nueva contraseña</span>
+                  <input id="confirmNewPasswordInput" type="password" autocomplete="new-password" required />
+                </label>
+                <div class="password-actions">
+                  <button id="changePasswordBtn" class="btn primary" type="submit">Actualizar contraseña</button>
+                </div>
+              </form>
+            </section>
           </div>
         </section>
 
@@ -139,8 +181,17 @@
           <div id="accessStatusBanner" class="access-status-banner hidden"></div>
 
           <section class="connection-card games-connection-card">
-            <div class="connection-header">
-              <h3>Conexión TikTok Live</h3>
+            <div class="games-conn-main">
+              <span class="acc-icon acc-icon--live">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M13.8 6.2a5.4 5.4 0 0 1 0 7.6M6.2 13.8a5.4 5.4 0 0 1 0-7.6M16.4 3.6a9 9 0 0 1 0 12.8M3.6 16.4a9 9 0 0 1 0-12.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </span>
+              <div class="games-conn-text">
+                <h3>Conexión TikTok Live</h3>
+                <p id="gamesConnectionDetails" class="hint">
+                  Este usuario queda vinculado para todos tus juegos. Dentro de cada juego solo tendrás que darle a
+                  "Conectar a live" cuando ya estés transmitiendo.
+                </p>
+              </div>
               <span id="gamesConnectionStatusBadge" class="status-badge disconnected">Sin vincular</span>
             </div>
 
@@ -149,52 +200,54 @@
               <button id="gamesLinkTiktokBtn" class="btn primary" type="button">Vincular</button>
               <button id="gamesLoadCatalogBtn" class="btn accent" type="button">Cargar catálogo</button>
             </form>
-
-            <p id="gamesConnectionDetails" class="hint">
-              Este usuario queda vinculado para todos tus juegos. Dentro de cada juego solo tendrás que darle a
-              "Conectar a live" cuando ya estés transmitiendo.
-            </p>
           </section>
 
           <div class="games-category">
-            <h3 class="games-category-title">Plataforma 2D</h3>
+            <div class="games-category-head">
+              <span class="acc-icon acc-icon--live">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="6.5" width="16" height="8" rx="4" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 8.7v3.1M4.65 10.25h3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="14" cy="9.3" r="0.9" fill="currentColor"/><circle cx="12.2" cy="11.1" r="0.9" fill="currentColor"/></svg>
+              </span>
+              <h3 class="games-category-title">Plataforma 2D</h3>
+              <span class="games-category-count"></span>
+            </div>
             <div class="games-grid">
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #fbbf24">
+                <span class="game-tag">Equipos</span>
                 <img src="/assets/images/ContadorPuntos.png" alt="Contador de Puntos" class="game-card-image" />
                 <h3>Contador de puntos</h3>
                 <p>Divide a tu audiencia en equipos y deja que sus regalos sumen puntos en tiempo real: configura cuánto vale cada regalo y sigue el marcador en vivo mientras compiten por la victoria.</p>
                 <a class="start-btn" href="app.html">Iniciar juego</a>
               </article>
-
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #4ade80">
+                <span class="game-tag">Carrera</span>
                 <img src="/assets/images/SnakeVsSnake.png" alt="Snake Vs Snake" class="game-card-image" />
                 <h3>Snake Vs Snake</h3>
                 <p>Dos serpientes recorren la misma pista sin chocar entre sí. Cada regalo que mandan tus espectadores le da manzanas a la serpiente que elijas, haciéndola crecer hasta que una alcance la meta primero.</p>
                 <a class="start-btn" href="snake-vs-snake.html">Iniciar juego</a>
               </article>
-
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #fb7185">
+                <span class="game-tag">Carrera</span>
                 <img src="/assets/images/Carrera%20de%20Colegas.png" alt="Carrera de Colegas" class="game-card-image" />
                 <h3>Carrera de Colegas</h3>
                 <p>Crea a tus participantes y déjalos competir en una carrera de carritos: los comentarios y regalos de tus espectadores los impulsan hacia la meta, con un ganador al final de cada carrera.</p>
                 <a class="start-btn" href="race.html">Iniciar juego</a>
               </article>
-
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #fb923c">
+                <span class="game-tag">Batalla</span>
                 <img src="/assets/images/Dominance.png" alt="Dominance" class="game-card-image" />
                 <h3>Dominance</h3>
                 <p>Dos equipos de soldados se enfrentan en batalla. Los regalos de tus espectadores activan poderes configurables (ataques, curaciones, escudos) hasta que un equipo agote la vida del otro.</p>
                 <a class="start-btn" href="dominance.html">Iniciar juego</a>
               </article>
-
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #38bdf8">
+                <span class="game-tag">Apuestas</span>
                 <img src="/assets/images/dondeestalabola.png" alt="¿Dónde está la bola?" class="game-card-image" />
                 <h3>¿Dónde está la bola?</h3>
                 <p>Una bola se esconde bajo un vaso y se mezclan a toda velocidad. Tus espectadores apuestan a un vaso con comentarios y regalos; quienes acierten suman puntos en el leaderboard.</p>
                 <a class="start-btn" href="shell-game.html">Iniciar juego</a>
               </article>
-
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #f472b6">
+                <span class="game-tag">Equipos</span>
                 <img src="/assets/images/girlsvsboys.png" alt="Boy vs Girl" class="game-card-image" />
                 <h3>Boy vs Girl</h3>
                 <p>Dos bandos empujan la misma pared: Girls a la izquierda, Boys a la derecha. Tus espectadores se unen comentando "G" o "B", y sus regalos empujan la pared a favor de su bando hasta dejar al otro sin espacio.</p>
@@ -204,15 +257,22 @@
               <article class="game-card disabled">
                 <h3>Batalla por rondas</h3>
                 <p>Juego competitivo por rondas con bonus y penalizaciones.</p>
-                <span class="coming-soon">Proximamente</span>
+                <span class="coming-soon">Próximamente</span>
               </article>
             </div>
           </div>
 
           <div class="games-category">
-            <h3 class="games-category-title">Roblox</h3>
+            <div class="games-category-head">
+              <span class="acc-icon acc-icon--lock">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M17 6.5l-7-4-7 4v7l7 4 7-4v-7zM3.3 6.3L10 10l6.7-3.7M10 17.5V10" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+              </span>
+              <h3 class="games-category-title">Roblox</h3>
+              <span class="games-category-count"></span>
+            </div>
             <div class="games-grid">
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #c084fc">
+                <span class="game-tag">Baile</span>
                 <img src="/assets/images/DanceTik.png" alt="Roblox Dance" class="game-card-image" />
                 <h3>Roblox Dance</h3>
                 <p>Tus espectadores comentan su usuario de Roblox y su avatar real aparece bailando junto a los demás, sincronizado a la misma canción. Los regalos especiales pueden hacer que su personaje se destaque con efectos únicos.</p>
@@ -222,10 +282,11 @@
                 </div>
               </article>
 
-              <article class="game-card">
+              <article class="game-card" style="--game-accent: #2dd4bf">
+                <span class="game-tag">Parkour</span>
                 <img src="/assets/images/parkourInteractive.png" alt="Roblox Parkour" class="game-card-image" />
                 <h3>Roblox Parkour</h3>
-                <p>El streamer sube una torre de escaleras en espiral saltando como en un parkour normal. Los regalos de tus espectadores activan poderes que lo empujan hacia arriba o lo mandan escaleras abajo, y tú decides cuánto mueve cada regalo.</p>
+                <p>El streamer sube una torre de plataformas saltando como en un parkour normal. Los regalos de tus espectadores activan poderes que lo empujan hacia arriba o lo mandan escaleras abajo, y tú decides cuánto mueve cada regalo.</p>
                 <a class="start-btn" href="roblox-parkour.html">Iniciar juego</a>
               </article>
             </div>
@@ -349,20 +410,21 @@
                 <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
               </div>
             </article>
-          </div>
-        </section>
 
-        <section id="statsSection" class="content-card hidden">
-          <div class="card-header">
-            <h2>Estadísticas</h2>
-          </div>
-          <p class="muted">
-            Un resumen de cada transmisión, guardado automáticamente cuando TikTok avisa que tu live terminó. No
-            afecta a tus overlays en vivo (barra de meta, top de regaladores, etc.) — esos siguen funcionando igual.
-          </p>
-
-          <div id="statsSessionsList" class="stats-sessions-list">
-            <p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando estadísticas...</p>
+            <article class="overlay-card">
+              <div
+                id="rouletteCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--roulette"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="rouletteConfigModal"
+              >
+                <iframe id="roulettePreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Ruleta</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -662,6 +724,107 @@
       </div>
     </div>
 
+    <div id="rouletteConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card roulette-modal-card" role="dialog" aria-modal="true" aria-labelledby="rouletteConfigModalTitle">
+        <div class="card-header">
+          <h3 id="rouletteConfigModalTitle">Configurar: Ruleta</h3>
+          <button id="rouletteConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="rouletteLinkInput" type="text" readonly value="Cargando..." />
+          <button id="rouletteCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="rouletteRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="rouletteLinkHint" class="muted overlay-hint"></p>
+
+        <section class="rl-block">
+          <h4 class="rl-block-title">Ajustes</h4>
+          <div class="overlay-config-grid">
+            <label class="switch-row" for="rouletteEnabledToggle">
+              <span>Ruleta activada</span>
+              <span class="switch">
+                <input id="rouletteEnabledToggle" type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="switch-row" for="rouletteSpinPerGiftToggle">
+              <span>Un giro por cada regalo de un combo</span>
+              <span class="switch">
+                <input id="rouletteSpinPerGiftToggle" type="checkbox" />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="field-label" for="rouletteTitleInput">
+              <span>Título sobre la ruleta</span>
+              <input id="rouletteTitleInput" type="text" maxlength="40" placeholder="Ruleta" />
+            </label>
+
+            <label class="field-label" for="rouletteSoundSelect">
+              <span>Sonido al salir el resultado</span>
+              <span class="sound-select-row">
+                <select id="rouletteSoundSelect"></select>
+                <button id="rouletteSoundPreviewBtn" class="btn ghost small" type="button" title="Probar sonido">▶</button>
+              </span>
+            </label>
+
+            <label class="field-label" for="rouletteSpinInput">
+              <span>Duración del giro (<span id="rouletteSpinValue" class="field-label-value">6s</span>)</span>
+              <input id="rouletteSpinInput" type="range" min="3" max="15" step="1" value="6" />
+            </label>
+
+            <label class="field-label" for="rouletteResultInput">
+              <span>Tiempo mostrando el resultado (<span id="rouletteResultValue" class="field-label-value">5s</span>)</span>
+              <input id="rouletteResultInput" type="range" min="2" max="15" step="1" value="5" />
+            </label>
+          </div>
+        </section>
+
+        <section class="rl-block">
+          <div class="rl-block-head">
+            <h4 class="rl-block-title">Opciones de la ruleta</h4>
+            <span id="rouletteOptionsCount" class="rl-count">0 / 12</span>
+          </div>
+          <p class="muted rl-block-text">Cada opción es una porción de la ruleta. Necesitas mínimo 2 y puedes agregar hasta 12.</p>
+          <div id="rouletteOptionsList" class="rl-options"></div>
+          <button id="rouletteAddOptionBtn" class="btn ghost" type="button">Agregar opción</button>
+        </section>
+
+        <section class="rl-block">
+          <div class="rl-block-head">
+            <h4 class="rl-block-title">Regalos que hacen girar la ruleta</h4>
+            <button id="rouletteLoadGiftsBtn" class="btn ghost small" type="button">Cargar catálogo</button>
+          </div>
+          <p class="muted rl-block-text">Elige del catálogo los regalos de TikTok que activan un giro. Cualquier otro regalo no la mueve.</p>
+
+          <div id="roulettePicker" class="rl-picker">
+            <button id="roulettePickerToggle" class="rl-picker-toggle" type="button" aria-expanded="false">
+              <span id="roulettePickerLabel">Carga el catálogo para elegir regalos</span>
+              <span class="rl-picker-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="roulettePickerPanel" class="rl-picker-panel" hidden>
+              <div class="rl-picker-filters">
+                <input id="roulettePickerSearch" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                <input id="roulettePickerMin" type="number" min="0" placeholder="Monedas mín." />
+                <input id="roulettePickerMax" type="number" min="0" placeholder="Monedas máx." />
+              </div>
+              <div id="roulettePickerList" class="rl-picker-list"></div>
+            </div>
+          </div>
+
+          <div id="rouletteGiftRules" class="rl-gifts"></div>
+        </section>
+
+        <div class="modal-actions">
+          <button id="rouletteTestBtn" class="btn accent" type="button">Probar giro</button>
+          <button id="rouletteSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">El resultado se sortea al azar entre tus opciones cada vez que llega uno de los regalos elegidos. La vista previa del panel gira sola con tu configuración guardada; "Probar giro" gira la ruleta del link real.</p>
+      </div>
+    </div>
+
     <div id="adminEditModal" class="modal-overlay" hidden>
       <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminEditModalTitle">
         <div class="card-header">
@@ -764,6 +927,7 @@
     <script src="js/dialog.js"></script>
     <script src="js/plans-shared.js"></script>
     <script src="js/overlay-sounds.js"></script>
-    <script src="js/platform.js?v=20261002a"></script>
+    <script src="js/platform.js?v=20261003a"></script>
+    <script src="js/platform-roulette.js?v=20261003a"></script>
   </body>
 </html>

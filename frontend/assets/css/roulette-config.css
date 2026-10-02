@@ -1,0 +1,340 @@
+/* Overlay "Ruleta" — modal de configuración dentro de la plataforma.
+   Todo con prefijo .rl- para no chocar con el resto de platform.css. */
+
+.roulette-modal-card {
+  width: min(860px, 100%);
+}
+
+.roulette-modal-card > .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rl-block {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.rl-block-title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rl-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rl-block-text {
+  margin: 6px 0 14px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.rl-count {
+  padding: 3px 12px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-count.is-warning {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.rl-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--ds-border-strong);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+/* ---------- Opciones ---------- */
+
+.rl-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rl-options .rl-empty {
+  grid-column: 1 / -1;
+}
+
+.rl-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.4);
+  transition: border-color 0.18s ease;
+}
+
+.rl-option:focus-within {
+  border-color: var(--ds-primary);
+}
+
+.rl-option-num {
+  flex: none;
+  width: 22px;
+  color: var(--ds-text-faint);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.rl-option-color {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rl-option-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.rl-option-color::-webkit-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+.rl-option-color::-moz-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+.rl-option-label {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.rl-option-label::placeholder {
+  color: var(--ds-text-muted);
+}
+
+.rl-icon-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rl-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rl-icon-btn:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}
+
+.rl-icon-btn:focus-visible,
+.rl-picker-toggle:focus-visible,
+.rl-picker-item:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Selector de regalos ---------- */
+
+.rl-picker {
+  position: relative;
+}
+
+.rl-picker-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  background: rgba(2, 6, 23, 0.5);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease;
+}
+
+.rl-picker-toggle:hover,
+.rl-picker.is-open .rl-picker-toggle {
+  border-color: var(--ds-primary);
+}
+
+.rl-picker-caret {
+  color: var(--muted);
+}
+
+.rl-picker-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  background: rgba(7, 11, 22, 0.98);
+}
+
+.rl-picker-panel[hidden] {
+  display: none;
+}
+
+.rl-picker-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 120px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rl-picker-filters input {
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.55);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.rl-picker-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.rl-picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rl-picker-item:hover {
+  background: rgba(124, 92, 255, 0.14);
+}
+
+.rl-picker-item.is-chosen {
+  border-color: rgba(134, 239, 172, 0.5);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.rl-gift-img {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rl-gift-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.rl-gift-coins {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Regalos elegidos ---------- */
+
+.rl-gifts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.rl-gifts .rl-empty {
+  grid-column: 1 / -1;
+}
+
+.rl-gift {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.4);
+}
+
+@media (max-width: 700px) {
+  .rl-options,
+  .rl-gifts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rl-picker-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .rl-picker-filters input:first-child {
+    grid-column: 1 / -1;
+  }
+}

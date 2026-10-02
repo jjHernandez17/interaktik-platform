@@ -33,7 +33,11 @@ router.post('/auth/register', registerLimiter, async (req, res, next) => {
     const email = req.body?.email;
     const password = String(req.body?.password || '');
 
-    const user = await authService.register(name, email, password, getOwnBaseUrl(req));
+    // La aceptacion de terminos se valida en el servidor (no solo en la casilla
+    // del formulario): sin acceptTerms === true no se crea la cuenta.
+    const acceptedTerms = req.body?.acceptTerms === true;
+
+    const user = await authService.register(name, email, password, getOwnBaseUrl(req), acceptedTerms);
 
     // No se crea sesion: la cuenta no puede usarse hasta verificar el correo.
     logger.success(`Usuario registrado (pendiente de verificacion): ${user.email}`);

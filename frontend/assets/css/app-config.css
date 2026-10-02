@@ -1,0 +1,259 @@
+/* Contador de puntos — configuración de equipos y de regalos/reglas.
+   Solo lo carga app.html y todo va acotado a .config-grid, así que no toca
+   el marcador ni las demás páginas que comparten styles.css. */
+
+.config-grid .cfg-head {
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.cfg-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cfg-title h2 {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.cfg-title p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.cfg-icon {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.cfg-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cfg-icon--teams {
+  color: #c4b5fd;
+  background: rgba(124, 92, 255, 0.18);
+}
+
+.cfg-icon--gifts {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+
+/* ---------- Equipos ---------- */
+
+.config-grid .cfg-team-form {
+  grid-template-columns: minmax(0, 1fr) 54px auto;
+  align-items: stretch;
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.config-grid .cfg-team-form input[type='color'] {
+  padding: 4px;
+  min-height: 46px;
+  cursor: pointer;
+}
+
+.config-grid .cfg-team-form input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.config-grid .cfg-team-form input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 10px;
+}
+
+.config-grid .cfg-team-form input[type='color']::-moz-color-swatch {
+  border: 0;
+  border-radius: 10px;
+}
+
+.config-grid .team-item {
+  padding: 12px 14px;
+  border-radius: 16px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.config-grid .team-item:hover {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.config-grid .team-dot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.config-grid .team-name {
+  font-family: var(--ds-font-display);
+  font-size: 1rem;
+}
+
+.config-grid .team-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+}
+
+.config-grid .team-actions .btn {
+  padding: 7px 12px;
+  font-size: 0.82rem;
+}
+
+.config-grid .team-actions .decrement {
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.config-grid .team-actions .increment {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.config-grid .team-actions .decrement:hover {
+  background: rgba(245, 158, 11, 0.18);
+}
+
+.config-grid .team-actions .increment:hover {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+/* ---------- Regalos y reglas ---------- */
+
+.config-grid .gift-form {
+  gap: 18px;
+  margin-bottom: 0;
+}
+
+.config-grid .gift-catalog-shell > .field-label,
+.cfg-field .field-label {
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.config-grid .gift-preview {
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(124, 92, 255, 0.1));
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.config-grid .gift-preview img {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+
+.config-grid .cfg-rule-grid {
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 0;
+}
+
+.cfg-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.config-grid .cfg-rule-grid .btn.full {
+  padding: 13px 20px;
+}
+
+.config-grid .cfg-sub {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.config-grid .cfg-sub h3 {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.02rem;
+}
+
+.config-grid .gift-rule-thumb {
+  flex: none;
+  width: 46px;
+  height: 46px;
+}
+
+.config-grid .gift-rule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.rule-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rule-chip--team {
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.14);
+}
+
+.rule-chip--points {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.rule-chip--id {
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.12);
+  font-weight: 600;
+}
+
+.config-grid .empty {
+  padding: 22px 16px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 980px) {
+  .config-grid .cfg-head {
+    flex-direction: column;
+  }
+
+  .config-grid .cfg-team-form {
+    grid-template-columns: minmax(0, 1fr) 54px;
+  }
+
+  .config-grid .cfg-team-form .btn {
+    grid-column: 1 / -1;
+  }
+
+  .config-grid .cfg-rule-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Sin tarjeta de estado: el encabezado ocupa todo el ancho */
+.hero {
+  grid-template-columns: minmax(0, 1fr);
+}

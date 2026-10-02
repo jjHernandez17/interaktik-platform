@@ -190,6 +190,10 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 0;
+  border-color: var(--ds-border-strong);
+  background:
+    linear-gradient(115deg, rgba(124, 92, 255, 0.22), rgba(34, 211, 238, 0.07) 62%, rgba(34, 211, 238, 0) 100%),
+    var(--ds-surface-solid);
 }
 
 .pk-conn {

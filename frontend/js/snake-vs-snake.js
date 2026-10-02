@@ -1300,6 +1300,10 @@ function scheduleHistoryRender() {
 }
 
 function renderHistory() {
+  if (!snakeHistoryList) {
+    return;
+  }
+
   if (!state.history.length) {
     snakeHistoryList.innerHTML = '<div class="empty">Aun no hay eventos registrados.</div>';
     return;
@@ -1324,6 +1328,11 @@ function renderHistory() {
 }
 
 function renderRules() {
+  if (!snakeRulesList) {
+    syncConfigPanelsFromState();
+    return;
+  }
+
   if (!state.rules.length) {
     snakeRulesList.innerHTML = '<div class="empty">Aun no hay reglas configuradas.</div>';
     syncConfigPanelsFromState();

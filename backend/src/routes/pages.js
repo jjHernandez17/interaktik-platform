@@ -164,6 +164,19 @@ router.get('/overlay/follow-alert.html', async (req, res) => {
   }
 });
 
+// Overlay de ruleta: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/roulette.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/roulette.html', 'Overlay roulette page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/roulette.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
 // Overlay de barra de meta: mismo criterio que gift-alert.html arriba.
 router.get('/overlay/goal-bar.html', async (req, res) => {
   try {
@@ -211,6 +224,19 @@ router.get('/overlay/top-likers.html', async (req, res) => {
     }
 
     res.sendFile(path.join(__dirname, '../../../frontend/overlay/top-likers.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
+// Terminos y condiciones: pagina publica (se lee antes de registrarse, sin sesion).
+router.get(['/terminos', '/terminos.html'], async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/terminos.html', 'Terms page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/terminos.html'));
   } catch (error) {
     res.status(500).send('Error loading page');
   }

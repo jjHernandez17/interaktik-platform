@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/styles.css?v=20260829a" />
   <link rel="stylesheet" href="assets/css/snake-vs-snake.css?v=20260901a" />
+  <link rel="stylesheet" href="assets/css/snake-config.css?v=20261002b" />
+  <link rel="stylesheet" href="assets/css/tiktok-connection.css?v=20261002a" />
 </head>
 
 <body>
@@ -103,48 +105,75 @@
           </div>
         </article>
         <button id="leftAddAppleBtn" class="btn ghost board-plus-btn outside" type="button"
-          aria-label="Añadir manzana a serpiente izquierda">+</button>
+          aria-label="Añadir manzana a serpiente izquierda"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Agregar manzana</span></button>
 
-        <article class="snake-config-card" aria-label="Configuración serpiente izquierda">
-          <h3>Configuración Serpiente 1</h3>
+        <article class="snake-config-card snake-config-card--left" aria-label="Configuración serpiente izquierda">
+          <div class="cfg-top">
+            <span class="cfg-num" aria-hidden="true">1</span>
+            <div class="cfg-top-text">
+              <h3>Configuración Serpiente 1</h3>
+              <p id="leftConfigStatus" class="config-status">Sin configuración guardada.</p>
+            </div>
+          </div>
+
           <div class="snake-config-grid">
-            <input id="leftSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
-              aria-label="Nombre serpiente 1" />
-            <input id="leftSnakeColorInput" type="color" value="#8b5cf6" aria-label="Color serpiente 1" />
-            <input id="leftBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 1" />
-            <p id="leftConfigStatus" class="config-status">Sin configuración guardada.</p>
-            <div class="gift-catalog-shell">
-              <label class="field-label">Regalo de TikTok</label>
-              <div id="leftGiftCatalogPreview" class="gift-preview">
-                <img id="leftGiftCatalogPreviewImage" alt="Vista previa del regalo" />
-                <div>
-                  <strong id="leftGiftCatalogPreviewName">Selecciona un regalo</strong>
-                  <div id="leftGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+            <section class="cfg-block">
+              <h4 class="cfg-block-title"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5a7.5 7.5 0 1 0 0 15c1.2 0 1.8-.8 1.8-1.6 0-1.2-1-1.4-1-2.4 0-.9.7-1.5 1.6-1.5H15a2.5 2.5 0 0 0 2.5-2.5C17.5 6 14.2 2.5 10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.6" cy="9" r="1" fill="currentColor"/><circle cx="9.2" cy="6" r="1" fill="currentColor"/><circle cx="12.8" cy="6.6" r="1" fill="currentColor"/></svg>Apariencia</h4>
+              <div class="cfg-appearance">
+                <label class="cfg-field">
+                  <span class="field-label">Nombre</span>
+                  <input id="leftSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
+                    aria-label="Nombre serpiente 1" />
+                </label>
+                <label class="cfg-field">
+                  <span class="field-label">Color</span>
+                  <input id="leftSnakeColorInput" type="color" value="#8b5cf6" aria-label="Color serpiente 1" />
+                </label>
+                <label class="cfg-field cfg-field--full">
+                  <span class="field-label">Fondo del tablero</span>
+                  <input id="leftBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 1" />
+                </label>
+              </div>
+            </section>
+
+            <section class="cfg-block">
+              <h4 class="cfg-block-title"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="7.5" width="14" height="9.5" rx="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h14M10 7.5V17M10 7.5C9 4.6 5.8 3.8 5.8 5.8S8.4 7.5 10 7.5zM10 7.5c1-2.9 4.2-3.7 4.2-1.7S11.6 7.5 10 7.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Regalos y reglas</h4>
+              <div class="gift-catalog-shell">
+                <label class="field-label">Regalo de TikTok</label>
+                <div id="leftGiftCatalogPreview" class="gift-preview">
+                  <img id="leftGiftCatalogPreviewImage" alt="Vista previa del regalo" />
+                  <div>
+                    <strong id="leftGiftCatalogPreviewName">Selecciona un regalo</strong>
+                    <div id="leftGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+                  </div>
+                </div>
+                <button id="leftGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span id="leftGiftCatalogToggleName">Selecciona un regalo</span>
+                  <span class="gift-dropdown-caret">▾</span>
+                </button>
+                <div id="leftGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
+                  <div class="gift-catalog-filters">
+                    <input id="leftGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
+                    <input id="leftGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
+                  </div>
+                  <div id="leftGiftCatalogOptions" class="gift-catalog-options"></div>
                 </div>
               </div>
-              <button id="leftGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span id="leftGiftCatalogToggleName">Selecciona un regalo</span>
-                <span class="gift-dropdown-caret">▾</span>
-              </button>
-              <div id="leftGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
-                <div class="gift-catalog-filters">
-                  <input id="leftGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
-                  <input id="leftGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
-                </div>
-                <div id="leftGiftCatalogOptions" class="gift-catalog-options"></div>
+              <div class="rule-inline">
+                <label class="cfg-field">
+                  <span class="field-label">Manzanas por regalo</span>
+                  <input id="leftRuleApplesInput" type="number" min="1" value="1"
+                    aria-label="Manzanas por regalo serpiente 1" />
+                </label>
+                <button id="leftRuleSaveBtn" class="btn ghost" type="button">Crear regla</button>
               </div>
-            </div>
-            <div class="rule-inline">
-              <input id="leftRuleApplesInput" type="number" min="1" value="1"
-                aria-label="Manzanas por regalo serpiente 1" />
-              <button id="leftRuleSaveBtn" class="btn ghost" type="button">Crear regla</button>
-            </div>
-            <div class="config-rules-section">
-              <p class="field-label">Reglas de esta serpiente</p>
-              <div id="leftConfigRulesList" class="config-rules-list"></div>
-            </div>
-            <button id="leftConfigSaveBtn" class="btn primary" type="button"
-              style="grid-column: 1 / -1; margin-top: 8px;">Guardar configuración</button>
+              <div class="config-rules-section">
+                <p class="field-label">Reglas de esta serpiente</p>
+                <div id="leftConfigRulesList" class="config-rules-list"></div>
+              </div>
+            </section>
+
+            <button id="leftConfigSaveBtn" class="btn primary cfg-save" type="button">Guardar configuración</button>
           </div>
         </article>
       </div>
@@ -165,69 +194,78 @@
           </div>
         </article>
         <button id="rightAddAppleBtn" class="btn ghost board-plus-btn outside" type="button"
-          aria-label="Añadir manzana a serpiente derecha">+</button>
+          aria-label="Añadir manzana a serpiente derecha"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Agregar manzana</span></button>
 
-        <article class="snake-config-card" aria-label="Configuración serpiente derecha">
-          <h3>Configuración Serpiente 2</h3>
+        <article class="snake-config-card snake-config-card--right" aria-label="Configuración serpiente derecha">
+          <div class="cfg-top">
+            <span class="cfg-num" aria-hidden="true">2</span>
+            <div class="cfg-top-text">
+              <h3>Configuración Serpiente 2</h3>
+              <p id="rightConfigStatus" class="config-status">Sin configuración guardada.</p>
+            </div>
+          </div>
+
           <div class="snake-config-grid">
-            <input id="rightSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
-              aria-label="Nombre serpiente 2" />
-            <input id="rightSnakeColorInput" type="color" value="#06b6d4" aria-label="Color serpiente 2" />
-            <input id="rightBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 2" />
-            <p id="rightConfigStatus" class="config-status">Sin configuración guardada.</p>
-            <div class="gift-catalog-shell">
-              <label class="field-label">Regalo de TikTok</label>
-              <div id="rightGiftCatalogPreview" class="gift-preview">
-                <img id="rightGiftCatalogPreviewImage" alt="Vista previa del regalo" />
-                <div>
-                  <strong id="rightGiftCatalogPreviewName">Selecciona un regalo</strong>
-                  <div id="rightGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+            <section class="cfg-block">
+              <h4 class="cfg-block-title"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5a7.5 7.5 0 1 0 0 15c1.2 0 1.8-.8 1.8-1.6 0-1.2-1-1.4-1-2.4 0-.9.7-1.5 1.6-1.5H15a2.5 2.5 0 0 0 2.5-2.5C17.5 6 14.2 2.5 10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.6" cy="9" r="1" fill="currentColor"/><circle cx="9.2" cy="6" r="1" fill="currentColor"/><circle cx="12.8" cy="6.6" r="1" fill="currentColor"/></svg>Apariencia</h4>
+              <div class="cfg-appearance">
+                <label class="cfg-field">
+                  <span class="field-label">Nombre</span>
+                  <input id="rightSnakeNameInput" type="text" maxlength="24" placeholder="Nombre serpiente"
+                    aria-label="Nombre serpiente 2" />
+                </label>
+                <label class="cfg-field">
+                  <span class="field-label">Color</span>
+                  <input id="rightSnakeColorInput" type="color" value="#06b6d4" aria-label="Color serpiente 2" />
+                </label>
+                <label class="cfg-field cfg-field--full">
+                  <span class="field-label">Fondo del tablero</span>
+                  <input id="rightBoardImageInput" type="file" accept="image/*" aria-label="Fondo tablero serpiente 2" />
+                </label>
+              </div>
+            </section>
+
+            <section class="cfg-block">
+              <h4 class="cfg-block-title"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="7.5" width="14" height="9.5" rx="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h14M10 7.5V17M10 7.5C9 4.6 5.8 3.8 5.8 5.8S8.4 7.5 10 7.5zM10 7.5c1-2.9 4.2-3.7 4.2-1.7S11.6 7.5 10 7.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Regalos y reglas</h4>
+              <div class="gift-catalog-shell">
+                <label class="field-label">Regalo de TikTok</label>
+                <div id="rightGiftCatalogPreview" class="gift-preview">
+                  <img id="rightGiftCatalogPreviewImage" alt="Vista previa del regalo" />
+                  <div>
+                    <strong id="rightGiftCatalogPreviewName">Selecciona un regalo</strong>
+                    <div id="rightGiftCatalogPreviewMeta" class="muted">Se mostrará su imagen y valor en monedas.</div>
+                  </div>
+                </div>
+                <button id="rightGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span id="rightGiftCatalogToggleName">Selecciona un regalo</span>
+                  <span class="gift-dropdown-caret">▾</span>
+                </button>
+                <div id="rightGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
+                  <div class="gift-catalog-filters">
+                    <input id="rightGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
+                    <input id="rightGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
+                  </div>
+                  <div id="rightGiftCatalogOptions" class="gift-catalog-options"></div>
                 </div>
               </div>
-              <button id="rightGiftCatalogToggle" class="gift-dropdown-toggle" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span id="rightGiftCatalogToggleName">Selecciona un regalo</span>
-                <span class="gift-dropdown-caret">▾</span>
-              </button>
-              <div id="rightGiftCatalogMenu" class="gift-catalog-menu" role="listbox" aria-label="Regalos de TikTok">
-                <div class="gift-catalog-filters">
-                  <input id="rightGiftSearchInput" type="text" placeholder="Buscar regalo por nombre" autocomplete="off" />
-                  <input id="rightGiftCoinsFilterInput" type="number" min="1" placeholder="Monedas" />
-                </div>
-                <div id="rightGiftCatalogOptions" class="gift-catalog-options"></div>
+              <div class="rule-inline">
+                <label class="cfg-field">
+                  <span class="field-label">Manzanas por regalo</span>
+                  <input id="rightRuleApplesInput" type="number" min="1" value="1"
+                    aria-label="Manzanas por regalo serpiente 2" />
+                </label>
+                <button id="rightRuleSaveBtn" class="btn ghost" type="button">Crear regla</button>
               </div>
-            </div>
-            <div class="rule-inline">
-              <input id="rightRuleApplesInput" type="number" min="1" value="1"
-                aria-label="Manzanas por regalo serpiente 2" />
-              <button id="rightRuleSaveBtn" class="btn ghost" type="button">Crear regla</button>
-            </div>
-            <div class="config-rules-section">
-              <p class="field-label">Reglas de esta serpiente</p>
-              <div id="rightConfigRulesList" class="config-rules-list"></div>
-            </div>
-            <button id="rightConfigSaveBtn" class="btn primary" type="button"
-              style="grid-column: 1 / -1; margin-top: 8px;">Guardar configuración </button>
+              <div class="config-rules-section">
+                <p class="field-label">Reglas de esta serpiente</p>
+                <div id="rightConfigRulesList" class="config-rules-list"></div>
+              </div>
+            </section>
+
+            <button id="rightConfigSaveBtn" class="btn primary cfg-save" type="button">Guardar configuración</button>
           </div>
         </article>
       </div>
-    </section>
-
-    <section class="panel-grid">
-      <article class="panel-card">
-        <div class="card-header">
-          <h2>Reglas activas</h2>
-          <span class="pill">Autoguardado</span>
-        </div>
-        <div id="snakeRulesList" class="stack"></div>
-      </article>
-
-      <article class="panel-card">
-        <div class="card-header">
-          <h2>Registro reciente</h2>
-          <span class="pill">Eventos y manzanas</span>
-        </div>
-        <div id="snakeHistoryList" class="history-list"></div>
-      </article>
     </section>
   </main>
 
@@ -242,7 +280,8 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/snake-vs-snake.js?v=20260930a"></script>
+  <script src="js/snake-vs-snake.js?v=20261002a"></script>
+  <script src="js/snake-header-align.js?v=20261002c"></script>
 </body>
 
 </html>

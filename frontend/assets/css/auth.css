@@ -352,3 +352,51 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/* Aceptación de términos y condiciones (registro) */
+.terms-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.terms-check input[type="checkbox"] {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  padding: 0;
+  border-radius: 7px;
+  border: 1.5px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.terms-check input[type="checkbox"]:hover {
+  border-color: var(--ds-primary);
+}
+
+.terms-check input[type="checkbox"]:checked {
+  border-color: transparent;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'><path d='M5 10.5l3.2 3.2L15 6.8' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center / 16px 16px no-repeat,
+    var(--ds-gradient-brand);
+}
+
+.terms-check a {
+  color: #67e8f9;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.terms-check a:hover {
+  color: #a5f3fc;
+}

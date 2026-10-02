@@ -42,11 +42,13 @@ function applySidebarCollapsed(collapsed) {
 }
 
 (function initSidebarCollapsed() {
-  let collapsed = false;
+  // Por defecto el menu arranca cerrado; solo se abre solo si el usuario lo
+  // dejo abierto a proposito (preferencia guardada en '0').
+  let collapsed = true;
   try {
-    collapsed = window.localStorage.getItem('interaktik.sidebarCollapsed') === '1';
+    collapsed = window.localStorage.getItem('interaktik.sidebarCollapsed') !== '0';
   } catch (_error) {
-    collapsed = false;
+    collapsed = true;
   }
   applySidebarCollapsed(collapsed);
 })();
@@ -215,6 +217,10 @@ const gamesLoadCatalogBtn = document.getElementById('gamesLoadCatalogBtn');
 let overlayKeyLoaded = false;
 
 const statsSessionsList = document.getElementById('statsSessionsList');
+const statsPager = document.getElementById('statsPager');
+const statsPrevBtn = document.getElementById('statsPrevBtn');
+const statsNextBtn = document.getElementById('statsNextBtn');
+const statsPagerLabel = document.getElementById('statsPagerLabel');
 
 // Los eventos "error" de <img> no burbujean, pero sí se ven en la fase de
 // captura de un ancestro — un solo listener delegado aquí reemplaza el
@@ -227,7 +233,47 @@ if (statsSessionsList) {
       target.src = fallback;
     }
   }, true);
+
+  // Paginador: cuenta de la transmisión visible y botones anterior / siguiente.
+  statsSessionsList.addEventListener('scroll', () => syncStatsPager(), { passive: true });
+  statsPrevBtn?.addEventListener('click', () => {
+    statsSessionsList.scrollBy({ top: -statsSessionsList.clientHeight, behavior: 'smooth' });
+  });
+  statsNextBtn?.addEventListener('click', () => {
+    statsSessionsList.scrollBy({ top: statsSessionsList.clientHeight, behavior: 'smooth' });
+  });
 }
+
+// Cantidad de juegos jugables de cada categoria (las tarjetas "Próximamente" no cuentan).
+document.querySelectorAll('.games-category').forEach((category) => {
+  const counter = category.querySelector('.games-category-count');
+  if (!counter) return;
+  const total = category.querySelectorAll('.game-card:not(.disabled)').length;
+  counter.textContent = total === 1 ? '1 juego' : `${total} juegos`;
+});
+
+document.getElementById('accountGoPlansBtn')?.addEventListener('click', () => showSection('plansSection'));
+
+// Requisitos de la contraseña nueva: se marcan en vivo mientras escribe.
+const newPasswordInputEl = document.getElementById('newPasswordInput');
+const passwordRulesList = document.getElementById('passwordRules');
+
+function syncPasswordRules() {
+  if (!newPasswordInputEl || !passwordRulesList) return;
+  const value = newPasswordInputEl.value;
+  const checks = {
+    length: value.length > 5,
+    letter: /[A-Za-z]/.test(value),
+    number: /\d/.test(value),
+    special: /[^A-Za-z0-9]/.test(value),
+  };
+  passwordRulesList.querySelectorAll('li').forEach((item) => {
+    item.classList.toggle('met', Boolean(checks[item.dataset.rule]));
+  });
+}
+
+newPasswordInputEl?.addEventListener('input', syncPasswordRules);
+document.getElementById('changePasswordForm')?.addEventListener('reset', () => setTimeout(syncPasswordRules, 0));
 
 const accessStatusBanner = document.getElementById('accessStatusBanner');
 const plansAccessStatus = document.getElementById('plansAccessStatus');
@@ -416,6 +462,45 @@ function applyOverlayPlanLockToCards() {
   });
 }
 
+function renderAccountProfile() {
+  const avatar = document.getElementById('accountAvatar');
+  const badge = document.getElementById('accountPlanBadge');
+  const detail = document.getElementById('accountPlanDetail');
+  const plansBtn = document.getElementById('accountGoPlansBtn');
+  if (!badge) return;
+
+  const seed = (currentUser?.name || currentUser?.email || '?').trim();
+  if (avatar) avatar.textContent = seed.charAt(0).toUpperCase() || '?';
+
+  let tone = '';
+  let label = '-';
+  let note = '';
+  let showPlans = true;
+
+  if (currentUser?.isSuperUser) {
+    label = 'Superusuario';
+    note = 'Acceso total a la plataforma';
+    showPlans = false;
+  } else if (accessStatus) {
+    if (accessStatus.hasAccess) {
+      const days = accessStatus.daysRemaining;
+      tone = 'ok';
+      label = accessStatus.planLabel || (accessStatus.isTrial ? 'Prueba gratuita' : 'Plan activo');
+      note = `Te ${days === 1 ? 'queda 1 día' : `quedan ${days} días`}`;
+    } else {
+      tone = 'warn';
+      label = 'Sin plan activo';
+      note = accessStatus.accessExpiresAt ? 'Tu acceso venció' : 'Elige un plan para seguir jugando';
+    }
+  }
+
+  badge.textContent = label;
+  badge.classList.toggle('ok', tone === 'ok');
+  badge.classList.toggle('warn', tone === 'warn');
+  if (detail) detail.textContent = note;
+  if (plansBtn) plansBtn.hidden = !showPlans;
+}
+
 function formatAccessMessage(status) {
   if (!status) return '';
 
@@ -432,6 +517,8 @@ function formatAccessMessage(status) {
 }
 
 function renderAccessBanners() {
+  renderAccountProfile();
+
   if (currentUser?.isSuperUser) {
     if (accessStatusBanner) accessStatusBanner.classList.add('hidden');
     if (plansAccessStatus) plansAccessStatus.classList.add('hidden');
@@ -877,7 +964,25 @@ function setupAdminEditModal() {
   adminEditAccountEmail = document.getElementById('adminEditAccountEmail');
 }
 
+// La sección activa vive en el hash de la URL (#accountSection) para que al
+// recargar la página el usuario siga donde estaba.
+function restoreSectionFromHash() {
+  const sectionId = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+  if (!sectionId) return;
+  if (!Array.from(sections).some((section) => section.id === sectionId)) return;
+  if (sectionId === 'adminSection' && !currentUser?.isSuperUser) return;
+  showSection(sectionId);
+}
+
 function showSection(sectionId) {
+  try {
+    if (window.location.hash !== `#${sectionId}`) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${sectionId}`);
+    }
+  } catch (_error) {
+    // Sin history.replaceState simplemente no se recuerda la sección.
+  }
+
   sections.forEach((section) => {
     section.classList.toggle('hidden', section.id !== sectionId);
   });
@@ -890,7 +995,7 @@ function showSection(sectionId) {
     loadAdminUsers();
   }
 
-  if (sectionId === 'statsSection') {
+  if (sectionId === 'accountSection') {
     loadStreamStats();
   }
 
@@ -912,6 +1017,8 @@ function showSection(sectionId) {
     if (likeCounterPreviewFrame) likeCounterPreviewFrame.src = 'about:blank';
     if (topLikersPreviewFrame) topLikersPreviewFrame.src = 'about:blank';
     if (followAlertPreviewFrame) followAlertPreviewFrame.src = 'about:blank';
+    const roulettePreviewFrameEl = document.getElementById('roulettePreviewFrame');
+    if (roulettePreviewFrameEl) roulettePreviewFrameEl.src = 'about:blank';
   }
 }
 
@@ -927,6 +1034,12 @@ const OVERLAY_WIDGETS = {
   likeCounter: { page: 'like-counter', previewFrame: () => likeCounterPreviewFrame, linkInput: () => likeCounterLinkInput, linkHint: () => likeCounterLinkHint },
   topLikers: { page: 'top-likers', previewFrame: () => topLikersPreviewFrame, linkInput: () => topLikersLinkInput, linkHint: () => topLikersLinkHint },
   followAlert: { page: 'follow-alert', previewFrame: () => followAlertPreviewFrame, linkInput: () => followAlertLinkInput, linkHint: () => followAlertLinkHint },
+  roulette: {
+    page: 'roulette',
+    previewFrame: () => document.getElementById('roulettePreviewFrame'),
+    linkInput: () => document.getElementById('rouletteLinkInput'),
+    linkHint: () => document.getElementById('rouletteLinkHint'),
+  },
 };
 
 // Link real, el que se copia para pegar en OBS/Streamlabs/TikTok LIVE Studio
@@ -1010,6 +1123,9 @@ function applyOverlayStateToInputs(state) {
   if (followAlertDurationInput) followAlertDurationInput.value = followAlert.durationSeconds || 5;
   if (followAlertDurationValue) followAlertDurationValue.textContent = `${followAlert.durationSeconds || 5}s`;
   if (followAlertSoundSelect) followAlertSoundSelect.value = followAlert.sound || 'none';
+
+  // La ruleta tiene su propio script (js/platform-roulette.js).
+  if (window.applyRouletteState) window.applyRouletteState(state);
 }
 
 // Los overlays reciben regalos/likes reales solo si el backend tiene una
@@ -1128,6 +1244,23 @@ if (overlayConnectionForm) {
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
 const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'shellgame', 'boyvsgirl'];
 
+// Una vez vinculado, el usuario de TikTok no se puede cambiar desde aqui:
+// el campo y el boton "Vincular" quedan bloqueados.
+let gamesLinkLocked = false;
+
+function applyGamesLinkLock(locked) {
+  gamesLinkLocked = locked;
+  if (gamesTiktokUsernameInput) {
+    gamesTiktokUsernameInput.readOnly = locked;
+    gamesTiktokUsernameInput.classList.toggle('is-locked', locked);
+    gamesTiktokUsernameInput.title = locked ? 'Tu usuario de TikTok ya está vinculado y no se puede cambiar.' : '';
+  }
+  if (gamesLinkTiktokBtn) {
+    gamesLinkTiktokBtn.disabled = locked;
+    gamesLinkTiktokBtn.textContent = locked ? 'Vinculado' : 'Vincular';
+  }
+}
+
 function setGamesConnectionStatus(status, details = '') {
   if (!gamesConnectionStatusBadge || !gamesConnectionDetails) return;
 
@@ -1137,6 +1270,8 @@ function setGamesConnectionStatus(status, details = '') {
     connecting: 'Vinculando...',
     error: 'Error',
   };
+
+  applyGamesLinkLock(status === 'linked');
 
   gamesConnectionStatusBadge.textContent = labels[status] || labels.disconnected;
   gamesConnectionStatusBadge.className = `status-badge ${status === 'linked' ? 'connected' : status}`;
@@ -1161,6 +1296,8 @@ async function restoreGamesTiktokConnection() {
 }
 
 async function linkGamesTiktokUsername() {
+  if (gamesLinkLocked) return;
+
   const uniqueId = gamesTiktokUsernameInput?.value.trim().replace(/^@/, '');
   if (!uniqueId) {
     await showAlert('Ingresa un usuario de TikTok.', 'Falta usuario');
@@ -1188,7 +1325,7 @@ async function linkGamesTiktokUsername() {
   } catch (error) {
     setGamesConnectionStatus('error', error.message || 'No se pudo vincular la cuenta.');
   } finally {
-    if (gamesLinkTiktokBtn) gamesLinkTiktokBtn.disabled = false;
+    if (gamesLinkTiktokBtn) gamesLinkTiktokBtn.disabled = gamesLinkLocked;
   }
 }
 
@@ -1424,6 +1561,7 @@ const OVERLAY_WIDGET_LABELS = {
   likeCounter: 'contador de likes',
   topLikers: 'top de likes',
   followAlert: 'alerta de nuevo seguidor',
+  roulette: 'ruleta',
 };
 
 // Regenera SOLO la key del widget indicado — los otros 4 links siguen
@@ -1860,76 +1998,121 @@ const STATS_DEFAULT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%23ffffff" opacity="0.25"/></svg>',
 );
 
-function renderStatsTopGroup(label, entries, amountField, amountLabel) {
+const STATS_ICONS = {
+  coin: '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.2v7.6M12.2 8.2c-.4-.7-1.2-1.1-2.2-1.1-1.2 0-2.2.6-2.2 1.6 0 2.2 4.4.9 4.4 3.1 0 1-1 1.6-2.2 1.6-1 0-1.9-.4-2.3-1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  heart: '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 16.5s-6-3.6-6-8.1A3.4 3.4 0 0 1 10 6.3a3.4 3.4 0 0 1 6 2.1c0 4.5-6 8.1-6 8.1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  follow: '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8" cy="7" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 16.5c.8-2.8 2.8-4.2 5.5-4.2s4.7 1.4 5.5 4.2M15.5 6v5M13 8.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  clock: '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4.2l2.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  live: '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M13.8 6.2a5.4 5.4 0 0 1 0 7.6M6.2 13.8a5.4 5.4 0 0 1 0-7.6M16.4 3.6a9 9 0 0 1 0 12.8M3.6 16.4a9 9 0 0 1 0-12.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+};
+
+function renderStatsTopGroup(kind, label, entries, amountField, amountLabel) {
   const top = Array.isArray(entries) && entries.length > 0 ? entries[0] : null;
   if (!top) return '';
 
   const avatar = top.avatar || STATS_DEFAULT_AVATAR;
+  const amount = Number(top[amountField] || 0).toLocaleString('es');
 
   // Nada de onerror="..." inline: el CSP del sitio bloquea los atributos de
   // evento en HTML (script-src-attr 'none'), aunque scriptSrc permita
   // 'unsafe-inline' para bloques <script>. El respaldo se maneja con un solo
   // listener delegado en el contenedor (ver loadStreamStats).
   return `
-    <span class="stats-top-group">
+    <div class="stats-top-group stats-top-group--${kind}">
       <img src="${escapeHtml(avatar)}" data-fallback-avatar="${escapeHtml(STATS_DEFAULT_AVATAR)}" alt="" />
-      <span>${label}: <strong>${escapeHtml(top.nickname)}</strong> — ${top[amountField]} ${amountLabel}</span>
-    </span>
+      <span class="stats-top-text">
+        <small>${label}</small>
+        <strong>${escapeHtml(top.nickname)}</strong>
+      </span>
+      <span class="stats-top-amount">${amount} ${amountLabel}</span>
+    </div>
+  `;
+}
+
+function renderStatsMetric(kind, icon, value, label) {
+  return `
+    <div class="stats-metric stats-metric--${kind}">
+      <span class="stats-metric-icon">${STATS_ICONS[icon]}</span>
+      <span class="stats-metric-value">${Number(value || 0).toLocaleString('es')}</span>
+      <span class="stats-metric-label">${label}</span>
+    </div>
   `;
 }
 
 function renderStatsSession(session) {
   const duration = formatDuration(session.started_at, session.ended_at);
+  const tops = [
+    renderStatsTopGroup('gifter', 'Top regalador', session.top_gifters, 'coins', 'monedas'),
+    renderStatsTopGroup('liker', 'Top like', session.top_likers, 'likes', 'likes'),
+  ].join('');
 
   return `
     <article class="stats-session-card">
-      <div class="stats-session-header">
-        <strong>${formatDate(session.ended_at)}</strong>
-        <span class="muted">${session.tiktok_username ? `@${escapeHtml(session.tiktok_username)}` : ''}${duration ? ` · Duración: ${duration}` : ''}</span>
-      </div>
+      <header class="stats-session-header">
+        <div>
+          <strong>${formatDate(session.ended_at)}</strong>
+          ${session.tiktok_username ? `<span class="muted">@${escapeHtml(session.tiktok_username)}</span>` : ''}
+        </div>
+        ${duration ? `<span class="stats-duration">${STATS_ICONS.clock}${duration}</span>` : ''}
+      </header>
 
       <div class="stats-session-metrics">
-        <div class="stats-metric">
-          <span class="stats-metric-value">${session.total_coins.toLocaleString('es')}</span>
-          <span class="stats-metric-label">Monedas</span>
-        </div>
-        <div class="stats-metric">
-          <span class="stats-metric-value">${session.total_likes.toLocaleString('es')}</span>
-          <span class="stats-metric-label">Likes</span>
-        </div>
-        <div class="stats-metric">
-          <span class="stats-metric-value">${session.new_followers.toLocaleString('es')}</span>
-          <span class="stats-metric-label">Nuevos seguidores</span>
-        </div>
+        ${renderStatsMetric('coins', 'coin', session.total_coins, 'Monedas')}
+        ${renderStatsMetric('likes', 'heart', session.total_likes, 'Likes')}
+        ${renderStatsMetric('follows', 'follow', session.new_followers, 'Nuevos seguidores')}
       </div>
 
-      <div class="stats-session-top">
-        ${renderStatsTopGroup('Top regalador', session.top_gifters, 'coins', 'monedas')}
-        ${renderStatsTopGroup('Top like', session.top_likers, 'likes', 'likes')}
-      </div>
+      ${tops.trim()
+        ? `<div class="stats-session-top">${tops}</div>`
+        : '<p class="stats-no-top">Nadie destacó con regalos ni likes en este live.</p>'}
     </article>
   `;
+}
+
+function syncStatsPager() {
+  if (!statsSessionsList || !statsPager) return;
+
+  const total = statsSessionsList.querySelectorAll('.stats-session-card').length;
+  statsPager.hidden = total < 2;
+  if (total < 2) return;
+
+  const height = statsSessionsList.clientHeight || 1;
+  const index = Math.min(total - 1, Math.max(0, Math.round(statsSessionsList.scrollTop / height)));
+  if (statsPagerLabel) statsPagerLabel.textContent = `${index + 1} / ${total}`;
+  if (statsPrevBtn) statsPrevBtn.disabled = index === 0;
+  if (statsNextBtn) statsNextBtn.disabled = index === total - 1;
 }
 
 async function loadStreamStats() {
   if (!statsSessionsList) return;
 
-  statsSessionsList.innerHTML = '<p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando estadísticas...</p>';
+  statsSessionsList.innerHTML = '<p class="muted loading-row"><span class="pt-orbit pt-orbit--sm"><i><b></b></i><i><b></b></i></span> Cargando lives...</p>';
+  syncStatsPager();
 
   try {
     const response = await fetch('/api/stream-stats');
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'No se pudo cargar el resumen de transmisiones.');
 
-    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    const sessions = (Array.isArray(data.sessions) ? data.sessions : []).slice(0, 3);
     if (sessions.length === 0) {
-      statsSessionsList.innerHTML = '<p class="muted">Todavía no hay transmisiones registradas. En cuanto termines tu próximo live, aparece aquí.</p>';
+      statsSessionsList.innerHTML = `
+        <div class="acc-empty">
+          ${STATS_ICONS.live}
+          <strong>Aún no hay lives guardados</strong>
+          <span>En cuanto termines tu próximo live, el resumen aparece aquí.</span>
+        </div>
+      `;
+      syncStatsPager();
       return;
     }
 
     statsSessionsList.innerHTML = sessions.map(renderStatsSession).join('');
+    statsSessionsList.scrollTop = 0;
+    syncStatsPager();
   } catch (error) {
     statsSessionsList.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+    syncStatsPager();
   }
 }
 
@@ -2458,6 +2641,7 @@ async function loadMe() {
     console.log('Autenticacion exitosa:', currentUser?.email);
     userName.textContent = currentUser?.name || '-';
     userEmail.textContent = currentUser?.email || '-';
+    renderAccountProfile();
     if (sidebarUserName) sidebarUserName.textContent = currentUser?.name || '-';
     if (sidebarUserPlan && currentUser?.isSuperUser) sidebarUserPlan.textContent = 'Superusuario';
 
@@ -2474,6 +2658,7 @@ async function loadMe() {
     await loadAccessStatus();
     await loadPlans();
     await restoreGamesTiktokConnection();
+    restoreSectionFromHash();
 
     // El loader se oculta ANTES de handlePaymentRedirectParams() a proposito:
     // esa funcion puede mostrar un dialogo (showAlert, z-index 4000) que

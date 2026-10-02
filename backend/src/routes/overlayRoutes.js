@@ -46,7 +46,7 @@ router.post('/overlay/config', requireAuth, requireActiveAccess, async (req, res
   }
 });
 
-const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert'];
+const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert', 'roulette'];
 
 router.post('/overlay/regenerate-key', requireAuth, requireActiveAccess, async (req, res) => {
   try {
@@ -112,6 +112,28 @@ router.post('/overlay/test-follow', requireAuth, requireActiveAccess, async (req
     return res.json({ success: true, sender: sender.nickname });
   } catch (error) {
     logger.error('Error enviando seguidor de prueba de overlay', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// Gira la ruleta del overlay sin necesidad de regalos reales: usa un evento
+// propio (no un 'gift') para que no cuente en el top de regaladores, la barra
+// de meta ni las estadisticas del live.
+router.post('/overlay/test-roulette', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const sender = TEST_SENDERS[Math.floor(Math.random() * TEST_SENDERS.length)];
+
+    emitLiveEvent('overlay-roulette-test', {
+      gameType: 'overlay-test',
+      ownerKey: `user:${userId}:overlay-test`,
+      user: { ...sender, userId: 'test', avatar: null },
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.json({ success: true, sender: sender.nickname });
+  } catch (error) {
+    logger.error('Error enviando giro de prueba de la ruleta', error);
     return res.status(500).json({ error: normalizeError(error) });
   }
 });

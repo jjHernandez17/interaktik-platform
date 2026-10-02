@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="assets/css/design-system.css" />
     <link rel="stylesheet" href="assets/css/styles.css?v=20260829a" />
+    <link rel="stylesheet" href="assets/css/app-config.css?v=20261002b" />
+    <link rel="stylesheet" href="assets/css/tiktok-connection.css?v=20261002a" />
   </head>
   <body>
     <div id="pageLoader" class="page-loader">
@@ -26,11 +28,6 @@
             Personaliza equipos, regalos y puntos. Cuando llegue un regalo,
             selecciona su equivalencia y suma puntos al equipo configurado.
           </p>
-        </div>
-        <div class="hero-card">
-          <span class="hero-card-label">Estado</span>
-          <strong id="totalsSummary">0 equipos • 0 regalos</strong>
-          <small>Los datos se guardan automáticamente en el navegador.</small>
         </div>
       </section>
 
@@ -65,14 +62,20 @@
         </article>
       </section>
 
-      <section class="grid two-columns">
-        <article class="card">
-          <div class="card-header">
-            <h2>Equipos</h2>
+      <section class="grid two-columns config-grid">
+        <article class="card cfg-card">
+          <div class="card-header cfg-head">
+            <div class="cfg-title">
+              <span class="cfg-icon cfg-icon--teams"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3 19c.9-3.3 3.3-5 6-5s5.1 1.7 6 5M16 5.2a3 3 0 0 1 0 5.6M18 14.3c1.8.6 3 2.2 3.5 4.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div>
+                <h2>Equipos</h2>
+                <p>Cada equipo tiene su color y su torre en el marcador.</p>
+              </div>
+            </div>
             <button id="clearTeamsBtn" class="btn ghost" type="button">Borrar equipos</button>
           </div>
 
-          <form id="teamForm" class="form-row">
+          <form id="teamForm" class="form-row cfg-team-form">
             <input id="teamName" type="text" placeholder="Nombre del equipo" required />
             <input id="teamColor" type="color" value="#7c3aed" aria-label="Color del equipo" />
             <button class="btn primary" type="submit">Agregar</button>
@@ -81,9 +84,15 @@
           <div id="teamsList" class="stack"></div>
         </article>
 
-        <article class="card">
-          <div class="card-header">
-            <h2>Regalos y reglas</h2>
+        <article class="card cfg-card">
+          <div class="card-header cfg-head">
+            <div class="cfg-title">
+              <span class="cfg-icon cfg-icon--gifts"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 13h17M12 9v11M12 9c-1-3.5-5-4.5-5-2s3 2 5 2zM12 9c1-3.5 5-4.5 5-2s-3 2-5 2z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div>
+                <h2>Regalos y reglas</h2>
+                <p>Elige un regalo, cuántos puntos vale y a qué equipo se los suma.</p>
+              </div>
+            </div>
             <button id="clearGiftsBtn" class="btn ghost" type="button">Borrar reglas</button>
           </div>
 
@@ -111,14 +120,20 @@
               <p id="giftCatalogHint" class="hint">Conéctate a TikTok Live para cargar el catálogo de regalos disponibles.</p>
             </div>
 
-            <div class="form-grid gift-rule-grid">
-              <input id="giftPoints" type="number" min="1" value="1" required />
-              <select id="giftTeam" required></select>
+            <div class="form-grid gift-rule-grid cfg-rule-grid">
+              <label class="cfg-field">
+                <span class="field-label">Puntos</span>
+                <input id="giftPoints" type="number" min="1" value="1" required />
+              </label>
+              <label class="cfg-field">
+                <span class="field-label">Equipo</span>
+                <select id="giftTeam" required></select>
+              </label>
               <button class="btn primary full" type="submit">Crear regla</button>
             </div>
           </form>
 
-          <div class="subsection">
+          <div class="subsection cfg-sub">
             <div class="card-header compact">
               <h3>Reglas creadas</h3>
             </div>
@@ -181,6 +196,6 @@
     <script src="js/config.js?v=20260606c"></script>
     <script src="js/runtime.js?v=20260524"></script>
     <script src="js/dialog.js?v=20260524"></script>
-    <script src="js/app.js?v=20260930a"></script>
+    <script src="js/app.js?v=20261002b"></script>
   </body>
 </html>

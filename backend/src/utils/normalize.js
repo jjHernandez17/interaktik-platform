@@ -744,6 +744,74 @@ function sanitizeOverlaySound(value) {
   return VALID_OVERLAY_SOUNDS.includes(value) ? value : 'none';
 }
 
+// Ruleta del overlay: hasta ROULETTE_MAX_OPTIONS opciones y hasta
+// ROULETTE_MAX_GIFT_RULES regalos que la hacen girar. Los mismos topes estan
+// en frontend/js/platform-roulette.js (que bloquea el boton de agregar).
+const ROULETTE_MAX_OPTIONS = 12;
+const ROULETTE_MAX_GIFT_RULES = 20;
+const ROULETTE_DEFAULT_COLORS = [
+  '#7c5cff', '#22d3ee', '#f472b6', '#fbbf24', '#4ade80', '#fb923c',
+  '#38bdf8', '#f87171', '#a78bfa', '#2dd4bf', '#e879f9', '#facc15',
+];
+
+function sanitizeRouletteColor(value, index) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(color)
+    ? color.toLowerCase()
+    : ROULETTE_DEFAULT_COLORS[index % ROULETTE_DEFAULT_COLORS.length];
+}
+
+function sanitizeRouletteOptions(rawOptions) {
+  return rawOptions
+    .map((option) => ({
+      label: String(option?.label ?? '').trim().slice(0, 40),
+      color: option?.color,
+    }))
+    .filter((option) => option.label)
+    .slice(0, ROULETTE_MAX_OPTIONS)
+    .map((option, index) => ({
+      label: option.label,
+      color: sanitizeRouletteColor(option.color, index),
+    }));
+}
+
+function sanitizeRouletteGiftRules(rawRules) {
+  const seen = new Set();
+
+  return rawRules
+    .map((rule) => ({
+      giftId: String(rule?.giftId ?? '').trim().slice(0, 40),
+      giftName: String(rule?.giftName ?? '').trim().slice(0, 80) || 'Regalo',
+      giftImageUrl: rule?.giftImageUrl ? String(rule.giftImageUrl).slice(0, 500) : '',
+      diamondCount: Math.max(0, Math.min(99999999, Math.round(Number(rule?.diamondCount)) || 0)),
+    }))
+    .filter((rule) => {
+      if (!rule.giftId || seen.has(rule.giftId)) return false;
+      seen.add(rule.giftId);
+      return true;
+    })
+    .slice(0, ROULETTE_MAX_GIFT_RULES);
+}
+
+function sanitizeRoulette(roulette) {
+  const hasOptions = Array.isArray(roulette?.options);
+
+  return {
+    enabled: roulette?.enabled !== false,
+    title: String(roulette?.title ?? 'Ruleta').trim().slice(0, 40),
+    spinSeconds: Math.max(3, Math.min(15, Math.round(Number(roulette?.spinSeconds)) || 6)),
+    resultSeconds: Math.max(2, Math.min(15, Math.round(Number(roulette?.resultSeconds)) || 5)),
+    sound: sanitizeOverlaySound(roulette?.sound),
+    spinPerGift: roulette?.spinPerGift === true,
+    // Estado guardado antes de existir este overlay (sin "options"): arranca
+    // con opciones de ejemplo para que la vista previa no salga vacia.
+    options: hasOptions
+      ? sanitizeRouletteOptions(roulette.options)
+      : sanitizeRouletteOptions(['Premio 1', 'Premio 2', 'Premio 3', 'Premio 4'].map((label) => ({ label }))),
+    giftRules: Array.isArray(roulette?.giftRules) ? sanitizeRouletteGiftRules(roulette.giftRules) : [],
+  };
+}
+
 function sanitizeOverlayState(payload) {
   const giftAlert = payload?.giftAlert || {};
   const goalBar = payload?.goalBar || {};
@@ -766,6 +834,7 @@ function sanitizeOverlayState(payload) {
       durationSeconds: Math.max(2, Math.min(15, Number(followAlert.durationSeconds) || 5)),
       sound: sanitizeOverlaySound(followAlert.sound),
     },
+    roulette: sanitizeRoulette(payload?.roulette),
     goalBar: {
       enabled: goalBar.enabled !== false,
       label: String(goalBar.label || 'Meta de la transmisión').trim().slice(0, 80) || 'Meta de la transmisión',

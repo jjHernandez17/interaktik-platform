@@ -965,7 +965,11 @@ function renderGiftRules() {
             <img class="gift-rule-thumb" src="${escapeHtml(imageUrl || '')}" alt="${escapeHtml(rule.name)}" onerror="this.style.display='none'" />
             <div>
               <strong class="team-name">${escapeHtml(rule.name)}</strong>
-              <small class="gift-rule-meta">${escapeHtml(team?.name || "Sin equipo")} • ${rule.points} punto(s) • ID ${escapeHtml(rule.giftId || 'N/D')}</small>
+              <div class="gift-rule-meta">
+                <span class="rule-chip rule-chip--team">${escapeHtml(team?.name || "Sin equipo")}</span>
+                <span class="rule-chip rule-chip--points">${rule.points} punto(s)</span>
+                <span class="rule-chip rule-chip--id">ID ${escapeHtml(rule.giftId || 'N/D')}</span>
+              </div>
             </div>
           </div>
           <div class="team-actions">
@@ -999,7 +1003,9 @@ function render() {
   syncTeamSelects();
   syncGiftSelect();
 
-  totalsSummary.textContent = `${state.teams.length} equipos • ${state.gifts.length} reglas • ${state.giftCatalog.length} regalos`;
+  if (totalsSummary) {
+    totalsSummary.textContent = `${state.teams.length} equipos • ${state.gifts.length} reglas • ${state.giftCatalog.length} regalos`;
+  }
   renderTeams();
   renderScoreboard();
   renderHistory();

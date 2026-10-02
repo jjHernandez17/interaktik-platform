@@ -8,7 +8,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="assets/css/design-system.css" />
     <link rel="stylesheet" href="assets/css/bg-effects.css?v=20260922a" />
-    <link rel="stylesheet" href="assets/css/auth.css?v=20260906a" />
+    <link rel="stylesheet" href="assets/css/auth.css?v=20261002a" />
   </head>
   <body>
     <div class="aurora-layer" aria-hidden="true">
@@ -104,6 +104,10 @@
             <li data-rule="special">Un caracter especial</li>
             <li data-rule="match">Las contrasenas coinciden</li>
           </ul>
+          <label class="terms-check" for="acceptTermsInput">
+            <input name="acceptTerms" id="acceptTermsInput" type="checkbox" required />
+            <span>Leí y acepto los <a href="terminos.html" target="_blank" rel="noopener noreferrer">términos y condiciones</a> de Interaktik.</span>
+          </label>
           <button type="submit" id="submitBtn" disabled>Registrarme</button>
           <p id="authMessage" class="message" aria-live="polite"></p>
         </form>
@@ -114,7 +118,7 @@
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>
     <script src="js/bg-effects.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="js/auth.js?v=20261002a"></script>
     <script>window.addEventListener('DOMContentLoaded', () => initBackgroundEffects('.auth-card'));</script>
   </body>
 </html>

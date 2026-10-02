@@ -39,8 +39,17 @@ function validatePasswordStrength(password) {
   }
 }
 
-async function register(name, email, password, baseUrl) {
+// Version del texto de frontend/terminos.html que se esta pidiendo aceptar.
+// Si cambias los terminos de forma importante, sube este valor junto con el
+// numero de version y la fecha que muestra esa pagina.
+const TERMS_VERSION = '1.0';
+
+async function register(name, email, password, baseUrl, acceptedTerms = false) {
   const normalizedEmail = normalizeEmail(email);
+
+  if (acceptedTerms !== true) {
+    throw new Error('Debes aceptar los terminos y condiciones para crear tu cuenta.');
+  }
 
   if (!name || !normalizedEmail || password.length < 6) {
     throw new Error('Debes completar nombre, correo y contrasena (minimo 6 caracteres).');
@@ -56,9 +65,9 @@ async function register(name, email, password, baseUrl) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO app_users (name, email, password_hash, email_verified)
-       VALUES ($1, $2, $3, false) RETURNING id, name, email`,
-      [name, normalizedEmail, passwordHash],
+      `INSERT INTO app_users (name, email, password_hash, email_verified, terms_accepted_at, terms_version)
+       VALUES ($1, $2, $3, false, NOW(), $4) RETURNING id, name, email`,
+      [name, normalizedEmail, passwordHash, TERMS_VERSION],
     );
 
     const user = result.rows[0];

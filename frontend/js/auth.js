@@ -102,6 +102,7 @@ function setupPasswordRules() {
   const passwordConfirmInput = document.getElementById("passwordConfirmInput");
   const rulesList = document.getElementById("passwordRules");
   const submitBtn = document.getElementById("submitBtn");
+  const termsInput = document.getElementById("acceptTermsInput");
 
   if (!passwordInput || !passwordConfirmInput || !rulesList || !submitBtn) {
     return null;
@@ -129,12 +130,16 @@ function setupPasswordRules() {
       if (!valid) allValid = false;
     });
 
-    submitBtn.disabled = !allValid;
+    // El boton solo se habilita con la contrasena valida Y los terminos
+    // aceptados (el servidor tambien lo exige, esto es solo para guiar).
+    const termsAccepted = !termsInput || termsInput.checked;
+    submitBtn.disabled = !(allValid && termsAccepted);
     return allValid;
   }
 
   passwordInput.addEventListener("input", update);
   passwordConfirmInput.addEventListener("input", update);
+  if (termsInput) termsInput.addEventListener("change", update);
   update();
 
   return update;
@@ -159,6 +164,7 @@ if (form) {
 
     if (mode === "register") {
       payload.name = String(form.name.value || "").trim();
+      payload.acceptTerms = Boolean(form.acceptTerms && form.acceptTerms.checked);
     }
 
     setButtonLoading(submitBtn, true);

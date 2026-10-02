@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="assets/images/favicon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
-  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20261002a" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002d" />
 </head>
 
 <body>
@@ -17,112 +17,176 @@
     <span class="ds-eyebrow">Cargando</span>
   </div>
 
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7" /></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+    </defs>
+  </svg>
+
   <a class="back-menu-btn" href="platform.html">← Volver</a>
 
-  <main class="roblox-shell">
-    <section class="roblox-hero">
-      <p class="eyebrow">Interaktik • Juego interactivo</p>
-      <h1>Roblox Parkour</h1>
-      <p class="subtitle">
-        Tú subes la torre de escaleras saltando como en un parkour normal. Los regalos de tus espectadores activan
-        poderes que te empujan hacia arriba o te mandan escaleras abajo. Aquí defines qué regalo hace qué y cuántas
-        escaleras mueve.
-      </p>
-    </section>
+  <main class="pk-shell">
 
-    <section class="card connection-card">
-      <div class="connection-header">
-        <h3>Conexión TikTok Live</h3>
-        <span id="parkourConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Roblox Parkour</h1>
+        <p>
+          Tú sube la torre saltando como en un parkour normal. Los regalos de tu live activan poderes que te empujan
+          hacia arriba, te mandan escaleras abajo o te dan un super salto. Aquí decides qué regalo hace qué.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="parkourHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="parkourHeroRoblox" data-state="off"><span class="pk-dot"></span>Cuenta de Roblox</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art">
+        <img src="assets/images/parkourInteractive.png" alt="Portada de Parkour Interactive" />
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="parkourConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="parkourConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="parkourConnectionForm" class="pk-inline-form">
+          <input id="parkourUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="parkourConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="parkourDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
       </div>
 
-      <form id="parkourConnectionForm" class="connection-form">
-        <input id="parkourUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
-        <button id="parkourConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
-        <button id="parkourDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
-      </form>
-
-      <p id="parkourConnectionDetails" class="hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Cuenta de Roblox</h2>
+            <p id="parkourLinkStatus" class="pk-hint">
+              Aún no has vinculado ninguna cuenta. Tu ID numérico está en roblox.com/users/<strong>TU_ID</strong>/profile.
+            </p>
+          </div>
+        </div>
+        <form id="parkourLinkForm" class="pk-inline-form">
+          <input id="parkourUserIdInput" type="text" inputmode="numeric" placeholder="ID numérico de Roblox" required />
+          <button id="parkourLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
+        </form>
+      </div>
     </section>
 
-    <section class="card config-card">
-      <div class="card-header">
-        <h3>Tu cuenta de Roblox</h3>
-      </div>
+    <!-- Reglas -->
+    <div class="pk-workspace">
 
-      <form id="parkourLinkForm" class="connection-form">
-        <input id="parkourUserIdInput" type="text" inputmode="numeric" placeholder="ID numerico de tu cuenta de Roblox" required />
-        <button id="parkourLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
-      </form>
-      <p id="parkourLinkStatus" class="hint">
-        Aún no has vinculado ninguna cuenta de Roblox. Busca tu ID numérico en tu perfil de Roblox
-        (roblox.com/users/<strong>TU_ID</strong>/profile).
-      </p>
-    </section>
+      <section class="pk-panel pk-rules" aria-labelledby="pkRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="pkRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo dispara un poder. Un combo multiplica el efecto: 5 rosas de "sube 3" suben 15 escaleras.</p>
+          </div>
+          <span id="parkourRuleCount" class="pk-count">0</span>
+        </div>
 
-    <section class="card rules-card">
-      <div class="card-header">
-        <h3>Reglas: regalo → poder</h3>
-      </div>
-      <p class="hint">
-        Elige un regalo, si te empuja hacia arriba o hacia abajo, y cuántas escaleras. Si un espectador manda un
-        combo (por ejemplo 5 rosas), las escaleras se multiplican por la cantidad.
-      </p>
+        <div id="parkourRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
+          </div>
+        </div>
+      </section>
 
-      <button id="parkourLoadGiftsBtn" class="btn ghost" type="button">Actualizar catálogo de regalos</button>
-
-      <form id="parkourRuleForm" class="roblox-config-grid">
-        <label>
-          Regalo
-          <div id="parkourGiftPicker" class="gift-picker">
-            <button id="parkourGiftPickerToggle" class="gift-picker-toggle" type="button">
-              <span id="parkourGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
-              <svg class="gift-picker-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.5 4.5L7 9L11.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="pkFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="pkFormTitle">Nueva regla</h2>
+            <button id="parkourLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
             </button>
+          </div>
 
-            <div id="parkourGiftPickerPanel" class="gift-picker-panel hidden">
-              <div class="gift-picker-filters">
-                <input id="parkourGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
-                <div class="gift-picker-coins-filter">
-                  <input id="parkourGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
-                  <input id="parkourGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+          <form id="parkourRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="parkourGiftPicker" class="gift-picker">
+                <button id="parkourGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="parkourGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="parkourGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="parkourGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="parkourGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="parkourGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="parkourGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
                 </div>
               </div>
-              <div id="parkourGiftPickerList" class="gift-picker-list">
-                <p class="muted">Carga el catálogo primero.</p>
-              </div>
             </div>
-          </div>
-        </label>
 
-        <label>
-          Poder
-          <select id="parkourRulePowerSelect">
-            <option value="subir">Subir escaleras (te empuja hacia arriba)</option>
-            <option value="bajar">Bajar escaleras (te empuja hacia abajo)</option>
-          </select>
-        </label>
+            <label class="pk-field">
+              <span class="pk-label">Poder</span>
+              <select id="parkourRulePowerSelect">
+                <option value="">Selecciona un poder</option>
+                <option value="nyan_cat">Nyan Cat</option>
+                <option value="super_salto">Super salto</option>
+              </select>
+            </label>
 
-        <label>
-          Escaleras por regalo
-          <input id="parkourRuleStairsInput" type="number" min="1" max="100" value="5" />
-        </label>
+            <div id="parkourNyanFields" class="pk-subfields" hidden>
+              <label class="pk-field">
+                <span class="pk-label">Acción</span>
+                <select id="parkourRuleActionSelect">
+                  <option value="subir">Subir escaleras</option>
+                  <option value="bajar">Bajar escaleras</option>
+                </select>
+              </label>
+              <label class="pk-field">
+                <span class="pk-label">Escaleras por regalo</span>
+                <input id="parkourRuleStairsInput" type="number" min="1" value="5" />
+              </label>
+            </div>
 
-        <button id="parkourRuleSaveBtn" class="btn primary" type="submit">Agregar regla</button>
-      </form>
+            <div id="parkourSuperFields" class="pk-subfields" hidden>
+              <label class="pk-field">
+                <span class="pk-label">Duración (segundos)</span>
+                <input id="parkourRuleDurationInput" type="number" min="1" value="10" />
+              </label>
+            </div>
 
-      <div id="parkourRulesList" class="rules-list">
-        <p class="muted">Aún no has configurado ninguna regla.</p>
-      </div>
-    </section>
+            <button id="parkourRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
   </main>
 
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-parkour.js?v=20261002a"></script>
+  <script src="js/roblox-parkour.js?v=20261002d"></script>
 </body>
 
 </html>

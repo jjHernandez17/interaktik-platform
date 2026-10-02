@@ -35,6 +35,14 @@ const ruleDurationInput = document.getElementById('robloxRuleDurationInput');
 const ruleSaveBtn = document.getElementById('robloxRuleSaveBtn');
 const rulesList = document.getElementById('robloxRulesList');
 const downloadTemplateBtn = document.getElementById('robloxDownloadTemplateBtn');
+const ruleCount = document.getElementById('robloxRuleCount');
+const heroTiktok = document.getElementById('robloxHeroTiktok');
+const heroRoblox = document.getElementById('robloxHeroRoblox');
+
+// Botones con icono: actualizar solo el texto sin perder el SVG
+function setBtnLabel(button, iconId, label, size = 14) {
+  button.innerHTML = `<svg width="${size}" height="${size}"><use href="#${iconId}" /></svg>${label}`;
+}
 
 let liveEventsSource = null;
 let liveConnected = false;
@@ -66,6 +74,7 @@ function setStatus(status, message = '') {
 
   statusBadge.textContent = labels[status] || status;
   statusBadge.className = `status-badge ${status}`;
+  if (heroTiktok) heroTiktok.dataset.state = (status === 'connected' || status === 'linked') ? 'on' : 'off';
   if (message) connectionDetails.textContent = message;
 }
 
@@ -197,6 +206,7 @@ function connectLiveEvents() {
 }
 
 function setLinkStatus(robloxUsername, robloxUserId) {
+  if (heroRoblox) heroRoblox.dataset.state = robloxUserId ? 'on' : 'off';
   if (robloxUserId) {
     linkStatus.innerHTML = `Cuenta vinculada: <strong>${robloxUsername ? escapeHtml(robloxUsername) : 'ID ' + robloxUserId}</strong> (ID ${robloxUserId}). Puedes volver a vincular otra cuenta cuando quieras.`;
   } else {
@@ -430,7 +440,7 @@ function toggleGiftPicker() {
 
 async function loadGiftCatalog(silent) {
   loadGiftsBtn.disabled = true;
-  loadGiftsBtn.textContent = 'Cargando...';
+  setBtnLabel(loadGiftsBtn, 'i-refresh', 'Cargando...');
 
   try {
     const response = await fetch('/api/catalog', {
@@ -461,7 +471,7 @@ async function loadGiftCatalog(silent) {
     }
   } finally {
     loadGiftsBtn.disabled = false;
-    loadGiftsBtn.textContent = 'Actualizar catálogo de regalos';
+    setBtnLabel(loadGiftsBtn, 'i-refresh', 'Actualizar regalos');
   }
 }
 
@@ -474,7 +484,7 @@ async function saveRule(event) {
   }
 
   ruleSaveBtn.disabled = true;
-  ruleSaveBtn.textContent = 'Guardando...';
+  setBtnLabel(ruleSaveBtn, 'i-plus', 'Guardando...', 16);
 
   try {
     const response = await fetch('/api/roblox-dance/rules', {
@@ -497,7 +507,7 @@ async function saveRule(event) {
     await showAlert(error.message, 'Error');
   } finally {
     ruleSaveBtn.disabled = false;
-    ruleSaveBtn.textContent = 'Agregar regla';
+    setBtnLabel(ruleSaveBtn, 'i-plus', 'Agregar regla', 16);
   }
 }
 
@@ -521,6 +531,18 @@ function getPowerDescription(power, seconds) {
   return `${POWER_LABELS[power] || power} · ${seconds}s`;
 }
 
+const POWER_CHIPS = {
+  fuego: { cls: 'fire', icon: 'i-flame' },
+  brillo: { cls: 'glow', icon: 'i-sparkle' },
+  gigante_principal: { cls: 'giant', icon: 'i-giant' },
+  sesion_fotos: { cls: 'photo', icon: 'i-camera' },
+};
+
+function powerChip(rule) {
+  const chip = POWER_CHIPS[rule.power] || { cls: 'giant', icon: 'i-bolt' };
+  return `<span class="pk-chip pk-chip--${chip.cls}"><svg width="13" height="13"><use href="#${chip.icon}" /></svg>${escapeHtml(POWER_LABELS[rule.power] || rule.power)} · ${escapeHtml(rule.duration_seconds)} s</span>`;
+}
+
 let currentRules = [];
 
 async function loadRules() {
@@ -530,20 +552,30 @@ async function loadRules() {
     const rules = Array.isArray(data.rules) ? data.rules : [];
     currentRules = rules;
 
+    ruleCount.textContent = String(rules.length);
+
     if (rules.length === 0) {
-      rulesList.innerHTML = '<p class="muted">Aún no has configurado ninguna regla.</p>';
+      rulesList.innerHTML = `
+        <div class="pk-empty">
+          <svg><use href="#i-bolt" /></svg>
+          <strong>Aún no hay reglas</strong>
+          <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
+        </div>`;
       return;
     }
 
     rulesList.innerHTML = rules.map((rule) => `
       <div class="rule-item" data-rule-id="${rule.id}">
+        ${rule.gift_image_url
+          ? `<img class="rule-gift" src="${escapeHtml(rule.gift_image_url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'), {className: 'rule-gift placeholder'}))" />`
+          : '<span class="rule-gift placeholder"><svg><use href="#i-bolt" /></svg></span>'}
         <div class="rule-info">
           <strong>${escapeHtml(rule.gift_name)}</strong>
-          <span class="muted">${escapeHtml(POWER_LABELS[rule.power] || rule.power)} · ${escapeHtml(rule.duration_seconds)}s</span>
+          ${powerChip(rule)}
         </div>
         <div class="rule-actions">
-          <button class="btn ghost small test-rule-btn" type="button">Probar</button>
-          <button class="btn danger small delete-rule-btn" type="button">Eliminar</button>
+          <button class="btn ghost small test-rule-btn" type="button" title="Activar este poder ahora"><svg><use href="#i-play" /></svg>Probar</button>
+          <button class="btn ghost small icon-only delete-rule-btn" type="button" title="Eliminar regla" aria-label="Eliminar regla"><svg><use href="#i-trash" /></svg></button>
         </div>
       </div>
     `).join('');
@@ -555,7 +587,7 @@ async function loadRules() {
       btn.addEventListener('click', () => deleteRule(btn.closest('.rule-item').dataset.ruleId));
     });
   } catch (error) {
-    rulesList.innerHTML = '<p class="muted">No se pudieron cargar las reglas.</p>';
+    rulesList.innerHTML = '<div class="pk-empty"><strong>No se pudieron cargar las reglas</strong><span>Recarga la página e inténtalo de nuevo.</span></div>';
   }
 }
 
@@ -632,7 +664,7 @@ async function downloadRulesTemplate() {
   }
 
   downloadTemplateBtn.disabled = true;
-  downloadTemplateBtn.textContent = 'Generando...';
+  setBtnLabel(downloadTemplateBtn, 'i-download', 'Generando...');
 
   try {
     const WIDTH = 860;
@@ -703,7 +735,7 @@ async function downloadRulesTemplate() {
     await showAlert(error.message || 'No se pudo generar la plantilla.', 'Error');
   } finally {
     downloadTemplateBtn.disabled = false;
-    downloadTemplateBtn.textContent = 'Descargar plantilla (PNG)';
+    setBtnLabel(downloadTemplateBtn, 'i-download', 'Descargar plantilla (PNG)');
   }
 }
 

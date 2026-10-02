@@ -64,6 +64,7 @@ router.post('/roblox-parkour/rules', requireAuth, requireActiveAccess, async (re
       giftImageUrl: req.body?.giftImageUrl,
       power: req.body?.power,
       stairs: req.body?.stairs,
+      durationSeconds: req.body?.durationSeconds,
     });
     return res.json({ rule });
   } catch (error) {

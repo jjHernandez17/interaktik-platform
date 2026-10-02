@@ -23,14 +23,38 @@ const giftFilterName = document.getElementById('parkourGiftFilterName');
 const giftFilterCoinsMin = document.getElementById('parkourGiftFilterCoinsMin');
 const giftFilterCoinsMax = document.getElementById('parkourGiftFilterCoinsMax');
 const rulePowerSelect = document.getElementById('parkourRulePowerSelect');
+const nyanFields = document.getElementById('parkourNyanFields');
+const superFields = document.getElementById('parkourSuperFields');
+const ruleDurationInput = document.getElementById('parkourRuleDurationInput');
+const ruleActionSelect = document.getElementById('parkourRuleActionSelect');
 const ruleStairsInput = document.getElementById('parkourRuleStairsInput');
 const ruleSaveBtn = document.getElementById('parkourRuleSaveBtn');
 const rulesList = document.getElementById('parkourRulesList');
+const ruleCount = document.getElementById('parkourRuleCount');
+const heroTiktok = document.getElementById('parkourHeroTiktok');
+const heroRoblox = document.getElementById('parkourHeroRoblox');
 
-const POWER_LABELS = {
-  subir: 'Subir escaleras',
-  bajar: 'Bajar escaleras',
-};
+// En la base de datos el "power" guardado es la acción del Nyan Cat (subir / bajar)
+// o "super_salto".
+function ruleChip(rule) {
+  if (rule.power === 'super_salto') {
+    return `<span class="pk-chip pk-chip--jump"><svg width="13" height="13"><use href="#i-bolt" /></svg>Super salto · ${escapeHtml(rule.duration_seconds)} s</span>`;
+  }
+  const down = rule.power === 'bajar';
+  const n = Number(rule.stairs);
+  return `<span class="pk-chip ${down ? 'pk-chip--down' : 'pk-chip--up'}"><svg width="13" height="13"><use href="#${down ? 'i-down' : 'i-up'}" /></svg>Nyan Cat · ${down ? 'baja' : 'sube'} ${escapeHtml(n)} ${n === 1 ? 'escalera' : 'escaleras'}</span>`;
+}
+
+// Botones con icono: actualizar solo el texto sin perder el SVG
+function setBtnLabel(button, iconId, label) {
+  button.innerHTML = `<svg width="${button === ruleSaveBtn ? 16 : 14}" height="${button === ruleSaveBtn ? 16 : 14}"><use href="#${iconId}" /></svg>${label}`;
+}
+
+// Cada poder muestra solo sus propios campos.
+function syncPowerFields() {
+  nyanFields.hidden = rulePowerSelect.value !== 'nyan_cat';
+  superFields.hidden = rulePowerSelect.value !== 'super_salto';
+}
 
 let liveEventsSource = null;
 let giftCatalog = [];
@@ -71,6 +95,7 @@ function setStatus(status, message = '') {
 
   statusBadge.textContent = labels[status] || status;
   statusBadge.className = `status-badge ${status}`;
+  if (heroTiktok) heroTiktok.dataset.state = (status === 'connected' || status === 'linked') ? 'on' : 'off';
   if (message) connectionDetails.textContent = message;
 }
 
@@ -159,6 +184,7 @@ function connectLiveEvents() {
 
 // ===== Cuenta de Roblox =====
 function setLinkStatus(robloxUsername, robloxUserId) {
+  if (heroRoblox) heroRoblox.dataset.state = robloxUserId ? 'on' : 'off';
   if (robloxUserId) {
     linkStatus.innerHTML = `Cuenta vinculada: <strong>${robloxUsername ? escapeHtml(robloxUsername) : 'ID ' + escapeHtml(robloxUserId)}</strong> (ID ${escapeHtml(robloxUserId)}). Puedes volver a vincular otra cuenta cuando quieras.`;
   } else {
@@ -329,7 +355,7 @@ function toggleGiftPicker() {
 
 async function loadGiftCatalog(silent) {
   loadGiftsBtn.disabled = true;
-  loadGiftsBtn.textContent = 'Cargando...';
+  setBtnLabel(loadGiftsBtn, 'i-refresh', 'Cargando...');
 
   try {
     const response = await fetch('/api/catalog', {
@@ -356,7 +382,7 @@ async function loadGiftCatalog(silent) {
     if (!silent) await showAlert(error.message, 'Error');
   } finally {
     loadGiftsBtn.disabled = false;
-    loadGiftsBtn.textContent = 'Actualizar catálogo de regalos';
+    setBtnLabel(loadGiftsBtn, 'i-refresh', 'Actualizar regalos');
   }
 }
 
@@ -369,8 +395,14 @@ async function saveRule(event) {
     return;
   }
 
+  const selectedPower = rulePowerSelect.value;
+  if (selectedPower !== 'nyan_cat' && selectedPower !== 'super_salto') {
+    await showAlert('Selecciona un poder.', 'Aviso');
+    return;
+  }
+
   ruleSaveBtn.disabled = true;
-  ruleSaveBtn.textContent = 'Guardando...';
+  setBtnLabel(ruleSaveBtn, 'i-plus', 'Guardando...');
 
   try {
     const response = await fetch('/api/roblox-parkour/rules', {
@@ -380,8 +412,9 @@ async function saveRule(event) {
         giftId: selectedGift.id,
         giftName: selectedGift.name,
         giftImageUrl: selectedGift.imageUrl || '',
-        power: rulePowerSelect.value,
+        power: selectedPower === 'super_salto' ? 'super_salto' : ruleActionSelect.value,
         stairs: Number(ruleStairsInput.value) || 5,
+        durationSeconds: Number(ruleDurationInput.value) || 10,
       }),
     });
 
@@ -393,7 +426,7 @@ async function saveRule(event) {
     await showAlert(error.message, 'Error');
   } finally {
     ruleSaveBtn.disabled = false;
-    ruleSaveBtn.textContent = 'Agregar regla';
+    setBtnLabel(ruleSaveBtn, 'i-plus', 'Agregar regla');
   }
 }
 
@@ -403,20 +436,30 @@ async function loadRules() {
     const data = await response.json();
     const rules = Array.isArray(data.rules) ? data.rules : [];
 
+    ruleCount.textContent = String(rules.length);
+
     if (rules.length === 0) {
-      rulesList.innerHTML = '<p class="muted">Aún no has configurado ninguna regla.</p>';
+      rulesList.innerHTML = `
+        <div class="pk-empty">
+          <svg><use href="#i-bolt" /></svg>
+          <strong>Aún no hay reglas</strong>
+          <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
+        </div>`;
       return;
     }
 
     rulesList.innerHTML = rules.map((rule) => `
       <div class="rule-item" data-rule-id="${rule.id}">
+        ${rule.gift_image_url
+          ? `<img class="rule-gift" src="${escapeHtml(rule.gift_image_url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'), {className: 'rule-gift placeholder'}))" />`
+          : '<span class="rule-gift placeholder"><svg><use href="#i-bolt" /></svg></span>'}
         <div class="rule-info">
           <strong>${escapeHtml(rule.gift_name)}</strong>
-          <span class="muted">${escapeHtml(POWER_LABELS[rule.power] || rule.power)} · ${escapeHtml(rule.stairs)} ${Number(rule.stairs) === 1 ? 'escalera' : 'escaleras'}</span>
+          ${ruleChip(rule)}
         </div>
         <div class="rule-actions">
-          <button class="btn ghost small test-rule-btn" type="button">Probar</button>
-          <button class="btn danger small delete-rule-btn" type="button">Eliminar</button>
+          <button class="btn ghost small test-rule-btn" type="button" title="Enviar este poder al juego ahora"><svg><use href="#i-play" /></svg>Probar</button>
+          <button class="btn ghost small icon-only delete-rule-btn" type="button" title="Eliminar regla" aria-label="Eliminar regla"><svg><use href="#i-trash" /></svg></button>
         </div>
       </div>
     `).join('');
@@ -428,7 +471,7 @@ async function loadRules() {
       btn.addEventListener('click', () => deleteRule(btn.closest('.rule-item').dataset.ruleId));
     });
   } catch (error) {
-    rulesList.innerHTML = '<p class="muted">No se pudieron cargar las reglas.</p>';
+    rulesList.innerHTML = '<div class="pk-empty"><strong>No se pudieron cargar las reglas</strong><span>Recarga la página e inténtalo de nuevo.</span></div>';
   }
 }
 
@@ -467,6 +510,8 @@ function bootstrapEventListeners() {
 
   loadGiftsBtn.addEventListener('click', () => loadGiftCatalog());
   ruleForm.addEventListener('submit', saveRule);
+  rulePowerSelect.addEventListener('change', syncPowerFields);
+  syncPowerFields();
 
   giftPickerToggle.addEventListener('click', toggleGiftPicker);
   giftFilterName.addEventListener('input', renderGiftPickerList);

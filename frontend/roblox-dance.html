@@ -8,7 +8,9 @@
   <link rel="icon" type="image/png" href="assets/images/favicon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
-  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20260907a" />
+  <!-- Base compartida con Roblox Parkour + ajustes propios de Dance -->
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002d" />
+  <link rel="stylesheet" href="assets/css/roblox-dance.css?v=20261002a" />
 </head>
 
 <body>
@@ -17,148 +19,212 @@
     <span class="ds-eyebrow">Cargando</span>
   </div>
 
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-7 0-3-1.7-5-3.2-6.6C14.5 7 14 5.5 14 4c-2.6 1.3-4.4 3.4-5 6-.7-.7-1-1.6-1-2.6C6.2 9.4 5 11.8 5 15c0 4.2 3 7 7 7z" /></symbol>
+      <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z" /></symbol>
+      <symbol id="i-giant" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5M9 9h6v6H9z" /></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4V8zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" /></symbol>
+    </defs>
+  </svg>
+
   <a class="back-menu-btn" href="platform.html">← Volver</a>
 
-  <main class="roblox-shell">
-    <section class="roblox-hero">
-      <p class="eyebrow">Interaktik • Juego interactivo</p>
-      <h1>Roblox Dance</h1>
-      <p class="subtitle">
-        Los espectadores comentan tu palabra clave seguida de su usuario de Roblox (ej. "join MiUsuario") y su avatar
-        real aparece dentro de tu partida de Roblox Studio, con su nombre de TikTok flotando encima.
-      </p>
-    </section>
+  <main class="pk-shell">
 
-    <section class="card connection-card">
-      <div class="connection-header">
-        <h3>Conexión TikTok Live</h3>
-        <span id="robloxConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Roblox Dance</h1>
+        <p>
+          Tus espectadores comentan tu palabra clave seguida de su usuario de Roblox (por ejemplo «join MiUsuario») y su
+          avatar real aparece bailando en tu partida, con su nombre de TikTok flotando encima.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="robloxHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="robloxHeroRoblox" data-state="off"><span class="pk-dot"></span>Cuenta de Roblox</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art pk-hero-art--dance">
+        <img src="assets/images/DanceTik.png" alt="Portada de DanceTik" />
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="robloxConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="robloxConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="robloxConnectionForm" class="pk-inline-form">
+          <input id="robloxUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="robloxConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="robloxDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
       </div>
 
-      <form id="robloxConnectionForm" class="connection-form">
-        <input id="robloxUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
-        <button id="robloxConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
-        <button id="robloxDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
-      </form>
-
-      <p id="robloxConnectionDetails" class="hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
-    </section>
-
-    <section class="card config-card">
-      <div class="card-header">
-        <h3>Tu cuenta de Roblox</h3>
-      </div>
-
-      <form id="robloxLinkForm" class="connection-form">
-        <input id="robloxUserIdInput" type="text" inputmode="numeric" placeholder="ID numerico de tu cuenta de Roblox" required />
-        <button id="robloxLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
-      </form>
-      <p id="robloxLinkStatus" class="hint">
-        Aún no has vinculado ninguna cuenta de Roblox. Busca tu ID numérico en tu perfil de Roblox
-        (roblox.com/users/<strong>TU_ID</strong>/profile).
-      </p>
-    </section>
-
-    <section class="card config-card">
-      <div class="card-header">
-        <h3>Configuración del juego</h3>
-      </div>
-
-      <form id="robloxConfigForm" class="roblox-config-grid">
-        <label>
-          Palabra clave para unirse
-          <input id="robloxJoinKeywordInput" type="text" maxlength="40" placeholder="join" />
-        </label>
-
-        <button id="robloxConfigSaveBtn" class="btn primary" type="submit">Guardar configuración</button>
-      </form>
-
-      <div class="test-spawn-row">
-        <button id="robloxTestSpawnBtn" class="btn accent" type="button">Enviar spawn de prueba</button>
-        <p id="robloxTestSpawnStatus" class="hint"></p>
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Cuenta de Roblox</h2>
+            <p id="robloxLinkStatus" class="pk-hint">
+              Aún no has vinculado ninguna cuenta. Tu ID numérico está en roblox.com/users/<strong>TU_ID</strong>/profile.
+            </p>
+          </div>
+        </div>
+        <form id="robloxLinkForm" class="pk-inline-form">
+          <input id="robloxUserIdInput" type="text" inputmode="numeric" placeholder="ID numérico de Roblox" required />
+          <button id="robloxLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
+        </form>
       </div>
     </section>
 
-    <section class="card rules-card">
-      <div class="card-header">
-        <h3>Reglas: regalo → poder</h3>
-      </div>
-      <p class="hint">
-        Cuando un espectador mande el regalo que elijas, su personaje se destaca con el poder configurado y
-        deja de perder su lugar en la fila mientras el poder está activo.
-      </p>
+    <div class="pk-workspace">
 
-      <button id="robloxLoadGiftsBtn" class="btn ghost" type="button">Actualizar catálogo de regalos</button>
+      <div class="pk-main">
+        <!-- Reglas -->
+        <section class="pk-panel pk-rules" aria-labelledby="dkRulesTitle">
+          <div class="pk-panel-head">
+            <div>
+              <h2 id="dkRulesTitle">Reglas de regalos</h2>
+              <p class="pk-hint">
+                Cuando un espectador manda el regalo que elijas, su personaje se destaca con el poder configurado y no
+                pierde su lugar en la fila mientras dure.
+              </p>
+            </div>
+            <span id="robloxRuleCount" class="pk-count">0</span>
+          </div>
 
-      <form id="robloxRuleForm" class="roblox-config-grid">
-        <label>
-          Regalo
-          <div id="robloxGiftPicker" class="gift-picker">
-            <button id="robloxGiftPickerToggle" class="gift-picker-toggle" type="button">
-              <span id="robloxGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
-              <svg class="gift-picker-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.5 4.5L7 9L11.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
-
-            <div id="robloxGiftPickerPanel" class="gift-picker-panel hidden">
-              <div class="gift-picker-filters">
-                <input id="robloxGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
-                <div class="gift-picker-coins-filter">
-                  <input id="robloxGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
-                  <input id="robloxGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
-                </div>
-              </div>
-              <div id="robloxGiftPickerList" class="gift-picker-list">
-                <p class="muted">Carga el catálogo primero.</p>
-              </div>
+          <div id="robloxRulesList" class="pk-rules-list">
+            <div class="pk-empty">
+              <svg><use href="#i-bolt" /></svg>
+              <strong>Aún no hay reglas</strong>
+              <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
             </div>
           </div>
-        </label>
 
-        <label>
-          Poder
-          <select id="robloxRulePowerSelect">
-            <option value="fuego">Fuego</option>
-            <option value="brillo">Brillo</option>
-            <option value="gigante_principal">Gigante principal</option>
-            <option value="sesion_fotos">Sesión de fotos</option>
-          </select>
-        </label>
+          <div class="pk-panel-foot">
+            <button id="robloxDownloadTemplateBtn" class="btn ghost small" type="button">
+              <svg width="14" height="14"><use href="#i-download" /></svg>Descargar plantilla (PNG)
+            </button>
+            <p class="pk-hint">Imagen sin fondo con tus reglas (regalo, imagen y poder) para usarla como overlay en tu transmisión.</p>
+          </div>
+        </section>
 
-        <label>
-          Duración (segundos)
-          <input id="robloxRuleDurationInput" type="number" min="1" max="60" value="5" />
-        </label>
-
-        <button id="robloxRuleSaveBtn" class="btn primary" type="submit">Agregar regla</button>
-      </form>
-
-      <div id="robloxRulesList" class="rules-list">
-        <p class="muted">Aún no has configurado ninguna regla.</p>
+        <!-- Actividad -->
+        <section class="pk-panel" aria-labelledby="dkActivityTitle">
+          <div class="pk-panel-head">
+            <div>
+              <h2 id="dkActivityTitle">Actividad reciente</h2>
+              <p class="pk-hint">Comentarios con tu palabra clave que se van detectando en el live.</p>
+            </div>
+          </div>
+          <div id="robloxActivityList" class="activity-list">
+            <p class="muted">Aún no se ha detectado ningún comentario con la palabra clave.</p>
+          </div>
+        </section>
       </div>
 
-      <div class="rules-template-row">
-        <button id="robloxDownloadTemplateBtn" class="btn ghost" type="button">Descargar plantilla (PNG)</button>
-        <p class="hint">Genera una imagen sin fondo con todas tus reglas (regalo, imagen y poder) para usarla como overlay en tu transmisión.</p>
-      </div>
-    </section>
+      <aside class="pk-side">
+        <!-- Partida -->
+        <section class="pk-panel" aria-labelledby="dkGameTitle">
+          <div class="pk-panel-head">
+            <h2 id="dkGameTitle">Partida</h2>
+          </div>
 
-    <section class="card activity-card">
-      <div class="card-header">
-        <h2>Actividad reciente</h2>
-        <span class="pill">Solicitudes detectadas</span>
-      </div>
-      <div id="robloxActivityList" class="activity-list">
-        <p class="muted">Aún no se ha detectado ningún comentario con la palabra clave.</p>
-      </div>
-    </section>
+          <form id="robloxConfigForm" class="pk-form">
+            <label class="pk-field">
+              <span class="pk-label">Palabra clave para unirse</span>
+              <input id="robloxJoinKeywordInput" type="text" maxlength="40" placeholder="join" />
+            </label>
+            <button id="robloxConfigSaveBtn" class="btn primary pk-submit" type="submit">Guardar configuración</button>
+          </form>
+
+          <div class="pk-sep">
+            <button id="robloxTestSpawnBtn" class="btn ghost pk-submit" type="button">
+              <svg width="16" height="16"><use href="#i-play" /></svg>Enviar spawn de prueba
+            </button>
+            <p id="robloxTestSpawnStatus" class="pk-hint"></p>
+          </div>
+        </section>
+
+        <!-- Nueva regla -->
+        <section class="pk-panel pk-form-panel" aria-labelledby="dkFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="dkFormTitle">Nueva regla</h2>
+            <button id="robloxLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg width="14" height="14"><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="robloxRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="robloxGiftPicker" class="gift-picker">
+                <button id="robloxGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="robloxGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="robloxGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="robloxGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="robloxGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="robloxGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="robloxGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Poder</span>
+              <select id="robloxRulePowerSelect">
+                <option value="fuego">Fuego</option>
+                <option value="brillo">Brillo</option>
+                <option value="gigante_principal">Gigante principal</option>
+                <option value="sesion_fotos">Sesión de fotos</option>
+              </select>
+            </label>
+
+            <label class="pk-field">
+              <span class="pk-label">Duración (segundos)</span>
+              <input id="robloxRuleDurationInput" type="number" min="1" max="60" value="5" />
+            </label>
+
+            <button id="robloxRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg width="16" height="16"><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
   </main>
 
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-dance.js?v=20260930a"></script>
+  <script src="js/roblox-dance.js?v=20261002a"></script>
 </body>
 
 </html>

@@ -10,10 +10,17 @@ const pool = require('../database/pool');
 const logger = require('../config/logger');
 const { isSuperUserEmail } = require('../middleware/auth');
 
-const VALID_POWERS = new Set(['subir', 'bajar']);
+// 'subir' y 'bajar' son las dos acciones del Nyan Cat; 'super_salto' dura N segundos.
+const VALID_POWERS = new Set(['subir', 'bajar', 'super_salto']);
 const MIN_STAIRS = 1;
-const MAX_STAIRS_PER_RULE = 100;
-const MAX_STAIRS_PER_QUEUE_ITEM = 500;
+// Sin límite práctico: la torre tiene 500 escaleras, así que cualquier valor
+// mayor simplemente lleva al jugador hasta la meta o hasta la isla. Estos tope
+// solo evitan desbordar la columna INTEGER de PostgreSQL (máx. ~2.147 millones).
+const MAX_STAIRS_PER_RULE = 1000000000;
+const MAX_STAIRS_PER_QUEUE_ITEM = 2000000000;
+const MIN_DURATION_SECONDS = 1;
+const MAX_DURATION_SECONDS = 86400; // tope técnico: 24 h
+const DEFAULT_DURATION_SECONDS = 10;
 
 const giftRuleCache = new Map();
 
@@ -28,6 +35,11 @@ function clampStairs(value) {
   return Math.min(MAX_STAIRS_PER_RULE, Math.max(MIN_STAIRS, parsed));
 }
 
+function clampDuration(value) {
+  const parsed = Math.round(Number(value) || DEFAULT_DURATION_SECONDS);
+  return Math.min(MAX_DURATION_SECONDS, Math.max(MIN_DURATION_SECONDS, parsed));
+}
+
 function invalidateGiftRuleCache(userId) {
   giftRuleCache.delete(Number(userId));
 }
@@ -37,7 +49,7 @@ async function getGiftRulesByGiftId(userId) {
   if (cached) return cached;
 
   const result = await pool.query(
-    'SELECT gift_id, power, stairs FROM roblox_parkour_gift_rules WHERE user_id = $1',
+    'SELECT gift_id, power, stairs, duration_seconds FROM roblox_parkour_gift_rules WHERE user_id = $1',
     [userId],
   );
 
@@ -110,7 +122,7 @@ async function linkRobloxAccount(userId, robloxUserId) {
 
 async function listGiftRules(userId) {
   const result = await pool.query(
-    `SELECT id, gift_id, gift_name, gift_image_url, power, stairs, created_at
+    `SELECT id, gift_id, gift_name, gift_image_url, power, stairs, duration_seconds, created_at
      FROM roblox_parkour_gift_rules
      WHERE user_id = $1
      ORDER BY created_at ASC`,
@@ -119,7 +131,7 @@ async function listGiftRules(userId) {
   return result.rows;
 }
 
-async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, stairs }) {
+async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, stairs, durationSeconds }) {
   const cleanGiftId = String(giftId || '').trim().slice(0, 60);
   const cleanGiftName = String(giftName || '').trim().slice(0, 120);
   const cleanPower = String(power || 'subir').trim();
@@ -127,17 +139,23 @@ async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, s
   if (!cleanGiftId || !cleanGiftName) throw badRequest('Debes seleccionar un regalo.');
   if (!VALID_POWERS.has(cleanPower)) throw badRequest('Poder no valido.');
 
+  // Super salto: solo importa la duración. Nyan Cat: solo importan las escaleras.
+  const isSuperJump = cleanPower === 'super_salto';
+  const ruleStairs = isSuperJump ? 1 : clampStairs(stairs);
+  const ruleDuration = isSuperJump ? clampDuration(durationSeconds) : DEFAULT_DURATION_SECONDS;
+
   const result = await pool.query(
-    `INSERT INTO roblox_parkour_gift_rules (user_id, gift_id, gift_name, gift_image_url, power, stairs)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO roblox_parkour_gift_rules (user_id, gift_id, gift_name, gift_image_url, power, stairs, duration_seconds)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (user_id, gift_id) DO UPDATE SET
        gift_name = EXCLUDED.gift_name,
        gift_image_url = EXCLUDED.gift_image_url,
        power = EXCLUDED.power,
        stairs = EXCLUDED.stairs,
+       duration_seconds = EXCLUDED.duration_seconds,
        updated_at = NOW()
-     RETURNING id, gift_id, gift_name, gift_image_url, power, stairs, created_at`,
-    [userId, cleanGiftId, cleanGiftName, giftImageUrl || null, cleanPower, clampStairs(stairs)],
+     RETURNING id, gift_id, gift_name, gift_image_url, power, stairs, duration_seconds, created_at`,
+    [userId, cleanGiftId, cleanGiftName, giftImageUrl || null, cleanPower, ruleStairs, ruleDuration],
   );
 
   invalidateGiftRuleCache(userId);
@@ -152,11 +170,11 @@ async function deleteGiftRule(userId, ruleId) {
   invalidateGiftRuleCache(userId);
 }
 
-async function enqueuePower(userId, { uniqueId, nickname, power, stairs }) {
+async function enqueuePower(userId, { uniqueId, nickname, power, stairs, durationSeconds }) {
   await pool.query(
-    `INSERT INTO roblox_parkour_power_queue (user_id, tiktok_unique_id, tiktok_nickname, power, stairs)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [userId, String(uniqueId).slice(0, 120), String(nickname).slice(0, 120), power, stairs],
+    `INSERT INTO roblox_parkour_power_queue (user_id, tiktok_unique_id, tiktok_nickname, power, stairs, duration_seconds)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [userId, String(uniqueId).slice(0, 120), String(nickname).slice(0, 120), power, stairs || 0, durationSeconds || 0],
   );
 }
 
@@ -174,14 +192,21 @@ async function handleGift(userId, { giftId, repeatCount, user } = {}) {
   const uniqueId = String(user?.uniqueId || '').trim() || 'espectador';
   const nickname = String(user?.nickname || uniqueId);
   const units = Math.max(1, Math.round(Number(repeatCount) || 1));
-  const stairs = Math.min(MAX_STAIRS_PER_QUEUE_ITEM, Number(rule.stairs) * units);
 
+  if (rule.power === 'super_salto') {
+    // Un combo suma tiempo: 5 regalos de 10 s = 50 s de super salto.
+    const durationSeconds = Math.min(MAX_DURATION_SECONDS, Number(rule.duration_seconds) * units);
+    await enqueuePower(userId, { uniqueId, nickname, power: rule.power, stairs: 0, durationSeconds });
+    return;
+  }
+
+  const stairs = Math.min(MAX_STAIRS_PER_QUEUE_ITEM, Number(rule.stairs) * units);
   await enqueuePower(userId, { uniqueId, nickname, power: rule.power, stairs });
 }
 
 async function enqueueTestPower(userId, ruleId) {
   const ruleResult = await pool.query(
-    'SELECT power, stairs FROM roblox_parkour_gift_rules WHERE id = $1 AND user_id = $2',
+    'SELECT power, stairs, duration_seconds FROM roblox_parkour_gift_rules WHERE id = $1 AND user_id = $2',
     [ruleId, userId],
   );
 
@@ -196,7 +221,8 @@ async function enqueueTestPower(userId, ruleId) {
     uniqueId: 'test-user',
     nickname: 'Prueba',
     power: rule.power,
-    stairs: rule.stairs,
+    stairs: rule.power === 'super_salto' ? 0 : rule.stairs,
+    durationSeconds: rule.power === 'super_salto' ? rule.duration_seconds : 0,
   });
 }
 
@@ -210,7 +236,7 @@ async function pollPowerQueue(userId, limit = 20) {
        ORDER BY created_at ASC
        LIMIT $2
      )
-     RETURNING id, tiktok_unique_id, tiktok_nickname, power, stairs, created_at`,
+     RETURNING id, tiktok_unique_id, tiktok_nickname, power, stairs, duration_seconds, created_at`,
     [userId, limit],
   );
   return result.rows;

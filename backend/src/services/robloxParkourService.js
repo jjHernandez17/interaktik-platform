@@ -10,8 +10,9 @@ const pool = require('../database/pool');
 const logger = require('../config/logger');
 const { isSuperUserEmail } = require('../middleware/auth');
 
-// 'subir' y 'bajar' son las dos acciones del Nyan Cat; 'super_salto' dura N segundos.
-const VALID_POWERS = new Set(['subir', 'bajar', 'super_salto']);
+// 'subir' y 'bajar' son las dos acciones del Nyan Cat; 'puno_subir' y 'puno_bajar'
+// hacen lo mismo con la animacion del Puño, 'goku_*' con la de Goku y 'capa_*' con la capa voladora y 'tung_*' con Tung Tung Sahur; 'super_salto' dura N segundos.
+const VALID_POWERS = new Set(['subir', 'bajar', 'puno_subir', 'puno_bajar', 'goku_subir', 'goku_bajar', 'capa_subir', 'capa_bajar', 'tung_subir', 'tung_bajar', 'super_salto']);
 const MIN_STAIRS = 1;
 // Sin límite práctico: la torre tiene 500 escaleras, así que cualquier valor
 // mayor simplemente lleva al jugador hasta la meta o hasta la isla. Estos tope
@@ -139,7 +140,7 @@ async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, s
   if (!cleanGiftId || !cleanGiftName) throw badRequest('Debes seleccionar un regalo.');
   if (!VALID_POWERS.has(cleanPower)) throw badRequest('Poder no valido.');
 
-  // Super salto: solo importa la duración. Nyan Cat: solo importan las escaleras.
+  // Super salto: solo importa la duración. Nyan Cat, Puño, Goku, Capa y Tung Tung Sahur: solo importan las escaleras.
   const isSuperJump = cleanPower === 'super_salto';
   const ruleStairs = isSuperJump ? 1 : clampStairs(stairs);
   const ruleDuration = isSuperJump ? clampDuration(durationSeconds) : DEFAULT_DURATION_SECONDS;

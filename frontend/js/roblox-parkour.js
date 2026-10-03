@@ -40,9 +40,11 @@ function ruleChip(rule) {
   if (rule.power === 'super_salto') {
     return `<span class="pk-chip pk-chip--jump"><svg width="13" height="13"><use href="#i-bolt" /></svg>Super salto · ${escapeHtml(rule.duration_seconds)} s</span>`;
   }
-  const down = rule.power === 'bajar';
+  const kinds = { goku_: 'Goku', puno_: 'Puño', capa_: 'Capa voladora', tung_: 'Tung Tung Sahur' };
+  const kind = kinds[String(rule.power).slice(0, 5)] || 'Nyan Cat';
+  const down = String(rule.power).endsWith('bajar');
   const n = Number(rule.stairs);
-  return `<span class="pk-chip ${down ? 'pk-chip--down' : 'pk-chip--up'}"><svg width="13" height="13"><use href="#${down ? 'i-down' : 'i-up'}" /></svg>Nyan Cat · ${down ? 'baja' : 'sube'} ${escapeHtml(n)} ${n === 1 ? 'escalera' : 'escaleras'}</span>`;
+  return `<span class="pk-chip ${down ? 'pk-chip--down' : 'pk-chip--up'}"><svg width="13" height="13"><use href="#${down ? 'i-down' : 'i-up'}" /></svg>${kind} · ${down ? 'baja' : 'sube'} ${escapeHtml(n)} ${n === 1 ? 'escalera' : 'escaleras'}</span>`;
 }
 
 // Botones con icono: actualizar solo el texto sin perder el SVG
@@ -52,7 +54,8 @@ function setBtnLabel(button, iconId, label) {
 
 // Cada poder muestra solo sus propios campos.
 function syncPowerFields() {
-  nyanFields.hidden = rulePowerSelect.value !== 'nyan_cat';
+  // Nyan Cat y Puño comparten campos: acción (subir/bajar) y cantidad de escaleras.
+  nyanFields.hidden = !['nyan_cat', 'puno', 'goku', 'capa', 'tung'].includes(rulePowerSelect.value);
   superFields.hidden = rulePowerSelect.value !== 'super_salto';
 }
 
@@ -396,7 +399,7 @@ async function saveRule(event) {
   }
 
   const selectedPower = rulePowerSelect.value;
-  if (selectedPower !== 'nyan_cat' && selectedPower !== 'super_salto') {
+  if (!['nyan_cat', 'puno', 'goku', 'capa', 'tung', 'super_salto'].includes(selectedPower)) {
     await showAlert('Selecciona un poder.', 'Aviso');
     return;
   }
@@ -412,7 +415,9 @@ async function saveRule(event) {
         giftId: selectedGift.id,
         giftName: selectedGift.name,
         giftImageUrl: selectedGift.imageUrl || '',
-        power: selectedPower === 'super_salto' ? 'super_salto' : ruleActionSelect.value,
+        power: selectedPower === 'super_salto'
+          ? 'super_salto'
+          : (['puno', 'goku', 'capa', 'tung'].includes(selectedPower) ? `${selectedPower}_${ruleActionSelect.value}` : ruleActionSelect.value),
         stairs: Number(ruleStairsInput.value) || 5,
         durationSeconds: Number(ruleDurationInput.value) || 10,
       }),

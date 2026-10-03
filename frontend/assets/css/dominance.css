@@ -1159,3 +1159,117 @@ body:not(.kills-mode) .soldier-hp {
 body:not(.kills-mode) .soldier-hp {
   display: none;
 }
+
+/* =========================
+   DOMINANCE - SIMULACION DE PARTIDA (solo superusuario)
+   ========================= */
+
+.dominance-sim-card[hidden] {
+  display: none;
+}
+
+.dominance-sim-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.14);
+  color: #facc15;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.dominance-sim-switches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.dominance-sim-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.35);
+  cursor: pointer;
+}
+
+.dominance-sim-switch strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.dominance-sim-switch small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.78rem;
+}
+
+.dominance-sim-toggle {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 26px;
+}
+
+.dominance-sim-toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.dominance-sim-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  transition: background 180ms ease;
+}
+
+.dominance-sim-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 180ms ease;
+}
+
+.dominance-sim-toggle input:checked + .dominance-sim-track {
+  background: #22c55e;
+}
+
+.dominance-sim-toggle input:checked + .dominance-sim-track::after {
+  transform: translateX(20px);
+}
+
+.dominance-sim-toggle input:focus-visible + .dominance-sim-track {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.dominance-sim-status {
+  margin-top: 12px;
+}
+
+/* Con 1000 soldados en pantalla se aligeran los efectos de cada avatar */
+body.dominance-sim .soldier {
+  will-change: auto;
+}
+
+body.dominance-sim .soldier-avatar {
+  border-width: 1.5px;
+  box-shadow: none;
+}

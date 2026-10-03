@@ -1,0 +1,21 @@
+# Interaktik — Minecraft interactivo
+#
+# 1) Copia tu llave desde el panel (Juegos > Minecraft Interactivo > "Conecta tu servidor")
+#    y pégala aquí. No la compartas con nadie.
+# 2) Guarda el archivo y ejecuta  /interaktik reload  (o reinicia el servidor).
+# El jugador al que se le aplican las acciones es el usuario de Minecraft que guardaste en el panel.
+
+server-key: ""
+
+# Dirección de la plataforma. No la cambies a menos que te lo indiquemos.
+api-url: "https://interaktik-platform-production.up.railway.app"
+
+# Cada cuántos segundos consulta si llegaron regalos (1 a 10).
+poll-seconds: 1
+
+# Avisa en pantalla quién mandó cada acción ("Maria te lanzó 3 Zombies").
+announce: true
+
+# El TNT de los regalos hace daño al jugador pero NO rompe bloques (protege tu mundo).
+# Ponlo en true si quieres que también destruya el terreno.
+tnt-destroys-blocks: false

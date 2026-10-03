@@ -315,6 +315,10 @@ const VALID_PROJECTILE_TYPES = [
   'fireball', 'bomb', 'heal-orb', 'shield-wave',
 ];
 
+// Tope de soldados por equipo en Dominance (en cualquier modo de juego). El frontend
+// (dominance.js) aplica el mismo limite al reclutar.
+const MAX_SOLDIERS_PER_TEAM = 40;
+
 function sanitizeDominancePower(power, index) {
   return {
     id: String(power?.id || `power-${index + 1}-${Math.random().toString(36).slice(2, 8)}`),
@@ -540,11 +544,11 @@ function sanitizeDominanceGameState(payload) {
 
     soldiers: {
       left: Array.isArray(payload?.soldiers?.left)
-        ? payload.soldiers.left.slice(0, 500).map((soldier) => sanitizeSoldier(soldier, 'left'))
+        ? payload.soldiers.left.slice(0, MAX_SOLDIERS_PER_TEAM).map((soldier) => sanitizeSoldier(soldier, 'left'))
         : [],
 
       right: Array.isArray(payload?.soldiers?.right)
-        ? payload.soldiers.right.slice(0, 500).map((soldier) => sanitizeSoldier(soldier, 'right'))
+        ? payload.soldiers.right.slice(0, MAX_SOLDIERS_PER_TEAM).map((soldier) => sanitizeSoldier(soldier, 'right'))
         : [],
     },
 

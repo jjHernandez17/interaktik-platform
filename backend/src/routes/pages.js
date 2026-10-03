@@ -760,8 +760,32 @@ router.get('/roblox-parkour.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-parkour.js'));
 });
 
+// Minecraft interactivo
+router.get(['/minecraft', '/minecraft.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'minecraft'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/minecraft.html', 'Minecraft page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/minecraft.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/minecraft.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft.js'));
+});
+
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
+// Plugin de Minecraft (frontend/downloads/InteraktikMinecraft.jar, compilado desde minecraft-plugin/)
+router.use('/downloads', express.static(path.join(__dirname, '../../../frontend/downloads')));
 router.use('/js', express.static(path.join(__dirname, '../../../frontend/js')));
 
 // Config endpoint

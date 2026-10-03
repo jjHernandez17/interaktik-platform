@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minecraft Interactivo | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/minecraft.css?v=20261010e" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12C19 16.5 12 21 12 21z" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Minecraft Interactivo</h1>
+        <p>
+          Juegas Minecraft normal y los regalos de tu live te ayudan o te molestan: te lanzan zombies, TNT y rayos,
+          o te regalan diamantes, manzanas doradas y un golem de hierro. Aquí decides qué regalo hace qué.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="mcHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="mcHeroServer" data-state="off"><span class="pk-dot"></span>Juego conectado</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art mc-hero-art" aria-hidden="true">
+        <svg viewBox="0 0 320 260" class="mc-block-art">
+          <defs>
+            <linearGradient id="mcSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#6ec6ff" />
+              <stop offset="1" stop-color="#bfe7ff" />
+            </linearGradient>
+          </defs>
+          <rect width="320" height="260" rx="22" fill="url(#mcSky)" />
+          <!-- bloque de hierba en isometrica -->
+          <g transform="translate(160 138)">
+            <polygon points="0,-82 86,-38 0,6 -86,-38" fill="#5fbf3a" />
+            <polygon points="0,6 86,-38 86,56 0,100" fill="#8a5a33" />
+            <polygon points="0,6 -86,-38 -86,56 0,100" fill="#6e4524" />
+            <polygon points="0,6 86,-38 86,-20 0,24" fill="#4f9d2c" />
+            <polygon points="0,6 -86,-38 -86,-20 0,24" fill="#47902a" />
+            <g fill="#4f9d2c" opacity=".55">
+              <rect x="-40" y="-52" width="16" height="9" transform="skewY(26)" />
+              <rect x="14" y="-48" width="16" height="9" transform="skewY(-26)" />
+            </g>
+          </g>
+          <!-- creeper -->
+          <g transform="translate(236 70)">
+            <rect width="52" height="52" rx="4" fill="#4caf3d" />
+            <rect x="9" y="12" width="12" height="12" fill="#10260d" />
+            <rect x="31" y="12" width="12" height="12" fill="#10260d" />
+            <rect x="20" y="26" width="12" height="16" fill="#10260d" />
+            <rect x="14" y="34" width="8" height="12" fill="#10260d" />
+            <rect x="30" y="34" width="8" height="12" fill="#10260d" />
+          </g>
+        </svg>
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="mcConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="mcConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="mcConnectionForm" class="pk-inline-form">
+          <input id="mcUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="mcConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="mcDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Tu juego</h2>
+            <p class="pk-hint">Conecta Minecraft abajo, en "Conecta tu juego". Aquí ves si ya está listo.</p>
+          </div>
+        </div>
+        <ul class="mc-status-list">
+          <li>
+            <span>Bedrock</span>
+            <span id="mcBedrockBadge" class="status-badge disconnected">Sin conexión</span>
+          </li>
+          <li>
+            <span>Java</span>
+            <span id="mcJavaBadge" class="status-badge disconnected">Sin conexión</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Conectar el juego -->
+    <section class="pk-panel mc-setup" aria-labelledby="mcSetupTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="mcSetupTitle">Conecta tu juego</h2>
+          <p class="pk-hint">Elige tu edición de Minecraft. Solo juegas tú en el mundo; no necesitas pagar ningún servidor.</p>
+        </div>
+      </div>
+
+      <p class="pk-hint mc-edition-help">
+        <strong>¿Cuál tengo?</strong> <strong>Java Edition</strong> es el que abres con el launcher de Minecraft en PC
+        (Windows, Mac o Linux). <strong>Bedrock Edition</strong> es el de celular, consolas y "Minecraft para Windows" de la
+        Microsoft Store. Cada uno usa un comando distinto: si pegas el de Bedrock en Java, Minecraft responde
+        "Comando desconocido o incompleto".
+      </p>
+
+      <div class="mc-tabs" role="tablist" aria-label="Edición de Minecraft">
+        <button id="mcTabBedrock" class="mc-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="mcPanelBedrock">
+          Bedrock Edition <small>sin instalar nada</small>
+        </button>
+        <button id="mcTabJava" class="mc-tab" type="button" role="tab" aria-selected="false" aria-controls="mcPanelJava">
+          Java Edition <small>mod o plugin</small>
+        </button>
+      </div>
+
+      <!-- Bedrock: comando /connect -->
+      <div id="mcPanelBedrock" class="mc-tab-panel" role="tabpanel" aria-labelledby="mcTabBedrock">
+        <p class="mc-edition-note">Solo para <strong>Minecraft Bedrock</strong>. En Java este comando no existe: usa la pestaña Java.</p>
+        <ol class="mc-steps">
+          <li>
+            <strong>Abre tu mundo con los trucos activados</strong> (en los ajustes del mundo, "Activar trucos").
+          </li>
+          <li>
+            <strong>Pega este comando en el chat</strong> del juego y pulsa enviar:
+          </li>
+          <li>
+            <strong>Listo:</strong> verás "Interaktik conectado ✔" en pantalla y el estado de arriba pasará a "Conectado".
+          </li>
+        </ol>
+
+        <div class="mc-key-row">
+          <label class="pk-field mc-key-field">
+            <span class="pk-label">Comando para pegar en el chat (incluye tu llave, no lo compartas)</span>
+            <input id="mcConnectCommandInput" type="password" readonly value="Cargando..." autocomplete="off" />
+          </label>
+          <div class="mc-key-actions">
+            <button id="mcToggleCommandBtn" class="btn ghost" type="button">Mostrar</button>
+            <button id="mcCopyCommandBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar comando</button>
+            <button class="btn ghost mc-regenerate" type="button">Regenerar</button>
+          </div>
+        </div>
+
+        <ul class="mc-notes">
+          <li>Si sales del mundo o cierras el juego, vuelve a pegar el comando.</li>
+          <li>Con los trucos activados el mundo no da logros.</li>
+          <li>Funciona en Windows, Android y iOS. En consolas ese comando puede no estar disponible.</li>
+          <li>En Bedrock los lobos no salen domados y el TNT sí rompe bloques.</li>
+        </ul>
+      </div>
+
+      <!-- Java: mod (sin servidor) o plugin (con servidor) -->
+      <div id="mcPanelJava" class="mc-tab-panel" role="tabpanel" aria-labelledby="mcTabJava" hidden>
+        <p class="mc-edition-note">Solo para <strong>Minecraft Java Edition</strong>. En Bedrock usa la pestaña Bedrock.</p>
+
+        <div class="mc-option">
+          <h3 class="mc-option-title">Mundos de un jugador <span class="mc-badge">Recomendado · sin servidor</span></h3>
+          <p class="pk-hint">Un mod de Fabric (1.21.x) que conecta tu mundo con la plataforma. Solo juegas tú, no hace falta ningún servidor.</p>
+
+          <ol class="mc-steps">
+            <li>
+              <strong>Instala Fabric y Fabric API</strong> (una sola vez):
+              <a class="btn ghost small" href="https://fabricmc.net/use/installer/" target="_blank" rel="noopener noreferrer">Fabric</a>
+              <a class="btn ghost small" href="https://modrinth.com/mod/fabric-api" target="_blank" rel="noopener noreferrer">Fabric API</a>
+            </li>
+            <li>
+              <strong>Descarga el mod</strong> y ponlo en la carpeta <code>mods</code> de Minecraft:
+              <a id="mcDownloadModLink" class="btn accent small" href="downloads/InteraktikMod.jar" download>Descargar mod (.jar)</a>
+            </li>
+            <li>
+              <strong>Abre tu mundo y pega este comando</strong> en el chat (solo la primera vez; después se conecta solo):
+            </li>
+          </ol>
+
+          <div class="mc-key-row">
+            <label class="pk-field mc-key-field">
+              <span class="pk-label">Comando para pegar en el chat (incluye tu llave, no lo compartas)</span>
+              <input id="mcModCommandInput" type="password" readonly value="Cargando..." autocomplete="off" />
+            </label>
+            <div class="mc-key-actions">
+              <button id="mcToggleModCommandBtn" class="btn ghost" type="button">Mostrar</button>
+              <button id="mcCopyModCommandBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar comando</button>
+              <button class="btn ghost mc-regenerate" type="button">Regenerar</button>
+            </div>
+          </div>
+
+          <ul class="mc-notes">
+            <li>Otros comandos del mod: <code>/interaktik estado</code> y <code>/interaktik desconectar</code>. No necesitas trucos activados.</li>
+            <li>También funciona en un mundo abierto a LAN o en un servidor Fabric.</li>
+          </ul>
+        </div>
+
+        <div class="mc-option">
+          <h3 class="mc-option-title">Si ya tienes un servidor <span class="mc-badge mc-badge--soft">Plugin para Paper</span></h3>
+          <p class="pk-hint">Para servidores Paper o Purpur (1.20 o superior). Solo lo instalas una vez.</p>
+
+          <ol class="mc-steps">
+            <li>
+              <strong>Descarga el plugin</strong>
+              <a id="mcDownloadLink" class="btn accent small" href="downloads/InteraktikMinecraft.jar" download>Descargar plugin (.jar)</a>
+            </li>
+            <li>
+              <strong>Cópialo a la carpeta <code>plugins</code></strong> de tu servidor y reinícialo una vez.
+            </li>
+            <li>
+              <strong>Pega esta llave</strong> en <code>plugins/Interaktik/config.yml</code> (campo <code>server-key</code>) y ejecuta
+              <code>/interaktik reload</code>.
+            </li>
+            <li>
+              <strong>Escribe aquí tu nombre en Minecraft</strong>: a ese jugador se le aplican las acciones.
+            </li>
+          </ol>
+
+          <form id="mcUserForm" class="pk-inline-form mc-user-form">
+            <input id="mcMinecraftUserInput" type="text" maxlength="16" placeholder="Tu nombre en Minecraft" autocomplete="off" required />
+            <button id="mcSaveUserBtn" class="btn primary" type="submit">Guardar</button>
+          </form>
+          <p id="mcUserStatus" class="pk-hint"></p>
+
+          <div class="mc-key-row">
+            <label class="pk-field mc-key-field">
+              <span class="pk-label">Tu llave secreta (no la compartas)</span>
+              <input id="mcServerKeyInput" type="password" readonly value="Cargando..." autocomplete="off" />
+            </label>
+            <div class="mc-key-actions">
+              <button id="mcToggleKeyBtn" class="btn ghost" type="button">Mostrar</button>
+              <button id="mcCopyKeyBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar llave</button>
+              <button class="btn ghost mc-regenerate" type="button">Regenerar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="pk-hint mc-regen-note">Si regeneras la llave, la anterior deja de funcionar: tendrás que volver a pegar el comando (Bedrock o mod de Java) o la llave (plugin).</p>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="mcRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="mcRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo dispara una acción en tu juego. Un combo multiplica el efecto: 5 rosas de "3 zombies" lanzan 15 zombies.</p>
+          </div>
+          <span id="mcRuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="mcRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y lo que hace en tu mundo.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="mcFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="mcFormTitle">Nueva regla</h2>
+            <button id="mcLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="mcRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="mcGiftPicker" class="gift-picker">
+                <button id="mcGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="mcGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="mcGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="mcGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="mcGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="mcGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="mcGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Acción en el juego</span>
+              <select id="mcActionSelect">
+                <option value="">Selecciona una acción</option>
+              </select>
+            </label>
+
+            <label id="mcAmountField" class="pk-field" hidden>
+              <span id="mcAmountLabel" class="pk-label">Cantidad</span>
+              <input id="mcAmountInput" type="number" min="1" value="1" />
+              <span id="mcAmountHint" class="pk-hint"></span>
+            </label>
+
+            <button id="mcRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/minecraft.js?v=20261010d"></script>
+</body>
+
+</html>

@@ -4,6 +4,11 @@
 // equipo" — ver el comentario donde se usa, en la creación del soldado.
 const TEAM_HP_MODE_SOLDIER_HP_POOL = 999999999;
 
+// Maximo de soldados por equipo, en cualquier modo de juego (el backend aplica el mismo
+// tope al guardar: normalize.js). Al llenarse, nadie mas puede unirse a ese equipo hasta
+// que caiga un soldado (modo Kills).
+const MAX_SOLDIERS_PER_TEAM = 40;
+
 const dominanceConnectionForm = document.getElementById('dominanceConnectionForm');
 const dominanceUsernameInput = document.getElementById('dominanceUsername');
 const dominanceConnectLiveBtn = document.getElementById('dominanceConnectLiveBtn');
@@ -846,6 +851,12 @@ function recalculateSoldierVisualSizes() {
 }
 
 function renderSoldiers() {
+  // Simulacion de partida (dominance-simulation.js): reutiliza los elementos de los 1000 soldados
+  if (window.dominanceSimulation?.active) {
+    window.dominanceSimulation.renderSoldiers();
+    return;
+  }
+
   leftArmy.innerHTML = '';
   rightArmy.innerHTML = '';
 
@@ -926,6 +937,11 @@ function setConnectionStatus(status, message = '', error = '') {
 }
 
 async function resetGame() {
+  if (window.dominanceSimulation?.active) {
+    await showAppAlert('Apaga la simulación antes de reiniciar el juego.', 'Dominance');
+    return;
+  }
+
   const liveState = {
     ...dominanceState.live
   };
@@ -1006,6 +1022,11 @@ function clearHistory() {
 
 
 async function saveGameModeConfig() {
+  if (window.dominanceSimulation?.active) {
+    await showAppAlert('Apaga la simulación antes de guardar la configuración.', 'Dominance');
+    return;
+  }
+
   const selectedMode =
     dominanceGameMode?.value === 'soldier_kills'
       ? 'soldier_kills'
@@ -1064,6 +1085,9 @@ async function saveGameModeConfig() {
 }
 
 async function saveDominanceState() {
+  // La simulacion nunca se guarda: la partida real sigue intacta en la base de datos
+  if (window.dominanceSimulation?.active) return;
+
   const payload = {
     gameMode: dominanceState.gameMode,
     killsConfig: dominanceState.killsConfig,
@@ -1171,10 +1195,10 @@ async function loadDominanceState() {
 
       soldiers: {
         left: Array.isArray(payload.soldiers?.left)
-          ? payload.soldiers.left.map((soldier) => rehydrateSoldierCombatState(soldier, 'left'))
+          ? payload.soldiers.left.slice(0, MAX_SOLDIERS_PER_TEAM).map((soldier) => rehydrateSoldierCombatState(soldier, 'left'))
           : [],
         right: Array.isArray(payload.soldiers?.right)
-          ? payload.soldiers.right.map((soldier) => rehydrateSoldierCombatState(soldier, 'right'))
+          ? payload.soldiers.right.slice(0, MAX_SOLDIERS_PER_TEAM).map((soldier) => rehydrateSoldierCombatState(soldier, 'right'))
           : []
       },
 
@@ -1237,6 +1261,20 @@ function ensureTeamHpSoldiersHealthy() {
 
 function renderState() {
   syncBodyModeClass();
+
+  // Durante la simulacion solo se redibuja lo necesario (sin la tabla de poderes ni la bitacora)
+  if (window.dominanceSimulation?.active) {
+    renderBackgrounds();
+    renderHealth();
+    renderTeamNames();
+    renderGameModeConfig();
+    renderCenterStatus();
+    renderStartBattleButton();
+    renderSummary();
+    renderSoldiers();
+    return;
+  }
+
   ensureTeamHpSoldiersHealthy();
   renderBackgrounds();
   renderHealth();
@@ -1305,6 +1343,7 @@ function finishKillsBattle(winningSide) {
 
 async function finishKillsBattleByTimeout() {
   if (dominanceState.winner_team_id) return;
+  if (window.dominanceSimulation?.active) return;
 
   const leftKills = Number(dominanceState.teams.left.kills || 0);
   const rightKills = Number(dominanceState.teams.right.kills || 0);
@@ -1421,6 +1460,7 @@ function connectToEvents() {
 
   liveEventsSource.addEventListener('comment', async (event) => {
     try {
+      if (window.dominanceSimulation?.active) return;
       const payload = JSON.parse(event.data);
       console.log('[DOMINANCE COMMENT USER]', payload.user);
 
@@ -1450,6 +1490,15 @@ function connectToEvents() {
       }
 
       if (!selectedSide || !selectedTeam) return;
+
+      // Equipo lleno: no se une nadie mas (tampoco se le asigna equipo al espectador)
+      if ((dominanceState.soldiers[selectedSide] || []).length >= MAX_SOLDIERS_PER_TEAM) {
+        updateArenaMessage(
+          `${selectedTeam.name} está lleno (${MAX_SOLDIERS_PER_TEAM}/${MAX_SOLDIERS_PER_TEAM} soldados)`,
+          false
+        );
+        return;
+      }
 
       dominanceState.viewer_bindings =
         dominanceState.viewer_bindings || {};
@@ -1537,6 +1586,7 @@ function connectToEvents() {
 
   liveEventsSource.addEventListener('gift', async (event) => {
     try {
+      if (window.dominanceSimulation?.active) return;
       const payload = JSON.parse(event.data);
 
       if (dominanceState.winner_team_id) return;
@@ -1666,6 +1716,7 @@ function connectToEvents() {
 
   liveEventsSource.addEventListener('like', async (event) => {
     try {
+      if (window.dominanceSimulation?.active) return;
       const payload = JSON.parse(event.data);
       const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
       if (!userId) return;
@@ -1679,6 +1730,7 @@ function connectToEvents() {
 
   liveEventsSource.addEventListener('follow', async (event) => {
     try {
+      if (window.dominanceSimulation?.active) return;
       const payload = JSON.parse(event.data);
       const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
       if (!userId) return;
@@ -1691,6 +1743,7 @@ function connectToEvents() {
 
   liveEventsSource.addEventListener('share', async (event) => {
     try {
+      if (window.dominanceSimulation?.active) return;
       const payload = JSON.parse(event.data);
       const userId = String(payload.user?.uniqueId || payload.user?.nickname || '').trim();
       if (!userId) return;
@@ -2353,6 +2406,7 @@ function removeGiftBinding(bindingId) {
 }
 
 async function savePowerConfig() {
+  if (window.dominanceSimulation?.active) return;
   ensureCombatStateShape();
   savePowerBindingsFromUI();
   renderState();
@@ -2423,6 +2477,10 @@ function bindUIActions() {
 
   if (dominanceSaveGameConfigBtn) {
     dominanceSaveGameConfigBtn.addEventListener('click', async () => {
+      if (window.dominanceSimulation?.active) {
+        await showAppAlert('Apaga la simulación antes de guardar la configuración.', 'Dominance');
+        return;
+      }
       await saveGameModeConfig();
       await showAppAlert('Configuración de partida guardada.', 'Dominance');
     });
@@ -2430,6 +2488,10 @@ function bindUIActions() {
 
   if (dominanceSavePowersConfigBtn) {
     dominanceSavePowersConfigBtn.addEventListener('click', async () => {
+      if (window.dominanceSimulation?.active) {
+        await showAppAlert('Apaga la simulación antes de guardar la configuración.', 'Dominance');
+        return;
+      }
       await savePowerConfig();
       await showAppAlert('Configuración de juego guardada.', 'Dominance');
     });

@@ -1,0 +1,15 @@
+name: Interaktik
+version: ${project.version}
+main: com.interaktik.minecraft.InteraktikPlugin
+api-version: '1.20'
+description: Los regalos de TikTok Live ayudan o molestan al streamer.
+website: https://interaktik-platform-production.up.railway.app
+commands:
+  interaktik:
+    description: Administra el plugin de Interaktik
+    usage: /interaktik <reload|status|test>
+    permission: interaktik.admin
+permissions:
+  interaktik.admin:
+    description: Permite usar /interaktik
+    default: op

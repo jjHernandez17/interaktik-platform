@@ -27,6 +27,8 @@ const tiktokRouter = require('./src/routes/tiktok');
 const paymentsRouter = require('./src/routes/payments');
 const robloxDanceRouter = require('./src/routes/robloxDanceRoutes');
 const robloxParkourRouter = require('./src/routes/robloxParkourRoutes');
+const minecraftRouter = require('./src/routes/minecraftRoutes');
+const minecraftBridge = require('./src/services/minecraftBridge');
 const overlayRouter = require('./src/routes/overlayRoutes');
 const overlayService = require('./src/services/overlayService');
 const overlayAccumulator = require('./src/services/overlayAccumulator');
@@ -111,6 +113,7 @@ app.use('/api', tiktokRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', robloxDanceRouter);
 app.use('/api', robloxParkourRouter);
+app.use('/api', minecraftRouter);
 app.use('/api', overlayRouter);
 app.use('/api', streamStatsRouter);
 overlayAccumulator.start();
@@ -275,6 +278,9 @@ function start() {
   // 1. Crear servidor HTTP con Express
   const server = http.createServer(app);
   logger.success('Servidor HTTP creado correctamente');
+
+  // Puente WebSocket de Minecraft Bedrock (/mc-bridge/<llave>): comparte el servidor HTTP con Socket.IO
+  minecraftBridge.attach(server);
 
   // 2. Inicializar Socket.IO con el servidor HTTP
   const io = new Server(server, {

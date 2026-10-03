@@ -21,7 +21,8 @@
     "pg": "^8.20.0",
     "socket.io": "^4.8.3",
     "stripe": "^17.7.0",
-    "tiktok-live-connector": "2.1.1-beta1"
+    "tiktok-live-connector": "2.1.1-beta1",
+    "ws": "^8.22.0"
   },
   "overrides": {
     "protobufjs": "7.6.6"

@@ -1,0 +1,287 @@
+/* Interaktik — Minecraft interactivo (se suma a roblox-parkour.css, que da la estructura) */
+
+.mc-hero-art {
+  aspect-ratio: 320 / 260;
+}
+
+.mc-hero-art .mc-block-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: none;
+  stroke-width: 0;
+}
+
+/* ---------- Instalación del plugin ---------- */
+
+.mc-steps {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  counter-reset: mc-step;
+}
+
+.mc-steps li {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 16px 12px 54px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: rgba(2, 6, 23, 0.32);
+  color: var(--ds-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  counter-increment: mc-step;
+}
+
+.mc-steps li::before {
+  content: counter(mc-step);
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ds-primary) 24%, transparent);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.mc-steps strong {
+  color: var(--ds-text);
+  font-weight: 600;
+}
+
+.mc-steps code,
+.mc-setup code {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--ds-text);
+  font-size: 0.84em;
+}
+
+.mc-steps .btn {
+  text-decoration: none;
+}
+
+.mc-key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.mc-key-field {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.mc-key-field input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.mc-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mc-key-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mc-setup .pk-hint {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .mc-key-actions {
+    width: 100%;
+  }
+
+  .mc-key-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* ---------- Estado del juego (columna "Tu juego") ---------- */
+
+.mc-status-list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.mc-status-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: rgba(2, 6, 23, 0.32);
+  color: var(--ds-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* ---------- Pestañas Bedrock / Java ---------- */
+
+.mc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mc-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ds-text-muted);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.mc-tab small {
+  font-weight: 500;
+  font-size: 0.76rem;
+  opacity: 0.8;
+}
+
+.mc-tab:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.mc-tab.is-active {
+  color: var(--ds-text);
+  border-color: color-mix(in srgb, var(--ds-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--ds-primary) 18%, transparent);
+}
+
+.mc-tab:focus-visible {
+  outline: 2px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.mc-tab-panel[hidden] {
+  display: none;
+}
+
+.mc-notes {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--ds-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.mc-java-intro {
+  margin: 0 0 14px;
+}
+
+.mc-user-form {
+  margin-bottom: 4px;
+}
+
+.mc-regen-note {
+  margin-top: 16px;
+}
+
+.mc-key-row + .mc-notes,
+.mc-user-form + .pk-hint + .mc-key-row {
+  margin-top: 18px;
+}
+
+/* ---------- Java: mod o plugin ---------- */
+
+.mc-option {
+  padding: 18px 20px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.mc-option + .mc-option {
+  margin-top: 16px;
+}
+
+.mc-option-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-family: var(--ds-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mc-badge {
+  padding: 3px 11px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+  font-family: var(--ds-font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mc-badge--soft {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--ds-text-muted);
+}
+
+.mc-option .mc-steps {
+  margin-top: 14px;
+}
+
+/* ---------- Aviso de edicion ---------- */
+
+.mc-edition-help {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, #facc15 38%, transparent);
+  border-radius: var(--ds-radius-md);
+  background: rgba(250, 204, 21, 0.07);
+}
+
+.mc-edition-help strong {
+  color: var(--ds-text);
+}
+
+.mc-edition-note {
+  margin: 0 0 14px;
+  padding: 8px 14px;
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, var(--ds-primary) 14%, transparent);
+  color: var(--ds-text);
+  font-size: 0.86rem;
+}

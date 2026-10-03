@@ -23,3 +23,9 @@ coverage/
 # Railway/Vercel
 .vercel/
 .railway/
+
+# Plugin de Minecraft: solo se versiona el .jar final en frontend/downloads
+minecraft-plugin/target/
+minecraft-mod/build/
+minecraft-mod/.gradle/
+minecraft-mod/run/

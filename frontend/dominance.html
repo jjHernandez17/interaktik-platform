@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/styles.css?v=20260829a" />
-  <link rel="stylesheet" href="assets/css/dominance.css?v=20261001d" />
+  <link rel="stylesheet" href="assets/css/dominance.css?v=20261008a" />
   <link rel="stylesheet" href="assets/css/tiktok-connection.css?v=20261002a" />
 </head>
 
@@ -56,6 +56,44 @@
       <p id="dominanceConnectionDetails" class="hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
     </section>
 
+
+    <section id="dominanceSimCard" class="card dominance-sim-card" hidden>
+      <div class="connection-header">
+        <h3>Simulación de partida</h3>
+        <span class="dominance-sim-badge">Solo superusuario</span>
+      </div>
+      <p class="hint">
+        Muestra el máximo de soldados de cada equipo (40 por lado), cada uno con una foto de internet, todos
+        lanzando poderes al azar. Sirve para grabar videos del juego. No modifica ni guarda tu partida real, y
+        se apaga sola al recargar la página.
+      </p>
+
+      <div class="dominance-sim-switches">
+        <label class="dominance-sim-switch" for="dominanceSimTeamHp">
+          <span>
+            <strong>Vida de equipo</strong>
+            <small>Los poderes bajan la vida de cada equipo</small>
+          </span>
+          <span class="dominance-sim-toggle">
+            <input id="dominanceSimTeamHp" type="checkbox" />
+            <span class="dominance-sim-track"></span>
+          </span>
+        </label>
+
+        <label class="dominance-sim-switch" for="dominanceSimKills">
+          <span>
+            <strong>Kills por soldado</strong>
+            <small>Los soldados caen y suman kills a su rival</small>
+          </span>
+          <span class="dominance-sim-toggle">
+            <input id="dominanceSimKills" type="checkbox" />
+            <span class="dominance-sim-track"></span>
+          </span>
+        </label>
+      </div>
+
+      <p id="dominanceSimStatus" class="hint dominance-sim-status">Apagada. Activa un modo para ver una partida de ejemplo con el máximo de soldados.</p>
+    </section>
 
     <section class="config-card">
       <div class="card-header">
@@ -282,7 +320,8 @@
   <script src="js/combat/projectileManager.js?v=20260704a"></script>
   <script src="js/combat/projectileRenderer.js?v=20260930c"></script>
   <script src="js/combat/engine.js?v=20260930a"></script>
-  <script src="js/dominance.js?v=20261001e"></script>
+  <script src="js/dominance.js?v=20261009b"></script>
+  <script src="js/dominance-simulation.js?v=20261009g"></script>
 </body>
 
 </html>

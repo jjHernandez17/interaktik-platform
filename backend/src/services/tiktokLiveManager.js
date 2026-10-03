@@ -4,6 +4,7 @@ const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
+const minecraftService = require('./minecraftService');
 
 let TikTokLiveConnection = null;
 let WebcastEvent = null;
@@ -142,7 +143,7 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'minecraft', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     if (gameType === 'roblox-parkour') return 'robloxparkour';
@@ -172,6 +173,7 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('snake-vs-snake')) return 'snake';
   if (referer.includes('roblox-dance')) return 'roblox';
   if (referer.includes('roblox-parkour')) return 'robloxparkour';
+  if (referer.includes('minecraft')) return 'minecraft';
   if (referer.includes('shell-game')) return 'shellgame';
   if (referer.includes('boy-vs-girl')) return 'boyvsgirl';
   if (referer.includes('race')) return 'race';
@@ -497,6 +499,12 @@ connection.on(WebcastEvent.GIFT, (data) => {
   if (normalizedGameType === 'robloxparkour' && userId) {
     robloxParkourService.handleGift(userId, giftPayload).catch((error) => {
       logger.warn('No se pudo procesar regalo para Roblox Parkour', error);
+    });
+  }
+
+  if (normalizedGameType === 'minecraft' && userId) {
+    minecraftService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Minecraft', error);
     });
   }
 

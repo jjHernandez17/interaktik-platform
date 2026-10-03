@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "interaktik",
+  "version": "${version}",
+  "name": "Interaktik",
+  "description": "Los regalos de TikTok Live ayudan o molestan al streamer en su mundo de Minecraft Java. Sin servidor: funciona en mundos de un jugador.",
+  "authors": ["Interaktik"],
+  "contact": {
+    "homepage": "https://interaktik-platform-production.up.railway.app"
+  },
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.interaktik.mod.InteraktikMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21",
+    "java": ">=21"
+  }
+}

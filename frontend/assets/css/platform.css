@@ -1807,6 +1807,50 @@ a {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Vista ampliada al pasar el mouse sobre un juego (ver setupGamePreview en platform.js):
+   miniatura completa, sin recortar, y toda la informacion */
+.game-preview {
+  position: fixed;
+  z-index: 80;
+  margin: 0;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--game-accent) 60%, transparent);
+  box-shadow: 0 28px 70px rgba(3, 6, 15, 0.65);
+  animation: game-preview-in 160ms ease-out;
+}
+
+.game-preview:hover {
+  transform: none;
+}
+
+.game-preview img {
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
+  background: rgba(8, 12, 22, 0.92);
+}
+
+.game-preview:hover img {
+  transform: none;
+}
+
+.game-preview p {
+  flex-grow: 0;
+}
+
+@keyframes game-preview-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-preview {
+    animation: none;
+  }
+}
+
 /* Proximamente: hueco punteado, sin portada */
 .game-card.disabled {
   --game-accent: var(--ds-text-muted);

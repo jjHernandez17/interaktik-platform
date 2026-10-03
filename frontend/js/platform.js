@@ -2768,6 +2768,80 @@ document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
   });
 });
 
+// Vista ampliada de cada juego al pasar el mouse: la miniatura completa (la tarjeta la
+// recorta) y toda la informacion. Es una copia de la tarjeta, asi hereda estados como
+// "bloqueado por plan" o "deshabilitado" y sus botones siguen funcionando.
+(function setupGamePreview() {
+  if (!window.matchMedia('(hover: hover)').matches) return;
+
+  let preview = null;
+  let activeCard = null;
+  let showTimer = null;
+  let hideTimer = null;
+
+  function closePreview() {
+    clearTimeout(showTimer);
+    clearTimeout(hideTimer);
+    if (preview) preview.remove();
+    preview = null;
+    activeCard = null;
+  }
+
+  function scheduleHide() {
+    clearTimeout(showTimer);
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(closePreview, 140);
+  }
+
+  function openPreview(card) {
+    closePreview();
+    activeCard = card;
+
+    const el = card.cloneNode(true);
+    el.classList.add('game-preview');
+    el.removeAttribute('style');
+    el.style.setProperty('--game-accent', getComputedStyle(card).getPropertyValue('--game-accent'));
+    el.querySelectorAll('.admin-game-toggle').forEach((node) => node.remove());
+    el.querySelectorAll('a.start-btn').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        if (link.getAttribute('aria-disabled') === 'true') event.preventDefault();
+      });
+    });
+
+    const rect = card.getBoundingClientRect();
+    const width = Math.min(Math.max(rect.width * 1.12, 340), window.innerWidth - 24);
+    el.style.width = `${width}px`;
+    el.style.left = `${Math.min(Math.max(rect.left + rect.width / 2 - width / 2, 12), window.innerWidth - width - 12)}px`;
+    el.style.top = `${Math.max(rect.top - 12, 12)}px`;
+    document.body.appendChild(el);
+
+    // Que no se salga por abajo de la pantalla
+    const height = el.getBoundingClientRect().height;
+    const top = Math.max(12, Math.min(rect.top - 12, window.innerHeight - 12 - height));
+    el.style.top = `${top}px`;
+
+    el.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+    el.addEventListener('mouseleave', scheduleHide);
+    preview = el;
+  }
+
+  document.querySelectorAll('.game-card:not(.disabled)').forEach((card) => {
+    card.addEventListener('mouseenter', () => {
+      clearTimeout(hideTimer);
+      if (activeCard === card && preview) return;
+      clearTimeout(showTimer);
+      showTimer = setTimeout(() => openPreview(card), 160);
+    });
+    card.addEventListener('mouseleave', scheduleHide);
+  });
+
+  document.addEventListener('scroll', closePreview, true);
+  window.addEventListener('resize', closePreview);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closePreview();
+  });
+})();
+
 logoutBtn.addEventListener('click', async () => {
   logoutBtn.disabled = true;
   const label = logoutBtn.querySelector('.logout-btn-label');

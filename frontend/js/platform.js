@@ -2779,22 +2779,30 @@ document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
   let showTimer = null;
   let hideTimer = null;
 
-  function closePreview() {
+  // Se cierra con un desvanecido suave; si se abre otra vista, la anterior se quita al instante
+  function closePreview(instant = false) {
     clearTimeout(showTimer);
     clearTimeout(hideTimer);
-    if (preview) preview.remove();
+    const closing = preview;
     preview = null;
     activeCard = null;
+    if (!closing) return;
+    if (instant === true) {
+      closing.remove();
+      return;
+    }
+    closing.classList.remove('is-open');
+    setTimeout(() => closing.remove(), 260);
   }
 
   function scheduleHide() {
     clearTimeout(showTimer);
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(closePreview, 140);
+    hideTimer = setTimeout(closePreview, 160);
   }
 
   function openPreview(card) {
-    closePreview();
+    closePreview(true);
     activeCard = card;
 
     const el = card.cloneNode(true);
@@ -2809,20 +2817,25 @@ document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
     });
 
     const rect = card.getBoundingClientRect();
-    const width = Math.min(Math.max(rect.width * 1.12, 340), window.innerWidth - 24);
+    // Solo un poco mas grande que la tarjeta para no tapar a las vecinas
+    const width = Math.min(rect.width + 24, window.innerWidth - 24);
     el.style.width = `${width}px`;
     el.style.left = `${Math.min(Math.max(rect.left + rect.width / 2 - width / 2, 12), window.innerWidth - width - 12)}px`;
-    el.style.top = `${Math.max(rect.top - 12, 12)}px`;
+    el.style.top = `${Math.max(rect.top - 6, 12)}px`;
     document.body.appendChild(el);
 
     // Que no se salga por abajo de la pantalla
     const height = el.getBoundingClientRect().height;
-    const top = Math.max(12, Math.min(rect.top - 12, window.innerHeight - 12 - height));
+    const top = Math.max(12, Math.min(rect.top - 6, window.innerHeight - 12 - height));
     el.style.top = `${top}px`;
 
     el.addEventListener('mouseenter', () => clearTimeout(hideTimer));
     el.addEventListener('mouseleave', scheduleHide);
     preview = el;
+
+    // Aparece con un desvanecido y un leve crecimiento (transicion definida en el CSS)
+    void el.offsetWidth;
+    el.classList.add('is-open');
   }
 
   document.querySelectorAll('.game-card:not(.disabled)').forEach((card) => {
@@ -2830,13 +2843,13 @@ document.querySelectorAll('.game-card a.start-btn').forEach((link) => {
       clearTimeout(hideTimer);
       if (activeCard === card && preview) return;
       clearTimeout(showTimer);
-      showTimer = setTimeout(() => openPreview(card), 160);
+      showTimer = setTimeout(() => openPreview(card), 220);
     });
     card.addEventListener('mouseleave', scheduleHide);
   });
 
-  document.addEventListener('scroll', closePreview, true);
-  window.addEventListener('resize', closePreview);
+  document.addEventListener('scroll', () => closePreview(true), true);
+  window.addEventListener('resize', () => closePreview(true));
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closePreview();
   });

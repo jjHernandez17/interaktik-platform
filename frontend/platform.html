@@ -7,8 +7,9 @@
     <link rel="icon" type="image/png" href="assets/images/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="assets/css/design-system.css" />
-    <link rel="stylesheet" href="assets/css/platform.css?v=20261003a" />
+    <link rel="stylesheet" href="assets/css/platform.css?v=20261005a" />
     <link rel="stylesheet" href="assets/css/roulette-config.css?v=20261003b" />
+    <link rel="stylesheet" href="assets/css/battle-config.css?v=20261004b" />
   </head>
   <body>
     <div id="pageLoader" class="page-loader">
@@ -320,97 +321,16 @@
             </p>
           </section>
 
-          <div class="overlay-cards-grid">
-            <article class="overlay-card">
-              <div
-                id="overlayCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--gift-alert"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="overlayConfigModal"
-              >
-                <iframe id="overlayPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Alerta de regalos</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+          <div class="overlay-category">
+            <div class="overlay-category-head">
+              <span class="acc-icon acc-icon--live"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5l1.7 4.6 4.6 1.7-4.6 1.7L10 15.1l-1.7-4.6L3.7 8.8l4.6-1.7L10 2.5zM15.8 13.4l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
+              <div class="overlay-category-title">
+                <h3>Interactivos</h3>
+                <p>Reaccionan a los regalos de tu audiencia: ellos deciden qué pasa en pantalla.</p>
               </div>
-            </article>
-
-            <article class="overlay-card">
-              <div
-                id="goalBarCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--goal-bar"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="goalBarConfigModal"
-              >
-                <iframe id="goalBarPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Progreso de monedas</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
-              </div>
-            </article>
-
-            <article class="overlay-card">
-              <div
-                id="topGiftersCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--top-gifters"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="topGiftersConfigModal"
-              >
-                <iframe id="topGiftersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Top de regaladores</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
-              </div>
-            </article>
-
-            <article class="overlay-card">
-              <div
-                id="likeCounterCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--like-counter"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="likeCounterConfigModal"
-              >
-                <iframe id="likeCounterPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Contador de likes</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
-              </div>
-            </article>
-
-            <article class="overlay-card">
-              <div
-                id="topLikersCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--top-likers"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="topLikersConfigModal"
-              >
-                <iframe id="topLikersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Top de likes</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
-              </div>
-            </article>
-
-            <article class="overlay-card">
-              <div
-                id="followAlertCardToggle"
-                class="overlay-preview-stage overlay-preview-stage--follow-alert"
-                role="button"
-                tabindex="0"
-                aria-haspopup="dialog"
-                aria-controls="followAlertConfigModal"
-              >
-                <iframe id="followAlertPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
-                <span class="overlay-preview-label">Alerta de nuevo seguidor</span>
-                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
-              </div>
-            </article>
-
+              <span class="overlay-category-count"></span>
+            </div>
+            <div class="overlay-cards-grid">
             <article class="overlay-card">
               <div
                 id="rouletteCardToggle"
@@ -425,6 +345,117 @@
                 <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
               </div>
             </article>
+            <article class="overlay-card">
+              <div
+                id="battleCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--battle"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="battleConfigModal"
+              >
+                <iframe id="battlePreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Batalla</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            </div>
+          </div>
+          <div class="overlay-category">
+            <div class="overlay-category-head">
+              <span class="acc-icon acc-icon--lock"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5l7.2 3.6L10 9.7l-7.2-3.6L10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.8 10.1L10 13.7l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 13.9L10 17.5l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="overlay-category-title">
+                <h3>Informativos</h3>
+                <p>Muestran lo que pasa en tu live: alertas, metas y rankings.</p>
+              </div>
+              <span class="overlay-category-count"></span>
+            </div>
+            <div class="overlay-cards-grid">
+            <article class="overlay-card">
+              <div
+                id="overlayCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--gift-alert"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="overlayConfigModal"
+              >
+                <iframe id="overlayPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Alerta de regalos</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            <article class="overlay-card">
+              <div
+                id="goalBarCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--goal-bar"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="goalBarConfigModal"
+              >
+                <iframe id="goalBarPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Progreso de monedas</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            <article class="overlay-card">
+              <div
+                id="topGiftersCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--top-gifters"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="topGiftersConfigModal"
+              >
+                <iframe id="topGiftersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Top de regaladores</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            <article class="overlay-card">
+              <div
+                id="likeCounterCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--like-counter"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="likeCounterConfigModal"
+              >
+                <iframe id="likeCounterPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Contador de likes</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            <article class="overlay-card">
+              <div
+                id="topLikersCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--top-likers"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="topLikersConfigModal"
+              >
+                <iframe id="topLikersPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Top de likes</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            <article class="overlay-card">
+              <div
+                id="followAlertCardToggle"
+                class="overlay-preview-stage overlay-preview-stage--follow-alert"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-controls="followAlertConfigModal"
+              >
+                <iframe id="followAlertPreviewFrame" class="overlay-preview-frame" title="Vista previa del overlay" src="about:blank"></iframe>
+                <span class="overlay-preview-label">Alerta de nuevo seguidor</span>
+                <span class="overlay-preview-cta">Haz clic para configurar ▾</span>
+              </div>
+            </article>
+            </div>
           </div>
         </section>
 
@@ -825,6 +856,162 @@
       </div>
     </div>
 
+    <div id="battleConfigModal" class="modal-overlay" hidden>
+      <div class="modal-card roulette-modal-card battle-modal-card" role="dialog" aria-modal="true" aria-labelledby="battleConfigModalTitle">
+        <div class="card-header">
+          <h3 id="battleConfigModalTitle">Configurar: Batalla</h3>
+          <button id="battleConfigCloseBtn" class="btn ghost small" type="button">Cerrar</button>
+        </div>
+
+        <div class="overlay-link-row">
+          <input id="battleLinkInput" type="text" readonly value="Cargando..." />
+          <button id="battleCopyLinkBtn" class="btn accent" type="button">Copiar link</button>
+          <button id="battleRegenerateBtn" class="btn ghost" type="button">Regenerar link</button>
+        </div>
+        <p id="battleLinkHint" class="muted overlay-hint"></p>
+
+        <section class="rl-block">
+          <h4 class="rl-block-title">Ajustes</h4>
+          <div class="overlay-config-grid">
+            <label class="switch-row" for="battleEnabledToggle">
+              <span>Batalla activada</span>
+              <span class="switch">
+                <input id="battleEnabledToggle" type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="field-label" for="battleTitleInput">
+              <span>Título sobre la barra (opcional)</span>
+              <input id="battleTitleInput" type="text" maxlength="40" placeholder="Ej. ¿Quién es mejor?" />
+            </label>
+          </div>
+        </section>
+
+        <section class="rl-block">
+          <div class="rl-block-head">
+            <h4 class="rl-block-title">Bandos y regalos</h4>
+            <button id="battleLoadGiftsBtn" class="btn ghost small" type="button">Cargar catálogo</button>
+          </div>
+          <p class="muted rl-block-text">Cada bando puede tener un texto, una imagen o ambos. Los espectadores votan mandando los regalos que elijas para cada lado: las monedas de cada regalo se suman al marcador de su bando.</p>
+
+          <div class="bt-sides">
+          <div class="bt-side" data-side="A">
+            <div class="bt-side-head">
+              <h5 class="bt-side-title"><span class="bt-dot bt-dot--a"></span>Bando azul</h5>
+              <span class="bt-side-hint">Izquierda</span>
+            </div>
+
+            <div class="bt-identity">
+              <div class="bt-avatar" id="battleAImagePreview" aria-hidden="true"></div>
+              <div class="bt-identity-fields">
+                <label class="field-label" for="battleANameInput">
+                  <span>Texto del bando</span>
+                  <input id="battleANameInput" type="text" maxlength="24" placeholder="Ej. Equipo Messi" />
+                </label>
+                <div class="bt-image-row">
+                  <input id="battleAImageInput" type="file" accept="image/*" hidden />
+                  <button id="battleAImageBtn" class="btn ghost small" type="button">Subir imagen</button>
+                  <button id="battleAImageClearBtn" class="btn ghost small" type="button" hidden>Quitar imagen</button>
+                  <label class="bt-color" for="battleAColorInput" title="Color del bando">
+                    <input id="battleAColorInput" type="color" value="#2f6bff" aria-label="Color del bando" />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="bt-gifts">
+              <div class="rl-block-head">
+                <h6 class="bt-gifts-title">Regalos de este bando</h6>
+                <span id="battleAGiftCount" class="rl-count">0</span>
+              </div>
+              <div id="battleAPicker" class="rl-picker">
+                <button id="battleAPickerToggle" class="rl-picker-toggle" type="button" aria-expanded="false">
+                  <span id="battleAPickerLabel">Carga el catálogo para elegir regalos</span>
+                  <span class="rl-picker-caret" aria-hidden="true">▾</span>
+                </button>
+                <div id="battleAPickerPanel" class="rl-picker-panel" hidden>
+                  <div class="rl-picker-filters">
+                    <input id="battleAPickerSearch" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <input id="battleAPickerMin" type="number" min="0" placeholder="Monedas mín." />
+                    <input id="battleAPickerMax" type="number" min="0" placeholder="Monedas máx." />
+                  </div>
+                  <div id="battleAPickerList" class="rl-picker-list"></div>
+                </div>
+              </div>
+              <div id="battleAGiftRules" class="rl-gifts bt-gift-list"></div>
+            </div>
+          </div>
+          <div class="bt-side" data-side="B">
+            <div class="bt-side-head">
+              <h5 class="bt-side-title"><span class="bt-dot bt-dot--b"></span>Bando rosa</h5>
+              <span class="bt-side-hint">Derecha</span>
+            </div>
+
+            <div class="bt-identity">
+              <div class="bt-avatar" id="battleBImagePreview" aria-hidden="true"></div>
+              <div class="bt-identity-fields">
+                <label class="field-label" for="battleBNameInput">
+                  <span>Texto del bando</span>
+                  <input id="battleBNameInput" type="text" maxlength="24" placeholder="Ej. Equipo Messi" />
+                </label>
+                <div class="bt-image-row">
+                  <input id="battleBImageInput" type="file" accept="image/*" hidden />
+                  <button id="battleBImageBtn" class="btn ghost small" type="button">Subir imagen</button>
+                  <button id="battleBImageClearBtn" class="btn ghost small" type="button" hidden>Quitar imagen</button>
+                  <label class="bt-color" for="battleBColorInput" title="Color del bando">
+                    <input id="battleBColorInput" type="color" value="#ff2d8a" aria-label="Color del bando" />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="bt-gifts">
+              <div class="rl-block-head">
+                <h6 class="bt-gifts-title">Regalos de este bando</h6>
+                <span id="battleBGiftCount" class="rl-count">0</span>
+              </div>
+              <div id="battleBPicker" class="rl-picker">
+                <button id="battleBPickerToggle" class="rl-picker-toggle" type="button" aria-expanded="false">
+                  <span id="battleBPickerLabel">Carga el catálogo para elegir regalos</span>
+                  <span class="rl-picker-caret" aria-hidden="true">▾</span>
+                </button>
+                <div id="battleBPickerPanel" class="rl-picker-panel" hidden>
+                  <div class="rl-picker-filters">
+                    <input id="battleBPickerSearch" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <input id="battleBPickerMin" type="number" min="0" placeholder="Monedas mín." />
+                    <input id="battleBPickerMax" type="number" min="0" placeholder="Monedas máx." />
+                  </div>
+                  <div id="battleBPickerList" class="rl-picker-list"></div>
+                </div>
+              </div>
+              <div id="battleBGiftRules" class="rl-gifts bt-gift-list"></div>
+            </div>
+          </div>
+          </div>
+        </section>
+
+        <section class="rl-block">
+          <div class="rl-block-head">
+            <h4 class="rl-block-title">Marcador</h4>
+            <div class="bt-score" aria-live="polite">
+              <span class="bt-score-a" id="battleScoreA">0</span>
+              <span class="bt-score-sep">vs</span>
+              <span class="bt-score-b" id="battleScoreB">0</span>
+            </div>
+          </div>
+          <p class="muted rl-block-text">El marcador sube solo con los regalos reales de cada bando y se guarda aunque recargues OBS. Reinícialo al empezar una batalla nueva.</p>
+          <button id="battleResetBtn" class="btn ghost" type="button">Reiniciar batalla</button>
+        </section>
+
+        <div class="modal-actions">
+          <button id="battleTestBtn" class="btn accent" type="button">Probar batalla</button>
+          <button id="battleSaveBtn" class="btn primary" type="button">Guardar configuración</button>
+        </div>
+        <p class="muted overlay-hint">La vista previa del panel se mueve sola con datos de ejemplo. "Probar batalla" suma puntos de prueba en el link real (no se guardan: al recargar vuelve el marcador real). Los cambios de nombres, imágenes y regalos se ven al guardar y refrescar la fuente en OBS.</p>
+      </div>
+    </div>
+
     <div id="adminEditModal" class="modal-overlay" hidden>
       <div class="modal-card admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminEditModalTitle">
         <div class="card-header">
@@ -927,7 +1114,8 @@
     <script src="js/dialog.js"></script>
     <script src="js/plans-shared.js"></script>
     <script src="js/overlay-sounds.js"></script>
-    <script src="js/platform.js?v=20261003a"></script>
+    <script src="js/platform.js?v=20261005a"></script>
     <script src="js/platform-roulette.js?v=20261003a"></script>
+    <script src="js/platform-battle.js?v=20261004a"></script>
   </body>
 </html>

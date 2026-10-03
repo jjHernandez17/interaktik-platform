@@ -14,6 +14,7 @@ const WIDGET_KEY_COLUMNS = {
   topLikers: 'top_likers_key',
   followAlert: 'follow_alert_key',
   roulette: 'roulette_key',
+  battle: 'battle_key',
 };
 
 const KEY_COLUMNS_SQL = Object.values(WIDGET_KEY_COLUMNS).join(', ');
@@ -27,6 +28,7 @@ function mapKeysRow(row) {
     topLikers: row.top_likers_key,
     followAlert: row.follow_alert_key,
     roulette: row.roulette_key,
+    battle: row.battle_key,
   };
 }
 
@@ -47,6 +49,16 @@ function defaultOverlayState() {
       spinPerGift: false,
       options: ['Premio 1', 'Premio 2', 'Premio 3', 'Premio 4'].map((label) => ({ label })),
       giftRules: [],
+    },
+    battle: {
+      enabled: true,
+      title: '',
+      sideA: { name: 'Bando azul', image: '', color: '#2f6bff' },
+      sideB: { name: 'Bando rosa', image: '', color: '#ff2d8a' },
+      giftRulesA: [],
+      giftRulesB: [],
+      scoreA: 0,
+      scoreB: 0,
     },
   };
 }
@@ -136,15 +148,16 @@ async function getOrCreateOverlayConfig(userId) {
     topLikers: generateOverlayKey(),
     followAlert: generateOverlayKey(),
     roulette: generateOverlayKey(),
+    battle: generateOverlayKey(),
   };
 
   const inserted = await pool.query(
     `INSERT INTO overlay_config
-       (user_id, gift_alert_key, goal_bar_key, top_gifters_key, like_counter_key, top_likers_key, follow_alert_key, roulette_key, state, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())
+       (user_id, gift_alert_key, goal_bar_key, top_gifters_key, like_counter_key, top_likers_key, follow_alert_key, roulette_key, battle_key, state, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW())
      ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
      RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
-    [userId, keys.giftAlert, keys.goalBar, keys.topGifters, keys.likeCounter, keys.topLikers, keys.followAlert, keys.roulette, JSON.stringify(state)],
+    [userId, keys.giftAlert, keys.goalBar, keys.topGifters, keys.likeCounter, keys.topLikers, keys.followAlert, keys.roulette, keys.battle, JSON.stringify(state)],
   );
 
   const row = inserted.rows[0];
@@ -159,6 +172,14 @@ async function saveOverlayState(userId, nextState) {
   const normalized = sanitizeOverlayState(nextState);
 
   await getOrCreateOverlayConfig(userId);
+
+  // El marcador de la batalla sube solo con regalos en vivo; si el panel lleva
+  // un rato abierto trae un marcador viejo, asi que al guardar la configuracion
+  // se conserva el que ya hay en la base de datos.
+  const current = await pool.query('SELECT state FROM overlay_config WHERE user_id = $1', [userId]);
+  const currentBattle = current.rows[0]?.state?.battle;
+  normalized.battle.scoreA = Math.max(0, Math.round(Number(currentBattle?.scoreA)) || 0);
+  normalized.battle.scoreB = Math.max(0, Math.round(Number(currentBattle?.scoreB)) || 0);
 
   const result = await pool.query(
     `UPDATE overlay_config SET state = $2::jsonb, updated_at = NOW()
@@ -512,6 +533,77 @@ async function resetTopLikers(userId) {
   };
 }
 
+// Suma las monedas de un regalo al bando al que pertenece en la batalla (si el
+// regalo no esta en ninguno, no hace nada). El incremento es un solo UPDATE con
+// jsonb_set, asi dos regalos casi simultaneos no se pierden.
+async function incrementBattleForGift(userId, giftId, coins) {
+  const cleanCoins = Math.max(0, Math.round(Number(coins) || 0));
+  const cleanGiftId = String(giftId ?? '').trim();
+  if (cleanCoins <= 0 || !cleanGiftId) return null;
+
+  const current = await pool.query(
+    `SELECT state->'battle' AS battle FROM overlay_config WHERE user_id = $1`,
+    [userId],
+  );
+  const battle = current.rows[0]?.battle;
+  if (!battle || battle.enabled === false) return null;
+
+  const hasGift = (rules) => Array.isArray(rules) && rules.some((rule) => String(rule?.giftId) === cleanGiftId);
+  const side = hasGift(battle.giftRulesA) ? 'A' : (hasGift(battle.giftRulesB) ? 'B' : null);
+  if (!side) return null;
+
+  const field = side === 'A' ? 'scoreA' : 'scoreB';
+  const result = await pool.query(
+    `UPDATE overlay_config
+     SET state = jsonb_set(
+       state,
+       '{battle}',
+       COALESCE(state->'battle', '{}'::jsonb) || jsonb_build_object(
+         $2::text, COALESCE((state->'battle'->>$2::text)::numeric, 0) + $3::numeric
+       ),
+       true
+     ),
+     updated_at = NOW()
+     WHERE user_id = $1
+     RETURNING state->'battle'->>'scoreA' AS score_a, state->'battle'->>'scoreB' AS score_b`,
+    [userId, field, cleanCoins],
+  );
+
+  if (result.rowCount === 0) return null;
+
+  return {
+    side,
+    coins: cleanCoins,
+    scoreA: Math.round(Number(result.rows[0].score_a)) || 0,
+    scoreB: Math.round(Number(result.rows[0].score_b)) || 0,
+  };
+}
+
+async function resetBattle(userId) {
+  await getOrCreateOverlayConfig(userId);
+
+  const result = await pool.query(
+    `UPDATE overlay_config
+     SET state = jsonb_set(
+       state,
+       '{battle}',
+       COALESCE(state->'battle', '{}'::jsonb) || '{"scoreA": 0, "scoreB": 0}'::jsonb,
+       true
+     ),
+     updated_at = NOW()
+     WHERE user_id = $1
+     RETURNING ${KEY_COLUMNS_SQL}, state, updated_at`,
+    [userId],
+  );
+
+  const row = result.rows[0];
+  return {
+    overlayKeys: mapKeysRow(row),
+    state: sanitizeOverlayState(row.state || {}),
+    updated_at: row.updated_at,
+  };
+}
+
 async function resolveByOverlayKey(key) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return null;
@@ -542,6 +634,8 @@ module.exports = {
   resetLikeCounter,
   incrementTopLiker,
   resetTopLikers,
+  incrementBattleForGift,
+  resetBattle,
   resolveByOverlayKey,
   computeRankedEntries,
 };

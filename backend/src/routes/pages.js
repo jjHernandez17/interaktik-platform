@@ -164,6 +164,19 @@ router.get('/overlay/follow-alert.html', async (req, res) => {
   }
 });
 
+// Overlay de batalla: mismo criterio que gift-alert.html arriba.
+router.get('/overlay/battle.html', async (req, res) => {
+  try {
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/overlay/battle.html', 'Overlay battle page request in production');
+    }
+
+    res.sendFile(path.join(__dirname, '../../../frontend/overlay/battle.html'));
+  } catch (error) {
+    res.status(500).send('Error loading page');
+  }
+});
+
 // Overlay de ruleta: mismo criterio que gift-alert.html arriba.
 router.get('/overlay/roulette.html', async (req, res) => {
   try {

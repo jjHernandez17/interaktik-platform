@@ -812,6 +812,57 @@ function sanitizeRoulette(roulette) {
   };
 }
 
+// Barra de batalla del overlay: dos bandos (A = izquierda, B = derecha), cada
+// uno con nombre y/o imagen, su color y su propia lista de regalos. Los
+// puntos de cada bando son las monedas de los regalos asignados a el.
+const BATTLE_MAX_GIFT_RULES = 20;
+
+function sanitizeBattleImage(value) {
+  const image = String(value || '').trim();
+  if (!image) return '';
+  // Imagen subida desde el panel (ya reducida en el navegador) o un link https.
+  if (image.length <= 120000 && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(image)) return image;
+  if (image.length <= 500 && /^https:\/\/\S+$/.test(image)) return image;
+  return '';
+}
+
+function sanitizeBattleSide(side, defaults) {
+  const rawName = side?.name;
+  return {
+    name: (rawName === undefined ? defaults.name : String(rawName).trim()).slice(0, 24),
+    image: sanitizeBattleImage(side?.image),
+    color: /^#[0-9a-fA-F]{6}$/.test(String(side?.color || '').trim())
+      ? String(side.color).trim().toLowerCase()
+      : defaults.color,
+  };
+}
+
+function sanitizeBattleScore(value) {
+  return Math.max(0, Math.min(999999999, Math.round(Number(value)) || 0));
+}
+
+function sanitizeBattle(battle) {
+  const giftRulesA = Array.isArray(battle?.giftRulesA)
+    ? sanitizeRouletteGiftRules(battle.giftRulesA).slice(0, BATTLE_MAX_GIFT_RULES)
+    : [];
+  const takenByA = new Set(giftRulesA.map((rule) => rule.giftId));
+  // Un mismo regalo no puede sumar a los dos bandos: si se repite, gana el A.
+  const giftRulesB = Array.isArray(battle?.giftRulesB)
+    ? sanitizeRouletteGiftRules(battle.giftRulesB).filter((rule) => !takenByA.has(rule.giftId)).slice(0, BATTLE_MAX_GIFT_RULES)
+    : [];
+
+  return {
+    enabled: battle?.enabled !== false,
+    title: String(battle?.title ?? '').trim().slice(0, 40),
+    sideA: sanitizeBattleSide(battle?.sideA, { name: 'Bando azul', color: '#2f6bff' }),
+    sideB: sanitizeBattleSide(battle?.sideB, { name: 'Bando rosa', color: '#ff2d8a' }),
+    giftRulesA,
+    giftRulesB,
+    scoreA: sanitizeBattleScore(battle?.scoreA),
+    scoreB: sanitizeBattleScore(battle?.scoreB),
+  };
+}
+
 function sanitizeOverlayState(payload) {
   const giftAlert = payload?.giftAlert || {};
   const goalBar = payload?.goalBar || {};
@@ -835,6 +886,7 @@ function sanitizeOverlayState(payload) {
       sound: sanitizeOverlaySound(followAlert.sound),
     },
     roulette: sanitizeRoulette(payload?.roulette),
+    battle: sanitizeBattle(payload?.battle),
     goalBar: {
       enabled: goalBar.enabled !== false,
       label: String(goalBar.label || 'Meta de la transmisión').trim().slice(0, 80) || 'Meta de la transmisión',

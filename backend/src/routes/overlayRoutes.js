@@ -46,7 +46,7 @@ router.post('/overlay/config', requireAuth, requireActiveAccess, async (req, res
   }
 });
 
-const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert', 'roulette'];
+const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert', 'roulette', 'battle'];
 
 router.post('/overlay/regenerate-key', requireAuth, requireActiveAccess, async (req, res) => {
   try {
@@ -134,6 +134,53 @@ router.post('/overlay/test-roulette', requireAuth, requireActiveAccess, async (r
     return res.json({ success: true, sender: sender.nickname });
   } catch (error) {
     logger.error('Error enviando giro de prueba de la ruleta', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// Suma puntos de prueba a un bando de la batalla. Solo se muestran en el overlay
+// (vista previa en vivo): NO se guardan, asi que al recargar vuelve el marcador
+// real, igual que los demas botones de prueba.
+router.post('/overlay/test-battle', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const config = await overlayService.getOrCreateOverlayConfig(userId);
+    const battle = config.state.battle;
+    const side = req.body?.side === 'B' ? 'B' : (req.body?.side === 'A' ? 'A' : (Math.random() < 0.5 ? 'A' : 'B'));
+    const coins = Math.max(1, Math.min(100000, Math.round(Number(req.body?.coins)) || (50 + Math.floor(Math.random() * 450))));
+    const sender = TEST_SENDERS[Math.floor(Math.random() * TEST_SENDERS.length)];
+
+    emitLiveEvent('overlay-battle-update', {
+      ownerKey: `user:${userId}:overlay-battle`,
+      scoreA: battle.scoreA + (side === 'A' ? coins : 0),
+      scoreB: battle.scoreB + (side === 'B' ? coins : 0),
+      side,
+      coins,
+      nickname: sender.nickname,
+    });
+
+    return res.json({ success: true, side, coins, sender: sender.nickname });
+  } catch (error) {
+    logger.error('Error enviando puntos de prueba de la batalla', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/overlay/battle/reset', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const config = await overlayService.resetBattle(userId);
+    emitLiveEvent('overlay-battle-update', {
+      ownerKey: `user:${userId}:overlay-battle`,
+      scoreA: 0,
+      scoreB: 0,
+      side: null,
+      coins: 0,
+      nickname: '',
+    });
+    return res.json(config);
+  } catch (error) {
+    logger.error('Error reiniciando la batalla', error);
     return res.status(500).json({ error: normalizeError(error) });
   }
 });

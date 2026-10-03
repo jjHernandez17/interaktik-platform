@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlay: Batalla</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    #battleRoot {
+      --a: #2f6bff;
+      --b: #ff2d8a;
+      /* Todo se mide con el ancho de la fuente de OBS: la barra escala sola. */
+      --bar-h: clamp(34px, 4.4vw, 92px);
+      --skew: calc(var(--bar-h) * 0.5);
+      --pct: 50%;
+      position: fixed;
+      left: 50%;
+      top: 4%;
+      width: 96%;
+      transform: translateX(-50%);
+      display: grid;
+      gap: calc(var(--bar-h) * 0.18);
+    }
+
+    #battleRoot[hidden] {
+      display: none;
+    }
+
+    #battleTitle {
+      justify-self: center;
+      max-width: 100%;
+      margin: 0;
+      padding: 0.15em 1.1em;
+      border-radius: 999px;
+      background: rgba(8, 12, 22, 0.78);
+      color: #fff;
+      font-size: calc(var(--bar-h) * 0.42);
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #battleTitle:empty {
+      display: none;
+    }
+
+    /* ---------- Barra ---------- */
+    #battleBar {
+      position: relative;
+      height: var(--bar-h);
+      border-radius: calc(var(--bar-h) * 0.22);
+      overflow: hidden;
+      background: var(--b);
+      box-shadow: 0 calc(var(--bar-h) * 0.12) calc(var(--bar-h) * 0.4) rgba(0, 0, 0, 0.45);
+    }
+
+    /* Lado B (derecha) ocupa toda la barra; el A se dibuja encima */
+    .seg {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    #segB {
+      inset: 0;
+      justify-content: flex-end;
+      padding-right: calc(var(--bar-h) * 0.4);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--b) 68%, #fff) 0%, var(--b) 55%, color-mix(in srgb, var(--b) 82%, #000) 100%);
+    }
+
+    #segA {
+      left: 0;
+      width: calc(var(--pct) + var(--skew) / 2);
+      padding-left: calc(var(--bar-h) * 0.4);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--a) 68%, #fff) 0%, var(--a) 55%, color-mix(in srgb, var(--a) 82%, #000) 100%);
+      clip-path: polygon(0 0, 100% 0, calc(100% - var(--skew)) 100%, 0 100%);
+      transition: width 700ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Brillo superior, como el de la barra de TikTok */
+    #battleBar::after {
+      content: '';
+      position: absolute;
+      inset: 0 0 50% 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .score {
+      position: relative;
+      z-index: 2;
+      color: #fff;
+      font-size: calc(var(--bar-h) * 0.5);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      white-space: nowrap;
+    }
+
+    /* Linea blanca inclinada entre los dos bandos */
+    #battleDivider {
+      position: absolute;
+      top: -4%;
+      bottom: -4%;
+      left: var(--pct);
+      width: calc(var(--bar-h) * 0.07);
+      min-width: 2px;
+      background: #fff;
+      transform: translateX(-50%) skewX(-26.5deg);
+      box-shadow: 0 0 calc(var(--bar-h) * 0.25) rgba(255, 255, 255, 0.7);
+      transition: left 700ms cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 3;
+    }
+
+    /* ---------- Bandos (imagen + nombre) ---------- */
+    #battleSides {
+      display: flex;
+      justify-content: space-between;
+      gap: 2%;
+    }
+
+    .side {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--bar-h) * 0.22);
+      min-width: 0;
+      max-width: 48%;
+    }
+
+    .side[hidden] {
+      display: none;
+    }
+
+    #sideB {
+      flex-direction: row-reverse;
+      margin-left: auto;
+    }
+
+    .side-img {
+      flex: none;
+      width: calc(var(--bar-h) * 1.15);
+      height: calc(var(--bar-h) * 1.15);
+      border-radius: 50%;
+      object-fit: cover;
+      background: rgba(255, 255, 255, 0.2);
+      border: calc(var(--bar-h) * 0.07) solid var(--side-color);
+      box-shadow: 0 calc(var(--bar-h) * 0.1) calc(var(--bar-h) * 0.3) rgba(0, 0, 0, 0.45);
+    }
+
+    .side-img[hidden] {
+      display: none;
+    }
+
+    .side-name {
+      min-width: 0;
+      margin: 0;
+      padding: 0.2em 0.9em;
+      border-radius: 999px;
+      background: var(--side-color);
+      color: #fff;
+      font-size: calc(var(--bar-h) * 0.4);
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .side-name:empty {
+      display: none;
+    }
+
+    #sideA { --side-color: var(--a); }
+    #sideB { --side-color: var(--b); }
+
+    /* ---------- Puntos que suben ("+500") ---------- */
+    #battleFloaters {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .floater {
+      position: absolute;
+      top: calc(var(--bar-h) * 0.9);
+      transform: translateX(-50%);
+      padding: 0.1em 0.7em;
+      border-radius: 999px;
+      background: rgba(8, 12, 22, 0.85);
+      color: #fff;
+      font-size: calc(var(--bar-h) * 0.38);
+      font-weight: 900;
+      white-space: nowrap;
+      animation: floater-up 1400ms ease-out forwards;
+    }
+
+    .floater.is-a { left: 12%; color: color-mix(in srgb, var(--a) 55%, #fff); }
+    .floater.is-b { left: 88%; color: color-mix(in srgb, var(--b) 55%, #fff); }
+
+    @keyframes floater-up {
+      0% { opacity: 0; transform: translate(-50%, 8px) scale(0.85); }
+      15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+      100% { opacity: 0; transform: translate(-50%, calc(var(--bar-h) * -0.9)) scale(1); }
+    }
+
+    /* Vista previa embebida en el panel (?demo=1) */
+    body.preview-mode #battleRoot {
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #segA, #battleDivider { transition: none; }
+      .floater { animation-duration: 1ms; }
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    if (new URLSearchParams(location.search).get('demo') === '1') {
+      document.body.classList.add('preview-mode');
+    }
+  </script>
+
+  <div id="battleRoot">
+    <h1 id="battleTitle"></h1>
+
+    <div id="battleBar">
+      <div id="segB" class="seg"><span id="scoreB" class="score">0</span></div>
+      <div id="segA" class="seg"><span id="scoreA" class="score">0</span></div>
+      <div id="battleDivider"></div>
+    </div>
+
+    <div id="battleSides">
+      <div id="sideA" class="side" hidden>
+        <img id="imgA" class="side-img" alt="" hidden />
+        <p id="nameA" class="side-name"></p>
+      </div>
+      <div id="sideB" class="side" hidden>
+        <img id="imgB" class="side-img" alt="" hidden />
+        <p id="nameB" class="side-name"></p>
+      </div>
+    </div>
+
+    <div id="battleFloaters"></div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/runtime.js"></script>
+  <script src="../js/overlay-battle.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,186 @@
+/* Overlay "Batalla" — modal de configuración dentro de la plataforma.
+   Reutiliza las clases .rl-* (selector de regalos, chips) de roulette-config.css;
+   aquí solo lo propio de los dos bandos. */
+
+.bt-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.bt-side {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-lg);
+  background: rgba(2, 6, 23, 0.4);
+}
+
+.bt-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bt-side-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.bt-side-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.bt-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.bt-dot--a {
+  background: #2f6bff;
+}
+
+.bt-dot--b {
+  background: #ff2d8a;
+}
+
+/* Identidad: imagen + texto + color */
+.bt-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.bt-avatar {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid var(--bt-color, var(--ds-border-strong));
+  background-color: rgba(148, 163, 184, 0.12);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.bt-avatar:not([style*='background-image']) {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2392a0b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><rect x='3.5' y='4.5' width='17' height='15' rx='2.5'/><circle cx='9' cy='10' r='1.6'/><path d='M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4'/></svg>");
+  background-size: 28px 28px;
+}
+
+.bt-identity-fields {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.bt-image-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bt-image-row [hidden] {
+  display: none !important;
+}
+
+.bt-color {
+  margin-left: auto;
+}
+
+.bt-color input[type='color'] {
+  width: 38px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bt-color input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.bt-color input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+.bt-color input[type='color']::-moz-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+/* Regalos de cada bando */
+.bt-gifts {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.bt-gifts-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bt-gifts .rl-picker {
+  margin-top: 10px;
+}
+
+.bt-gift-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.rl-picker-item.is-other {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Marcador */
+.bt-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-score-a {
+  color: #7aa2ff;
+}
+
+.bt-score-b {
+  color: #ff7ab8;
+}
+
+.bt-score-sep {
+  color: var(--ds-text-faint);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@media (max-width: 800px) {
+  .bt-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

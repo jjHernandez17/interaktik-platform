@@ -2043,6 +2043,11 @@ a {
   --overlay-accent-glow: rgba(232, 121, 249, 0.35);
 }
 
+.overlay-preview-stage--battle {
+  --overlay-accent: #60a5fa;
+  --overlay-accent-glow: rgba(96, 165, 250, 0.35);
+}
+
 /* Vive dentro de .content-card (#overlaysSection): un divisor superior
    en vez de un segundo marco con borde+fondo propio evita el "card
    dentro de card" (doble caja visible) que tenia antes. */
@@ -2129,6 +2134,50 @@ a {
   color: var(--ds-danger);
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.28);
+}
+
+/* Overlays agrupados en secciones (interactivos / informativos) */
+.overlay-category {
+  margin-top: 28px;
+}
+
+.overlay-category:first-of-type {
+  margin-top: 22px;
+}
+
+.overlay-category-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.overlay-category-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.overlay-category-title h3 {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.overlay-category-title p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.overlay-category-count {
+  flex: none;
+  padding: 3px 12px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .overlay-cards-grid {

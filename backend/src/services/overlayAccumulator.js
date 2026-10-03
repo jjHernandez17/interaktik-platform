@@ -89,6 +89,24 @@ async function handleGiftEvent(payload) {
   } catch (error) {
     logger.warn('No se pudo acumular el top de regaladores', error);
   }
+
+  try {
+    const battle = await overlayService.incrementBattleForGift(userId, payload.giftId, coins);
+    if (battle) {
+      // Solo viajan los marcadores (no la configuracion con las imagenes): el
+      // overlay ya tiene el resto cargado.
+      emitLiveEvent('overlay-battle-update', {
+        ownerKey: `user:${userId}:overlay-battle`,
+        scoreA: battle.scoreA,
+        scoreB: battle.scoreB,
+        side: battle.side,
+        coins: battle.coins,
+        nickname: payload.user?.nickname || payload.user?.uniqueId || '',
+      });
+    }
+  } catch (error) {
+    logger.warn('No se pudo acumular el marcador de la batalla', error);
+  }
 }
 
 async function handleLikeEvent(payload) {

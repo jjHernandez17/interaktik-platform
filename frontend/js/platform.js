@@ -252,6 +252,14 @@ document.querySelectorAll('.games-category').forEach((category) => {
   counter.textContent = total === 1 ? '1 juego' : `${total} juegos`;
 });
 
+// Cantidad de overlays de cada seccion de la pestaña Overlays.
+document.querySelectorAll('.overlay-category').forEach((category) => {
+  const counter = category.querySelector('.overlay-category-count');
+  if (!counter) return;
+  const total = category.querySelectorAll('.overlay-card').length;
+  counter.textContent = total === 1 ? '1 overlay' : `${total} overlays`;
+});
+
 document.getElementById('accountGoPlansBtn')?.addEventListener('click', () => showSection('plansSection'));
 
 // Requisitos de la contraseña nueva: se marcan en vivo mientras escribe.
@@ -1019,6 +1027,8 @@ function showSection(sectionId) {
     if (followAlertPreviewFrame) followAlertPreviewFrame.src = 'about:blank';
     const roulettePreviewFrameEl = document.getElementById('roulettePreviewFrame');
     if (roulettePreviewFrameEl) roulettePreviewFrameEl.src = 'about:blank';
+    const battlePreviewFrameEl = document.getElementById('battlePreviewFrame');
+    if (battlePreviewFrameEl) battlePreviewFrameEl.src = 'about:blank';
   }
 }
 
@@ -1039,6 +1049,12 @@ const OVERLAY_WIDGETS = {
     previewFrame: () => document.getElementById('roulettePreviewFrame'),
     linkInput: () => document.getElementById('rouletteLinkInput'),
     linkHint: () => document.getElementById('rouletteLinkHint'),
+  },
+  battle: {
+    page: 'battle',
+    previewFrame: () => document.getElementById('battlePreviewFrame'),
+    linkInput: () => document.getElementById('battleLinkInput'),
+    linkHint: () => document.getElementById('battleLinkHint'),
   },
 };
 
@@ -1126,6 +1142,8 @@ function applyOverlayStateToInputs(state) {
 
   // La ruleta tiene su propio script (js/platform-roulette.js).
   if (window.applyRouletteState) window.applyRouletteState(state);
+  // La batalla tambien tiene su propio script (js/platform-battle.js).
+  if (window.applyBattleState) window.applyBattleState(state);
 }
 
 // Los overlays reciben regalos/likes reales solo si el backend tiene una
@@ -1562,6 +1580,7 @@ const OVERLAY_WIDGET_LABELS = {
   topLikers: 'top de likes',
   followAlert: 'alerta de nuevo seguidor',
   roulette: 'ruleta',
+  battle: 'batalla',
 };
 
 // Regenera SOLO la key del widget indicado — los otros 4 links siguen

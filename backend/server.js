@@ -279,7 +279,7 @@ function start() {
   const server = http.createServer(app);
   logger.success('Servidor HTTP creado correctamente');
 
-  // Puente WebSocket de Minecraft Bedrock (/mc-bridge/<llave>): comparte el servidor HTTP con Socket.IO
+  // Puente WebSocket de Minecraft Java (/mc-bridge/<llave>): comparte el servidor HTTP con Socket.IO
   minecraftBridge.attach(server);
 
   // 2. Inicializar Socket.IO con el servidor HTTP

@@ -42,17 +42,14 @@ router.get('/minecraft/config', requireAuth, requireActiveAccess, async (req, re
   }
 });
 
-// Estado de las dos formas de conexion: el puente de Bedrock (/connect) y el plugin de Java
+// Estado de la conexion con Minecraft Java: por el mod (puente WebSocket) o por el plugin (servidor)
 router.get('/minecraft/status', requireAuth, requireActiveAccess, (req, res) => {
   const userId = getSessionUserId(req);
   const bridge = minecraftBridge.getStatus(userId);
   const plugin = minecraftService.getPluginStatus(userId);
 
-  // Java puede estar conectado por el mod (puente) o por el plugin (servidor): se informa cualquiera
-  const javaViaMod = bridge.connected && bridge.edition === 'java';
   return res.json({
-    bedrock: bridge.connected && bridge.edition === 'bedrock' ? bridge : { connected: false },
-    java: javaViaMod
+    java: bridge.connected
       ? { connected: true, playerOnline: true, via: 'mod' }
       : { ...plugin, via: plugin.connected ? 'plugin' : null },
   });

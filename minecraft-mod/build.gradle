@@ -13,11 +13,24 @@ repositories {
     // el resto de dependencias (Minecraft, Fabric) las resuelve Loom
 }
 
+// Los modulos de Fabric API que usa el mod (eventos del servidor y registro de comandos) van
+// DENTRO del .jar ("include"): asi el usuario no tiene que descargar Fabric API aparte.
+// Si ademas tiene Fabric API instalado, Fabric Loader usa la version mas nueva de cada modulo.
+def bundledModules = [
+        'fabric-api-base',
+        'fabric-lifecycle-events-v1',
+        'fabric-command-api-v2',
+]
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    bundledModules.each { module ->
+        modImplementation fabricApi.module(module, project.fabric_version)
+        include fabricApi.module(module, project.fabric_version)
+    }
 }
 
 processResources {

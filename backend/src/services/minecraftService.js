@@ -54,7 +54,7 @@ const ACTIONS = [
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
 
 // Eventos internos: 'queued' (llego una accion nueva, userId) y 'keyChanged' (se regenero la llave).
-// El puente de Bedrock (minecraftBridge.js) los escucha para entregar al instante / cerrar la conexion.
+// El puente de Java (minecraftBridge.js) los escucha para entregar al instante / cerrar la conexion.
 const events = new EventEmitter();
 
 // Ultima consulta del plugin de Java por usuario (solo para mostrar el estado en el panel)

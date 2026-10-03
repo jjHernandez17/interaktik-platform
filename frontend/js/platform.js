@@ -295,7 +295,7 @@ const GAME_LABELS = {
   dominance: 'Dominance',
   roblox: 'Roblox Dance',
   robloxparkour: 'Roblox Parkour',
-  minecraft: 'Minecraft Interactivo',
+  minecraft: 'Survivaltik',
 };
 
 let currentUser = null;

@@ -8,7 +8,7 @@ sobre el jugador que guardaste en el panel. No abre puertos ni necesita RCON.
 
 ## Instalación (para el streamer)
 
-1. Descarga `InteraktikMinecraft.jar` desde el panel (Juegos > Minecraft Interactivo).
+1. Descarga `InteraktikMinecraft.jar` desde el panel (Juegos > Survivaltik).
 2. Cópialo a la carpeta `plugins` de tu servidor y reinícialo una vez.
 3. Pega tu llave en `plugins/Interaktik/config.yml` (campo `server-key`) y ejecuta `/interaktik reload`.
 

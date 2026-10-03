@@ -1,30 +1,22 @@
 // tiktokinteractik/backend/src/services/minecraftBridge.js
 //
-// Puente WebSocket para Minecraft Bedrock, sin servidor ni instalar nada: el streamer abre su mundo
-// (con trucos activados) y escribe en el chat
+// Puente WebSocket para Minecraft Java, sin servidor: el mod de Fabric (minecraft-mod/) se conecta como
+// cliente a <plataforma>/mc-bridge/<llave> y ejecuta los comandos que le llegan. Cada regalo (cola
+// minecraft_action_queue) se traduce a comandos de Java (minecraftJavaCommands.js) y se empuja al juego
+// al instante; el mod solo ejecuta el texto, asi que agregar acciones no exige actualizarlo.
 //
-//     /connect wss://<plataforma>/mc-bridge/<su llave>
-//
-// Bedrock se conecta como cliente WebSocket a esta direccion y acepta comandos desde aqui. Cada
-// regalo que llega (cola minecraft_action_queue) se traduce a comandos de Bedrock
-// (minecraftBedrockCommands.js) y se empuja al juego al instante.
-//
-// Mismo puente para Java: el mod de Java se conecta a la misma direccion con ?edition=java y recibe el
-// mismo tipo de mensaje, pero con comandos de Java (minecraftJavaCommands.js); el mod solo los ejecuta.
-//
-// Una conexion por streamer; si se conecta otra (por ejemplo al recargar el mundo), la anterior se
+// Una conexion por streamer; si se conecta otra (por ejemplo al reabrir el mundo), la anterior se
 // cierra para no ejecutar dos veces.
 
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const minecraftService = require('./minecraftService');
-const { toBedrockSteps } = require('./minecraftBedrockCommands');
 const { toJavaSteps } = require('./minecraftJavaCommands');
 const logger = require('../config/logger');
 
 const BRIDGE_PATH = /^\/mc-bridge\/([A-Fa-f0-9]{32,64})\/?(?:\?.*)?$/;
 const STALE_ACTION_MS = 120000; // acciones mas viejas que esto (de cuando no habia juego conectado) se descartan
-const COMMAND_GAP_MS = 60; // pausa entre comandos: Bedrock los pierde si llegan todos juntos
+const COMMAND_GAP_MS = 60; // pausa entre comandos: no se apilan todos en el mismo instante
 const PING_INTERVAL_MS = 25000;
 const SAFETY_FLUSH_MS = 3000;
 
@@ -83,8 +75,7 @@ async function flush(userId) {
         const age = Date.now() - new Date(item.created_at).getTime();
         if (age > STALE_ACTION_MS) continue; // llego cuando no habia juego conectado: ya no tiene sentido
 
-        const translate = connection.edition === 'java' ? toJavaSteps : toBedrockSteps;
-        const steps = translate(
+        const steps = toJavaSteps(
           { action: item.action, amount: item.amount, nickname: item.tiktok_nickname },
           { actions: minecraftService.ACTIONS },
         );
@@ -113,7 +104,7 @@ function closeConnection(userId, code, reason) {
   }
 }
 
-async function handleConnection(ws, key, edition) {
+async function handleConnection(ws, key) {
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('error', () => { /* se cierra solo */ });
@@ -143,7 +134,6 @@ async function handleConnection(ws, key, edition) {
 
   const connection = {
     ws,
-    edition,
     connectedAt: Date.now(),
     lastActionAt: null,
     executed: 0,
@@ -153,7 +143,7 @@ async function handleConnection(ws, key, edition) {
     flushAgain: false,
   };
   connections.set(userId, connection);
-  logger.info(`Puente de Minecraft conectado (usuario ${userId}, ${edition})`);
+  logger.info(`Puente de Minecraft conectado (usuario ${userId})`);
 
   // Respuestas del juego: contamos los comandos que fallaron para poder avisarle al streamer
   ws.on('message', (data) => {
@@ -181,9 +171,7 @@ async function handleConnection(ws, key, edition) {
 
   // Aviso en pantalla de que quedo conectado
   try {
-    sendCommand(ws, edition === 'java'
-      ? 'title @a actionbar {"text":"Interaktik conectado ✔","color":"green"}'
-      : 'title @a actionbar §aInteraktik conectado ✔');
+    sendCommand(ws, 'title @a actionbar {"text":"Interaktik conectado ✔","color":"green"}');
   } catch (error) {
     // si falla el envio, el cierre normal limpia la conexion
   }
@@ -199,16 +187,8 @@ function attach(httpServer) {
     const match = BRIDGE_PATH.exec(request.url || '');
     if (!match) return; // otras rutas (Socket.IO) las maneja su propio listener
 
-    let edition = 'bedrock';
-    try {
-      const requested = new URL(request.url, 'http://localhost').searchParams.get('edition');
-      if (requested === 'java') edition = 'java';
-    } catch (error) {
-      // sin parametros: Bedrock
-    }
-
     wss.handleUpgrade(request, socket, head, (ws) => {
-      handleConnection(ws, match[1], edition).catch((error) => {
+      handleConnection(ws, match[1]).catch((error) => {
         logger.warn('Error en el puente de Minecraft', error);
         try { ws.close(1011, 'error del servidor'); } catch (closeError) { /* nada */ }
       });
@@ -246,7 +226,6 @@ function getStatus(userId) {
   return connection
     ? {
       connected: true,
-      edition: connection.edition,
       connectedAt: connection.connectedAt,
       lastActionAt: connection.lastActionAt,
       executed: connection.executed,

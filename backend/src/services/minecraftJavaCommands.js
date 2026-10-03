@@ -1,15 +1,29 @@
 // tiktokinteractik/backend/src/services/minecraftJavaCommands.js
 //
-// Igual que minecraftBedrockCommands.js pero con la sintaxis de comandos de Minecraft JAVA. Los usa
-// el puente cuando quien se conecta es el mod de Java (edition=java): el mod solo ejecuta el texto
-// de cada comando, asi toda la logica vive aqui y no hay que actualizar el mod al agregar acciones.
+// Traduce cada accion del catalogo (minecraftService.ACTIONS) a comandos de Minecraft JAVA. Los usa el
+// puente cuando se conecta el mod de Java: el mod solo ejecuta el texto de cada comando, asi toda la
+// logica vive aqui y no hay que actualizar el mod al agregar acciones.
 //
 // Se evita a proposito el NBT que cambia entre versiones (nombres de mobs, equipo...): el apodo de
 // quien manda el regalo sale en un titulo en pantalla.
 //
 // Devuelve una lista de pasos: un texto es un comando; { wait: ms } es una pausa.
 
-const { cleanName, randomOffset } = require('./minecraftBedrockCommands');
+// El apodo viene de TikTok: solo letras, numeros y signos simples, para que nunca pueda
+// colarse nada raro en un comando.
+function cleanName(value) {
+  const cleaned = String(value || '')
+    .replace(/[^\p{L}\p{N} _.\-]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 24);
+  return cleaned || 'Alguien';
+}
+
+function randomOffset(min, max) {
+  const distance = min + Math.floor(Math.random() * (max - min + 1));
+  return Math.random() < 0.5 ? -distance : distance;
+}
 
 const MOB_ENTITIES = {
   zombie: 'zombie',
@@ -100,9 +114,15 @@ function toJavaSteps(item, options = {}) {
       case 'launch':
         steps = [`effect give @a minecraft:levitation 2 ${Math.min(30, amount)} true`];
         break;
-      case 'teleport':
-        steps = [atPlayer(`spreadplayers ~ ~ 2 ${Math.max(5, amount)} false @s`)];
+      case 'teleport': {
+        // Centro desplazado 3/4 del radio y margen de 1/4: siempre cae entre 1/2 y 1 radio del jugador
+        const radius = Math.max(5, amount);
+        const angle = Math.random() * Math.PI * 2;
+        const dx = Math.round(Math.cos(angle) * radius * 0.75);
+        const dz = Math.round(Math.sin(angle) * radius * 0.75);
+        steps = [atPlayer(`spreadplayers ~${dx} ~${dz} 1 ${Math.max(2, Math.round(radius * 0.25))} false @s`)];
         break;
+      }
       case 'fire':
         steps = [atPlayer('setblock ~ ~ ~ minecraft:fire keep')];
         break;
@@ -139,4 +159,4 @@ function toJavaSteps(item, options = {}) {
   return [...steps, ...announcement({ action, amount, nickname: item?.nickname }, definition)];
 }
 
-module.exports = { toJavaSteps };
+module.exports = { toJavaSteps, cleanName };

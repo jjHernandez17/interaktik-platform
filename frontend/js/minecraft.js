@@ -11,15 +11,7 @@ const disconnectBtn = document.getElementById('mcDisconnectBtn');
 const heroTiktok = document.getElementById('mcHeroTiktok');
 const heroServer = document.getElementById('mcHeroServer');
 
-const bedrockBadge = document.getElementById('mcBedrockBadge');
 const javaBadge = document.getElementById('mcJavaBadge');
-const tabBedrock = document.getElementById('mcTabBedrock');
-const tabJava = document.getElementById('mcTabJava');
-const panelBedrock = document.getElementById('mcPanelBedrock');
-const panelJava = document.getElementById('mcPanelJava');
-const connectCommandInput = document.getElementById('mcConnectCommandInput');
-const toggleCommandBtn = document.getElementById('mcToggleCommandBtn');
-const copyCommandBtn = document.getElementById('mcCopyCommandBtn');
 const modCommandInput = document.getElementById('mcModCommandInput');
 const toggleModCommandBtn = document.getElementById('mcToggleModCommandBtn');
 const copyModCommandBtn = document.getElementById('mcCopyModCommandBtn');
@@ -204,13 +196,11 @@ async function loadConfig() {
 
     const data = await response.json();
     serverKeyInput.value = data.serverKey || '';
-    connectCommandInput.value = buildConnectCommand(data.serverKey);
     modCommandInput.value = data.serverKey ? `/interaktik conectar ${data.serverKey}` : '';
     setUserStatus(data.minecraftUsername);
     if (data.minecraftUsername) minecraftUserInput.value = data.minecraftUsername;
   } catch (error) {
     serverKeyInput.value = '';
-    connectCommandInput.value = '';
     modCommandInput.value = '';
     await showAlert(error.message, 'Error');
   }
@@ -273,7 +263,6 @@ async function copyFromInput(input, button, idleLabel, doneLabel) {
 }
 
 const copyServerKey = () => copyFromInput(serverKeyInput, copyKeyBtn, 'Copiar llave', 'Copiada ✓');
-const copyConnectCommand = () => copyFromInput(connectCommandInput, copyCommandBtn, 'Copiar comando', 'Copiado ✓');
 const copyModCommand = () => copyFromInput(modCommandInput, copyModCommandBtn, 'Copiar comando', 'Copiado ✓');
 
 // Muestra u oculta un campo secreto (el comando lleva la llave dentro)
@@ -281,24 +270,6 @@ function toggleSecret(input, button) {
   const hidden = input.type === 'password';
   input.type = hidden ? 'text' : 'password';
   button.textContent = hidden ? 'Ocultar' : 'Mostrar';
-}
-
-// Comando que se pega en el chat de Bedrock: conecta el juego con la plataforma por WebSocket
-function buildConnectCommand(serverKey) {
-  if (!serverKey) return '';
-  const wsBase = String(API_BASE_URL).replace(/^http/i, 'ws').replace(/\/+$/, '');
-  return `/connect ${wsBase}/mc-bridge/${serverKey}`;
-}
-
-// ===== Pestañas Bedrock / Java =====
-function selectTab(edition) {
-  const bedrock = edition === 'bedrock';
-  tabBedrock.classList.toggle('is-active', bedrock);
-  tabJava.classList.toggle('is-active', !bedrock);
-  tabBedrock.setAttribute('aria-selected', String(bedrock));
-  tabJava.setAttribute('aria-selected', String(!bedrock));
-  panelBedrock.hidden = !bedrock;
-  panelJava.hidden = bedrock;
 }
 
 // ===== Estado de la conexión del juego (se actualiza solo) =====
@@ -315,14 +286,7 @@ async function refreshGameStatus() {
     if (!response.ok) return;
     const data = await response.json();
 
-    const bedrock = data.bedrock || {};
     const java = data.java || {};
-
-    setBadge(
-      bedrockBadge,
-      bedrock.connected ? 'connected' : 'disconnected',
-      bedrock.connected ? 'Conectado' : 'Sin conexión',
-    );
 
     if (java.connected && java.via === 'mod') {
       setBadge(javaBadge, 'connected', 'Mod conectado');
@@ -332,7 +296,7 @@ async function refreshGameStatus() {
       setBadge(javaBadge, 'disconnected', 'Sin conexión');
     }
 
-    if (heroServer) heroServer.dataset.state = (bedrock.connected || java.connected) ? 'on' : 'off';
+    if (heroServer) heroServer.dataset.state = java.connected ? 'on' : 'off';
   } catch (error) {
     // se reintenta en el siguiente ciclo
   }
@@ -352,7 +316,6 @@ async function regenerateServerKey() {
     if (!response.ok) throw new Error(data.error || 'No se pudo regenerar la llave.');
 
     serverKeyInput.value = data.serverKey;
-    connectCommandInput.value = buildConnectCommand(data.serverKey);
     modCommandInput.value = `/interaktik conectar ${data.serverKey}`;
   } catch (error) {
     await showAlert(error.message, 'Error');
@@ -686,12 +649,8 @@ function bootstrapEventListeners() {
   toggleKeyBtn.addEventListener('click', toggleKeyVisibility);
   copyKeyBtn.addEventListener('click', copyServerKey);
   regenerateKeyBtns.forEach((btn) => btn.addEventListener('click', regenerateServerKey));
-  toggleCommandBtn.addEventListener('click', () => toggleSecret(connectCommandInput, toggleCommandBtn));
-  copyCommandBtn.addEventListener('click', copyConnectCommand);
   toggleModCommandBtn.addEventListener('click', () => toggleSecret(modCommandInput, toggleModCommandBtn));
   copyModCommandBtn.addEventListener('click', copyModCommand);
-  tabBedrock.addEventListener('click', () => selectTab('bedrock'));
-  tabJava.addEventListener('click', () => selectTab('java'));
 
   loadGiftsBtn.addEventListener('click', () => loadGiftCatalog());
   ruleForm.addEventListener('submit', saveRule);

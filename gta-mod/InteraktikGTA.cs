@@ -644,9 +644,40 @@ public class InteraktikGTA : Script
         return ped.Position + ped.ForwardVector * distance;
     }
 
+    // Si el jugador va dentro de un vehiculo, el nuevo reemplaza al actual en el mismo sitio, con la misma
+    // direccion y velocidad, y el jugador queda de conductor: sin bajarse ni subirse.
+    void SwapVehicle(Ped ped, Vehicle old, VehicleHash hash)
+    {
+        Vector3 position = old.Position;
+        Vector3 velocity = old.Velocity;
+        float heading = old.Heading;
+
+        // Se crea el nuevo antes de borrar el viejo: si el modelo fallara, el jugador no se queda sin vehiculo
+        Vehicle next = World.CreateVehicle(hash, position, heading);
+        if (next == null) throw new InvalidOperationException("no se pudo crear el vehiculo");
+
+        // Sin choque entre los dos mientras ocupan el mismo lugar ese instante
+        Function.Call(Hash.SET_ENTITY_COLLISION, next.Handle, false, false);
+        ped.SetIntoVehicle(next, VehicleSeat.Driver);
+        old.Delete();
+        Function.Call(Hash.SET_ENTITY_COLLISION, next.Handle, true, true);
+
+        next.IsEngineRunning = true;
+        next.Velocity = velocity;
+        next.MarkAsNoLongerNeeded();
+    }
+
     void SpawnVehicle(VehicleHash hash, float distance)
     {
         Ped ped = Game.Player.Character;
+
+        Vehicle current = ped.IsInVehicle() ? ped.CurrentVehicle : null;
+        if (current != null && current.Exists())
+        {
+            SwapVehicle(ped, current, hash);
+            return;
+        }
+
         Vehicle vehicle = World.CreateVehicle(hash, SpawnPoint(ped, distance), ped.Heading);
         if (vehicle == null) throw new InvalidOperationException("no se pudo crear el vehiculo");
         vehicle.PlaceOnGround();

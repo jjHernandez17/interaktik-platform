@@ -44,12 +44,13 @@
         <h1>GTA Interactivo <span class="mc-beta">Beta</span></h1>
         <p>
           Juegas GTA V en modo historia y los regalos de tu live te ayudan o te molestan: te suben las estrellas de la policía,
-          te tiran del cielo, o te dan armas, vida, un helicóptero o un deportivo. Aquí decides qué regalo hace qué.
-          Funciona con la versión <strong>clásica y la Enhanced</strong>, en Steam, Epic y Rockstar.
+          te tiran del cielo o te explotan cerca, o te dan armas, vida, un helicóptero, un deportivo o un tanque. Todo ocurre
+          dentro del juego, sin ventanas ni menús. Aquí decides qué regalo hace qué.
+          Funciona con <strong>GTA V versión clásica</strong> comprada en Epic, Steam o Rockstar.
         </p>
         <ul class="pk-hero-status" aria-label="Estado de las conexiones">
           <li id="gtaHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
-          <li id="gtaHeroApp" data-state="off"><span class="pk-dot"></span>Aplicación conectada</li>
+          <li id="gtaHeroApp" data-state="off"><span class="pk-dot"></span>Mod conectado</li>
         </ul>
       </div>
       <figure class="pk-hero-art">
@@ -80,17 +81,13 @@
           <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
           <div>
             <h2>Tu juego</h2>
-            <p class="pk-hint">Sigue la guía de abajo. Aquí ves si la aplicación ya está lista y si detecta GTA V.</p>
+            <p class="pk-hint">Sigue la guía de abajo. Aquí ves si el mod ya está conectado dentro de GTA V.</p>
           </div>
         </div>
         <ul class="mc-status-list">
           <li>
-            <span>Aplicación de Windows</span>
+            <span>Mod en GTA V</span>
             <span id="gtaAppBadge" class="status-badge disconnected">Sin conexión</span>
-          </li>
-          <li>
-            <span>GTA V</span>
-            <span id="gtaGameBadge" class="status-badge disconnected">No detectado</span>
           </li>
         </ul>
       </div>
@@ -101,7 +98,7 @@
       <div class="pk-panel-head">
         <div>
           <h2 id="gtaSetupTitle">Conecta tu GTA V: guía paso a paso</h2>
-          <p class="pk-hint">Son unos 3 minutos. No se instala nada dentro del juego: una pequeña aplicación escribe por ti los trucos que GTA V ya trae.</p>
+          <p class="pk-hint">Son unos 5 minutos la primera vez. Después solo abres GTA V y se conecta solo.</p>
         </div>
       </div>
 
@@ -109,45 +106,47 @@
         <div class="mc-compat-col mc-compat-col--yes">
           <h3>Funciona con</h3>
           <ul>
-            <li><strong>GTA V para PC</strong>, versión clásica o Enhanced</li>
-            <li>Steam, Epic Games o Rockstar Games Launcher</li>
+            <li><strong>GTA V para PC, versión clásica</strong> (la de siempre, no la «Enhanced»)</li>
+            <li>Comprada en Epic Games, Steam o Rockstar Games Launcher</li>
             <li>Windows 10 y 11, en <strong>modo historia</strong></li>
           </ul>
         </div>
         <div class="mc-compat-col mc-compat-col--no">
           <h3>No funciona con</h3>
           <ul>
-            <li><strong>GTA Online</strong>: ahí los trucos no existen. No lo uses, podría poner en riesgo tu cuenta</li>
+            <li><strong>GTA V Enhanced</strong>: Script Hook V todavía no es compatible con esa versión</li>
+            <li><strong>GTA Online</strong>: no lo uses con el mod, podría poner en riesgo tu cuenta</li>
             <li>Consolas (PlayStation, Xbox), Mac o celular</li>
-            <li>Con el juego en pausa, en un menú o con el teléfono abierto: el truco no entra</li>
           </ul>
         </div>
       </div>
 
-      <p class="mc-guide-tip mc-warning"><strong>Importante:</strong> usar trucos en GTA V desactiva los logros de esa partida (solo en modo historia, no afecta tu cuenta).
-        Te recomendamos probar con una partida guardada que no te importe.</p>
+      <p class="mc-guide-tip mc-warning"><strong>Importante:</strong> este mod necesita dos programas de terceros (Script Hook V y ScriptHookVDotNet), que son
+        los que permiten ejecutar mods en GTA V. Cuando Rockstar actualiza el juego, esos programas pueden dejar de funcionar unos días hasta que sus autores
+        los actualicen. Para evitarlo, <strong>desactiva las actualizaciones automáticas de GTA V</strong> en tu launcher (en Epic: los tres puntos junto a GTA V →
+        desactiva la actualización automática) y no actualices el juego hasta que Script Hook V publique su versión nueva.</p>
 
       <ol class="mc-guide">
         <li class="mc-guide-step">
           <span class="mc-guide-num">1</span>
           <div class="mc-guide-body">
-            <h3>Descarga la aplicación</h3>
-            <p><a id="gtaDownloadLink" class="btn accent small" href="downloads/InteraktikGTA.exe" download>Descargar aplicación (InteraktikGTA.exe)</a></p>
-            <p>Guárdala donde quieras, por ejemplo en el Escritorio. No necesita instalación.</p>
+            <h3>Descarga el instalador</h3>
+            <p><a id="gtaInstallerLink" class="btn accent small" href="downloads/InstalarInteraktikGTA.exe" download>Descargar instalador (InstalarInteraktikGTA.exe)</a></p>
+            <p>Ábrelo con doble clic y acepta el permiso de administrador (hace falta para copiar archivos a la carpeta del juego).</p>
             <p class="mc-guide-tip">Si Windows muestra «Windows protegió su PC», pulsa <strong>Más información</strong> y luego <strong>Ejecutar de todas formas</strong>.
-              Aparece porque la aplicación es nueva y no tiene firma digital; solo escribe teclas en GTA V.</p>
+              Aparece porque el instalador es nuevo y no tiene firma digital. Cierra GTA V y tu launcher (Epic, Steam o Rockstar) antes de instalar.</p>
           </div>
         </li>
 
         <li class="mc-guide-step">
           <span class="mc-guide-num">2</span>
           <div class="mc-guide-body">
-            <h3>Pega tu llave en la aplicación</h3>
-            <p>Ábrela, pega esta llave en el cuadro y pulsa <strong>Conectar</strong>. Se guarda: la próxima vez solo la abres y se conecta sola.</p>
+            <h3>Copia tu llave y pégala en el instalador</h3>
+            <p>El instalador encuentra solo la carpeta de GTA V. Pega tu llave en el cuadro «Tu llave».</p>
 
             <div class="mc-key-row">
               <label class="pk-field mc-key-field">
-                <span class="pk-label">Tu llave secreta (no la compartas)</span>
+                <span class="pk-label">Tu llave secreta (ya viene dentro de InteraktikGTA.ini)</span>
                 <input id="gtaServerKeyInput" type="password" readonly value="Cargando..." autocomplete="off" />
               </label>
               <div class="mc-key-actions">
@@ -156,52 +155,132 @@
                 <button class="btn ghost mc-regenerate" type="button">Regenerar</button>
               </div>
             </div>
-            <p class="pk-hint">Si regeneras la llave, la anterior deja de funcionar y tendrás que pegar la nueva en la aplicación.</p>
+            <p class="pk-hint">Si regeneras la llave, pega la nueva en el instalador y pulsa Instalar otra vez.</p>
           </div>
         </li>
 
         <li class="mc-guide-step">
           <span class="mc-guide-num">3</span>
           <div class="mc-guide-body">
-            <h3>Comprueba que quedó conectada</h3>
-            <p>En la aplicación aparece «Conectada ✔» y, arriba en esta página, «Aplicación de Windows» pasa a <strong>Conectada</strong>.</p>
+            <h3>Descarga Script Hook V y elígelo en el instalador</h3>
+            <p><a class="btn ghost small" href="http://www.dev-c.com/gtav/scripthookv/" target="_blank" rel="noopener noreferrer">Descargar Script Hook V</a></p>
+            <p>Guarda el ZIP sin abrirlo. En el instalador pulsa <strong>Ya lo descargué (elegir ZIP)</strong> y elige ese archivo: el instalador saca solo los dos
+              archivos que hacen falta. Script Hook V es de otro autor y no podemos incluirlo nosotros.</p>
           </div>
         </li>
 
         <li class="mc-guide-step">
           <span class="mc-guide-num">4</span>
           <div class="mc-guide-body">
-            <h3>Abre GTA V en modo historia</h3>
-            <p>Abre GTA V como siempre, entra a <strong>modo historia</strong> y carga una partida. Deja la aplicación abierta (puede estar minimizada).
-              Cuando el juego esté abierto, aquí «GTA V» pasa a <strong>Detectado</strong>.</p>
-            <p class="mc-guide-tip">Juega en <strong>pantalla completa sin bordes</strong> o en ventana para que puedas cambiar de programa sin que el juego se minimice.
-              Si GTA V está abierto «como administrador», abre también la aplicación como administrador (clic derecho → Ejecutar como administrador).</p>
+            <h3>Pulsa «Instalar»</h3>
+            <p>El instalador descarga ScriptHookVDotNet por su cuenta y copia el mod de Interaktik. Si en «Requisitos» salen en rojo <strong>.NET Framework 4.8</strong> o
+              <strong>Visual C++ 2019</strong>, pulsa <strong>Requisitos de Windows</strong>, instálalos y vuelve a pulsar Instalar.</p>
           </div>
         </li>
 
         <li class="mc-guide-step">
           <span class="mc-guide-num">5</span>
           <div class="mc-guide-body">
+            <h3>Desactiva BattlEye (el antitrampas de GTA V)</h3>
+            <p>Sin este paso GTA V <strong>no abre</strong> y muestra el error «GTA5.exe — La aplicación no se pudo iniciar correctamente (0xc000009a)», porque BattlEye bloquea
+              cualquier mod. Solo afecta al modo historia: para GTA Online tendrás que quitar el ajuste.</p>
+            <p><strong>Epic Games:</strong> abre Epic → Biblioteca → los tres puntos (⋯) de GTA V → <strong>Administrar</strong> → activa el interruptor
+              <strong>Opciones de inicio</strong> y en el cuadro de abajo escribe <code>-nobattleye</code>. Ahí mismo apaga <strong>Actualización automática</strong>.</p>
+            <p><strong>Steam:</strong> clic derecho en GTA V → Propiedades → <strong>Opciones de lanzamiento</strong> → escribe <code>-nobattleye</code>.
+              <strong>Rockstar Games Launcher:</strong> Configuración → Grand Theft Auto V → argumentos de línea de comandos → <code>-nobattleye</code>.</p>
+            <p class="mc-guide-tip">Los nombres exactos de los menús cambian un poco según tu launcher. Lo importante es que el argumento <code>-nobattleye</code> quede guardado
+              antes de abrir el juego.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">6</span>
+          <div class="mc-guide-body">
+            <h3>Abre GTA V en modo historia</h3>
+            <p>Abre GTA V desde tu launcher, entra a <strong>modo historia</strong> y carga una partida. En pantalla aparece «Interaktik conectado» y, arriba en esta página,
+              «Mod en GTA V» pasa a <strong>Conectado</strong>.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">7</span>
+          <div class="mc-guide-body">
             <h3>Conecta tu TikTok y crea tus reglas</h3>
             <p>Arriba pulsa <strong>Conectar</strong> en «TikTok Live» y abajo crea reglas: eliges un regalo y lo que hace en tu juego.
-              Usa <strong>Probar</strong> y vuelve a la ventana de GTA V: la aplicación escribe el truco en cuanto el juego esté en primer plano
-              (espera hasta 20 segundos).</p>
+              Usa <strong>Probar</strong> para ver la acción al instante dentro de GTA V.</p>
           </div>
         </li>
       </ol>
 
+      <details class="mc-help mc-help--advanced">
+        <summary>Instalación manual (si prefieres no usar el instalador)</summary>
+        <ol class="mc-guide">
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">a</span>
+          <div class="mc-guide-body">
+            <h3>Abre la carpeta donde está instalado GTA V</h3>
+            <p>Es la carpeta donde está el archivo <code>GTA5.exe</code>. En Epic suele ser
+              <code>C:\Program Files\Epic Games\GTAV</code>. En Steam: clic derecho en GTA V → Administrar → Explorar archivos locales.
+              Déjala abierta: ahí vas a copiar los archivos de los pasos siguientes.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">b</span>
+          <div class="mc-guide-body">
+            <h3>Instala Script Hook V</h3>
+            <p><a class="btn ghost small" href="http://www.dev-c.com/gtav/scripthookv/" target="_blank" rel="noopener noreferrer">Descargar Script Hook V</a></p>
+            <p>Abre el ZIP, entra a la carpeta <code>bin</code> y copia <code>ScriptHookV.dll</code> y <code>dinput8.dll</code> a la carpeta del juego
+              (junto a <code>GTA5.exe</code>).</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">c</span>
+          <div class="mc-guide-body">
+            <h3>Instala ScriptHookVDotNet</h3>
+            <p><a class="btn ghost small" href="https://github.com/scripthookvdotnet/scripthookvdotnet/releases" target="_blank" rel="noopener noreferrer">Descargar ScriptHookVDotNet</a>
+              (baja <code>ScriptHookVDotNet.zip</code> de la versión más reciente).</p>
+            <p>Copia <code>ScriptHookVDotNet.asi</code>, <code>ScriptHookVDotNet2.dll</code> y <code>ScriptHookVDotNet3.dll</code> a la carpeta del juego.
+              Luego crea ahí una carpeta nueva llamada <code>scripts</code> (todo en minúsculas).</p>
+            <p class="mc-guide-tip">También necesita <a href="https://dotnet.microsoft.com/download/dotnet-framework/net48" target="_blank" rel="noopener noreferrer">.NET Framework 4.8</a>
+              y el <a href="https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads" target="_blank" rel="noopener noreferrer">Visual C++ Redistributable 2019 (x64)</a>.
+              Si ya los tienes, no hace falta instalarlos otra vez.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">d</span>
+          <div class="mc-guide-body">
+            <h3>Descarga el mod de Interaktik y tu configuración</h3>
+            <p>
+              <a id="gtaDownloadLink" class="btn accent small" href="downloads/InteraktikGTA.dll" download>Descargar el mod (InteraktikGTA.dll)</a>
+              <button id="gtaDownloadIniBtn" class="btn accent small" type="button">Descargar mi configuración (InteraktikGTA.ini)</button>
+            </p>
+            <p>Copia <strong>los dos archivos</strong> dentro de la carpeta <code>scripts</code> que creaste. El archivo de configuración ya lleva tu llave secreta:
+              no lo compartas. (Tu llave está en el paso 2.)</p>
+
+          </div>
+        </li>
+
+        </ol>
+      </details>
+
       <details class="mc-help">
         <summary>Algo no funciona</summary>
         <ul>
-          <li><strong>La aplicación dice «llave no válida»:</strong> copia la llave de nuevo desde esta página (si regeneraste la llave, la anterior ya no sirve).</li>
-          <li><strong>Sigue en «Sin conexión»:</strong> revisa tu conexión a internet y que no tengas la aplicación abierta dos veces.</li>
-          <li><strong>Conectada pero el truco no se ejecuta:</strong> asegúrate de estar en <strong>modo historia</strong>, sin menús ni teléfono abiertos,
-            y con la ventana de GTA V al frente. Si GTA V corre como administrador, abre la aplicación también como administrador.</li>
-          <li><strong>Algunos trucos no hacen nada:</strong> varios trucos no se pueden activar durante misiones o escenas. Prueba en el mundo libre.</li>
-          <li><strong>Se ve un instante una cajita de texto en pantalla:</strong> es la consola de trucos de GTA V. La aplicación la abre, escribe el truco y la cierra
-            en menos de medio segundo. Es la única forma que tiene el juego de aceptar trucos.</li>
-          <li><strong>El personaje golpea o se abre un menú en vez de activarse el truco:</strong> casi siempre es porque tu teclado tiene la tecla de la consola
-            (a la izquierda del 1) en otro lugar o hay otra ventana al frente. Cierra programas que capturen teclas y vuelve a probar.</li>
+          <li><strong>GTA V no abre y muestra «GTA5.exe — error de la aplicación (0xc000009a)»:</strong> BattlEye sigue activo. Revisa el paso 5 y confirma que
+            <code>-nobattleye</code> está guardado en tu launcher. Si lo tienes y sigue igual, saca temporalmente <code>dinput8.dll</code> de la carpeta del juego
+            para comprobar que el juego abre sin mods.</li>
+          <li><strong>GTA V no abre o muestra un error de versión:</strong> el juego se actualizó y Script Hook V todavía no es compatible. Espera a que publiquen su
+            versión nueva en <code>dev-c.com/gtav/scripthookv</code>, o saca temporalmente <code>dinput8.dll</code> de la carpeta del juego para jugar sin mods.</li>
+          <li><strong>No aparece «Interaktik conectado»:</strong> revisa que <code>InteraktikGTA.dll</code> e <code>InteraktikGTA.ini</code> estén en la carpeta
+            <code>scripts</code> y que ScriptHookVDotNet esté bien instalado. Si el problema sigue, mira los archivos <code>InteraktikGTA.log</code> (en la carpeta scripts) y
+            <code>ScriptHookVDotNet.log</code> (junto a GTA5.exe).</li>
+          <li><strong>Dice que la llave no es válida:</strong> copia la llave de nuevo desde esta página y vuelve a pulsar Instalar en el instalador (si regeneraste la llave, la anterior ya no sirve).</li>
+          <li><strong>Conectado pero un regalo no hace nada:</strong> con el juego en pausa, en una escena o en la pantalla de carga las acciones esperan; si pasa un minuto, se descartan.</li>
+          <li><strong>Antes de entrar a GTA Online</strong> saca <code>dinput8.dll</code> y <code>ScriptHookV.dll</code> de la carpeta del juego. Online no se puede usar con mods.</li>
+          <li><strong>Quiero ver quién mandó cada regalo en pantalla:</strong> abre <code>InteraktikGTA.ini</code> con el Bloc de notas y cambia <code>ShowGifts=false</code> por <code>ShowGifts=true</code>.</li>
         </ul>
       </details>
     </section>
@@ -213,7 +292,7 @@
         <div class="pk-panel-head">
           <div>
             <h2 id="gtaRulesTitle">Reglas de regalos</h2>
-            <p class="pk-hint">Cada regalo dispara una acción en tu juego. En «Subir nivel de búsqueda» un combo suma estrellas: 3 rosas de «1 estrella» suben 3.</p>
+            <p class="pk-hint">Cada regalo dispara una acción en tu juego. Un combo suma en «Subir nivel de búsqueda» (estrellas) y «Explosiones»: 3 rosas de «1 estrella» suben 3.</p>
           </div>
           <span id="gtaRuleCount" class="pk-count">0</span>
         </div>
@@ -285,7 +364,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/gta.js?v=20261012c"></script>
+  <script src="js/gta.js?v=20261012g"></script>
 </body>
 
 </html>

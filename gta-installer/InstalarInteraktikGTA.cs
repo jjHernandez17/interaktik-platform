@@ -1,0 +1,775 @@
+// Instalador de Interaktik para GTA V (Windows).
+//
+// Hace por el streamer lo que antes eran pasos manuales: encuentra la carpeta de GTA V (Epic, Steam o Rockstar),
+// descarga ScriptHookVDotNet, instala el mod de Interaktik (InteraktikGTA.dll) y escribe su archivo de
+// configuracion con la llave. Script Hook V NO se puede redistribuir: el usuario lo baja de la pagina oficial de
+// su autor y este instalador solo extrae los dos archivos que hacen falta del ZIP que el elija.
+//
+// Compilacion (sin SDK, con el compilador que trae Windows): ver gta-installer/build.cmd
+// Modo sin ventana, para pruebas: --auto --folder <carpeta> --key <llave> [--shv-zip <zip>] [--url <servidor>]
+//                                 [--no-download] [--uninstall] [--log <archivo>]
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.IO.Compression;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Web.Script.Serialization;
+using System.Windows.Forms;
+using Microsoft.Win32;
+
+namespace InteraktikGtaInstaller
+{
+    // Toda la logica de instalacion: la usan la ventana y el modo de pruebas.
+    class Installer
+    {
+        public const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
+        const string ShvdnZipUrl = "https://github.com/scripthookvdotnet/scripthookvdotnet/releases/latest/download/ScriptHookVDotNet.zip";
+
+        public Action<string> Log = delegate { };
+        public string ServerUrl = DefaultUrl;
+        public bool AllowDownloads = true;
+
+        // ---------- deteccion ----------
+
+        public static bool IsGameFolder(string folder)
+        {
+            return !string.IsNullOrEmpty(folder) && Directory.Exists(folder) && File.Exists(Path.Combine(folder, "GTA5.exe"));
+        }
+
+        public static bool IsEnhancedOnly(string folder)
+        {
+            return !string.IsNullOrEmpty(folder) && Directory.Exists(folder)
+                && File.Exists(Path.Combine(folder, "GTA5_Enhanced.exe")) && !File.Exists(Path.Combine(folder, "GTA5.exe"));
+        }
+
+        static void AddIfGame(List<string> found, string folder)
+        {
+            if (IsGameFolder(folder) && !found.Contains(folder)) found.Add(folder);
+        }
+
+        // Busca GTA V en Epic, Steam y Rockstar. Devuelve todas las carpetas donde esta la version clasica.
+        public static List<string> FindGameFolders()
+        {
+            List<string> found = new List<string>();
+
+            // Epic Games: cada juego instalado tiene un .item (JSON) con su carpeta
+            try
+            {
+                string manifests = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), @"Epic\EpicGamesLauncher\Data\Manifests");
+                if (Directory.Exists(manifests))
+                {
+                    JavaScriptSerializer json = new JavaScriptSerializer();
+                    foreach (string file in Directory.GetFiles(manifests, "*.item"))
+                    {
+                        try
+                        {
+                            Dictionary<string, object> item = json.Deserialize<Dictionary<string, object>>(File.ReadAllText(file));
+                            object name;
+                            object location;
+                            if (item.TryGetValue("DisplayName", out name) && item.TryGetValue("InstallLocation", out location)
+                                && Convert.ToString(name).StartsWith("Grand Theft Auto V", StringComparison.OrdinalIgnoreCase))
+                            {
+                                AddIfGame(found, Convert.ToString(location));
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            // un manifiesto danado no debe impedir buscar en los demas
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            // Rockstar Games Launcher
+            try
+            {
+                using (RegistryKey hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                {
+                    foreach (string path in new string[] { @"SOFTWARE\WOW6432Node\Rockstar Games\Grand Theft Auto V", @"SOFTWARE\Rockstar Games\Grand Theft Auto V" })
+                    {
+                        using (RegistryKey key = hklm.OpenSubKey(path))
+                        {
+                            if (key != null) AddIfGame(found, Convert.ToString(key.GetValue("InstallFolder")));
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            // Steam: la carpeta principal y las bibliotecas extra (libraryfolders.vdf)
+            try
+            {
+                string steam = null;
+                using (RegistryKey hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (RegistryKey key = hklm.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam"))
+                {
+                    if (key != null) steam = Convert.ToString(key.GetValue("InstallPath"));
+                }
+
+                if (!string.IsNullOrEmpty(steam))
+                {
+                    List<string> libraries = new List<string>();
+                    libraries.Add(steam);
+                    string vdf = Path.Combine(steam, @"steamapps\libraryfolders.vdf");
+                    if (File.Exists(vdf))
+                    {
+                        foreach (Match match in Regex.Matches(File.ReadAllText(vdf), "\"path\"\\s+\"([^\"]+)\""))
+                        {
+                            libraries.Add(match.Groups[1].Value.Replace("\\\\", "\\"));
+                        }
+                    }
+                    foreach (string library in libraries) AddIfGame(found, Path.Combine(library, @"steamapps\common\Grand Theft Auto V"));
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            // Rutas habituales por si lo anterior no encontro nada
+            foreach (string drive in new string[] { @"C:\", @"D:\", @"E:\" })
+            {
+                AddIfGame(found, Path.Combine(drive, @"Program Files\Epic Games\GTAV"));
+                AddIfGame(found, Path.Combine(drive, @"Program Files\Rockstar Games\Grand Theft Auto V"));
+                AddIfGame(found, Path.Combine(drive, @"Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V"));
+                AddIfGame(found, Path.Combine(drive, @"Games\Epic Games\GTAV"));
+            }
+
+            return found;
+        }
+
+        public static bool GameRunning()
+        {
+            foreach (string name in new string[] { "GTA5", "GTA5_Enhanced", "PlayGTAV" })
+            {
+                Process[] processes = Process.GetProcessesByName(name);
+                bool any = processes.Length > 0;
+                foreach (Process process in processes) process.Dispose();
+                if (any) return true;
+            }
+            return false;
+        }
+
+        public static bool HasScriptHookV(string folder)
+        {
+            return File.Exists(Path.Combine(folder, "ScriptHookV.dll")) && File.Exists(Path.Combine(folder, "dinput8.dll"));
+        }
+
+        public static bool HasScriptHookVDotNet(string folder)
+        {
+            return File.Exists(Path.Combine(folder, "ScriptHookVDotNet.asi")) && File.Exists(Path.Combine(folder, "ScriptHookVDotNet3.dll"));
+        }
+
+        public static bool HasMod(string folder)
+        {
+            return File.Exists(Path.Combine(folder, @"scripts\InteraktikGTA.dll"));
+        }
+
+        public static bool HasNet48()
+        {
+            try
+            {
+                using (RegistryKey hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (RegistryKey key = hklm.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"))
+                {
+                    return key != null && Convert.ToInt32(key.GetValue("Release") ?? 0) >= 528040;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static bool HasVcRedist()
+        {
+            try
+            {
+                using (RegistryKey hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (RegistryKey key = hklm.OpenSubKey(@"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"))
+                {
+                    return key != null && Convert.ToInt32(key.GetValue("Installed") ?? 0) == 1;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static bool IsValidKey(string key)
+        {
+            return Regex.IsMatch((key ?? "").Trim(), "^[A-Fa-f0-9]{32,64}$");
+        }
+
+        public static string ReadExistingKey(string folder)
+        {
+            try
+            {
+                string path = Path.Combine(folder, @"scripts\InteraktikGTA.ini");
+                if (!File.Exists(path)) return "";
+                foreach (string line in File.ReadAllLines(path))
+                {
+                    if (line.TrimStart().StartsWith("Key=", StringComparison.OrdinalIgnoreCase)) return line.Substring(line.IndexOf('=') + 1).Trim();
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return "";
+        }
+
+        // ---------- instalacion ----------
+
+        static void CopyStream(Stream from, string destination)
+        {
+            using (FileStream to = new FileStream(destination, FileMode.Create, FileAccess.Write))
+            {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = from.Read(buffer, 0, buffer.Length)) > 0) to.Write(buffer, 0, read);
+            }
+        }
+
+        // Extrae ScriptHookV.dll y dinput8.dll del ZIP que el usuario bajo de la pagina oficial de Script Hook V
+        public void InstallScriptHookVFromZip(string folder, string zipPath)
+        {
+            int copied = 0;
+            using (ZipArchive zip = ZipFile.OpenRead(zipPath))
+            {
+                foreach (ZipArchiveEntry entry in zip.Entries)
+                {
+                    string name = entry.FullName.Replace('\\', '/');
+                    bool wanted = name.EndsWith("bin/ScriptHookV.dll", StringComparison.OrdinalIgnoreCase)
+                        || name.EndsWith("bin/dinput8.dll", StringComparison.OrdinalIgnoreCase);
+                    if (!wanted) continue;
+
+                    using (Stream input = entry.Open()) CopyStream(input, Path.Combine(folder, entry.Name));
+                    copied += 1;
+                }
+            }
+
+            if (copied < 2) throw new InvalidOperationException("Ese ZIP no es el de Script Hook V (no tiene bin\\ScriptHookV.dll y bin\\dinput8.dll).");
+            Log("Script Hook V instalado.");
+        }
+
+        // ScriptHookVDotNet se descarga de su pagina oficial en GitHub (su licencia lo permite)
+        public void InstallScriptHookVDotNet(string folder)
+        {
+            if (!AllowDownloads) throw new InvalidOperationException("Falta ScriptHookVDotNet y las descargas estan desactivadas.");
+
+            Log("Descargando ScriptHookVDotNet desde GitHub...");
+            string temp = Path.Combine(Path.GetTempPath(), "ScriptHookVDotNet-" + Guid.NewGuid().ToString("N") + ".zip");
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
+                    client.DownloadFile(ShvdnZipUrl, temp);
+                }
+
+                int copied = 0;
+                using (ZipArchive zip = ZipFile.OpenRead(temp))
+                {
+                    foreach (ZipArchiveEntry entry in zip.Entries)
+                    {
+                        string name = entry.Name;
+                        if (name == "ScriptHookVDotNet.asi" || name == "ScriptHookVDotNet2.dll" || name == "ScriptHookVDotNet3.dll")
+                        {
+                            using (Stream input = entry.Open()) CopyStream(input, Path.Combine(folder, name));
+                            copied += 1;
+                        }
+                        else if (name == "ScriptHookVDotNet.ini" && !File.Exists(Path.Combine(folder, name)))
+                        {
+                            using (Stream input = entry.Open()) CopyStream(input, Path.Combine(folder, name));
+                        }
+                    }
+                }
+                if (copied < 3) throw new InvalidOperationException("El ZIP descargado de ScriptHookVDotNet no tiene los archivos esperados.");
+            }
+            finally
+            {
+                try { File.Delete(temp); } catch (Exception) { }
+            }
+            Log("ScriptHookVDotNet instalado.");
+        }
+
+        // El mod se baja de la plataforma (asi se actualiza sin cambiar el instalador); si no se puede, se usa el incluido
+        byte[] GetModBytes()
+        {
+            if (AllowDownloads)
+            {
+                try
+                {
+                    using (WebClient client = new WebClient())
+                    {
+                        client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
+                        byte[] data = client.DownloadData(ServerUrl.TrimEnd('/') + "/downloads/InteraktikGTA.dll");
+                        if (data.Length > 5000 && data[0] == 'M' && data[1] == 'Z')
+                        {
+                            Log("Mod descargado de la plataforma.");
+                            return data;
+                        }
+                        Log("La plataforma todavia no ofrece el mod; se usa el incluido en el instalador.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log("No se pudo bajar el mod de la plataforma (" + ex.Message + "); se usa el incluido en el instalador.");
+                }
+            }
+
+            using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("InteraktikGTA.dll"))
+            {
+                if (resource == null) throw new InvalidOperationException("Este instalador no trae el mod incluido.");
+                using (MemoryStream memory = new MemoryStream())
+                {
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while ((read = resource.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
+                    return memory.ToArray();
+                }
+            }
+        }
+
+        public void InstallMod(string folder, string key)
+        {
+            string scripts = Path.Combine(folder, "scripts");
+            Directory.CreateDirectory(scripts);
+
+            File.WriteAllBytes(Path.Combine(scripts, "InteraktikGTA.dll"), GetModBytes());
+
+            // Configuracion: si ya existe se conserva todo y solo se cambia la llave
+            string ini = Path.Combine(scripts, "InteraktikGTA.ini");
+            key = key.Trim();
+            if (File.Exists(ini))
+            {
+                List<string> lines = new List<string>(File.ReadAllLines(ini));
+                bool replaced = false;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (lines[i].TrimStart().StartsWith("Key=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = "Key=" + key;
+                        replaced = true;
+                    }
+                }
+                if (!replaced) lines.Insert(0, "Key=" + key);
+                File.WriteAllLines(ini, lines.ToArray());
+            }
+            else
+            {
+                File.WriteAllLines(ini, new string[]
+                {
+                    "; Interaktik para GTA V - NO compartas este archivo (contiene tu llave secreta).",
+                    "Key=" + key,
+                    "",
+                    "; Mostrar en pantalla quien manda cada regalo (true o false).",
+                    "ShowGifts=false",
+                    "; Mostrar el aviso \"Interaktik conectado\" al abrir el juego (true o false).",
+                    "ShowConnected=true",
+                });
+            }
+            Log("Mod de Interaktik instalado en " + scripts);
+        }
+
+        // Quita solo lo de Interaktik; Script Hook V y ScriptHookVDotNet se dejan (pueden servir para otros mods)
+        public void Uninstall(string folder)
+        {
+            string scripts = Path.Combine(folder, "scripts");
+            foreach (string name in new string[] { "InteraktikGTA.dll", "InteraktikGTA.ini", "InteraktikGTA.log" })
+            {
+                string path = Path.Combine(scripts, name);
+                if (File.Exists(path)) File.Delete(path);
+            }
+            Log("Mod de Interaktik desinstalado.");
+        }
+
+        // Instalacion completa. Devuelve null si todo salio bien, o el motivo del fallo.
+        public string Run(string folder, string key, string shvZip)
+        {
+            try
+            {
+                if (IsEnhancedOnly(folder)) return "Esa carpeta es la version Enhanced de GTA V. El mod solo funciona con la version clasica.";
+                if (!IsGameFolder(folder)) return "No encuentro GTA5.exe en esa carpeta. Elige la carpeta donde esta instalado GTA V.";
+                if (!IsValidKey(key)) return "La llave no parece valida. Copiala con el boton \"Copiar llave\" de la pagina de GTA Interactivo.";
+                if (GameRunning()) return "GTA V esta abierto. Cierralo (y tu launcher) y vuelve a pulsar Instalar.";
+
+                if (!string.IsNullOrEmpty(shvZip)) InstallScriptHookVFromZip(folder, shvZip);
+
+                if (!HasScriptHookV(folder))
+                {
+                    return "Falta Script Hook V. Pulsa \"Abrir pagina de Script Hook V\", descarga el ZIP y elige ese ZIP con \"Ya lo descargue\".";
+                }
+
+                if (!HasScriptHookVDotNet(folder)) InstallScriptHookVDotNet(folder);
+
+                InstallMod(folder, key);
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return "Windows no deja escribir en la carpeta del juego. Cierra el instalador y abrelo con clic derecho > Ejecutar como administrador.";
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
+    }
+
+    class MainForm : Form
+    {
+        readonly Installer installer = new Installer();
+        readonly TextBox folderBox = new TextBox();
+        readonly Label folderInfo = new Label();
+        readonly TextBox keyBox = new TextBox();
+        readonly Label shvLabel = new Label();
+        readonly Label shvdnLabel = new Label();
+        readonly Label netLabel = new Label();
+        readonly Label vcLabel = new Label();
+        readonly Label modLabel = new Label();
+        readonly Button installButton = new Button();
+        readonly Button uninstallButton = new Button();
+        readonly TextBox logBox = new TextBox();
+        string shvZip = "";
+
+        static readonly Color Bg = Color.FromArgb(18, 12, 34);
+        static readonly Color Panel = Color.FromArgb(28, 20, 50);
+        static readonly Color Muted = Color.FromArgb(190, 180, 220);
+        static readonly Color Good = Color.FromArgb(74, 222, 128);
+        static readonly Color Bad = Color.FromArgb(251, 113, 133);
+        static readonly Color Accent = Color.FromArgb(255, 94, 98);
+
+        public MainForm(string url)
+        {
+            installer.ServerUrl = url;
+            installer.Log = AppendLog;
+
+            Text = "Instalar Interaktik para GTA V";
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(640, 700);
+            MinimumSize = new Size(600, 640);
+            Font = new Font("Segoe UI", 9.5f);
+            BackColor = Bg;
+            ForeColor = Color.White;
+
+            int y = 14;
+            AddLabel("Instalar Interaktik para GTA V", 16, y, new Font("Segoe UI Semibold", 15f), Color.White);
+            y += 34;
+            AddLabel("Instala el mod en tu GTA V (versi\u00f3n cl\u00e1sica) en pocos pasos. Cierra GTA V y tu launcher antes de empezar.", 18, y, Font, Muted);
+            y += 34;
+
+            AddLabel("1. Carpeta de GTA V", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
+            y += 24;
+            folderBox.SetBounds(18, y, 380, 26);
+            StyleBox(folderBox);
+            folderBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            folderBox.TextChanged += delegate { RefreshStatus(); };
+            Button detect = MakeButton("Detectar", 408, y - 2, 96, 30, false);
+            detect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            detect.Click += delegate { DetectFolder(true); };
+            Button browse = MakeButton("Examinar...", 512, y - 2, 110, 30, false);
+            browse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            browse.Click += OnBrowse;
+            Controls.AddRange(new Control[] { folderBox, detect, browse });
+            y += 32;
+            folderInfo.SetBounds(18, y, 600, 20);
+            folderInfo.ForeColor = Muted;
+            Controls.Add(folderInfo);
+            y += 30;
+
+            AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de GTA Interactivo en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
+            y += 24;
+            keyBox.SetBounds(18, y, 604, 26);
+            StyleBox(keyBox);
+            keyBox.UseSystemPasswordChar = true;
+            keyBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            Controls.Add(keyBox);
+            y += 40;
+
+            AddLabel("3. Requisitos", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
+            y += 26;
+            foreach (Label label in new Label[] { shvLabel, shvdnLabel, netLabel, vcLabel, modLabel })
+            {
+                label.SetBounds(18, y, 604, 20);
+                Controls.Add(label);
+                y += 22;
+            }
+            y += 4;
+
+            Button openShv = MakeButton("Abrir p\u00e1gina de Script Hook V", 18, y, 220, 30, false);
+            openShv.Click += delegate { OpenUrl("http://www.dev-c.com/gtav/scripthookv/"); };
+            Button chooseZip = MakeButton("Ya lo descargu\u00e9 (elegir ZIP)...", 246, y, 220, 30, false);
+            chooseZip.Click += OnChooseZip;
+            Button openNet = MakeButton("Requisitos de Windows", 474, y, 148, 30, false);
+            openNet.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            openNet.Click += delegate
+            {
+                if (!Installer.HasNet48()) OpenUrl("https://dotnet.microsoft.com/download/dotnet-framework/net48");
+                if (!Installer.HasVcRedist()) OpenUrl("https://aka.ms/vs/17/release/vc_redist.x64.exe");
+            };
+            Controls.AddRange(new Control[] { openShv, chooseZip, openNet });
+            y += 46;
+
+            installButton.SetBounds(18, y, 300, 40);
+            installButton.Text = "Instalar";
+            installButton.FlatStyle = FlatStyle.Flat;
+            installButton.BackColor = Accent;
+            installButton.ForeColor = Color.White;
+            installButton.Font = new Font("Segoe UI Semibold", 11f);
+            installButton.FlatAppearance.BorderSize = 0;
+            installButton.Click += OnInstall;
+            uninstallButton.SetBounds(326, y, 160, 40);
+            uninstallButton.Text = "Desinstalar";
+            uninstallButton.FlatStyle = FlatStyle.Flat;
+            uninstallButton.BackColor = Panel;
+            uninstallButton.ForeColor = Color.White;
+            uninstallButton.FlatAppearance.BorderColor = Color.FromArgb(70, 60, 110);
+            uninstallButton.Click += OnUninstall;
+            Controls.AddRange(new Control[] { installButton, uninstallButton });
+            y += 54;
+
+            logBox.SetBounds(18, y, 604, ClientSize.Height - y - 18);
+            logBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            logBox.Multiline = true;
+            logBox.ReadOnly = true;
+            logBox.ScrollBars = ScrollBars.Vertical;
+            logBox.BackColor = Panel;
+            logBox.ForeColor = Color.FromArgb(220, 214, 240);
+            logBox.BorderStyle = BorderStyle.FixedSingle;
+            Controls.Add(logBox);
+
+            Load += delegate
+            {
+                DetectFolder(false);
+                RefreshStatus();
+            };
+        }
+
+        void AddLabel(string text, int x, int y, Font font, Color color)
+        {
+            Label label = new Label();
+            label.Text = text;
+            label.Font = font;
+            label.ForeColor = color;
+            label.AutoSize = true;
+            label.Location = new Point(x, y);
+            Controls.Add(label);
+        }
+
+        void StyleBox(TextBox box)
+        {
+            box.BackColor = Panel;
+            box.ForeColor = Color.White;
+            box.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        Button MakeButton(string text, int x, int y, int w, int h, bool primary)
+        {
+            Button button = new Button();
+            button.Text = text;
+            button.SetBounds(x, y, w, h);
+            button.FlatStyle = FlatStyle.Flat;
+            button.BackColor = primary ? Accent : Panel;
+            button.ForeColor = Color.White;
+            button.FlatAppearance.BorderColor = Color.FromArgb(70, 60, 110);
+            return button;
+        }
+
+        void OpenUrl(string url)
+        {
+            try { Process.Start(url); } catch (Exception) { }
+        }
+
+        void AppendLog(string text)
+        {
+            if (IsDisposed) return;
+            Action action = delegate { logBox.AppendText("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + text + Environment.NewLine); };
+            if (InvokeRequired) { try { BeginInvoke(action); } catch (Exception) { } } else action();
+        }
+
+        void SetStatus(Label label, bool ok, string okText, string badText)
+        {
+            label.Text = (ok ? "\u2714  " : "\u2718  ") + (ok ? okText : badText);
+            label.ForeColor = ok ? Good : Bad;
+        }
+
+        void DetectFolder(bool announce)
+        {
+            List<string> folders = Installer.FindGameFolders();
+            if (folders.Count > 0)
+            {
+                folderBox.Text = folders[0];
+                if (announce) AppendLog("GTA V encontrado en " + folders[0] + (folders.Count > 1 ? " (hay " + folders.Count + " copias; usa Examinar para elegir otra)" : ""));
+            }
+            else if (announce)
+            {
+                AppendLog("No encontr\u00e9 GTA V autom\u00e1ticamente. Usa Examinar y elige la carpeta donde est\u00e1 GTA5.exe.");
+            }
+        }
+
+        void OnBrowse(object sender, EventArgs e)
+        {
+            using (FolderBrowserDialog dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = "Elige la carpeta donde esta instalado GTA V (la que tiene GTA5.exe)";
+                if (dialog.ShowDialog(this) == DialogResult.OK) folderBox.Text = dialog.SelectedPath;
+            }
+        }
+
+        void OnChooseZip(object sender, EventArgs e)
+        {
+            using (OpenFileDialog dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Elige el ZIP de Script Hook V que descargaste";
+                dialog.Filter = "ZIP (*.zip)|*.zip";
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                shvZip = dialog.FileName;
+                AppendLog("ZIP de Script Hook V elegido: " + Path.GetFileName(shvZip) + ". Se instalar\u00e1 al pulsar Instalar.");
+                RefreshStatus();
+            }
+        }
+
+        void RefreshStatus()
+        {
+            string folder = folderBox.Text.Trim();
+            bool isGame = Installer.IsGameFolder(folder);
+
+            if (folder.Length == 0) { folderInfo.Text = "Pulsa Detectar o Examinar."; folderInfo.ForeColor = Muted; }
+            else if (Installer.IsEnhancedOnly(folder)) { folderInfo.Text = "Esa es la versi\u00f3n Enhanced: el mod no funciona con ella."; folderInfo.ForeColor = Bad; }
+            else if (isGame) { folderInfo.Text = "GTA V (versi\u00f3n cl\u00e1sica) encontrado."; folderInfo.ForeColor = Good; }
+            else { folderInfo.Text = "No hay GTA5.exe en esa carpeta."; folderInfo.ForeColor = Bad; }
+
+            if (isGame && keyBox.Text.Length == 0)
+            {
+                string existing = Installer.ReadExistingKey(folder);
+                if (existing.Length > 0) keyBox.Text = existing;
+            }
+
+            bool shv = isGame && Installer.HasScriptHookV(folder);
+            SetStatus(shvLabel, shv || shvZip.Length > 0, shv ? "Script Hook V instalado" : "Script Hook V: listo para instalar desde tu ZIP",
+                "Script Hook V: falta (abre su p\u00e1gina, descarga el ZIP y elige ese ZIP)");
+            SetStatus(shvdnLabel, isGame && Installer.HasScriptHookVDotNet(folder), "ScriptHookVDotNet instalado", "ScriptHookVDotNet: se descargar\u00e1 solo al instalar");
+            SetStatus(netLabel, Installer.HasNet48(), ".NET Framework 4.8 instalado", ".NET Framework 4.8: falta (bot\u00f3n Requisitos de Windows)");
+            SetStatus(vcLabel, Installer.HasVcRedist(), "Visual C++ 2019 (x64) instalado", "Visual C++ 2019 (x64): falta (bot\u00f3n Requisitos de Windows)");
+            SetStatus(modLabel, isGame && Installer.HasMod(folder), "Mod de Interaktik instalado", "Mod de Interaktik: todav\u00eda no instalado");
+        }
+
+        void OnInstall(object sender, EventArgs e)
+        {
+            string folder = folderBox.Text.Trim();
+            string key = keyBox.Text.Trim();
+            string zip = shvZip;
+            installButton.Enabled = false;
+            uninstallButton.Enabled = false;
+            AppendLog("Instalando...");
+
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                string problem = installer.Run(folder, key, zip);
+                BeginInvoke((Action)delegate
+                {
+                    installButton.Enabled = true;
+                    uninstallButton.Enabled = true;
+                    if (problem == null)
+                    {
+                        shvZip = "";
+                        AppendLog("Listo. Antes de abrir GTA V agrega -nobattleye en tu launcher (sin eso GTA V no abre). Luego entra a modo historia.");
+                        MessageBox.Show(this, "Instalaci\u00f3n terminada.\n\nANTES de abrir GTA V desactiva BattlEye: en tu launcher agrega el argumento -nobattleye "
+                            + "(Epic: Biblioteca > los tres puntos de GTA V > Administrar > activar Opciones de inicio y escribir -nobattleye). "
+                            + "Sin eso GTA V no abre y muestra el error 0xc000009a.\n\nLuego abre GTA V en modo historia: debe aparecer \"Interaktik conectado\" en pantalla.\n\n"
+                            + "Recuerda tambi\u00e9n desactivar las actualizaciones autom\u00e1ticas de GTA V.",
+                            "Interaktik", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        AppendLog("No se pudo instalar: " + problem);
+                        MessageBox.Show(this, problem, "Interaktik", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    RefreshStatus();
+                });
+            });
+        }
+
+        void OnUninstall(object sender, EventArgs e)
+        {
+            string folder = folderBox.Text.Trim();
+            if (!Installer.IsGameFolder(folder)) { AppendLog("Elige primero la carpeta de GTA V."); return; }
+            if (Installer.GameRunning()) { AppendLog("Cierra GTA V antes de desinstalar."); return; }
+            if (MessageBox.Show(this, "Se quitar\u00e1 el mod de Interaktik (Script Hook V y ScriptHookVDotNet se quedan). \u00bfContinuar?", "Desinstalar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            try { installer.Uninstall(folder); }
+            catch (Exception ex) { AppendLog("No se pudo desinstalar: " + ex.Message); }
+            RefreshStatus();
+        }
+    }
+
+    static class Program
+    {
+        [STAThread]
+        static int Main(string[] args)
+        {
+            // Sin esto las descargas por https fallan en .NET Framework (solo hablaria TLS 1.0)
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+
+            string folder = "";
+            string key = "";
+            string zip = "";
+            string url = Installer.DefaultUrl;
+            string logPath = "";
+            bool auto = false;
+            bool uninstall = false;
+            bool noDownload = false;
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--auto") auto = true;
+                else if (args[i] == "--uninstall") uninstall = true;
+                else if (args[i] == "--no-download") noDownload = true;
+                else if (args[i] == "--folder" && i + 1 < args.Length) folder = args[++i];
+                else if (args[i] == "--key" && i + 1 < args.Length) key = args[++i];
+                else if (args[i] == "--shv-zip" && i + 1 < args.Length) zip = args[++i];
+                else if (args[i] == "--url" && i + 1 < args.Length) url = args[++i];
+                else if (args[i] == "--log" && i + 1 < args.Length) logPath = args[++i];
+            }
+
+            if (auto)
+            {
+                Installer installer = new Installer();
+                installer.ServerUrl = url;
+                installer.AllowDownloads = !noDownload;
+                StringBuilder log = new StringBuilder();
+                installer.Log = delegate (string text) { log.AppendLine(text); };
+
+                string problem;
+                if (uninstall)
+                {
+                    try { installer.Uninstall(folder); problem = null; } catch (Exception ex) { problem = ex.Message; }
+                }
+                else
+                {
+                    problem = installer.Run(folder, key, zip);
+                }
+                log.AppendLine(problem == null ? "OK" : "ERROR: " + problem);
+                if (logPath.Length > 0) File.WriteAllText(logPath, log.ToString());
+                return problem == null ? 0 : 1;
+            }
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm(url));
+            return 0;
+        }
+    }
+}

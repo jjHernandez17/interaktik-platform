@@ -12,7 +12,7 @@ const heroTiktok = document.getElementById('gtaHeroTiktok');
 const heroApp = document.getElementById('gtaHeroApp');
 
 const appBadge = document.getElementById('gtaAppBadge');
-const gameBadge = document.getElementById('gtaGameBadge');
+const downloadIniBtn = document.getElementById('gtaDownloadIniBtn');
 const regenerateKeyBtns = document.querySelectorAll('.mc-regenerate');
 
 const serverKeyInput = document.getElementById('gtaServerKeyInput');
@@ -216,7 +216,33 @@ async function copyFromInput(input, button, idleLabel, doneLabel) {
 
 const copyServerKey = () => copyFromInput(serverKeyInput, copyKeyBtn, 'Copiar llave', 'Copiada ✓');
 
-// ===== Estado de la aplicación y del juego (se actualiza solo) =====
+// Archivo de configuración del mod: lleva la llave dentro, así el usuario no tiene que editar nada
+function downloadConfigFile() {
+  const key = serverKeyInput.value;
+  if (!key || key === 'Cargando...') return;
+
+  const text = [
+    '; Interaktik para GTA V - NO compartas este archivo (contiene tu llave secreta).',
+    '; Va en la carpeta "scripts" de GTA V, junto a InteraktikGTA.dll.',
+    `Key=${key}`,
+    '',
+    '; Mostrar en pantalla quien manda cada regalo (true o false).',
+    'ShowGifts=false',
+    '; Mostrar el aviso "Interaktik conectado" al abrir el juego (true o false).',
+    'ShowConnected=true',
+    '',
+  ].join(String.fromCharCode(13, 10));
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  link.download = 'InteraktikGTA.ini';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+}
+
+// ===== Estado del mod (se actualiza solo) =====
 function setBadge(badge, state, text) {
   badge.textContent = text;
   badge.className = `status-badge ${state}`;
@@ -232,15 +258,9 @@ async function refreshGameStatus() {
     const app = data.app || {};
 
     if (app.connected) {
-      setBadge(appBadge, 'connected', 'Conectada');
-      if (app.gameRunning) {
-        setBadge(gameBadge, 'connected', app.gameFocused ? 'Detectado · en primer plano' : 'Detectado');
-      } else {
-        setBadge(gameBadge, 'disconnected', 'No detectado: abre GTA V');
-      }
+      setBadge(appBadge, 'connected', app.gameFocused === false ? 'Conectado · juego en pausa' : 'Conectado');
     } else {
       setBadge(appBadge, 'disconnected', 'Sin conexión');
-      setBadge(gameBadge, 'disconnected', 'No detectado');
     }
 
     if (heroApp) heroApp.dataset.state = app.connected ? 'on' : 'off';
@@ -251,7 +271,7 @@ async function refreshGameStatus() {
 
 async function regenerateServerKey() {
   const confirmed = await showConfirm(
-    'Se creará una llave nueva y la anterior dejará de funcionar: tendrás que pegar la nueva en la aplicación. ¿Continuar?',
+    'Se creará una llave nueva y la anterior dejará de funcionar: tendrás que descargar de nuevo InteraktikGTA.ini y reemplazarlo. ¿Continuar?',
     'Regenerar llave',
   );
   if (!confirmed) return;
@@ -564,7 +584,7 @@ async function testRule(ruleId, button) {
     const response = await fetch(`/api/gta/rules/${ruleId}/test`, { method: 'POST' });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo probar la accion.');
-    await showAlert('Acción de prueba enviada. Vuelve a la ventana de GTA V: la aplicación escribe el truco en cuanto el juego esté en primer plano (espera hasta 20 segundos). Tiene que estar abierta y conectada, y tú en modo historia.', 'Listo');
+    await showAlert('Acción de prueba enviada. Debería ocurrir dentro de GTA V en un par de segundos. El mod tiene que estar conectado y tú en modo historia, sin pausa ni escenas.', 'Listo');
   } catch (error) {
     await showAlert(error.message, 'Error');
   } finally {
@@ -590,6 +610,7 @@ function bootstrapEventListeners() {
   disconnectBtn.addEventListener('click', disconnectLive);
 
   toggleKeyBtn.addEventListener('click', toggleKeyVisibility);
+  downloadIniBtn.addEventListener('click', downloadConfigFile);
   copyKeyBtn.addEventListener('click', copyServerKey);
   regenerateKeyBtns.forEach((btn) => btn.addEventListener('click', regenerateServerKey));
 

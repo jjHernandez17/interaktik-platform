@@ -1,19 +1,19 @@
 // tiktokinteractik/backend/src/services/gtaBridge.js
 //
-// Puente WebSocket para GTA V: la aplicacion de Windows del streamer (gta-helper/) se conecta como
-// cliente a <plataforma>/gta-bridge/<llave>. Cada regalo (cola gta_action_queue) se traduce a la
-// lista de trucos de GTA V (gtaService.cheatsFor) y se empuja a la aplicacion al instante; ella solo
-// escribe los codigos en el juego, asi que agregar o corregir acciones no exige actualizarla.
+// Puente WebSocket para GTA V: el mod de ScriptHookVDotNet del streamer (gta-mod/) se conecta como
+// cliente a <plataforma>/gta-bridge/<llave>. Cada regalo (cola gta_action_queue) se empuja al mod al
+// instante y el ejecuta la accion dentro del juego. (La aplicacion de teclas antigua, gta-helper/,
+// usa el mismo protocolo y escribe los 'codes'.)
 //
-// Mensajes del servidor a la aplicacion:
-//   { type: 'hello' }                                   al conectar
-//   { type: 'cheat', id, label, nickname, codes: [...] } escribir estos trucos en el juego
-// De la aplicacion al servidor:
-//   { type: 'status', gameRunning, gameFocused }        cada pocos segundos
-//   { type: 'result', id, ok, reason }                  resultado de cada 'cheat'
+// Mensajes del servidor al mod:
+//   { type: 'hello' }                                            al conectar
+//   { type: 'cheat', id, action, amount, label, nickname, codes } ejecutar esta accion
+// Del mod al servidor:
+//   { type: 'status', gameRunning, gameFocused }                 cada pocos segundos
+//   { type: 'result', id, ok, reason }                           resultado de cada 'cheat'
 //
-// Una conexion por streamer; si se conecta otra (por ejemplo al reabrir la aplicacion), la anterior
-// se cierra para no ejecutar dos veces.
+// Una conexion por streamer; si se conecta otra (por ejemplo al reabrir el juego), la anterior se
+// cierra para no ejecutar dos veces.
 
 const { WebSocketServer } = require('ws');
 const gtaService = require('./gtaService');
@@ -45,11 +45,13 @@ async function flush(userId) {
         if (age > STALE_ACTION_MS) continue; // llego cuando no habia aplicacion conectada: ya no tiene sentido
 
         const cheat = gtaService.cheatsFor(item.action, item.amount);
-        if (!cheat || cheat.codes.length === 0) continue;
+        if (!cheat) continue;
 
         connection.ws.send(JSON.stringify({
           type: 'cheat',
           id: item.id,
+          action: item.action,
+          amount: cheat.amount,
           label: cheat.label,
           nickname: String(item.tiktok_nickname || '').slice(0, 40),
           codes: cheat.codes,

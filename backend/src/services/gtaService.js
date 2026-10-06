@@ -1,12 +1,12 @@
 // tiktokinteractik/backend/src/services/gtaService.js
 //
 // GTA V interactivo: los regalos de TikTok se convierten en acciones sobre el streamer
-// (modo historia). No se instala nada dentro del juego: una pequeña aplicacion de Windows se
-// conecta aqui (gtaBridge.js) y escribe en GTA V los TRUCOS que trae el propio juego, asi
-// funciona igual en la version clasica y en la Enhanced, en Steam, Epic o Rockstar.
+// (modo historia). Un mod de ScriptHookVDotNet (gta-mod/) se conecta aqui (gtaBridge.js) y ejecuta
+// cada accion DENTRO del juego, sin consola ni ventanas. Funciona con la version clasica de GTA V
+// (Epic, Steam o Rockstar), no con la Enhanced.
 //
-// Cada accion es uno o varios codigos de truco. Los codigos viven SOLO aqui: si alguno
-// resulta incorrecto o cambia, se corrige en este archivo sin tocar la aplicacion.
+// El catalogo vive aqui: cada "id" lo implementa el mod (gta-mod/InteraktikGTA.cs). "code" es el truco
+// equivalente, solo lo usa la aplicacion de teclas antigua (gta-helper/), que ya no se ofrece.
 
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
@@ -28,6 +28,10 @@ const ACTIONS = [
   { id: 'slippery', group: 'annoy', label: 'Coches resbalosos', code: 'SNOWDAY', unit: 'veces', min: 1, max: 1, def: 1 },
   { id: 'garbage_truck', group: 'annoy', label: 'Camión de basura', code: 'TRASHED', unit: 'veces', min: 1, max: 1, def: 1 },
   { id: 'weather', group: 'annoy', label: 'Cambiar el clima', code: 'MAKEITRAIN', unit: 'veces', min: 1, max: 1, def: 1 },
+  { id: 'explosion', group: 'annoy', label: 'Explosiones cerca de él', unit: 'cantidad', min: 1, max: 5, def: 1, repeat: true },
+  { id: 'disarm', group: 'annoy', label: 'Quitarle las armas', unit: 'veces', min: 1, max: 1, def: 1 },
+  { id: 'ragdoll', group: 'annoy', label: 'Tirarlo al suelo', unit: 'veces', min: 1, max: 1, def: 1 },
+  { id: 'fire', group: 'annoy', label: 'Prenderle fuego', unit: 'veces', min: 1, max: 1, def: 1 },
   // ----- Ayudar
   { id: 'health', group: 'help', label: 'Vida y armadura al máximo', code: 'TURTLE', unit: 'veces', min: 1, max: 1, def: 1 },
   { id: 'weapons', group: 'help', label: 'Armas y munición', code: 'TOOLUP', unit: 'veces', min: 1, max: 1, def: 1 },
@@ -40,6 +44,7 @@ const ACTIONS = [
   { id: 'stunt_plane', group: 'help', label: 'Avioneta acrobática', code: 'BARNSTORM', unit: 'veces', min: 1, max: 1, def: 1 },
   { id: 'super_jump', group: 'help', label: 'Super salto', code: 'HOPTOIT', unit: 'veces', min: 1, max: 1, def: 1 },
   { id: 'fast_run', group: 'help', label: 'Correr más rápido', code: 'CATCHME', unit: 'veces', min: 1, max: 1, def: 1 },
+  { id: 'tank', group: 'help', label: 'Tanque Rhino', unit: 'veces', min: 1, max: 1, def: 1 },
 ];
 
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
@@ -63,12 +68,13 @@ function listActions() {
   };
 }
 
-// Lista de trucos que la aplicacion debe escribir para una accion
+// Lo que se le manda al mod: la accion con su cantidad (y, para la aplicacion antigua, los trucos)
 function cheatsFor(actionId, amount) {
   const action = ACTION_BY_ID.get(actionId);
   if (!action) return null;
   const times = action.repeat ? clampAmount(action, amount) : 1;
-  return { label: action.label, codes: Array.from({ length: times }, () => action.code) };
+  const codes = action.code ? Array.from({ length: times }, () => action.code) : [];
+  return { label: action.label, amount: times, codes };
 }
 
 function clampAmount(action, value) {

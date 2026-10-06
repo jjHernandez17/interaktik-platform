@@ -444,3 +444,23 @@
     gap: 10px;
   }
 }
+
+/* ---------- GTA V interactivo (reutiliza esta hoja) ---------- */
+.mc-beta {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #facc15 60%, transparent);
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.mc-warning {
+  margin: 0 0 18px;
+}

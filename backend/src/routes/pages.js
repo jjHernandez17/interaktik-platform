@@ -782,6 +782,28 @@ router.get('/minecraft.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft.js'));
 });
 
+// GTA V interactivo
+router.get(['/gta', '/gta.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'gta'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/gta.html', 'GTA page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/gta.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/gta.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/gta.js'));
+});
+
 // Assets
 router.use('/assets', express.static(path.join(__dirname, '../../../frontend/assets')));
 // Plugin de Minecraft (frontend/downloads/InteraktikMinecraft.jar, compilado desde minecraft-plugin/)

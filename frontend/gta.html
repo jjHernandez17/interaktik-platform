@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTA Interactivo | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/minecraft.css?v=20261012a" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12C19 16.5 12 21 12 21z" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>GTA Interactivo <span class="mc-beta">Beta</span></h1>
+        <p>
+          Juegas GTA V en modo historia y los regalos de tu live te ayudan o te molestan: te suben las estrellas de la policía,
+          te tiran del cielo, o te dan armas, vida, un helicóptero o un deportivo. Aquí decides qué regalo hace qué.
+          Funciona con la versión <strong>clásica y la Enhanced</strong>, en Steam, Epic y Rockstar.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="gtaHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="gtaHeroApp" data-state="off"><span class="pk-dot"></span>Aplicación conectada</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art">
+        <img src="assets/images/gtaInteractive.svg" alt="GTA Interactivo" />
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="gtaConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="gtaConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="gtaConnectionForm" class="pk-inline-form">
+          <input id="gtaUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="gtaConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="gtaDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Tu juego</h2>
+            <p class="pk-hint">Sigue la guía de abajo. Aquí ves si la aplicación ya está lista y si detecta GTA V.</p>
+          </div>
+        </div>
+        <ul class="mc-status-list">
+          <li>
+            <span>Aplicación de Windows</span>
+            <span id="gtaAppBadge" class="status-badge disconnected">Sin conexión</span>
+          </li>
+          <li>
+            <span>GTA V</span>
+            <span id="gtaGameBadge" class="status-badge disconnected">No detectado</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Guia de instalacion -->
+    <section class="pk-panel mc-setup" aria-labelledby="gtaSetupTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="gtaSetupTitle">Conecta tu GTA V: guía paso a paso</h2>
+          <p class="pk-hint">Son unos 3 minutos. No se instala nada dentro del juego: una pequeña aplicación escribe por ti los trucos que GTA V ya trae.</p>
+        </div>
+      </div>
+
+      <div class="mc-compat">
+        <div class="mc-compat-col mc-compat-col--yes">
+          <h3>Funciona con</h3>
+          <ul>
+            <li><strong>GTA V para PC</strong>, versión clásica o Enhanced</li>
+            <li>Steam, Epic Games o Rockstar Games Launcher</li>
+            <li>Windows 10 y 11, en <strong>modo historia</strong></li>
+          </ul>
+        </div>
+        <div class="mc-compat-col mc-compat-col--no">
+          <h3>No funciona con</h3>
+          <ul>
+            <li><strong>GTA Online</strong>: ahí los trucos no existen. No lo uses, podría poner en riesgo tu cuenta</li>
+            <li>Consolas (PlayStation, Xbox), Mac o celular</li>
+            <li>Con el juego en pausa, en un menú o con el teléfono abierto: el truco no entra</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="mc-guide-tip mc-warning"><strong>Importante:</strong> usar trucos en GTA V desactiva los logros de esa partida (solo en modo historia, no afecta tu cuenta).
+        Te recomendamos probar con una partida guardada que no te importe.</p>
+
+      <ol class="mc-guide">
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">1</span>
+          <div class="mc-guide-body">
+            <h3>Descarga la aplicación</h3>
+            <p><a id="gtaDownloadLink" class="btn accent small" href="downloads/InteraktikGTA.exe" download>Descargar aplicación (InteraktikGTA.exe)</a></p>
+            <p>Guárdala donde quieras, por ejemplo en el Escritorio. No necesita instalación.</p>
+            <p class="mc-guide-tip">Si Windows muestra «Windows protegió su PC», pulsa <strong>Más información</strong> y luego <strong>Ejecutar de todas formas</strong>.
+              Aparece porque la aplicación es nueva y no tiene firma digital; solo escribe teclas en GTA V.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">2</span>
+          <div class="mc-guide-body">
+            <h3>Pega tu llave en la aplicación</h3>
+            <p>Ábrela, pega esta llave en el cuadro y pulsa <strong>Conectar</strong>. Se guarda: la próxima vez solo la abres y se conecta sola.</p>
+
+            <div class="mc-key-row">
+              <label class="pk-field mc-key-field">
+                <span class="pk-label">Tu llave secreta (no la compartas)</span>
+                <input id="gtaServerKeyInput" type="password" readonly value="Cargando..." autocomplete="off" />
+              </label>
+              <div class="mc-key-actions">
+                <button id="gtaToggleKeyBtn" class="btn ghost" type="button">Mostrar</button>
+                <button id="gtaCopyKeyBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar llave</button>
+                <button class="btn ghost mc-regenerate" type="button">Regenerar</button>
+              </div>
+            </div>
+            <p class="pk-hint">Si regeneras la llave, la anterior deja de funcionar y tendrás que pegar la nueva en la aplicación.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">3</span>
+          <div class="mc-guide-body">
+            <h3>Comprueba que quedó conectada</h3>
+            <p>En la aplicación aparece «Conectada ✔» y, arriba en esta página, «Aplicación de Windows» pasa a <strong>Conectada</strong>.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">4</span>
+          <div class="mc-guide-body">
+            <h3>Abre GTA V en modo historia</h3>
+            <p>Abre GTA V como siempre, entra a <strong>modo historia</strong> y carga una partida. Deja la aplicación abierta (puede estar minimizada).
+              Cuando el juego esté abierto, aquí «GTA V» pasa a <strong>Detectado</strong>.</p>
+            <p class="mc-guide-tip">Juega en <strong>pantalla completa sin bordes</strong> o en ventana para que puedas cambiar de programa sin que el juego se minimice.
+              Si GTA V está abierto «como administrador», abre también la aplicación como administrador (clic derecho → Ejecutar como administrador).</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">5</span>
+          <div class="mc-guide-body">
+            <h3>Conecta tu TikTok y crea tus reglas</h3>
+            <p>Arriba pulsa <strong>Conectar</strong> en «TikTok Live» y abajo crea reglas: eliges un regalo y lo que hace en tu juego.
+              Usa <strong>Probar</strong> y vuelve a la ventana de GTA V: la aplicación escribe el truco en cuanto el juego esté en primer plano
+              (espera hasta 20 segundos).</p>
+          </div>
+        </li>
+      </ol>
+
+      <details class="mc-help">
+        <summary>Algo no funciona</summary>
+        <ul>
+          <li><strong>La aplicación dice «llave no válida»:</strong> copia la llave de nuevo desde esta página (si regeneraste la llave, la anterior ya no sirve).</li>
+          <li><strong>Sigue en «Sin conexión»:</strong> revisa tu conexión a internet y que no tengas la aplicación abierta dos veces.</li>
+          <li><strong>Conectada pero el truco no se ejecuta:</strong> asegúrate de estar en <strong>modo historia</strong>, sin menús ni teléfono abiertos,
+            y con la ventana de GTA V al frente. Si GTA V corre como administrador, abre la aplicación también como administrador.</li>
+          <li><strong>Algunos trucos no hacen nada:</strong> varios trucos no se pueden activar durante misiones o escenas. Prueba en el mundo libre.</li>
+          <li><strong>En la aplicación hay un recuadro «Abrir consola con ~»:</strong> déjalo activado. Si tu teclado no tiene esa tecla
+            (a la izquierda del 1), desactívalo y prueba de nuevo.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="gtaRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="gtaRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo dispara una acción en tu juego. En «Subir nivel de búsqueda» un combo suma estrellas: 3 rosas de «1 estrella» suben 3.</p>
+          </div>
+          <span id="gtaRuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="gtaRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y lo que hace en tu juego.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="gtaFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="gtaFormTitle">Nueva regla</h2>
+            <button id="gtaLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="gtaRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="gtaGiftPicker" class="gift-picker">
+                <button id="gtaGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="gtaGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="gtaGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="gtaGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="gtaGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="gtaGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="gtaGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Acción en el juego</span>
+              <select id="gtaActionSelect">
+                <option value="">Selecciona una acción</option>
+              </select>
+            </label>
+
+            <label id="gtaAmountField" class="pk-field" hidden>
+              <span id="gtaAmountLabel" class="pk-label">Cantidad</span>
+              <input id="gtaAmountInput" type="number" min="1" value="1" />
+              <span id="gtaAmountHint" class="pk-hint"></span>
+            </label>
+
+            <button id="gtaRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/gta.js?v=20261012a"></script>
+</body>
+
+</html>

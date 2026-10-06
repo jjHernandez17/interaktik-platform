@@ -29,6 +29,8 @@ const robloxDanceRouter = require('./src/routes/robloxDanceRoutes');
 const robloxParkourRouter = require('./src/routes/robloxParkourRoutes');
 const minecraftRouter = require('./src/routes/minecraftRoutes');
 const minecraftBridge = require('./src/services/minecraftBridge');
+const gtaRouter = require('./src/routes/gtaRoutes');
+const gtaBridge = require('./src/services/gtaBridge');
 const overlayRouter = require('./src/routes/overlayRoutes');
 const overlayService = require('./src/services/overlayService');
 const overlayAccumulator = require('./src/services/overlayAccumulator');
@@ -114,6 +116,7 @@ app.use('/api', paymentsRouter);
 app.use('/api', robloxDanceRouter);
 app.use('/api', robloxParkourRouter);
 app.use('/api', minecraftRouter);
+app.use('/api', gtaRouter);
 app.use('/api', overlayRouter);
 app.use('/api', streamStatsRouter);
 overlayAccumulator.start();
@@ -281,6 +284,7 @@ function start() {
 
   // Puente WebSocket de Minecraft Java (/mc-bridge/<llave>): comparte el servidor HTTP con Socket.IO
   minecraftBridge.attach(server);
+  gtaBridge.attach(server);
 
   // 2. Inicializar Socket.IO con el servidor HTTP
   const io = new Server(server, {

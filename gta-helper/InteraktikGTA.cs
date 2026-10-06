@@ -205,8 +205,10 @@ namespace InteraktikGta
     class Settings
     {
         public string Key = "";
-        public string Url = "https://interaktik-platform-production.up.railway.app";
+        public string Url = DefaultUrl;
+        public bool UrlFromArgs; // --url es solo para pruebas: no se guarda, asi no se queda apuntando a otro servidor
         public bool UseConsole = true;
+        public const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
 
         static string FilePath
         {
@@ -232,7 +234,6 @@ namespace InteraktikGta
                         string name = line.Substring(0, eq).Trim().ToLowerInvariant();
                         string value = line.Substring(eq + 1).Trim();
                         if (name == "key") settings.Key = value;
-                        else if (name == "url" && value.Length > 0) settings.Url = value;
                         else if (name == "console") settings.UseConsole = value != "0";
                     }
                 }
@@ -251,7 +252,7 @@ namespace InteraktikGta
                 File.WriteAllLines(FilePath, new string[]
                 {
                     "key=" + Key,
-                    "url=" + Url,
+                    "url=" + (UrlFromArgs ? DefaultUrl : Url),
                     "console=" + (UseConsole ? "1" : "0"),
                 });
             }
@@ -684,6 +685,7 @@ namespace InteraktikGta
             Load += delegate
             {
                 AppendLog("Listo. En GTA V usa el modo historia (nunca GTA Online).");
+                AppendLog("Servidor: " + settings.Url);
                 if (autoConnect && IsValidKey(settings.Key)) StartConnection();
             };
             FormClosing += delegate { bridge.Stop(); };
@@ -780,7 +782,7 @@ namespace InteraktikGta
                 bool autoConnect = true;
                 for (int i = 0; i < args.Length; i++)
                 {
-                    if (args[i] == "--url" && i + 1 < args.Length) settings.Url = args[++i];
+                    if (args[i] == "--url" && i + 1 < args.Length) { settings.Url = args[++i]; settings.UrlFromArgs = true; }
                     else if (args[i] == "--key" && i + 1 < args.Length) settings.Key = args[++i];
                     else if (args[i] == "--no-autoconnect") autoConnect = false;
                 }

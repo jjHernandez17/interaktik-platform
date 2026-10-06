@@ -163,37 +163,34 @@ namespace InteraktikGta
             if (sent == 0) throw new InvalidOperationException("Windows rechazo la tecla (si GTA V corre como administrador, abre esta aplicacion tambien como administrador).");
         }
 
-        // Si el usuario cambia de ventana a mitad del truco, se corta: nunca se escribe en otro programa.
-        static int keyMs = 45;
+        // Tiempos por tecla (ms): el juego lee el teclado una vez por cuadro (~16 ms), asi que 20 ms es lo minimo seguro.
+        const int KeyHoldMs = 20;
+        const int KeyGapMs = 6;
 
+        // Si el usuario cambia de ventana a mitad del truco, se corta: nunca se escribe en otro programa.
         static void Tap(ushort scan)
         {
             if (!IsForeground()) throw new InvalidOperationException("GTA V perdio el primer plano mientras se escribia el truco");
             SendKey(scan, true);
-            Thread.Sleep(keyMs);
+            Thread.Sleep(KeyHoldMs);
             SendKey(scan, false);
-            Thread.Sleep(keyMs);
+            Thread.Sleep(KeyGapMs);
         }
 
         // Teclas por posicion fisica (scancode): funcionan con cualquier distribucion de teclado.
         const ushort ScanConsole = 0x29; // la tecla a la izquierda del 1 (~ o ` segun el teclado)
         const ushort ScanEnter = 0x1C;
 
-        public static void TypeCheat(List<string> codes, bool useConsole)
+        // GTA V solo acepta los trucos en su consola (~): escribir las letras sin abrirla hace que el personaje
+        // golpee y se abran los menus. La caja de texto del juego se ve un instante, asi que se escribe muy rapido.
+        public static void TypeCheat(List<string> codes)
         {
-            // Con la consola abierta el juego dibuja una caja de texto en pantalla: se escribe lo mas rapido posible.
-            keyMs = useConsole ? 16 : 45;
             for (int i = 0; i < codes.Count; i++)
             {
-                if (i > 0) Thread.Sleep(600);
+                if (i > 0) Thread.Sleep(250);
 
-                // Por defecto se escribe el truco directo, sin abrir la consola (no se ve nada en pantalla).
-                // Con la consola activada va ~ + codigo + Enter.
-                if (useConsole)
-                {
-                    Tap(ScanConsole);
-                    Thread.Sleep(120);
-                }
+                Tap(ScanConsole);
+                Thread.Sleep(90); // deja que la consola termine de abrirse
 
                 foreach (char letter in codes[i].ToUpperInvariant())
                 {
@@ -202,7 +199,7 @@ namespace InteraktikGta
                     Tap(scan);
                 }
 
-                Thread.Sleep(useConsole ? 60 : 150);
+                Thread.Sleep(30);
                 Tap(ScanEnter);
             }
         }
@@ -213,7 +210,6 @@ namespace InteraktikGta
         public string Key = "";
         public string Url = DefaultUrl;
         public bool UrlFromArgs; // --url es solo para pruebas: no se guarda, asi no se queda apuntando a otro servidor
-        public bool UseConsole = false;
         public const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
 
         static string FilePath
@@ -240,7 +236,6 @@ namespace InteraktikGta
                         string name = line.Substring(0, eq).Trim().ToLowerInvariant();
                         string value = line.Substring(eq + 1).Trim();
                         if (name == "key") settings.Key = value;
-                        else if (name == "consola") settings.UseConsole = value == "1";
                     }
                 }
             }
@@ -259,7 +254,6 @@ namespace InteraktikGta
                 {
                     "key=" + Key,
                     "url=" + (UrlFromArgs ? DefaultUrl : Url),
-                    "consola=" + (UseConsole ? "1" : "0"),
                 });
             }
             catch (Exception)
@@ -572,7 +566,7 @@ namespace InteraktikGta
                         }
                         else
                         {
-                            Game.TypeCheat(job.Codes, settings.UseConsole);
+                            Game.TypeCheat(job.Codes);
                             ok = true;
                         }
                     }
@@ -595,7 +589,6 @@ namespace InteraktikGta
         readonly Bridge bridge;
         readonly TextBox keyBox = new TextBox();
         readonly Button connectButton = new Button();
-        readonly CheckBox consoleCheck = new CheckBox();
         readonly Label stateLabel = new Label();
         readonly Label gameLabel = new Label();
         readonly TextBox logBox = new TextBox();
@@ -651,28 +644,18 @@ namespace InteraktikGta
             connectButton.FlatAppearance.BorderSize = 0;
             connectButton.Click += OnConnectClick;
 
-            consoleCheck.Text = "Abrir la consola con ~ (solo si los trucos no se activan sin ella)";
-            consoleCheck.Checked = settings.UseConsole;
-            consoleCheck.AutoSize = true;
-            consoleCheck.Location = new Point(18, 154);
-            consoleCheck.CheckedChanged += delegate
-            {
-                settings.UseConsole = consoleCheck.Checked;
-                settings.Save();
-            };
-
             stateLabel.Text = "Estado: sin conexion";
             stateLabel.AutoSize = true;
             stateLabel.Font = new Font("Segoe UI Semibold", 10f);
-            stateLabel.Location = new Point(18, 188);
+            stateLabel.Location = new Point(18, 160);
 
             gameLabel.Text = "GTA V: no detectado";
             gameLabel.AutoSize = true;
             gameLabel.ForeColor = Color.FromArgb(190, 180, 220);
-            gameLabel.Location = new Point(18, 212);
+            gameLabel.Location = new Point(18, 184);
 
-            logBox.Location = new Point(18, 242);
-            logBox.Size = new Size(ClientSize.Width - 36, ClientSize.Height - 242 - 18);
+            logBox.Location = new Point(18, 214);
+            logBox.Size = new Size(ClientSize.Width - 36, ClientSize.Height - 214 - 18);
             logBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             logBox.Multiline = true;
             logBox.ReadOnly = true;
@@ -681,7 +664,7 @@ namespace InteraktikGta
             logBox.ForeColor = Color.FromArgb(220, 214, 240);
             logBox.BorderStyle = BorderStyle.FixedSingle;
 
-            Controls.AddRange(new Control[] { title, hint, keyCaption, keyBox, connectButton, consoleCheck, stateLabel, gameLabel, logBox });
+            Controls.AddRange(new Control[] { title, hint, keyCaption, keyBox, connectButton, stateLabel, gameLabel, logBox });
 
             bridge.Log += AppendLog;
             bridge.State += OnState;

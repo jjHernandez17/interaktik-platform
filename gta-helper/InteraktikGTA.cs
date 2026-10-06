@@ -164,13 +164,15 @@ namespace InteraktikGta
         }
 
         // Si el usuario cambia de ventana a mitad del truco, se corta: nunca se escribe en otro programa.
+        static int keyMs = 45;
+
         static void Tap(ushort scan)
         {
             if (!IsForeground()) throw new InvalidOperationException("GTA V perdio el primer plano mientras se escribia el truco");
             SendKey(scan, true);
-            Thread.Sleep(45);
+            Thread.Sleep(keyMs);
             SendKey(scan, false);
-            Thread.Sleep(45);
+            Thread.Sleep(keyMs);
         }
 
         // Teclas por posicion fisica (scancode): funcionan con cualquier distribucion de teclado.
@@ -179,15 +181,18 @@ namespace InteraktikGta
 
         public static void TypeCheat(List<string> codes, bool useConsole)
         {
+            // Con la consola abierta el juego dibuja una caja de texto en pantalla: se escribe lo mas rapido posible.
+            keyMs = useConsole ? 16 : 45;
             for (int i = 0; i < codes.Count; i++)
             {
                 if (i > 0) Thread.Sleep(600);
 
-                // Siempre ~ + codigo + Enter: si el juego no necesita la consola, el codigo entra igual.
+                // Por defecto se escribe el truco directo, sin abrir la consola (no se ve nada en pantalla).
+                // Con la consola activada va ~ + codigo + Enter.
                 if (useConsole)
                 {
                     Tap(ScanConsole);
-                    Thread.Sleep(250);
+                    Thread.Sleep(120);
                 }
 
                 foreach (char letter in codes[i].ToUpperInvariant())
@@ -197,7 +202,7 @@ namespace InteraktikGta
                     Tap(scan);
                 }
 
-                Thread.Sleep(150);
+                Thread.Sleep(useConsole ? 60 : 150);
                 Tap(ScanEnter);
             }
         }
@@ -208,7 +213,7 @@ namespace InteraktikGta
         public string Key = "";
         public string Url = DefaultUrl;
         public bool UrlFromArgs; // --url es solo para pruebas: no se guarda, asi no se queda apuntando a otro servidor
-        public bool UseConsole = true;
+        public bool UseConsole = false;
         public const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
 
         static string FilePath
@@ -235,7 +240,7 @@ namespace InteraktikGta
                         string name = line.Substring(0, eq).Trim().ToLowerInvariant();
                         string value = line.Substring(eq + 1).Trim();
                         if (name == "key") settings.Key = value;
-                        else if (name == "console") settings.UseConsole = value != "0";
+                        else if (name == "consola") settings.UseConsole = value == "1";
                     }
                 }
             }
@@ -254,7 +259,7 @@ namespace InteraktikGta
                 {
                     "key=" + Key,
                     "url=" + (UrlFromArgs ? DefaultUrl : Url),
-                    "console=" + (UseConsole ? "1" : "0"),
+                    "consola=" + (UseConsole ? "1" : "0"),
                 });
             }
             catch (Exception)
@@ -646,7 +651,7 @@ namespace InteraktikGta
             connectButton.FlatAppearance.BorderSize = 0;
             connectButton.Click += OnConnectClick;
 
-            consoleCheck.Text = "Abrir consola con ~ antes de escribir el truco (recomendado)";
+            consoleCheck.Text = "Abrir la consola con ~ (solo si los trucos no se activan sin ella)";
             consoleCheck.Checked = settings.UseConsole;
             consoleCheck.AutoSize = true;
             consoleCheck.Location = new Point(18, 154);

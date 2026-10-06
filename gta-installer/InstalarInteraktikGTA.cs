@@ -16,10 +16,12 @@ using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -262,6 +264,80 @@ namespace InteraktikGtaInstaller
             return "";
         }
 
+        // ---------- comprobar la llave ----------
+
+        public const int KeyOk = 0;
+        public const int KeyInvalid = 1;
+        public const int KeyExpired = 2;
+        public const int KeyOffline = 3;
+
+        // Se conecta un instante a la plataforma con la llave y dice si la acepta. OJO: si GTA V esta abierto con el
+        // mod conectado, esta prueba lo desconecta (la plataforma solo deja una conexion por usuario).
+        public static int TestKey(string serverUrl, string key, out string message)
+        {
+            message = "";
+            string baseUrl = serverUrl.Trim().TrimEnd('/');
+            if (baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) baseUrl = "wss://" + baseUrl.Substring(8);
+            else if (baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) baseUrl = "ws://" + baseUrl.Substring(7);
+
+            int result = KeyOffline;
+            string text = "No pude conectar con Interaktik. Revisa tu internet.";
+            try
+            {
+                Task task = Task.Run(async delegate
+                {
+                    using (ClientWebSocket socket = new ClientWebSocket())
+                    using (CancellationTokenSource timeout = new CancellationTokenSource(12000))
+                    {
+                        await socket.ConnectAsync(new Uri(baseUrl + "/gta-bridge/" + key.Trim()), timeout.Token);
+                        byte[] buffer = new byte[4096];
+                        while (socket.State == WebSocketState.Open)
+                        {
+                            WebSocketReceiveResult received = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), timeout.Token);
+                            if (received.MessageType == WebSocketMessageType.Close)
+                            {
+                                int code = socket.CloseStatus.HasValue ? (int)socket.CloseStatus.Value : 0;
+                                if (code == 4004)
+                                {
+                                    result = KeyInvalid;
+                                    text = "Interaktik no reconoce esa llave. Copia la llave de la pagina de GTA Interactivo (no la de otro juego) y vuelve a probar.";
+                                }
+                                else if (code == 4003)
+                                {
+                                    result = KeyExpired;
+                                    text = "Tu prueba o plan de Interaktik vencio.";
+                                }
+                                else
+                                {
+                                    result = KeyOffline;
+                                    text = "La plataforma cerro la conexion (codigo " + code + ").";
+                                }
+                                return;
+                            }
+                            if (Encoding.UTF8.GetString(buffer, 0, received.Count).Contains("\"hello\""))
+                            {
+                                result = KeyOk;
+                                text = "La llave es valida: la plataforma te reconoce.";
+                                try { await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "ok", CancellationToken.None); } catch (Exception) { }
+                                return;
+                            }
+                        }
+                    }
+                });
+                task.Wait(15000);
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex;
+                while (inner.InnerException != null) inner = inner.InnerException;
+                result = KeyOffline;
+                text = "No pude conectar con Interaktik (" + inner.Message + ").";
+            }
+
+            message = text;
+            return result;
+        }
+
         // ---------- instalacion ----------
 
         static void CopyStream(Stream from, string destination)
@@ -473,6 +549,14 @@ namespace InteraktikGtaInstaller
                 if (!IsValidKey(key)) return "La llave no parece valida. Copiala con el boton \"Copiar llave\" de la pagina de GTA Interactivo.";
                 if (GameRunning()) return "GTA V esta abierto. Cierralo (y tu launcher) y vuelve a pulsar Instalar.";
 
+                if (AllowDownloads)
+                {
+                    string keyMessage;
+                    int keyState = TestKey(ServerUrl, key, out keyMessage);
+                    if (keyState == KeyInvalid || keyState == KeyExpired) return keyMessage;
+                    Log(keyState == KeyOk ? keyMessage : "No pude comprobar la llave (" + keyMessage + ") pero sigo con la instalacion.");
+                }
+
                 if (!string.IsNullOrEmpty(shvZip)) InstallScriptHookVFromZip(folder, shvZip);
 
                 if (!HasScriptHookV(folder))
@@ -506,6 +590,8 @@ namespace InteraktikGtaInstaller
         readonly TextBox folderBox = new TextBox();
         readonly Label folderInfo = new Label();
         readonly TextBox keyBox = new TextBox();
+        readonly Label keyInfo = new Label();
+        readonly Button testButton = new Button();
         readonly Label shvLabel = new Label();
         readonly Label shvdnLabel = new Label();
         readonly Label netLabel = new Label();
@@ -530,7 +616,7 @@ namespace InteraktikGtaInstaller
 
             Text = "Instalar Interaktik para GTA V";
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(640, 700);
+            ClientSize = new Size(640, 730);
             MinimumSize = new Size(600, 640);
             Font = new Font("Segoe UI", 9.5f);
             BackColor = Bg;
@@ -563,12 +649,25 @@ namespace InteraktikGtaInstaller
 
             AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de GTA Interactivo en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
             y += 24;
-            keyBox.SetBounds(18, y, 604, 26);
+            keyBox.SetBounds(18, y, 470, 26);
             StyleBox(keyBox);
             keyBox.UseSystemPasswordChar = true;
             keyBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            Controls.Add(keyBox);
-            y += 40;
+            testButton.Text = "Probar conexi\u00f3n";
+            testButton.SetBounds(496, y - 2, 126, 30);
+            testButton.FlatStyle = FlatStyle.Flat;
+            testButton.BackColor = Accent;
+            testButton.ForeColor = Color.White;
+            testButton.FlatAppearance.BorderSize = 0;
+            testButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            testButton.Click += OnTestKey;
+            Controls.AddRange(new Control[] { keyBox, testButton });
+            y += 30;
+            keyInfo.SetBounds(18, y, 604, 20);
+            keyInfo.ForeColor = Muted;
+            keyInfo.Text = "Comprueba que la llave sea correcta antes de instalar.";
+            Controls.Add(keyInfo);
+            y += 28;
 
             AddLabel("3. Requisitos", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
             y += 26;
@@ -740,6 +839,40 @@ namespace InteraktikGtaInstaller
             SetStatus(modLabel, isGame && Installer.HasMod(folder), "Mod de Interaktik instalado", "Mod de Interaktik: todav\u00eda no instalado");
         }
 
+        void OnTestKey(object sender, EventArgs e)
+        {
+            string key = keyBox.Text.Trim();
+            if (!Installer.IsValidKey(key))
+            {
+                keyInfo.Text = "La llave no parece valida (son letras y numeros, unos 48 caracteres). Copiala de nuevo desde la pagina.";
+                keyInfo.ForeColor = Bad;
+                return;
+            }
+            if (Installer.GameRunning())
+            {
+                keyInfo.Text = "Cierra GTA V antes de probar: la prueba desconectaria el mod del juego.";
+                keyInfo.ForeColor = Bad;
+                return;
+            }
+
+            testButton.Enabled = false;
+            keyInfo.Text = "Probando...";
+            keyInfo.ForeColor = Muted;
+            string url = installer.ServerUrl;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                string message;
+                int state = Installer.TestKey(url, key, out message);
+                BeginInvoke((Action)delegate
+                {
+                    testButton.Enabled = true;
+                    keyInfo.Text = (state == Installer.KeyOk ? "\u2714  " : "\u2718  ") + message;
+                    keyInfo.ForeColor = state == Installer.KeyOk ? Good : Bad;
+                    AppendLog(message);
+                });
+            });
+        }
+
         void OnInstall(object sender, EventArgs e)
         {
             string folder = folderBox.Text.Trim();
@@ -805,11 +938,13 @@ namespace InteraktikGtaInstaller
             bool auto = false;
             bool uninstall = false;
             bool noDownload = false;
+            bool testKey = false;
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--auto") auto = true;
                 else if (args[i] == "--uninstall") uninstall = true;
                 else if (args[i] == "--no-download") noDownload = true;
+                else if (args[i] == "--test-key") testKey = true;
                 else if (args[i] == "--folder" && i + 1 < args.Length) folder = args[++i];
                 else if (args[i] == "--key" && i + 1 < args.Length) key = args[++i];
                 else if (args[i] == "--shv-zip" && i + 1 < args.Length) zip = args[++i];
@@ -826,6 +961,14 @@ namespace InteraktikGtaInstaller
                 installer.Log = delegate (string text) { log.AppendLine(text); };
 
                 string problem;
+                if (testKey)
+                {
+                    string keyMessage;
+                    int state = Installer.TestKey(url, key, out keyMessage);
+                    log.AppendLine("estado=" + state + " " + keyMessage);
+                    if (logPath.Length > 0) File.WriteAllText(logPath, log.ToString());
+                    return state;
+                }
                 if (uninstall)
                 {
                     try { installer.Uninstall(folder); problem = null; } catch (Exception ex) { problem = ex.Message; }

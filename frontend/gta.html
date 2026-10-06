@@ -142,7 +142,8 @@
           <span class="mc-guide-num">2</span>
           <div class="mc-guide-body">
             <h3>Copia tu llave y pégala en el instalador</h3>
-            <p>El instalador encuentra solo la carpeta de GTA V. Pega tu llave en el cuadro «Tu llave».</p>
+            <p>El instalador encuentra solo la carpeta de GTA V. Pega tu llave en el cuadro «Tu llave» y pulsa <strong>Probar conexión</strong>: te dice si la plataforma la
+              reconoce. Usa la llave de <strong>esta página</strong>: la de otros juegos (como Survivaltik) es distinta y no sirve.</p>
 
             <div class="mc-key-row">
               <label class="pk-field mc-key-field">
@@ -274,6 +275,8 @@
             para comprobar que el juego abre sin mods.</li>
           <li><strong>GTA V no abre o muestra un error de versión:</strong> el juego se actualizó y Script Hook V todavía no es compatible. Espera a que publiquen su
             versión nueva en <code>dev-c.com/gtav/scripthookv</code>, o saca temporalmente <code>dinput8.dll</code> de la carpeta del juego para jugar sin mods.</li>
+          <li><strong>En esta página «Mod en GTA V» sigue en gris:</strong> el mod no logró conectarse, casi siempre porque la llave no es la correcta. Abre el instalador, pega la llave de esta página y
+            pulsa <strong>Probar conexión</strong> (con GTA V cerrado). Si dice que no la reconoce, copia la llave de nuevo desde aquí y vuelve a pulsar Instalar.</li>
           <li><strong>El juego abre pero las reglas no hacen nada:</strong> abre <code>scripts\InteraktikGTA.log</code>. Si habla de <code>SHVDN.NativeMemory</code>, tu ScriptHookVDotNet es demasiado viejo para
             esta versión de GTA V: cierra el juego, abre el instalador y pulsa Instalar otra vez, que lo actualiza solo.</li>
           <li><strong>No aparece «Interaktik conectado»:</strong> revisa que <code>InteraktikGTA.dll</code> e <code>InteraktikGTA.ini</code> estén en la carpeta
@@ -366,7 +369,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/gta.js?v=20261012h"></script>
+  <script src="js/gta.js?v=20261012i"></script>
 </body>
 
 </html>

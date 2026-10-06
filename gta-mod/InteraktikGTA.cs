@@ -61,6 +61,7 @@ public class InteraktikGTA : Script
     volatile string pendingMessage;
     volatile bool paused;
     ClientWebSocket current;
+    volatile bool lastCloseWas4000;
 
     // ----- estado dentro del juego
     readonly Random random = new Random();
@@ -233,7 +234,8 @@ public class InteraktikGTA : Script
 
             if (fatal) return;
 
-            try { await Task.Delay(delay, token); } catch (OperationCanceledException) { return; }
+            try { await Task.Delay(lastCloseWas4000 ? 20000 : delay, token); } catch (OperationCanceledException) { return; }
+            lastCloseWas4000 = false;
             delay = Math.Min(delay * 2, 15000);
         }
     }
@@ -284,9 +286,9 @@ public class InteraktikGTA : Script
         }
         if (code == 4000)
         {
-            pendingMessage = "Interaktik: este juego se conecto desde otro lugar.";
-            Log("Cierre 4000: reemplazada por otra conexion.");
-            return true;
+            lastCloseWas4000 = true;
+            Log("Cierre 4000: reemplazada por otra conexion (por ejemplo la prueba del instalador). Reintento en 20 s.");
+            return false;
         }
         return false;
     }

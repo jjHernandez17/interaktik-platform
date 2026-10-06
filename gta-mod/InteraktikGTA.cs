@@ -148,6 +148,28 @@ public class InteraktikGTA : Script
         }
     }
 
+    // El mismo error en cada tick llenaria el disco: se anota una vez por minuto, con cuantas veces se repitio
+    static readonly Dictionary<string, DateTime> lastLogged = new Dictionary<string, DateTime>();
+    static readonly Dictionary<string, int> suppressed = new Dictionary<string, int>();
+
+    static void LogThrottled(string key, string text)
+    {
+        DateTime last;
+        if (lastLogged.TryGetValue(key, out last) && (DateTime.UtcNow - last).TotalSeconds < 60)
+        {
+            int count;
+            suppressed.TryGetValue(key, out count);
+            suppressed[key] = count + 1;
+            return;
+        }
+
+        int repeats;
+        suppressed.TryGetValue(key, out repeats);
+        suppressed[key] = 0;
+        lastLogged[key] = DateTime.UtcNow;
+        Log(text + (repeats > 0 ? " (se repitio " + repeats + " veces mas)" : ""));
+    }
+
     static void Log(string text)
     {
         try
@@ -365,7 +387,7 @@ public class InteraktikGTA : Script
         }
         catch (Exception ex)
         {
-            Log("Error en el tick: " + ex);
+            LogThrottled("tick", "Error en el tick (si dice SHVDN.NativeMemory, tu ScriptHookVDotNet es demasiado viejo para esta version de GTA V: actualizalo con el instalador): " + ex);
         }
     }
 
@@ -520,7 +542,10 @@ public class InteraktikGTA : Script
         {
             // ---------------- molestar ----------------
             case "wanted_up":
-                Game.Player.WantedLevel = Math.Min(5, Game.Player.WantedLevel + Math.Max(1, job.Amount));
+                {
+                    int stars = Function.Call<int>(Hash.GET_PLAYER_WANTED_LEVEL, Game.Player.Handle);
+                    Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player.Handle, Math.Min(5, stars + Math.Max(1, job.Amount)), false);
+                }
                 Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player.Handle, false);
                 break;
 
@@ -606,7 +631,7 @@ public class InteraktikGTA : Script
                 break;
 
             case "wanted_clear":
-                Game.Player.WantedLevel = 0;
+                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player.Handle, 0, false);
                 Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player.Handle, false);
                 break;
 

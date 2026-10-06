@@ -239,8 +239,8 @@
           <span class="mc-guide-num">c</span>
           <div class="mc-guide-body">
             <h3>Instala ScriptHookVDotNet</h3>
-            <p><a class="btn ghost small" href="https://github.com/scripthookvdotnet/scripthookvdotnet/releases" target="_blank" rel="noopener noreferrer">Descargar ScriptHookVDotNet</a>
-              (baja <code>ScriptHookVDotNet.zip</code> de la versión más reciente).</p>
+            <p><a class="btn ghost small" href="https://github.com/scripthookvdotnet/scripthookvdotnet-nightly/releases/latest" target="_blank" rel="noopener noreferrer">Descargar ScriptHookVDotNet (nightly)</a>
+              (baja el ZIP de la versión más reciente: la «estable» es de 2022 y no funciona con el GTA V actual).</p>
             <p>Copia <code>ScriptHookVDotNet.asi</code>, <code>ScriptHookVDotNet2.dll</code> y <code>ScriptHookVDotNet3.dll</code> a la carpeta del juego.
               Luego crea ahí una carpeta nueva llamada <code>scripts</code> (todo en minúsculas).</p>
             <p class="mc-guide-tip">También necesita <a href="https://dotnet.microsoft.com/download/dotnet-framework/net48" target="_blank" rel="noopener noreferrer">.NET Framework 4.8</a>
@@ -274,6 +274,8 @@
             para comprobar que el juego abre sin mods.</li>
           <li><strong>GTA V no abre o muestra un error de versión:</strong> el juego se actualizó y Script Hook V todavía no es compatible. Espera a que publiquen su
             versión nueva en <code>dev-c.com/gtav/scripthookv</code>, o saca temporalmente <code>dinput8.dll</code> de la carpeta del juego para jugar sin mods.</li>
+          <li><strong>El juego abre pero las reglas no hacen nada:</strong> abre <code>scripts\InteraktikGTA.log</code>. Si habla de <code>SHVDN.NativeMemory</code>, tu ScriptHookVDotNet es demasiado viejo para
+            esta versión de GTA V: cierra el juego, abre el instalador y pulsa Instalar otra vez, que lo actualiza solo.</li>
           <li><strong>No aparece «Interaktik conectado»:</strong> revisa que <code>InteraktikGTA.dll</code> e <code>InteraktikGTA.ini</code> estén en la carpeta
             <code>scripts</code> y que ScriptHookVDotNet esté bien instalado. Si el problema sigue, mira los archivos <code>InteraktikGTA.log</code> (en la carpeta scripts) y
             <code>ScriptHookVDotNet.log</code> (junto a GTA5.exe).</li>
@@ -364,7 +366,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/gta.js?v=20261012g"></script>
+  <script src="js/gta.js?v=20261012h"></script>
 </body>
 
 </html>

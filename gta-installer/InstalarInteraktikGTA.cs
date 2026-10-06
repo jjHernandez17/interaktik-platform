@@ -30,7 +30,10 @@ namespace InteraktikGtaInstaller
     class Installer
     {
         public const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
-        const string ShvdnZipUrl = "https://github.com/scripthookvdotnet/scripthookvdotnet/releases/latest/download/ScriptHookVDotNet.zip";
+        // La version "estable" de ScriptHookVDotNet es de 2022 y no entiende las versiones nuevas de GTA V (falla con
+        // SHVDN.NativeMemory). Las compilaciones "nightly" se actualizan con cada parche del juego.
+        const string ShvdnNightlyApi = "https://api.github.com/repos/scripthookvdotnet/scripthookvdotnet-nightly/releases/latest";
+        const string ShvdnStableZipUrl = "https://github.com/scripthookvdotnet/scripthookvdotnet/releases/latest/download/ScriptHookVDotNet.zip";
 
         public Action<string> Log = delegate { };
         public string ServerUrl = DefaultUrl;
@@ -171,6 +174,35 @@ namespace InteraktikGtaInstaller
             return File.Exists(Path.Combine(folder, "ScriptHookVDotNet.asi")) && File.Exists(Path.Combine(folder, "ScriptHookVDotNet3.dll"));
         }
 
+        // true si ScriptHookVDotNet esta instalado pero es anterior a la serie 3.7 (la estable de 2022)
+        public static bool IsShvdnOutdated(string folder)
+        {
+            try
+            {
+                string path = Path.Combine(folder, "ScriptHookVDotNet3.dll");
+                if (!File.Exists(path)) return false;
+                FileVersionInfo info = FileVersionInfo.GetVersionInfo(path);
+                return info.FileMajorPart < 3 || (info.FileMajorPart == 3 && info.FileMinorPart < 7);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static string ShvdnVersion(string folder)
+        {
+            try
+            {
+                string path = Path.Combine(folder, "ScriptHookVDotNet3.dll");
+                return File.Exists(path) ? FileVersionInfo.GetVersionInfo(path).FileVersion : "";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
         public static bool HasMod(string folder)
         {
             return File.Exists(Path.Combine(folder, @"scripts\InteraktikGTA.dll"));
@@ -264,19 +296,54 @@ namespace InteraktikGtaInstaller
             Log("Script Hook V instalado.");
         }
 
+        string FindShvdnUrl()
+        {
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
+                    string body = client.DownloadString(ShvdnNightlyApi);
+                    Dictionary<string, object> release = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(body);
+                    System.Collections.ArrayList assets = release["assets"] as System.Collections.ArrayList;
+                    if (assets != null)
+                    {
+                        foreach (object asset in assets)
+                        {
+                            Dictionary<string, object> item = asset as Dictionary<string, object>;
+                            string name = item != null ? Convert.ToString(item["name"]) : "";
+                            if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return Convert.ToString(item["browser_download_url"]);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("No se pudo consultar la version nightly de ScriptHookVDotNet (" + ex.Message + ").");
+            }
+            return null;
+        }
+
         // ScriptHookVDotNet se descarga de su pagina oficial en GitHub (su licencia lo permite)
         public void InstallScriptHookVDotNet(string folder)
         {
             if (!AllowDownloads) throw new InvalidOperationException("Falta ScriptHookVDotNet y las descargas estan desactivadas.");
 
-            Log("Descargando ScriptHookVDotNet desde GitHub...");
+            string url = FindShvdnUrl();
+            if (url == null)
+            {
+                Log("Se usara la version estable de ScriptHookVDotNet; puede ser demasiado vieja para tu GTA V.");
+                url = ShvdnStableZipUrl;
+            }
+
+            Log("Descargando ScriptHookVDotNet (" + Path.GetFileName(url) + ")...");
             string temp = Path.Combine(Path.GetTempPath(), "ScriptHookVDotNet-" + Guid.NewGuid().ToString("N") + ".zip");
             try
             {
                 using (WebClient client = new WebClient())
                 {
                     client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
-                    client.DownloadFile(ShvdnZipUrl, temp);
+                    client.DownloadFile(url, temp);
                 }
 
                 int copied = 0;
@@ -302,7 +369,7 @@ namespace InteraktikGtaInstaller
             {
                 try { File.Delete(temp); } catch (Exception) { }
             }
-            Log("ScriptHookVDotNet instalado.");
+            Log("ScriptHookVDotNet instalado (version " + ShvdnVersion(folder) + ").");
         }
 
         // El mod se baja de la plataforma (asi se actualiza sin cambiar el instalador); si no se puede, se usa el incluido
@@ -413,7 +480,11 @@ namespace InteraktikGtaInstaller
                     return "Falta Script Hook V. Pulsa \"Abrir pagina de Script Hook V\", descarga el ZIP y elige ese ZIP con \"Ya lo descargue\".";
                 }
 
-                if (!HasScriptHookVDotNet(folder)) InstallScriptHookVDotNet(folder);
+                if (!HasScriptHookVDotNet(folder) || IsShvdnOutdated(folder))
+                {
+                    if (IsShvdnOutdated(folder)) Log("Tu ScriptHookVDotNet (" + ShvdnVersion(folder) + ") es demasiado viejo para el GTA V actual: se actualiza.");
+                    InstallScriptHookVDotNet(folder);
+                }
 
                 InstallMod(folder, key);
                 return null;
@@ -661,7 +732,9 @@ namespace InteraktikGtaInstaller
             bool shv = isGame && Installer.HasScriptHookV(folder);
             SetStatus(shvLabel, shv || shvZip.Length > 0, shv ? "Script Hook V instalado" : "Script Hook V: listo para instalar desde tu ZIP",
                 "Script Hook V: falta (abre su p\u00e1gina, descarga el ZIP y elige ese ZIP)");
-            SetStatus(shvdnLabel, isGame && Installer.HasScriptHookVDotNet(folder), "ScriptHookVDotNet instalado", "ScriptHookVDotNet: se descargar\u00e1 solo al instalar");
+            bool shvdnOk = isGame && Installer.HasScriptHookVDotNet(folder) && !Installer.IsShvdnOutdated(folder);
+            SetStatus(shvdnLabel, shvdnOk, "ScriptHookVDotNet instalado (" + (isGame ? Installer.ShvdnVersion(folder) : "") + ")",
+                isGame && Installer.IsShvdnOutdated(folder) ? "ScriptHookVDotNet: versi\u00f3n vieja, se actualizar\u00e1 al instalar" : "ScriptHookVDotNet: se descargar\u00e1 solo al instalar");
             SetStatus(netLabel, Installer.HasNet48(), ".NET Framework 4.8 instalado", ".NET Framework 4.8: falta (bot\u00f3n Requisitos de Windows)");
             SetStatus(vcLabel, Installer.HasVcRedist(), "Visual C++ 2019 (x64) instalado", "Visual C++ 2019 (x64): falta (bot\u00f3n Requisitos de Windows)");
             SetStatus(modLabel, isGame && Installer.HasMod(folder), "Mod de Interaktik instalado", "Mod de Interaktik: todav\u00eda no instalado");

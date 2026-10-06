@@ -260,7 +260,7 @@ async function refreshGameStatus() {
     if (app.connected) {
       setBadge(appBadge, 'connected', app.gameFocused === false ? 'Conectado · juego en pausa' : 'Conectado');
     } else {
-      setBadge(appBadge, 'disconnected', 'Sin conexión');
+      setBadge(appBadge, 'disconnected', 'Sin conexión · abre GTA V en modo historia');
     }
 
     if (heroApp) heroApp.dataset.state = app.connected ? 'on' : 'off';
@@ -325,7 +325,11 @@ function syncAmountField() {
   amountHint.textContent = `Entre ${action.min} y ${action.max}.`;
 }
 
+// Grupos que ayudan al streamer (el resto lo molesta)
+const POSITIVE_GROUPS = ['help', 'allies', 'vehicles'];
+
 function formatAmount(amount, unit) {
+  if (unit === 'dólares') return `$${Number(amount).toLocaleString('es')}`;
   if (unit === 'estrellas') return `${amount} ${Number(amount) === 1 ? 'estrella' : 'estrellas'}`;
   return `${amount} ${unit}`;
 }
@@ -337,8 +341,9 @@ function ruleChip(rule) {
   const unit = action ? action.unit : '';
   const showAmount = !action || action.min !== action.max;
   const detail = showAmount ? ` · ${escapeHtml(formatAmount(rule.amount, unit))}` : '';
+  const positive = POSITIVE_GROUPS.includes(group);
 
-  return `<span class="pk-chip ${group === 'help' ? 'pk-chip--up' : 'pk-chip--down'}"><svg width="13" height="13"><use href="#${group === 'help' ? 'i-heart' : 'i-bolt'}" /></svg>${escapeHtml(label)}${detail}</span>`;
+  return `<span class="pk-chip ${positive ? 'pk-chip--up' : 'pk-chip--down'}"><svg width="13" height="13"><use href="#${positive ? 'i-heart' : 'i-bolt'}" /></svg>${escapeHtml(label)}${detail}</span>`;
 }
 
 // ===== Catálogo de regalos (mismo patrón que minecraft.js) =====

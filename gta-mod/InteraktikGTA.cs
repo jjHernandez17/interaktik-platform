@@ -71,6 +71,101 @@ public class InteraktikGTA : Script
     DateTime drunkStart;
     bool onlineWarned;
 
+    class Car
+    {
+        public VehicleHash Hash;
+        public float Distance;
+        public Car(VehicleHash hash, float distance) { Hash = hash; Distance = distance; }
+    }
+
+    // Grupos de peds: enemigos que atacan al jugador, o aliados que lo siguen y lo defienden
+    class Squad
+    {
+        public PedHash[] Models;
+        public WeaponHash[] Weapons;
+        public bool Allied;
+        public int Accuracy;
+        public Squad(bool allied, int accuracy, PedHash[] models, WeaponHash[] weapons)
+        {
+            Allied = allied; Accuracy = accuracy; Models = models; Weapons = weapons;
+        }
+    }
+
+    class Spawned
+    {
+        public Entity Entity;
+        public DateTime Expires;
+    }
+
+    static readonly WeaponHash[] NoWeapons = new WeaponHash[0];
+
+    static readonly Dictionary<string, Car> Cars = new Dictionary<string, Car>
+    {
+        { "car_adder", new Car(VehicleHash.Adder, 6f) }, { "car_zentorno", new Car(VehicleHash.Zentorno, 6f) },
+        { "car_t20", new Car(VehicleHash.T20, 6f) }, { "car_osiris", new Car(VehicleHash.Osiris, 6f) },
+        { "car_entityxf", new Car(VehicleHash.EntityXF, 6f) }, { "car_infernus", new Car(VehicleHash.Infernus, 6f) },
+        { "car_bullet", new Car(VehicleHash.Bullet, 6f) }, { "car_vacca", new Car(VehicleHash.Vacca, 6f) },
+        { "car_banshee", new Car(VehicleHash.Banshee, 6f) }, { "car_jester", new Car(VehicleHash.Jester, 6f) },
+        { "car_turismor", new Car(VehicleHash.Turismor, 6f) }, { "car_cheetah", new Car(VehicleHash.Cheetah, 6f) },
+        { "car_voltic", new Car(VehicleHash.Voltic, 6f) }, { "car_sultan", new Car(VehicleHash.Sultan, 6f) },
+        { "car_buffalo", new Car(VehicleHash.Buffalo, 6f) }, { "car_dukes", new Car(VehicleHash.Dukes, 6f) },
+        { "car_ruiner", new Car(VehicleHash.Ruiner, 6f) }, { "car_hotknife", new Car(VehicleHash.Hotknife, 6f) },
+        { "car_monster", new Car(VehicleHash.Monster, 8f) }, { "car_rebel", new Car(VehicleHash.Rebel, 7f) },
+        { "car_sandking", new Car(VehicleHash.Sandking, 7f) }, { "car_dune", new Car(VehicleHash.Dune, 6f) },
+        { "car_bifta", new Car(VehicleHash.Bifta, 6f) }, { "car_insurgent", new Car(VehicleHash.Insurgent, 8f) },
+        { "car_sanchez", new Car(VehicleHash.Sanchez, 4f) }, { "car_bati", new Car(VehicleHash.Bati, 4f) },
+        { "car_akuma", new Car(VehicleHash.Akuma, 4f) }, { "car_faggio", new Car(VehicleHash.Faggio, 4f) },
+        { "car_bmx", new Car(VehicleHash.Bmx, 3f) }, { "car_caddy", new Car(VehicleHash.Caddy, 5f) },
+        { "car_mower", new Car(VehicleHash.Mower, 4f) }, { "car_tractor", new Car(VehicleHash.Tractor, 6f) },
+        { "car_bus", new Car(VehicleHash.Bus, 10f) }, { "car_stretch", new Car(VehicleHash.Stretch, 8f) },
+        { "car_taxi", new Car(VehicleHash.Taxi, 6f) }, { "car_ambulance", new Car(VehicleHash.Ambulance, 7f) },
+        { "car_police", new Car(VehicleHash.Police, 6f) }, { "car_riot", new Car(VehicleHash.Riot, 9f) },
+        { "car_barracks", new Car(VehicleHash.Barracks, 10f) }, { "car_towtruck", new Car(VehicleHash.TowTruck, 8f) },
+        { "car_frogger", new Car(VehicleHash.Frogger, 10f) }, { "car_maverick", new Car(VehicleHash.Maverick, 10f) },
+        { "car_lazer", new Car(VehicleHash.Lazer, 14f) }, { "car_hydra", new Car(VehicleHash.Hydra, 14f) },
+        { "car_dodo", new Car(VehicleHash.Dodo, 14f) },
+    };
+
+    static readonly Dictionary<string, Squad> Squads = new Dictionary<string, Squad>
+    {
+        { "enemy_thugs", new Squad(false, 20, new PedHash[] { PedHash.BallaOrig01GMY, PedHash.BallaEast01GMY }, new WeaponHash[] { WeaponHash.Bat, WeaponHash.Crowbar, WeaponHash.Hammer }) },
+        { "enemy_ballas", new Squad(false, 25, new PedHash[] { PedHash.BallaOrig01GMY, PedHash.BallaEast01GMY }, new WeaponHash[] { WeaponHash.Pistol, WeaponHash.MicroSMG }) },
+        { "enemy_families", new Squad(false, 25, new PedHash[] { PedHash.Famdd01, PedHash.Famca01GMY }, new WeaponHash[] { WeaponHash.Pistol, WeaponHash.SMG }) },
+        { "enemy_vagos", new Squad(false, 25, new PedHash[] { PedHash.VagosFun01 }, new WeaponHash[] { WeaponHash.Pistol, WeaponHash.MicroSMG, WeaponHash.SawnOffShotgun }) },
+        { "enemy_bikers", new Squad(false, 25, new PedHash[] { PedHash.Lost01GMY, PedHash.Lost02GMY }, new WeaponHash[] { WeaponHash.Machete, WeaponHash.Pistol }) },
+        { "enemy_mafia", new Squad(false, 30, new PedHash[] { PedHash.ArmGoon01GMM }, new WeaponHash[] { WeaponHash.SMG, WeaponHash.Pistol50 }) },
+        { "enemy_soldiers", new Squad(false, 30, new PedHash[] { PedHash.Marine01SMY }, new WeaponHash[] { WeaponHash.CarbineRifle, WeaponHash.AssaultRifle }) },
+        { "enemy_swat", new Squad(false, 35, new PedHash[] { PedHash.Swat01SMY }, new WeaponHash[] { WeaponHash.CarbineRifle, WeaponHash.PumpShotgun }) },
+        { "enemy_clowns", new Squad(false, 20, new PedHash[] { PedHash.Clown01SMY }, new WeaponHash[] { WeaponHash.Knife, WeaponHash.Machete }) },
+        { "enemy_zombies", new Squad(false, 20, new PedHash[] { PedHash.Zombie01 }, NoWeapons) },
+        { "enemy_aliens", new Squad(false, 25, new PedHash[] { PedHash.MovAlien01 }, new WeaponHash[] { WeaponHash.SMG }) },
+        { "enemy_dogs", new Squad(false, 20, new PedHash[] { PedHash.Rottweiler }, NoWeapons) },
+        { "enemy_cougars", new Squad(false, 20, new PedHash[] { PedHash.MountainLion }, NoWeapons) },
+        { "enemy_boars", new Squad(false, 20, new PedHash[] { PedHash.Boar }, NoWeapons) },
+        { "ally_bodyguards", new Squad(true, 45, new PedHash[] { PedHash.Security01SMM }, new WeaponHash[] { WeaponHash.SMG, WeaponHash.CarbineRifle }) },
+        { "ally_gang", new Squad(true, 40, new PedHash[] { PedHash.Famdd01, PedHash.Famca01GMY }, new WeaponHash[] { WeaponHash.Pistol, WeaponHash.MicroSMG }) },
+        { "ally_soldiers", new Squad(true, 50, new PedHash[] { PedHash.Marine01SMY }, new WeaponHash[] { WeaponHash.CarbineRifle }) },
+        { "ally_chop", new Squad(true, 40, new PedHash[] { PedHash.Chop }, NoWeapons) },
+    };
+
+    static readonly Vector3[] FarAway =
+    {
+        new Vector3(-75f, -819f, 328f),    // azotea de la Maze Bank
+        new Vector3(501f, 5604f, 798f),    // cima del Monte Chiliad
+        new Vector3(-1850f, -1230f, 14f),  // muelle de Del Perro
+        new Vector3(1851f, 3688f, 35f),    // Sandy Shores
+        new Vector3(-1336f, -3044f, 14f),  // pista del aeropuerto
+        new Vector3(711f, 1198f, 349f),    // letrero de Vinewood
+    };
+
+    static readonly VehicleHash[] RainCars = { VehicleHash.Futo, VehicleHash.Panto, VehicleHash.Dukes, VehicleHash.Ruiner, VehicleHash.Sultan, VehicleHash.Buffalo, VehicleHash.Taxi, VehicleHash.Bus };
+
+    readonly List<Spawned> spawned = new List<Spawned>();
+    RelationshipGroup enemyGroup;
+    bool enemyGroupReady;
+    Entity teleportEntity;
+    Vector3 teleportSpot;
+
     static readonly WeaponHash[] Arsenal =
     {
         WeaponHash.Knife, WeaponHash.Pistol, WeaponHash.CombatPistol, WeaponHash.APPistol, WeaponHash.Pistol50,
@@ -484,6 +579,28 @@ public class InteraktikGTA : Script
     {
         Ped ped = Game.Player.Character;
 
+        CleanSpawned();
+
+        // Teletransporte: se pide el mapa del destino y se mantiene quieto hasta que cargue, para no caer al vacio
+        if (teleportEntity != null)
+        {
+            if (EffectActive("tp") && teleportEntity.Exists())
+            {
+                Function.Call(Hash.REQUEST_COLLISION_AT_COORD, teleportSpot.X, teleportSpot.Y, teleportSpot.Z);
+            }
+            else
+            {
+                if (teleportEntity.Exists()) Function.Call(Hash.FREEZE_ENTITY_POSITION, teleportEntity.Handle, false);
+                teleportEntity = null;
+            }
+        }
+
+        if (effects.ContainsKey("slowmo") && DateTime.UtcNow >= effects["slowmo"])
+        {
+            effects.Remove("slowmo");
+            Game.TimeScale = 1f;
+        }
+
         if (EffectActive("super_jump")) Function.Call(Hash.SET_SUPER_JUMP_THIS_FRAME, Game.Player.Handle);
         if (EffectActive("fast_run")) Game.Player.SetRunSpeedMultThisFrame(1.49f);
 
@@ -536,9 +653,180 @@ public class InteraktikGTA : Script
         vehicle.MarkAsNoLongerNeeded();
     }
 
+    // ---------- entidades que aparecen (enemigos, aliados, vehiculos) ----------
+
+    void Track(Entity entity, int lifetimeSeconds)
+    {
+        Spawned item = new Spawned();
+        item.Entity = entity;
+        item.Expires = DateTime.UtcNow.AddSeconds(lifetimeSeconds);
+        spawned.Add(item);
+    }
+
+    // Lo que ya cumplio su tiempo se suelta (el juego lo retira solo) y si hay demasiado se borra lo mas viejo
+    void CleanSpawned()
+    {
+        if (spawned.Count == 0) return;
+        DateTime now = DateTime.UtcNow;
+        for (int i = spawned.Count - 1; i >= 0; i--)
+        {
+            Entity entity = spawned[i].Entity;
+            if (entity == null || !entity.Exists())
+            {
+                spawned.RemoveAt(i);
+            }
+            else if (now >= spawned[i].Expires)
+            {
+                entity.MarkAsNoLongerNeeded();
+                spawned.RemoveAt(i);
+            }
+        }
+        while (spawned.Count > 70)
+        {
+            Entity oldest = spawned[0].Entity;
+            if (oldest != null && oldest.Exists()) oldest.Delete();
+            spawned.RemoveAt(0);
+        }
+    }
+
+    // Punto en el suelo a una distancia al azar del jugador
+    Vector3 RingPosition(Vector3 center, float minRadius, float maxRadius)
+    {
+        double angle = random.NextDouble() * Math.PI * 2.0;
+        float radius = minRadius + (float)random.NextDouble() * (maxRadius - minRadius);
+        Vector3 point = new Vector3(center.X + (float)Math.Cos(angle) * radius, center.Y + (float)Math.Sin(angle) * radius, center.Z);
+        float ground;
+        if (World.GetGroundHeight(new Vector3(point.X, point.Y, center.Z + 30f), out ground, GetGroundHeightMode.Normal)) point.Z = ground;
+        return point;
+    }
+
+    RelationshipGroup EnemyGroup()
+    {
+        if (!enemyGroupReady)
+        {
+            enemyGroup = World.AddRelationshipGroup("INTERAKTIK_ENEMIES");
+            enemyGroupReady = true;
+        }
+        enemyGroup.SetRelationshipBetweenGroups(Game.Player.Character.RelationshipGroup, Relationship.Hate, true);
+        return enemyGroup;
+    }
+
+    void SpawnSquad(Squad squad, int amount)
+    {
+        Ped player = Game.Player.Character;
+        int count = Math.Max(1, Math.Min(amount, 15));
+        int created = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            PedHash model = squad.Models[random.Next(squad.Models.Length)];
+            Vector3 position = squad.Allied ? RingPosition(player.Position, 3f, 6f) : RingPosition(player.Position, 14f, 26f);
+            Ped npc = World.CreatePed(model, position, (float)(random.NextDouble() * 360.0));
+            if (npc == null) continue;
+            created += 1;
+
+            if (squad.Weapons.Length > 0) npc.Weapons.Give(squad.Weapons[random.Next(squad.Weapons.Length)], 999, true, true);
+            npc.Accuracy = squad.Accuracy;
+            Function.Call(Hash.SET_PED_DROPS_WEAPONS_WHEN_DEAD, npc.Handle, false);
+            Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, npc.Handle, 46, true);
+            Function.Call(Hash.SET_PED_COMBAT_ABILITY, npc.Handle, 2);
+            npc.AlwaysKeepTask = true;
+            npc.BlockPermanentEvents = true;
+
+            if (squad.Allied)
+            {
+                npc.RelationshipGroup = player.RelationshipGroup;
+                Function.Call(Hash.SET_PED_AS_GROUP_MEMBER, npc.Handle, Function.Call<int>(Hash.GET_PLAYER_GROUP, Game.Player.Handle));
+                Track(npc, 600);
+            }
+            else
+            {
+                npc.RelationshipGroup = EnemyGroup();
+                npc.Task.FightAgainst(player);
+                Track(npc, 240);
+            }
+        }
+
+        if (created == 0) throw new InvalidOperationException("no se pudo crear a ninguno (modelo no disponible)");
+    }
+
+    void EnemyTank()
+    {
+        Ped player = Game.Player.Character;
+        Vector3 position = RingPosition(player.Position, 40f, 55f);
+        Vehicle tank = World.CreateVehicle(VehicleHash.Rhino, position, (float)(random.NextDouble() * 360.0));
+        if (tank == null) throw new InvalidOperationException("no se pudo crear el tanque");
+
+        Ped driver = tank.CreatePedOnSeat(VehicleSeat.Driver, PedHash.Marine01SMY);
+        if (driver == null) { tank.Delete(); throw new InvalidOperationException("no se pudo crear al conductor"); }
+
+        driver.RelationshipGroup = EnemyGroup();
+        driver.AlwaysKeepTask = true;
+        driver.BlockPermanentEvents = true;
+        Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, driver.Handle, 46, true);
+        Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, driver.Handle, 1.0f);
+        driver.Task.VehicleChase(player);
+        Track(tank, 240);
+        Track(driver, 240);
+    }
+
+    void RainCarsOnPlayer(int amount)
+    {
+        Ped player = Game.Player.Character;
+        int count = Math.Max(1, Math.Min(amount, 8));
+        for (int i = 0; i < count; i++)
+        {
+            int index = i;
+            After(i * 700, delegate
+            {
+                Ped p = Game.Player.Character;
+                Vector3 above = p.Position + new Vector3((float)(random.NextDouble() * 12.0 - 6.0), (float)(random.NextDouble() * 12.0 - 6.0), 45f);
+                Vehicle car = World.CreateVehicle(RainCars[random.Next(RainCars.Length)], above, (float)(random.NextDouble() * 360.0));
+                if (car != null) Track(car, 90);
+            });
+        }
+    }
+
+    void Meteors(int amount)
+    {
+        int count = Math.Max(1, Math.Min(amount, 15));
+        for (int i = 0; i < count; i++)
+        {
+            After(i * 350, delegate
+            {
+                Ped p = Game.Player.Character;
+                Vector3 spot = RingPosition(p.Position, 3f, 15f);
+                World.AddExplosion(spot, ExplosionType.Grenade, 1.2f, 0.5f);
+            });
+        }
+    }
+
+    // El vehiculo del jugador, o el mas cercano si va a pie
+    Vehicle TargetVehicle(Ped ped)
+    {
+        Vehicle vehicle = ped.CurrentVehicle;
+        if (vehicle == null || !vehicle.Exists()) vehicle = World.GetClosestVehicle(ped.Position, 20f);
+        if (vehicle == null || !vehicle.Exists()) throw new InvalidOperationException("no hay ningun coche cerca");
+        return vehicle;
+    }
+
     void Execute(Job job)
     {
         Ped ped = Game.Player.Character;
+
+        Car car;
+        if (Cars.TryGetValue(job.Action, out car))
+        {
+            SpawnVehicle(car.Hash, car.Distance);
+            return;
+        }
+
+        Squad squad;
+        if (Squads.TryGetValue(job.Action, out squad))
+        {
+            SpawnSquad(squad, job.Amount);
+            return;
+        }
 
         switch (job.Action)
         {
@@ -569,12 +857,12 @@ public class InteraktikGTA : Script
                 {
                     List<Vehicle> cars = new List<Vehicle>(World.GetNearbyVehicles(ped.Position, 60f));
                     if (ped.CurrentVehicle != null && !cars.Contains(ped.CurrentVehicle)) cars.Add(ped.CurrentVehicle);
-                    foreach (Vehicle car in cars) Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, car.Handle, true);
+                    foreach (Vehicle nearby in cars) Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, nearby.Handle, true);
                     After(30000, delegate
                     {
-                        foreach (Vehicle car in cars)
+                        foreach (Vehicle nearby in cars)
                         {
-                            if (car != null && car.Exists()) Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, car.Handle, false);
+                            if (nearby != null && nearby.Exists()) Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, nearby.Handle, false);
                         }
                     });
                 }
@@ -667,6 +955,99 @@ public class InteraktikGTA : Script
 
             case "fast_run":
                 StartEffect("fast_run", 120);
+                break;
+
+            case "enemy_tank":
+                EnemyTank();
+                break;
+
+            case "car_rain":
+                RainCarsOnPlayer(job.Amount);
+                break;
+
+            case "meteors":
+                Meteors(job.Amount);
+                break;
+
+            case "launch":
+                {
+                    Entity target = ped.IsInVehicle() ? (Entity)ped.CurrentVehicle : ped;
+                    if (!ped.IsInVehicle()) ped.Ragdoll(2500, RagdollType.Relax);
+                    float lift = 7f + Math.Max(1, job.Amount) * 2.5f;
+                    Function.Call(Hash.SET_ENTITY_VELOCITY, target.Handle, (float)(random.NextDouble() * 8.0 - 4.0), (float)(random.NextDouble() * 8.0 - 4.0), lift);
+                }
+                break;
+
+            case "freeze":
+                {
+                    Entity target = ped.IsInVehicle() ? (Entity)ped.CurrentVehicle : ped;
+                    Function.Call(Hash.FREEZE_ENTITY_POSITION, target.Handle, true);
+                    After(5000, delegate
+                    {
+                        if (target.Exists()) Function.Call(Hash.FREEZE_ENTITY_POSITION, target.Handle, false);
+                    });
+                }
+                break;
+
+            case "blackout":
+                Function.Call(Hash.SET_ARTIFICIAL_LIGHTS_STATE, true);
+                After(20000, delegate { Function.Call(Hash.SET_ARTIFICIAL_LIGHTS_STATE, false); });
+                break;
+
+            case "night":
+                Function.Call(Hash.SET_CLOCK_TIME, 23, 30, 0);
+                break;
+
+            case "day":
+                Function.Call(Hash.SET_CLOCK_TIME, 12, 0, 0);
+                break;
+
+            case "burst_tires":
+                {
+                    Vehicle vehicle = TargetVehicle(ped);
+                    for (int wheel = 0; wheel < 8; wheel++) Function.Call(Hash.SET_VEHICLE_TYRE_BURST, vehicle.Handle, wheel, true, 1000.0f);
+                }
+                break;
+
+            case "blow_car":
+                TargetVehicle(ped).Explode();
+                break;
+
+            case "repair_car":
+                TargetVehicle(ped).Repair();
+                break;
+
+            case "turbo":
+                {
+                    Vehicle vehicle = ped.CurrentVehicle;
+                    if (vehicle == null || !vehicle.Exists()) throw new InvalidOperationException("no va en un vehiculo");
+                    vehicle.ForwardSpeed = Math.Min(80f, vehicle.Speed + 35f);
+                }
+                break;
+
+            case "tp_random":
+                {
+                    Vector3 spot = FarAway[random.Next(FarAway.Length)];
+                    Entity target = ped.IsInVehicle() ? (Entity)ped.CurrentVehicle : ped;
+                    Function.Call(Hash.SET_ENTITY_COORDS, target.Handle, spot.X, spot.Y, spot.Z + 2f, false, false, false, true);
+                    Function.Call(Hash.FREEZE_ENTITY_POSITION, target.Handle, true);
+                    teleportEntity = target;
+                    teleportSpot = spot;
+                    StartEffect("tp", 3);
+                }
+                break;
+
+            case "lose_cash":
+                Game.Player.Money = Math.Max(0, Game.Player.Money - Math.Max(1, job.Amount));
+                break;
+
+            case "give_money":
+                Game.Player.Money = Game.Player.Money + Math.Max(1, job.Amount);
+                break;
+
+            case "slowmo":
+                Game.TimeScale = 0.3f;
+                StartEffect("slowmo", 10);
                 break;
 
             default:

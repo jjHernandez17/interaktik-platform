@@ -300,7 +300,7 @@ namespace InteraktikGtaInstaller
                                 if (code == 4004)
                                 {
                                     result = KeyInvalid;
-                                    text = "Interaktik no reconoce esa llave. Copia la llave de la pagina de GTA Interactivo (no la de otro juego) y vuelve a probar.";
+                                    text = "Interaktik no reconoce esa llave. Copia la llave de la pagina de Modo historia (no la de otro juego) y vuelve a probar.";
                                 }
                                 else if (code == 4003)
                                 {
@@ -546,7 +546,7 @@ namespace InteraktikGtaInstaller
             {
                 if (IsEnhancedOnly(folder)) return "Esa carpeta es la version Enhanced de GTA V. El mod solo funciona con la version clasica.";
                 if (!IsGameFolder(folder)) return "No encuentro GTA5.exe en esa carpeta. Elige la carpeta donde esta instalado GTA V.";
-                if (!IsValidKey(key)) return "La llave no parece valida. Copiala con el boton \"Copiar llave\" de la pagina de GTA Interactivo.";
+                if (!IsValidKey(key)) return "La llave no parece valida. Copiala con el boton \"Copiar llave\" de la pagina de Modo historia.";
                 if (GameRunning()) return "GTA V esta abierto. Cierralo (y tu launcher) y vuelve a pulsar Instalar.";
 
                 if (AllowDownloads)
@@ -647,7 +647,7 @@ namespace InteraktikGtaInstaller
             Controls.Add(folderInfo);
             y += 30;
 
-            AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de GTA Interactivo en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
+            AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de Modo historia en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
             y += 24;
             keyBox.SetBounds(18, y, 470, 26);
             StyleBox(keyBox);

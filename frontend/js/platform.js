@@ -296,7 +296,7 @@ const GAME_LABELS = {
   roblox: 'Roblox Dance',
   robloxparkour: 'Roblox Parkour',
   minecraft: 'Survivaltik',
-  gta: 'GTA Interactivo',
+  gta: 'Modo historia',
 };
 
 let currentUser = null;

@@ -14,37 +14,103 @@ const pool = require('../database/pool');
 const { isSuperUserEmail } = require('../middleware/auth');
 
 const ACTION_GROUPS = [
+  { id: 'enemies', label: 'Enemigos que lo atacan' },
   { id: 'annoy', label: 'Molestar' },
   { id: 'help', label: 'Ayudar' },
+  { id: 'allies', label: 'Aliados' },
+  { id: 'vehicles', label: 'Vehículos' },
 ];
 
-// code = truco que se escribe en el juego. repeat: si amount repite el truco (cada vez sube una
-// estrella, por ejemplo). Las demas acciones se escriben una sola vez (amount fijo en 1).
+// Acciones de una sola vez (amount fijo en 1)
+function once(id, group, label, extra = {}) {
+  return { id, group, label, unit: 'veces', min: 1, max: 1, def: 1, ...extra };
+}
+
+// Acciones que se repiten o escalan con la cantidad (un combo multiplica)
+function many(id, group, label, unit, min, max, def) {
+  return { id, group, label, unit, min, max, def, repeat: true };
+}
+
+// Vehiculos: el mod los implementa por id (gta-mod/InteraktikGTA.cs, tabla Cars)
+const VEHICLES = [
+  ['car_adder', 'Adder (superdeportivo)'], ['car_zentorno', 'Zentorno'], ['car_t20', 'T20'], ['car_osiris', 'Osiris'],
+  ['car_entityxf', 'Entity XF'], ['car_infernus', 'Infernus'], ['car_bullet', 'Bullet'], ['car_vacca', 'Vacca'],
+  ['car_banshee', 'Banshee'], ['car_jester', 'Jester'], ['car_turismor', 'Turismo R'], ['car_cheetah', 'Cheetah'],
+  ['car_voltic', 'Voltic'], ['car_sultan', 'Sultan'], ['car_buffalo', 'Buffalo'], ['car_dukes', 'Dukes (muscle car)'],
+  ['car_ruiner', 'Ruiner'], ['car_hotknife', 'Hotknife (hot rod)'], ['car_monster', 'Monster truck'],
+  ['car_rebel', 'Rebel (pickup oxidada)'], ['car_sandking', 'Sandking (4x4)'], ['car_dune', 'Dune buggy'],
+  ['car_bifta', 'Bifta (buggy)'], ['car_insurgent', 'Insurgent (blindado)'], ['car_sanchez', 'Moto de cross Sanchez'],
+  ['car_bati', 'Moto Bati 801'], ['car_akuma', 'Moto Akuma'], ['car_faggio', 'Scooter Faggio'], ['car_bmx', 'Bicicleta BMX'],
+  ['car_caddy', 'Carrito de golf'], ['car_mower', 'Cortacésped'], ['car_tractor', 'Tractor'], ['car_bus', 'Autobús'],
+  ['car_stretch', 'Limusina'], ['car_taxi', 'Taxi'], ['car_ambulance', 'Ambulancia'], ['car_police', 'Patrulla de policía'],
+  ['car_riot', 'Camión antidisturbios'], ['car_barracks', 'Camión militar'], ['car_towtruck', 'Grúa'],
+  ['car_frogger', 'Helicóptero Frogger'], ['car_maverick', 'Helicóptero Maverick'], ['car_lazer', 'Avión de combate Lazer'],
+  ['car_hydra', 'Hydra (jet de despegue vertical)'], ['car_dodo', 'Hidroavión Dodo'],
+].map(([id, label]) => once(id, 'vehicles', label));
+
 const ACTIONS = [
+  // ----- Enemigos que lo atacan (aparecen cerca y van a por el jugador)
+  many('enemy_thugs', 'enemies', 'Matones con bate', 'cantidad', 1, 12, 4),
+  many('enemy_ballas', 'enemies', 'Pandilla Ballas armada', 'cantidad', 1, 12, 4),
+  many('enemy_families', 'enemies', 'Pandilla Families armada', 'cantidad', 1, 12, 4),
+  many('enemy_vagos', 'enemies', 'Pandilla Vagos armada', 'cantidad', 1, 12, 4),
+  many('enemy_bikers', 'enemies', 'Moteros con machetes', 'cantidad', 1, 12, 4),
+  many('enemy_mafia', 'enemies', 'Mafiosos con metralletas', 'cantidad', 1, 10, 3),
+  many('enemy_soldiers', 'enemies', 'Soldados con rifles', 'cantidad', 1, 10, 3),
+  many('enemy_swat', 'enemies', 'Equipo SWAT', 'cantidad', 1, 10, 3),
+  many('enemy_clowns', 'enemies', 'Payasos asesinos', 'cantidad', 1, 12, 4),
+  many('enemy_zombies', 'enemies', 'Zombis', 'cantidad', 1, 15, 5),
+  many('enemy_aliens', 'enemies', 'Alienígenas armados', 'cantidad', 1, 8, 3),
+  many('enemy_dogs', 'enemies', 'Jauría de rottweilers', 'cantidad', 1, 10, 4),
+  many('enemy_cougars', 'enemies', 'Pumas', 'cantidad', 1, 6, 2),
+  many('enemy_boars', 'enemies', 'Jabalíes', 'cantidad', 1, 8, 3),
+  once('enemy_tank', 'enemies', 'Tanque enemigo que lo persigue'),
   // ----- Molestar
   { id: 'wanted_up', group: 'annoy', label: 'Subir nivel de búsqueda', code: 'FUGITIVE', repeat: true, unit: 'estrellas', min: 1, max: 5, def: 2 },
-  { id: 'skyfall', group: 'annoy', label: 'Caída libre desde el cielo', code: 'SKYFALL', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'drunk', group: 'annoy', label: 'Borrachera', code: 'LIQUOR', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'slippery', group: 'annoy', label: 'Coches resbalosos', code: 'SNOWDAY', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'garbage_truck', group: 'annoy', label: 'Camión de basura', code: 'TRASHED', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'weather', group: 'annoy', label: 'Cambiar el clima', code: 'MAKEITRAIN', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'explosion', group: 'annoy', label: 'Explosiones cerca de él', unit: 'cantidad', min: 1, max: 5, def: 1, repeat: true },
-  { id: 'disarm', group: 'annoy', label: 'Quitarle las armas', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'ragdoll', group: 'annoy', label: 'Tirarlo al suelo', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'fire', group: 'annoy', label: 'Prenderle fuego', unit: 'veces', min: 1, max: 1, def: 1 },
+  once('skyfall', 'annoy', 'Caída libre desde el cielo', { code: 'SKYFALL' }),
+  once('drunk', 'annoy', 'Borrachera', { code: 'LIQUOR' }),
+  once('slippery', 'annoy', 'Coches resbalosos', { code: 'SNOWDAY' }),
+  once('garbage_truck', 'annoy', 'Camión de basura', { code: 'TRASHED' }),
+  once('weather', 'annoy', 'Cambiar el clima', { code: 'MAKEITRAIN' }),
+  many('explosion', 'annoy', 'Explosiones cerca de él', 'cantidad', 1, 5, 1),
+  many('meteors', 'annoy', 'Lluvia de meteoros (explosiones desde el cielo)', 'cantidad', 3, 15, 6),
+  many('car_rain', 'annoy', 'Lluvia de coches del cielo', 'cantidad', 1, 8, 3),
+  many('launch', 'annoy', 'Lanzarlo por los aires', 'fuerza', 1, 10, 4),
+  once('disarm', 'annoy', 'Quitarle las armas'),
+  once('ragdoll', 'annoy', 'Tirarlo al suelo'),
+  once('fire', 'annoy', 'Prenderle fuego'),
+  once('freeze', 'annoy', 'Congelarlo 5 segundos'),
+  once('blackout', 'annoy', 'Apagón de toda la ciudad (20 s)'),
+  once('night', 'annoy', 'Hacer de noche'),
+  once('burst_tires', 'annoy', 'Pincharle las llantas del coche'),
+  once('blow_car', 'annoy', 'Explotar su coche'),
+  once('tp_random', 'annoy', 'Teletransportarlo a un lugar lejano'),
+  many('lose_cash', 'annoy', 'Quitarle dinero', 'dólares', 1000, 100000, 5000),
   // ----- Ayudar
-  { id: 'health', group: 'help', label: 'Vida y armadura al máximo', code: 'TURTLE', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'weapons', group: 'help', label: 'Armas y munición', code: 'TOOLUP', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'invincible', group: 'help', label: 'Invencible (5 minutos)', code: 'PAINKILLER', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'wanted_clear', group: 'help', label: 'Quitar la búsqueda', code: 'LAWYERUP', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'special', group: 'help', label: 'Recargar habilidad especial', code: 'POWERUP', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'helicopter', group: 'help', label: 'Helicóptero', code: 'BUZZOFF', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'sports_car', group: 'help', label: 'Deportivo (Comet)', code: 'COMET', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'rapid_gt', group: 'help', label: 'Deportivo (Rapid GT)', code: 'RAPIDGT', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'stunt_plane', group: 'help', label: 'Avioneta acrobática', code: 'BARNSTORM', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'super_jump', group: 'help', label: 'Super salto', code: 'HOPTOIT', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'fast_run', group: 'help', label: 'Correr más rápido', code: 'CATCHME', unit: 'veces', min: 1, max: 1, def: 1 },
-  { id: 'tank', group: 'help', label: 'Tanque Rhino', unit: 'veces', min: 1, max: 1, def: 1 },
+  once('health', 'help', 'Vida y armadura al máximo', { code: 'TURTLE' }),
+  once('weapons', 'help', 'Armas y munición', { code: 'TOOLUP' }),
+  once('invincible', 'help', 'Invencible (5 minutos)', { code: 'PAINKILLER' }),
+  once('wanted_clear', 'help', 'Quitar la búsqueda', { code: 'LAWYERUP' }),
+  once('special', 'help', 'Recargar habilidad especial', { code: 'POWERUP' }),
+  once('super_jump', 'help', 'Super salto', { code: 'HOPTOIT' }),
+  once('fast_run', 'help', 'Correr más rápido', { code: 'CATCHME' }),
+  many('give_money', 'help', 'Regalarle dinero', 'dólares', 1000, 500000, 10000),
+  once('repair_car', 'help', 'Reparar su coche'),
+  once('turbo', 'help', 'Turbo al coche'),
+  once('day', 'help', 'Hacer de día'),
+  once('slowmo', 'help', 'Cámara lenta (10 s)'),
+  // ----- Aliados
+  many('ally_bodyguards', 'allies', 'Guardaespaldas armados', 'cantidad', 1, 6, 2),
+  many('ally_gang', 'allies', 'Pandilla aliada', 'cantidad', 1, 8, 3),
+  many('ally_soldiers', 'allies', 'Soldados aliados', 'cantidad', 1, 6, 2),
+  once('ally_chop', 'allies', 'Chop, el perro aliado'),
+  // ----- Vehículos (los de siempre y los nuevos)
+  once('sports_car', 'vehicles', 'Deportivo Comet', { code: 'COMET' }),
+  once('rapid_gt', 'vehicles', 'Deportivo Rapid GT', { code: 'RAPIDGT' }),
+  once('helicopter', 'vehicles', 'Helicóptero Buzzard', { code: 'BUZZOFF' }),
+  once('stunt_plane', 'vehicles', 'Avioneta acrobática', { code: 'BARNSTORM' }),
+  once('tank', 'vehicles', 'Tanque Rhino'),
+  ...VEHICLES,
 ];
 
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));

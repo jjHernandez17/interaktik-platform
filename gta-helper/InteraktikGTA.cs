@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -769,6 +770,10 @@ namespace InteraktikGta
         [STAThread]
         static void Main(string[] args)
         {
+            // Una aplicacion compilada para .NET 4.0 solo habla TLS 1.0 por defecto y el servidor lo rechaza:
+            // sin esto la conexion falla con "No es posible conectar con el servidor remoto".
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+
             bool created;
             using (Mutex mutex = new Mutex(true, "InteraktikGtaHelper", out created))
             {

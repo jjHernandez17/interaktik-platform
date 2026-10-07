@@ -296,7 +296,7 @@ const GAME_LABELS = {
   roblox: 'Roblox Dance',
   robloxparkour: 'Roblox Parkour',
   minecraft: 'Survivaltik',
-  minecraftcubo: 'Cubo Gigante',
+  minecraftcubo: 'Cubecraft',
   gta: 'Modo historia',
   kingdoms: 'Batalla de Reinos',
 };

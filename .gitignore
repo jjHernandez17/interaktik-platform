@@ -28,4 +28,10 @@ coverage/
 minecraft-plugin/target/
 minecraft-mod/build/
 minecraft-mod/.gradle/
+minecraft-cube-mod/.gradle/
+minecraft-cube-mod/run/
 minecraft-mod/run/
+
+# Instalador de Windows: lo genera build.cmd en cada compilacion
+gta-installer/BuildInfo.generated.cs
+gta-installer/*.test.exe

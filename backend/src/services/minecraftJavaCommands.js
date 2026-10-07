@@ -151,6 +151,27 @@ function toJavaSteps(item, options = {}) {
           steps.push('tag @e[type=wolf,tag=ik_wolf] remove ik_wolf');
         }
         break;
+      case 'cube_add':
+        // Cubo Gigante: el mod (minecraft-cube-mod) coloca los bloques; aqui solo se avisa en pantalla
+        return [
+          `cubo agregar ${amount}`,
+          `title @a actionbar {"text":"${cleanName(item.nickname)} agregó ${amount} bloques al cubo","color":"aqua"}`,
+        ];
+      case 'cube_tnt':
+        // Cubo Gigante: caen TNT desde arriba del cubo; explotan al tocar un bloque
+        return [
+          `cubo tnt ${amount}`,
+          `title @a actionbar {"text":"${cleanName(item.nickname)} lanzó ${amount} TNT sobre el cubo","color":"red"}`,
+        ];
+      case 'cube_lightning': {
+        // amount = veces * 100 + fuerza (1 a 10)
+        const strength = Math.min(10, Math.max(1, amount % 100));
+        const strikes = Math.max(1, Math.floor(amount / 100));
+        return [
+          `cubo rayo ${strength} ${strikes}`,
+          `title @a actionbar {"text":"${cleanName(item.nickname)} lanzó ${strikes > 1 ? `${strikes} rayos` : 'un rayo'} de fuerza ${strength}","color":"yellow"}`,
+        ];
+      }
       default:
         return [];
     }

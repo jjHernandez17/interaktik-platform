@@ -584,7 +584,7 @@ namespace InteraktikGtaInstaller
         }
     }
 
-    class MainForm : Form
+    partial class MainForm : Form
     {
         readonly Installer installer = new Installer();
         readonly TextBox folderBox = new TextBox();
@@ -609,18 +609,20 @@ namespace InteraktikGtaInstaller
         static readonly Color Bad = Color.FromArgb(251, 113, 133);
         static readonly Color Accent = Color.FromArgb(255, 94, 98);
 
-        public MainForm(string url)
+        public MainForm(string url, bool startOnMinecraft)
         {
             installer.ServerUrl = url;
             installer.Log = AppendLog;
 
             Text = "Instalar Interaktik para GTA V";
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(640, 730);
+            ClientSize = new Size(640, 790);
             MinimumSize = new Size(600, 640);
             Font = new Font("Segoe UI", 9.5f);
             BackColor = Bg;
             ForeColor = Color.White;
+
+            BuildChrome(startOnMinecraft);
 
             int y = 14;
             AddLabel("Instalar Interaktik para GTA V", 16, y, new Font("Segoe UI Semibold", 15f), Color.White);
@@ -640,11 +642,11 @@ namespace InteraktikGtaInstaller
             Button browse = MakeButton("Examinar...", 512, y - 2, 110, 30, false);
             browse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             browse.Click += OnBrowse;
-            Controls.AddRange(new Control[] { folderBox, detect, browse });
+            gtaPanel.Controls.AddRange(new Control[] { folderBox, detect, browse });
             y += 32;
             folderInfo.SetBounds(18, y, 600, 20);
             folderInfo.ForeColor = Muted;
-            Controls.Add(folderInfo);
+            gtaPanel.Controls.Add(folderInfo);
             y += 30;
 
             AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de Modo historia en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
@@ -661,12 +663,12 @@ namespace InteraktikGtaInstaller
             testButton.FlatAppearance.BorderSize = 0;
             testButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             testButton.Click += OnTestKey;
-            Controls.AddRange(new Control[] { keyBox, testButton });
+            gtaPanel.Controls.AddRange(new Control[] { keyBox, testButton });
             y += 30;
             keyInfo.SetBounds(18, y, 604, 20);
             keyInfo.ForeColor = Muted;
             keyInfo.Text = "Comprueba que la llave sea correcta antes de instalar.";
-            Controls.Add(keyInfo);
+            gtaPanel.Controls.Add(keyInfo);
             y += 28;
 
             AddLabel("3. Requisitos", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
@@ -674,7 +676,7 @@ namespace InteraktikGtaInstaller
             foreach (Label label in new Label[] { shvLabel, shvdnLabel, netLabel, vcLabel, modLabel })
             {
                 label.SetBounds(18, y, 604, 20);
-                Controls.Add(label);
+                gtaPanel.Controls.Add(label);
                 y += 22;
             }
             y += 4;
@@ -690,7 +692,7 @@ namespace InteraktikGtaInstaller
                 if (!Installer.HasNet48()) OpenUrl("https://dotnet.microsoft.com/download/dotnet-framework/net48");
                 if (!Installer.HasVcRedist()) OpenUrl("https://aka.ms/vs/17/release/vc_redist.x64.exe");
             };
-            Controls.AddRange(new Control[] { openShv, chooseZip, openNet });
+            gtaPanel.Controls.AddRange(new Control[] { openShv, chooseZip, openNet });
             y += 46;
 
             installButton.SetBounds(18, y, 300, 40);
@@ -708,10 +710,10 @@ namespace InteraktikGtaInstaller
             uninstallButton.ForeColor = Color.White;
             uninstallButton.FlatAppearance.BorderColor = Color.FromArgb(70, 60, 110);
             uninstallButton.Click += OnUninstall;
-            Controls.AddRange(new Control[] { installButton, uninstallButton });
+            gtaPanel.Controls.AddRange(new Control[] { installButton, uninstallButton });
             y += 54;
 
-            logBox.SetBounds(18, y, 604, ClientSize.Height - y - 18);
+            logBox.SetBounds(18, y, 604, Math.Max(80, ClientSize.Height - BarHeight - y - 18));
             logBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             logBox.Multiline = true;
             logBox.ReadOnly = true;
@@ -719,12 +721,15 @@ namespace InteraktikGtaInstaller
             logBox.BackColor = Panel;
             logBox.ForeColor = Color.FromArgb(220, 214, 240);
             logBox.BorderStyle = BorderStyle.FixedSingle;
-            Controls.Add(logBox);
+            gtaPanel.Controls.Add(logBox);
+
+            BuildMinecraftPage(url);
 
             Load += delegate
             {
                 DetectFolder(false);
                 RefreshStatus();
+                StartUpdateCheck();
             };
         }
 
@@ -736,7 +741,7 @@ namespace InteraktikGtaInstaller
             label.ForeColor = color;
             label.AutoSize = true;
             label.Location = new Point(x, y);
-            Controls.Add(label);
+            gtaPanel.Controls.Add(label);
         }
 
         void StyleBox(TextBox box)
@@ -766,7 +771,8 @@ namespace InteraktikGtaInstaller
         void AppendLog(string text)
         {
             if (IsDisposed) return;
-            Action action = delegate { logBox.AppendText("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + text + Environment.NewLine); };
+            TextBox target = mcPanel.Visible ? mcLogBox : logBox;
+            Action action = delegate { target.AppendText("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + text + Environment.NewLine); };
             if (InvokeRequired) { try { BeginInvoke(action); } catch (Exception) { } } else action();
         }
 
@@ -892,6 +898,7 @@ namespace InteraktikGtaInstaller
                     if (problem == null)
                     {
                         shvZip = "";
+                        BackgroundUpdate();
                         AppendLog("Listo. Antes de abrir GTA V agrega -nobattleye en tu launcher (sin eso GTA V no abre). Luego entra a modo historia.");
                         MessageBox.Show(this, "Instalaci\u00f3n terminada.\n\nANTES de abrir GTA V desactiva BattlEye: en tu launcher agrega el argumento -nobattleye "
                             + "(Epic: Biblioteca > los tres puntos de GTA V > Administrar > activar Opciones de inicio y escribir -nobattleye). "
@@ -930,6 +937,7 @@ namespace InteraktikGtaInstaller
             // Sin esto las descargas por https fallan en .NET Framework (solo hablaria TLS 1.0)
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
 
+            Updater.OriginalArgs = args;
             string folder = "";
             string key = "";
             string zip = "";
@@ -939,17 +947,40 @@ namespace InteraktikGtaInstaller
             bool uninstall = false;
             bool noDownload = false;
             bool testKey = false;
+            bool checkUpdates = false;
+            bool minecraft = false;
+            bool keepOthers = false;
+            bool fabric = false;
+            string game = MinecraftInstaller.GameAll;
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--auto") auto = true;
                 else if (args[i] == "--uninstall") uninstall = true;
                 else if (args[i] == "--no-download") noDownload = true;
                 else if (args[i] == "--test-key") testKey = true;
+                else if (args[i] == "--minecraft") minecraft = true;
+                else if (args[i] == "--no-update") Updater.Disabled = true;
+                else if (args[i] == "--check-updates") checkUpdates = true;
+                else if (args[i] == "--updated") Updater.JustUpdated = true;
+                else if (args[i] == "--keep-other-mods") keepOthers = true;
+                else if (args[i] == "--install-fabric") fabric = true;
+                else if (args[i] == "--game" && i + 1 < args.Length) game = args[++i];
                 else if (args[i] == "--folder" && i + 1 < args.Length) folder = args[++i];
                 else if (args[i] == "--key" && i + 1 < args.Length) key = args[++i];
                 else if (args[i] == "--shv-zip" && i + 1 < args.Length) zip = args[++i];
                 else if (args[i] == "--url" && i + 1 < args.Length) url = args[++i];
                 else if (args[i] == "--log" && i + 1 < args.Length) logPath = args[++i];
+            }
+
+            if (auto && checkUpdates)
+            {
+                // modo sin ventana: revisa y aplica las actualizaciones (para pruebas y soporte)
+                StringBuilder updateLog = new StringBuilder();
+                int modsUpdated;
+                bool replaced = Updater.CheckAll(url, delegate (string text) { updateLog.AppendLine(text); }, out modsUpdated);
+                updateLog.AppendLine("reemplazado=" + replaced + " mods=" + modsUpdated);
+                if (logPath.Length > 0) File.WriteAllText(logPath, updateLog.ToString());
+                return 0;
             }
 
             if (auto)
@@ -961,6 +992,30 @@ namespace InteraktikGtaInstaller
                 installer.Log = delegate (string text) { log.AppendLine(text); };
 
                 string problem;
+                if (minecraft)
+                {
+                    MinecraftInstaller mc = new MinecraftInstaller();
+                    mc.ServerUrl = url;
+                    mc.AllowDownloads = !noDownload;
+                    mc.Log = installer.Log;
+                    if (testKey)
+                    {
+                        string mcMessage;
+                        int mcState = MinecraftInstaller.TestKey(url, key, out mcMessage);
+                        log.AppendLine("estado=" + mcState + " " + mcMessage);
+                        if (logPath.Length > 0) File.WriteAllText(logPath, log.ToString());
+                        return mcState;
+                    }
+                    if (uninstall) { try { mc.Uninstall(folder, game); problem = null; } catch (Exception ex) { problem = ex.Message; } }
+                    else
+                    {
+                        problem = fabric ? mc.InstallFabric(folder) : null;
+                        if (problem == null) problem = mc.Run(folder, key, !keepOthers, game);
+                    }
+                    log.AppendLine(problem == null ? "OK" : "ERROR: " + problem);
+                    if (logPath.Length > 0) File.WriteAllText(logPath, log.ToString());
+                    return problem == null ? 0 : 1;
+                }
                 if (testKey)
                 {
                     string keyMessage;
@@ -982,9 +1037,10 @@ namespace InteraktikGtaInstaller
                 return problem == null ? 0 : 1;
             }
 
+            Updater.CleanupOld();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm(url));
+            Application.Run(new MainForm(url, minecraft));
             return 0;
         }
     }

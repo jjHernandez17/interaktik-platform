@@ -1,0 +1,47 @@
+/* Cubo Gigante: control del cubo y listas auxiliares (el resto reutiliza roblox-parkour.css y minecraft.css) */
+
+.cb-cube-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.cb-cube-grid .pk-field { min-width: 0; }
+
+.cb-counters {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  margin-top: 4px;
+}
+
+.cb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 6px;
+}
+
+.cb-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
+
+.cb-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.cb-cube code,
+.cb-list code,
+.mc-setup .cb-list code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .cb-cube-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cb-field-wide { grid-column: 1 / -1; }
+  .cb-actions .btn { flex: 1 1 100%; justify-content: center; }
+}
+
+.pk-hint.is-error { color: #fca5a5; }

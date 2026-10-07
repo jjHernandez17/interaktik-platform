@@ -308,6 +308,7 @@ module.exports = {
   upsertGiftRule,
   deleteGiftRule,
   handleGift,
+  enqueueAction,
   enqueueTestAction,
   resolveByServerKey,
   pollActionQueue,

@@ -221,6 +221,14 @@ function attach(httpServer) {
   return wss;
 }
 
+// Manda comandos sueltos (sin pasar por la cola) al juego conectado. Devuelve false si no hay conexion.
+async function sendCommands(userId, commands) {
+  const connection = connections.get(Number(userId));
+  if (!connection || connection.ws.readyState !== connection.ws.OPEN) return false;
+  await playSteps(connection, commands);
+  return true;
+}
+
 function getStatus(userId) {
   const connection = connections.get(Number(userId));
   return connection
@@ -235,4 +243,4 @@ function getStatus(userId) {
     : { connected: false };
 }
 
-module.exports = { attach, getStatus, flush };
+module.exports = { attach, getStatus, flush, sendCommands };

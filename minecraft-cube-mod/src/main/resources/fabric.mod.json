@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "interaktik_cubo",
+  "version": "${version}",
+  "name": "Interaktik Cubo Gigante",
+  "description": "Llena un cubo gigante de bloques: cada cubo completo es +1 victoria. El tamaño se elige con comandos.",
+  "authors": ["Interaktik"],
+  "contact": {
+    "homepage": "https://interaktik-platform-production.up.railway.app"
+  },
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.interaktik.cubo.CuboMod"],
+    "client": ["com.interaktik.cubo.CuboClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "1.21.4",
+    "java": ">=21"
+  }
+}

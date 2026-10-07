@@ -1,0 +1,10 @@
+{
+    "version":  202610071543,
+    "file":  "InstalarInteraktikGTA.exe",
+    "sha256":  "940000f6fb61399912ff3f223a28d6976be18191221f5842652d0ede66af3fb1",
+    "files":  {
+                  "InteraktikGTA.dll":  "4dc3349b34af44fcf461cc6a4ea2271cc41dd5c65e1c447e1d9ed91da140588f",
+                  "InteraktikMod.jar":  "819d40b46cf96cd3337bc1cfecb6a19288cc11ed1f16bfe51317a16a30517aa4",
+                  "InteraktikCubo.jar":  "f6c88e615c01dfc207a1b1173ac517eab43725eb77d854a229cdc55550cf2a63"
+              }
+}

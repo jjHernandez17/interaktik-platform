@@ -804,6 +804,28 @@ router.get('/minecraft.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft.js'));
 });
 
+// Cubo Gigante de Minecraft
+router.get(['/minecraft-cubo', '/minecraft-cubo.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'minecraftcubo'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/minecraft-cubo.html', 'Minecraft cubo page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/minecraft-cubo.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/minecraft-cubo.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft-cubo.js'));
+});
+
 // GTA V interactivo
 router.get(['/gta', '/gta.html'], requireAuthPage, async (req, res) => {
   try {

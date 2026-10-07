@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cubo Gigante | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/minecraft.css?v=20261012a" />
+  <link rel="stylesheet" href="assets/css/minecraft-cubo.css?v=20261016c" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Cubo Gigante</h1>
+        <p>
+          Hay un cubo enorme en tu mundo de Minecraft y tus espectadores lo llenan de bloques con sus regalos, capa por capa.
+          Cada vez que se llena es <strong>+1 victoria</strong>: se celebra, el cubo se vacía solo y empieza otro.
+          Tú eliges el ancho, el alto y el largo del cubo, y cuántos bloques pone cada regalo.
+          Funciona con <strong>Minecraft Java 1.21.4</strong> (por ejemplo desde TLauncher).
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="cbHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="cbHeroServer" data-state="off"><span class="pk-dot"></span>Juego conectado</li>
+        </ul>
+      </div>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="cbConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="cbConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="cbConnectionForm" class="pk-inline-form">
+          <input id="cbUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="cbConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="cbDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Tu juego</h2>
+            <p class="pk-hint">Sigue la guía de abajo para conectar Minecraft. Aquí ves si ya está listo.</p>
+          </div>
+        </div>
+        <ul class="mc-status-list">
+          <li>
+            <span>Minecraft Java</span>
+            <span id="cbJavaBadge" class="status-badge disconnected">Sin conexión</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Guia de instalacion -->
+    <section class="pk-panel mc-setup" aria-labelledby="cbSetupTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="cbSetupTitle">Instala y conecta: guía paso a paso</h2>
+          <p class="pk-hint">Unos 10 minutos la primera vez. El instalador de Windows pone los mods y conecta tu llave por ti; después solo abres Minecraft.</p>
+        </div>
+      </div>
+
+      <div class="mc-compat">
+        <div class="mc-compat-col mc-compat-col--yes">
+          <h3>Funciona con</h3>
+          <ul>
+            <li><strong>Minecraft Java Edition 1.21.4</strong> con Fabric</li>
+            <li>En PC (Windows), con TLauncher o con el launcher oficial</li>
+            <li>Mundos de un jugador y mundos abiertos a LAN</li>
+          </ul>
+        </div>
+        <div class="mc-compat-col mc-compat-col--no">
+          <h3>No funciona con</h3>
+          <ul>
+            <li>Otras versiones de Minecraft (1.20, 1.21.5 o superior, 26.x…)</li>
+            <li>Minecraft Bedrock: celular, consolas o «Minecraft para Windows» de la Microsoft Store</li>
+            <li>Forge ni NeoForge</li>
+          </ul>
+        </div>
+      </div>
+
+      <ol class="mc-guide">
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">1</span>
+          <div class="mc-guide-body">
+            <h3>Instala TLauncher</h3>
+            <p>Descárgalo desde <a href="https://tlauncher.org/es/" target="_blank" rel="noopener noreferrer">tlauncher.org</a>, instálalo y ábrelo.
+              Cuando te pida una cuenta, escribe el nombre de jugador que quieras y guárdala. Si ya tienes TLauncher, salta al paso 2.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">2</span>
+          <div class="mc-guide-body">
+            <h3>Elige la versión «Fabric 1.21.4» y ábrela una vez</h3>
+            <p>Junto al botón amarillo «Entrar al juego», abre la lista de versiones y elige <strong>Fabric 1.21.4</strong>.
+              Pulsa <strong>Entrar al juego</strong>: la primera vez descarga todo y puede tardar varios minutos. Cuando aparezca el
+              menú de Minecraft, ciérralo.</p>
+            <p class="mc-guide-tip">¿No ves «Fabric 1.21.4»? Instálala con el
+              <a href="https://fabricmc.net/use/installer/" target="_blank" rel="noopener noreferrer">instalador de Fabric</a>: en
+              «Minecraft Version» elige <strong>1.21.4</strong> (no la más nueva) y pulsa Install. Después ábrela desde TLauncher.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">3</span>
+          <div class="mc-guide-body">
+            <h3>Copia tu llave</h3>
+            <p>Es la que identifica tu cuenta. El instalador te la pedirá en el paso siguiente.</p>
+            <div class="mc-key-row">
+              <label class="pk-field mc-key-field">
+                <span class="pk-label">Tu llave secreta (no la compartas)</span>
+                <input id="cbServerKeyInput" type="password" readonly value="Cargando..." autocomplete="off" />
+              </label>
+              <div class="mc-key-actions">
+                <button id="cbToggleKeyBtn" class="btn ghost" type="button">Mostrar</button>
+                <button id="cbCopyKeyBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar llave</button>
+                <button id="cbRegenerateBtn" class="btn ghost" type="button">Regenerar</button>
+              </div>
+            </div>
+            <p class="pk-hint">Si regeneras la llave, la anterior deja de funcionar y tendrás que volver a ejecutar el instalador con la nueva.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">4</span>
+          <div class="mc-guide-body">
+            <h3>Descarga y ejecuta el instalador de Windows</h3>
+            <p><a class="btn accent small" href="downloads/InstalarInteraktikGTA.exe" download>Descargar instalador (Windows)</a></p>
+            <p>Ábrelo, entra a la pestaña <strong>Minecraft</strong>, elige la sección <strong>Cubo Gigante</strong> y pega tu llave. Verás una lista de lo que necesita el juego
+              (Minecraft, Java 21, Fabric 1.21.4 y los mods): lo que falte tiene su botón de descarga ahí mismo y se actualiza solo cuando lo instalas.
+              Cuando todo esté en verde pulsa <strong>Instalar Cubo Gigante</strong>. El instalador:</p>
+            <ul class="cb-list">
+              <li>copia los mods <code>InteraktikMod.jar</code> y <code>InteraktikCubo.jar</code> a tu carpeta <code>mods</code>;</li>
+              <li>guarda tu llave para que el juego se conecte solo (no tienes que pegar comandos);</li>
+              <li>comprueba que tengas «Fabric 1.21.4» y te avisa si falta.</li>
+            </ul>
+            <p class="mc-guide-tip">Si Windows muestra «protegió su PC», pulsa <strong>Más información → Ejecutar de todas formas</strong>
+              (es un programa nuevo y aún no tiene reputación en Windows).</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">5</span>
+          <div class="mc-guide-body">
+            <h3>Abre Minecraft y entra a tu mundo</h3>
+            <p>En TLauncher elige <strong>Fabric 1.21.4</strong>, pulsa «Entrar al juego» y crea o abre un mundo de <strong>Un jugador</strong>.
+              Al entrar verás «Interaktik conectado ✔» y arriba en esta página «Tu juego» pasará a <strong>Conectado</strong>.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">6</span>
+          <div class="mc-guide-body">
+            <h3>Crea el cubo desde esta página</h3>
+            <p>Más abajo, en <strong>Tu cubo</strong>, elige ancho, alto y largo, el material y pulsa <strong>Crear cubo nuevo</strong>. También puedes hacerlo dentro del juego: pulsa <strong>K</strong> para abrir el <strong>menú visual</strong> (o escribe <code>/cubomenu</code>), o crea el cubo con un solo comando: <code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code>.
+              Aparece frente a ti: un cubo de vidrio vacío, con suelo y paredes pero sin techo. Arriba de la pantalla verás el marcador de wins (por ejemplo 3/10 wins).</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">7</span>
+          <div class="mc-guide-body">
+            <h3>Conecta tu TikTok y crea tus reglas</h3>
+            <p>Arriba pulsa <strong>Conectar</strong> en «TikTok Live». Abajo crea reglas: eliges un regalo y cuántos bloques pone.
+              Usa <strong>Probar</strong> para ver cómo se colocan al instante.</p>
+          </div>
+        </li>
+      </ol>
+
+      <details class="mc-help">
+        <summary>Instalación manual (sin el instalador)</summary>
+        <ol class="mc-steps">
+          <li>
+            <strong>Descarga los dos mods</strong>
+            <a class="btn accent small" href="downloads/InteraktikMod.jar" download>InteraktikMod.jar</a>
+            <a class="btn accent small" href="downloads/InteraktikCubo.jar" download>InteraktikCubo.jar</a>
+          </li>
+          <li>
+            <strong>Cópialos a <code>%appdata%\.minecraft\mods</code></strong> (pégalo en la barra del Explorador). Si no existe <code>mods</code>, créala.
+            Que no haya mods de otras versiones en esa carpeta.
+          </li>
+          <li>
+            <strong>Entra a tu mundo con Fabric 1.21.4</strong>, pulsa <strong>T</strong> y pega este comando (solo la primera vez):
+          </li>
+        </ol>
+        <div class="mc-key-row">
+          <label class="pk-field mc-key-field">
+            <span class="pk-label">Tu comando (lleva tu llave dentro, no lo compartas)</span>
+            <input id="cbModCommandInput" type="password" readonly value="Cargando..." autocomplete="off" />
+          </label>
+          <div class="mc-key-actions">
+            <button id="cbToggleModCommandBtn" class="btn ghost" type="button">Mostrar</button>
+            <button id="cbCopyModCommandBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar comando</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="mc-help">
+        <summary>Algo no funciona</summary>
+        <ul>
+          <li><strong>Minecraft no abre o muestra un error de mods:</strong> deja en <code>mods</code> solo los dos archivos de Interaktik y abre
+            la versión «Fabric 1.21.4», no otra.</li>
+          <li><strong>«Tu juego» sigue en «Sin conexión»:</strong> escribe <code>/interaktik estado</code> en el chat del juego; ahí dice el motivo.
+            Si regeneraste la llave, ejecuta el instalador otra vez con la nueva.</li>
+          <li><strong>Al escribir <code>/cubo</code> dice «Comando desconocido»:</strong> falta <code>InteraktikCubo.jar</code> en la carpeta <code>mods</code>.</li>
+          <li><strong>El botón «Crear cubo nuevo» dice que Minecraft no está conectado:</strong> tienes que estar dentro de tu mundo, no en el menú. Juega en modo creativo para poder volar y ver el cubo entero.</li>
+          <li><strong>El cubo aparece lejos o dentro de una montaña:</strong> usa «Quitar todos los cubos», colócate en otro lugar mirando hacia donde lo quieres y vuelve a crearlo (el terreno que quede dentro se despeja).</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Control del cubo -->
+    <section class="pk-panel cb-cube" aria-labelledby="cbCubeTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="cbCubeTitle">Tu cubo</h2>
+          <p class="pk-hint">Son las medidas del cubo completo, vidrio incluido (un cubo de 10×10×10 mide 10 bloques por lado). El suelo queda a tu altura. Puedes crear todos los cubos que quieras, cada uno con las medidas que tengas en ese momento.</p>
+        </div>
+        <span id="cbTotalBlocks" class="pk-count">1000</span>
+      </div>
+
+      <form id="cbCubeForm" class="cb-cube-grid">
+        <label class="pk-field">
+          <span class="pk-label">Ancho</span>
+          <input id="cbWidth" type="number" min="3" max="100" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field">
+          <span class="pk-label">Alto</span>
+          <input id="cbHeight" type="number" min="2" max="100" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field">
+          <span class="pk-label">Largo</span>
+          <input id="cbLength" type="number" min="3" max="100" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field cb-field-wide">
+          <span class="pk-label">Material</span>
+          <select id="cbBlock"></select>
+        </label>
+      </form>
+      <p id="cbSizeHint" class="pk-hint"></p>
+
+      <div class="cb-cube-grid cb-counters">
+        <label class="pk-field">
+          <span class="pk-label">Cuenta regresiva (segundos)</span>
+          <input id="cbCountdown" type="number" min="0" max="3600" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field">
+          <span class="pk-label">Objetivo de wins</span>
+          <input id="cbGoal" type="number" min="-1000000" max="1000000" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field">
+          <span class="pk-label">Wins actuales</span>
+          <input id="cbWinsNow" type="number" min="-1000000" max="1000000" value="0" inputmode="numeric" />
+        </label>
+        <button id="cbWinsBtn" class="btn ghost" type="button">Fijar wins</button>
+      </div>
+      <p class="pk-hint">Cuando el jugador termina de llenar un cubo (a mano o con regalos) aparece la cuenta regresiva en grande en medio de la pantalla y, al llegar a 0, se suma 1 win (con 0 se suma al instante). Si rompe un bloque antes de llegar a 0, la cuenta se cancela. En pantalla ves el marcador así: <strong>3/10 wins</strong>. El objetivo y los wins pueden ser negativos. También se cambian en el juego con <code>/cubo contador</code>, <code>/cubo objetivo</code> y <code>/cubo victorias poner</code>.</p>
+
+      <div class="cb-actions">
+        <button id="cbStartBtn" class="btn primary" type="button"><svg width="15" height="15"><use href="#i-cube" /></svg>Crear cubo nuevo</button>
+        <button id="cbRestartBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-refresh" /></svg>Vaciar y reiniciar cubos</button>
+        <button id="cbStopBtn" class="btn ghost" type="button"><svg width="15" height="15"><use href="#i-trash" /></svg>Quitar todos los cubos</button>
+      </div>
+      <p class="pk-hint">Antes de crearlo colócate mirando hacia donde lo quieres: aparece 4 bloques frente a ti con el suelo a tu altura (también si vas volando en creativo). Cada vez que pulsas «Crear cubo nuevo» aparece otro, al lado si el sitio ya está ocupado. Los regalos llenan el último cubo creado; con <code>/cubo seleccionar &lt;número&gt;</code> eliges otro.</p>
+
+      <details class="mc-help">
+        <summary>Comandos dentro del juego</summary>
+        <ul class="cb-list">
+          <li><strong>Tecla K</strong> o <code>/cubomenu</code> — menú visual para configurar todo y crear cubos sin escribir comandos</li>
+          <li><code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code> — <strong>crea un cubo nuevo</strong> con esas medidas, en un solo comando (con <code>/cubo ancho 20</code>, <code>/cubo alto 15</code> o <code>/cubo largo 12</code> cambias una medida sin crear nada)</li>
+          <li><code>/cubo iniciar</code> — crea otro cubo con las últimas medidas (puedes tener varios a la vez) · <code>/cubo lista</code> — ver los cubos · <code>/cubo seleccionar 2</code> — elegir a cuál van los bloques</li>
+          <li><code>/cubo reiniciar</code> / <code>/cubo detener</code> — vacía y empieza otro / quita el cubo seleccionado; con <code>todos</code> o un número al final actúan sobre todos o sobre ese cubo</li>
+          <li><code>/cubo agregar 100</code> — coloca bloques a mano en el cubo seleccionado (también <code>/cubo agregar 100 todos</code> o <code>/cubo agregar 100 2</code>)</li>
+          <li><code>/cubo tnt 10</code> — suelta 10 TNT desde arriba del cubo, en zonas al azar; explotan al tocar un bloque · <code>/cubo rayo 5</code> — rayo de fuerza 5 sobre lo construido (fuerza 1 a 10; <code>/cubo rayo 5 3</code> lanza 3)</li>
+          <li><code>/cubo bloque arcoiris</code> o <code>/cubo bloque minecraft:gold_block</code> — material</li>
+          <li><code>/cubo contador 15</code> — segundos de cuenta regresiva al llenar un cubo (0 = sin cuenta) · <code>/cubo objetivo 10</code> — objetivo de wins (admite negativos)</li>
+          <li><code>/cubo victorias</code> · <code>/cubo victorias poner 0</code> — ver o fijar los wins · <code>/cubo estado</code></li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="cbRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="cbRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo puede poner bloques en el cubo, soltar TNT o lanzar un rayo. Un combo multiplica: 5 rosas de «20 bloques» ponen 100, 5 regalos de «10 TNT» sueltan 50.</p>
+          </div>
+          <span id="cbRuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="cbRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-cube" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y su poder.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="cbFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="cbFormTitle">Nueva regla</h2>
+            <button id="cbLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="cbRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="cbGiftPicker" class="gift-picker">
+                <button id="cbGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="cbGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="cbGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="cbGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="cbGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="cbGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="cbGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Poder del regalo</span>
+              <select id="cbPowerSelect">
+                <option value="blocks">Bloques para el cubo</option>
+                <option value="tnt">TNT: cae sobre el cubo</option>
+                <option value="lightning">Rayo: cae sobre lo construido</option>
+              </select>
+            </label>
+
+            <label class="pk-field">
+              <span id="cbAmountLabel" class="pk-label">Bloques por regalo</span>
+              <input id="cbBlocksInput" type="number" min="1" max="100000" value="10" inputmode="numeric" />
+              <span id="cbAmountHint" class="pk-hint">Entre 1 y 100 000. Ejemplo: una rosa = 5 bloques, un león = 5 000.</span>
+            </label>
+
+            <button id="cbRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/minecraft-cubo.js?v=20261017a"></script>
+</body>
+
+</html>

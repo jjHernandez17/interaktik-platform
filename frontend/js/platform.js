@@ -297,6 +297,7 @@ const GAME_LABELS = {
   robloxparkour: 'Roblox Parkour',
   minecraft: 'Survivaltik',
   gta: 'Modo historia',
+  kingdoms: 'Batalla de Reinos',
 };
 
 let currentUser = null;
@@ -349,6 +350,7 @@ function gameTypeFromHref(href = '') {
   if (href.includes('roblox-parkour')) return 'robloxparkour';
   if (href.includes('minecraft')) return 'minecraft';
   if (href.includes('gta')) return 'gta';
+  if (href.includes('kingdoms')) return 'kingdoms';
   if (href.includes('shell-game')) return 'shellgame';
   if (href.includes('boy-vs-girl')) return 'boyvsgirl';
   if (href.includes('race')) return 'race';
@@ -1264,7 +1266,7 @@ if (overlayConnectionForm) {
 // backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
 // en la conexion de cada uno, para que "un solo usuario de TikTok para toda
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
-const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'minecraft', 'gta', 'shellgame', 'boyvsgirl'];
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'minecraft', 'gta', 'kingdoms', 'shellgame', 'boyvsgirl'];
 
 // Una vez vinculado, el usuario de TikTok no se puede cambiar desde aqui:
 // el campo y el boton "Vincular" quedan bloqueados.

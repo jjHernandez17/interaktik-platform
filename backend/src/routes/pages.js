@@ -695,6 +695,28 @@ router.get('/boy-vs-girl.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/boy-vs-girl.js'));
 });
 
+// Batalla de Reinos
+router.get(['/kingdoms', '/kingdoms.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'kingdoms'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/kingdoms.html', 'Kingdoms page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/kingdoms.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/kingdoms.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/kingdoms.js'));
+});
+
 // Roblox Dance
 router.get('/roblox-dance', requireAuthPage, async (req, res) => {
   try {

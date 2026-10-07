@@ -1,0 +1,13 @@
+Batalla de Reinos - creditos de arte
+
+Los sprites de las tropas (PNG de esta carpeta) se generaron renderizando modelos 3D
+de dominio publico (licencia CC0 1.0) a hojas de sprites 2D con Three.js.
+
+Autores de los modelos originales:
+- Quaternius (https://quaternius.com) - personajes RPG, esqueleto, orco, gigante, caballo y dragon.
+- Kenney (https://kenney.nl) - kits de castillo y naturaleza (referencia para futuros decorados).
+
+CC0 no exige atribucion; este archivo se mantiene como agradecimiento y registro de origen.
+Los atlas tienen 8 columnas x 2 filas: fila 1 = caminar (8 cuadros), fila 2 = atacar (7 cuadros).
+Los pixeles magenta del estandarte se recolorean en tiempo de ejecucion con el color de cada reino
+(ver recolorFrame en js/kingdoms-art.js).

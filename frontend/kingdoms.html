@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Batalla de Reinos | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/boy-vs-girl.css?v=20261001b" />
+  <link rel="stylesheet" href="assets/css/kingdoms.css?v=20261015d" />
+  <link rel="stylesheet" href="assets/css/tiktok-connection.css?v=20261002a" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="kd-shell">
+    <section class="bvg-hero">
+      <div>
+        <p class="eyebrow">Interaktik • Juego interactivo</p>
+        <h1>Batalla de Reinos</h1>
+        <p class="subtitle">
+          Dos reinos, dos castillos y toda tu audiencia dividida en bandos. Cada espectador se une comentando la palabra de su
+          reino y sus regalos <strong>invocan tropas y hechizos</strong>: un regalo pequeño trae un escudero, uno grande lanza
+          ×10 o ×50 titanes. Gana el bando que destruya el castillo rival o tenga más torres cuando se acabe el tiempo.
+        </p>
+      </div>
+    </section>
+
+    <section class="card connection-card">
+      <div class="connection-header">
+        <h3>Conexión TikTok Live</h3>
+        <span id="kdConnectionStatusBadge" class="status-badge disconnected">Desconectado</span>
+      </div>
+
+      <form id="kdConnectionForm" class="connection-form">
+        <input id="kdUsername" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+        <button id="kdConnectLiveBtn" class="btn primary" type="button">Conectar a live</button>
+        <button id="kdDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+      </form>
+
+      <p id="kdConnectionDetails" class="hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+    </section>
+
+    <!-- Arena -->
+    <section class="card kd-stage-card">
+      <div class="kd-controls">
+        <p class="hint kd-join-hint" id="kdJoinHint"></p>
+        <div class="kd-controls-buttons">
+          <button id="kdFullscreenBtn" class="btn ghost small" type="button">Pantalla completa</button>
+          <button id="kdRestartMatchBtn" class="btn ghost small" type="button">Reiniciar partida</button>
+          <button id="kdResetScoreBtn" class="btn ghost small" type="button">Reiniciar marcador</button>
+        </div>
+      </div>
+
+      <div id="kdStage" class="kd-stage">
+        <canvas id="kdCanvas" class="kd-canvas"></canvas>
+
+        <div class="kd-hud">
+          <div class="kd-team kd-team-left" id="kdTeamLeft">
+            <div class="kd-team-name" id="kdNameLeft"></div>
+            <div class="kd-team-row"><span class="kd-wins" id="kdWinsLeft">0</span><span class="kd-crowns" id="kdCrownsLeft"></span></div>
+            <div class="kd-bar"><i id="kdBarLeft"></i></div>
+            <div class="kd-units" id="kdUnitsLeft"></div>
+          </div>
+
+          <div class="kd-center">
+            <div class="kd-timer" id="kdTimer">3:00</div>
+            <div class="kd-status" id="kdStatus"></div>
+          </div>
+
+          <div class="kd-team kd-team-right" id="kdTeamRight">
+            <div class="kd-team-name" id="kdNameRight"></div>
+            <div class="kd-team-row"><span class="kd-crowns" id="kdCrownsRight"></span><span class="kd-wins" id="kdWinsRight">0</span></div>
+            <div class="kd-bar"><i id="kdBarRight"></i></div>
+            <div class="kd-units" id="kdUnitsRight"></div>
+          </div>
+
+          <div class="kd-top kd-top-left" id="kdTopLeft"></div>
+          <div class="kd-top kd-top-right" id="kdTopRight"></div>
+          <div class="kd-feed" id="kdFeed"></div>
+
+          <div class="kd-banner hidden" id="kdBanner"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Equipos y partida -->
+    <section class="card config-card">
+      <h3>Equipos y partida</h3>
+      <p class="hint">Cada espectador elige su reino comentando la palabra de su bando. Si manda un regalo sin haber elegido, se une solo al reino con menos gente (puedes desactivarlo).</p>
+
+      <div class="kd-config-grid">
+        <div class="kd-team-config" id="kdConfigLeft">
+          <h4>Reino de la izquierda</h4>
+          <label>Nombre<input id="kdCfgNameLeft" type="text" maxlength="24" /></label>
+          <label>Color<input id="kdCfgColorLeft" type="color" /></label>
+          <label>Palabra para unirse<input id="kdCfgKeywordLeft" type="text" maxlength="12" /></label>
+        </div>
+        <div class="kd-team-config" id="kdConfigRight">
+          <h4>Reino de la derecha</h4>
+          <label>Nombre<input id="kdCfgNameRight" type="text" maxlength="24" /></label>
+          <label>Color<input id="kdCfgColorRight" type="color" /></label>
+          <label>Palabra para unirse<input id="kdCfgKeywordRight" type="text" maxlength="12" /></label>
+        </div>
+
+        <div class="kd-match-config">
+          <h4>Partida</h4>
+          <label>Duración (segundos)<input id="kdCfgMatchSeconds" type="number" min="60" max="600" step="10" /></label>
+          <label>Vida de las torres (%)<input id="kdCfgTowerHp" type="number" min="25" max="400" step="5" /></label>
+          <label>Máximo de tropas por reino<input id="kdCfgMaxUnits" type="number" min="30" max="250" step="10" /></label>
+          <label>Velocidad del juego<input id="kdCfgSpeed" type="number" min="0.5" max="2" step="0.1" /></label>
+          <label>Segundos antes de la siguiente partida<input id="kdCfgRestart" type="number" min="3" max="60" step="1" /></label>
+          <label class="kd-check"><input id="kdCfgAutoJoin" type="checkbox" /> Unir solo a quien mande un regalo sin haber elegido reino</label>
+        </div>
+      </div>
+
+      <div class="bvg-config-actions">
+        <button id="kdSaveConfigBtn" class="btn primary" type="button">Guardar configuración</button>
+      </div>
+    </section>
+
+    <!-- Reglas de regalo -->
+    <section class="card config-card">
+      <h3>Reglas de regalo</h3>
+      <p class="hint">
+        Elige qué invoca cada regalo: una tropa o un hechizo, cuántas unidades (×10, ×50…) y su nivel (cada nivel suma +18% de vida y daño).
+        Con «×valor» la cantidad se multiplica por las monedas del regalo. «Cualquier otro regalo» cubre los que no asignes.
+      </p>
+      <div id="kdGiftRulesTable" class="power-config-table-wrapper"></div>
+      <div class="bvg-config-actions">
+        <button id="kdAddGiftRuleBtn" class="btn accent" type="button">+ Agregar regalo específico</button>
+        <button id="kdSuggestRulesBtn" class="btn ghost" type="button">Sugerir reglas con tus regalos</button>
+        <button id="kdSaveGiftRulesBtn" class="btn primary" type="button">Guardar reglas</button>
+      </div>
+    </section>
+
+    <!-- Probar -->
+    <section class="card config-card">
+      <h3>Probar sin estar en vivo</h3>
+      <p class="hint">Invoca tropas a mano para ver cómo se comportan o para grabar tu video.</p>
+      <div class="kd-test-row">
+        <label>Reino<select id="kdTestSide"></select></label>
+        <label>Tropa o hechizo<select id="kdTestUnit"></select></label>
+        <label>Cantidad<input id="kdTestCount" type="number" min="1" max="200" value="10" /></label>
+        <label>Nivel<input id="kdTestLevel" type="number" min="1" max="10" value="1" /></label>
+        <button id="kdTestSummonBtn" class="btn primary" type="button">Invocar</button>
+        <button id="kdTestDemoBtn" class="btn accent" type="button">Batalla de demostración</button>
+        <button id="kdTestClearBtn" class="btn ghost" type="button">Limpiar arena</button>
+      </div>
+    </section>
+
+    <!-- Catalogo -->
+    <section class="card config-card">
+      <h3>Tropas y hechizos</h3>
+      <p class="hint">Todo lo que puedes asignar a un regalo. Las tropas de los dos reinos son iguales: la ventaja la dan los regalos.</p>
+      <div id="kdCatalog" class="kd-catalog"></div>
+    </section>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/kingdoms-art.js?v=20261015b"></script>
+  <script src="js/kingdoms-engine.js?v=20261015b"></script>
+  <script src="js/kingdoms.js?v=20261014b"></script>
+</body>
+
+</html>

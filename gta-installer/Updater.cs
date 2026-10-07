@@ -28,6 +28,8 @@ namespace InteraktikGtaInstaller
         // --no-update desactiva todo; --updated <version> lo pasa el instalador que acaba de actualizarse (evita bucles)
         public static bool Disabled = false;
         public static bool JustUpdated = false;
+        // Los archivos (instalador, mods, installer.json) los sirve el sitio web; el servidor de Railway solo responde la API y el puente
+        public static string DownloadsHost = "https://www.interaktik.com";
         public static string[] OriginalArgs = new string[0]; // para reabrir el instalador nuevo con los mismos argumentos (--url, --minecraft...)
 
         static string ExePath
@@ -75,9 +77,9 @@ namespace InteraktikGtaInstaller
             return new string(hex);
         }
 
-        static string Base(string serverUrl)
+        public static string Base(string serverUrl)
         {
-            return serverUrl.TrimEnd('/') + "/downloads/";
+            return DownloadsHost.TrimEnd('/') + "/downloads/";
         }
 
         public static Manifest Fetch(string serverUrl)
@@ -280,8 +282,9 @@ namespace InteraktikGtaInstaller
             {
                 manifest = Fetch(serverUrl);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                log("No pude revisar las actualizaciones (" + ex.Message + "). Se sigue con lo instalado.");
                 return false; // sin internet o sin manifiesto: se sigue con lo que hay
             }
 

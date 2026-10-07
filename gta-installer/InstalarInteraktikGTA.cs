@@ -458,7 +458,7 @@ namespace InteraktikGtaInstaller
                     using (WebClient client = new WebClient())
                     {
                         client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
-                        byte[] data = client.DownloadData(ServerUrl.TrimEnd('/') + "/downloads/InteraktikGTA.dll");
+                        byte[] data = client.DownloadData(Updater.Base(ServerUrl) + "InteraktikGTA.dll");
                         if (data.Length > 5000 && data[0] == 'M' && data[1] == 'Z')
                         {
                             Log("Mod descargado de la plataforma.");
@@ -960,6 +960,7 @@ namespace InteraktikGtaInstaller
                 else if (args[i] == "--test-key") testKey = true;
                 else if (args[i] == "--minecraft") minecraft = true;
                 else if (args[i] == "--no-update") Updater.Disabled = true;
+                else if (args[i] == "--downloads-url" && i + 1 < args.Length) Updater.DownloadsHost = args[++i];
                 else if (args[i] == "--check-updates") checkUpdates = true;
                 else if (args[i] == "--updated") Updater.JustUpdated = true;
                 else if (args[i] == "--keep-other-mods") keepOthers = true;

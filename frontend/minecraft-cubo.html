@@ -191,9 +191,10 @@
         <li class="mc-guide-step">
           <span class="mc-guide-num">6</span>
           <div class="mc-guide-body">
-            <h3>Crea el cubo desde esta página</h3>
-            <p>Más abajo, en <strong>Tu cubo</strong>, elige ancho, alto y largo, el material y pulsa <strong>Crear cubo nuevo</strong>. También puedes hacerlo dentro del juego: pulsa <strong>K</strong> para abrir el <strong>menú visual</strong> (o escribe <code>/cubomenu</code>), o crea el cubo con un solo comando: <code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code>.
-              Aparece frente a ti: un cubo de vidrio vacío, con suelo y paredes pero sin techo. Arriba de la pantalla verás el marcador de wins (por ejemplo 3/10 wins).</p>
+            <h3>Crea el cubo dentro del juego</h3>
+            <p>Pulsa <strong>K</strong> para abrir el <strong>menú del Cubo Gigante</strong> (o escribe <code>/cubomenu</code>): ahí eliges ancho, alto y largo, el material,
+              la cuenta regresiva y el objetivo de wins, y pulsas <strong>Crear cubo</strong>. También puedes crearlo con un solo comando:
+              <code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code>. Aparece frente a ti, de vidrio, con suelo y paredes pero sin techo; arriba de la pantalla ves el marcador de wins (por ejemplo 3/10 wins).</p>
           </div>
         </li>
 
@@ -236,6 +237,20 @@
       </details>
 
       <details class="mc-help">
+        <summary>Menú y comandos dentro del juego</summary>
+        <ul class="cb-list">
+          <li><strong>Tecla K</strong> o <code>/cubomenu</code> — menú visual: medidas, material, cuenta regresiva, objetivo de wins, wins actuales y botones para crear, vaciar o quitar cubos</li>
+          <li><code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code> — <strong>crea un cubo nuevo</strong> con esas medidas (del cubo completo, vidrio incluido; mínimo 3 × 2 × 3). Puedes tener varios a la vez</li>
+          <li><code>/cubo lista</code> · <code>/cubo seleccionar 2</code> — ver los cubos / elegir a cuál van los bloques y los regalos (por defecto, el último que creaste)</li>
+          <li><code>/cubo reiniciar</code> · <code>/cubo detener</code> — vaciar y empezar de nuevo / quitar el cubo seleccionado; con <code>todos</code> o un número actúan sobre todos o sobre ese cubo</li>
+          <li><code>/cubo contador 15</code> — segundos de cuenta regresiva al llenar un cubo (0 = sin cuenta) · <code>/cubo objetivo 10</code> — objetivo de wins (admite negativos) · <code>/cubo victorias poner 0</code> — fijar los wins</li>
+          <li><code>/cubo agregar 100</code> — coloca bloques a mano en el cubo seleccionado · <code>/cubo bloque arcoiris</code> o <code>/cubo bloque minecraft:gold_block</code> — material</li>
+          <li><code>/cubo tnt 10</code> — suelta 10 TNT desde arriba del cubo, en zonas al azar; explotan al tocar un bloque · <code>/cubo rayo 5</code> — rayo de fuerza 5 sobre lo construido (fuerza 1 a 10; <code>/cubo rayo 5 3</code> lanza 3)</li>
+        </ul>
+        <p class="pk-hint">Cuando el jugador termina de llenar un cubo (a mano o con regalos) aparece la cuenta regresiva en grande en medio de la pantalla y, al llegar a 0, se suma 1 win. Si rompe un bloque antes de llegar a 0, la cuenta se cancela. El vidrio del cubo es indestructible.</p>
+      </details>
+
+      <details class="mc-help">
         <summary>Algo no funciona</summary>
         <ul>
           <li><strong>Minecraft no abre o muestra un error de mods:</strong> deja en <code>mods</code> solo los dos archivos de Interaktik y abre
@@ -243,78 +258,8 @@
           <li><strong>«Tu juego» sigue en «Sin conexión»:</strong> escribe <code>/interaktik estado</code> en el chat del juego; ahí dice el motivo.
             Si regeneraste la llave, ejecuta el instalador otra vez con la nueva.</li>
           <li><strong>Al escribir <code>/cubo</code> dice «Comando desconocido»:</strong> falta <code>InteraktikCubo.jar</code> en la carpeta <code>mods</code>.</li>
-          <li><strong>El botón «Crear cubo nuevo» dice que Minecraft no está conectado:</strong> tienes que estar dentro de tu mundo, no en el menú. Juega en modo creativo para poder volar y ver el cubo entero.</li>
-          <li><strong>El cubo aparece lejos o dentro de una montaña:</strong> usa «Quitar todos los cubos», colócate en otro lugar mirando hacia donde lo quieres y vuelve a crearlo (el terreno que quede dentro se despeja).</li>
-        </ul>
-      </details>
-    </section>
-
-    <!-- Control del cubo -->
-    <section class="pk-panel cb-cube" aria-labelledby="cbCubeTitle">
-      <div class="pk-panel-head">
-        <div>
-          <h2 id="cbCubeTitle">Tu cubo</h2>
-          <p class="pk-hint">Son las medidas del cubo completo, vidrio incluido (un cubo de 10×10×10 mide 10 bloques por lado). El suelo queda a tu altura. Puedes crear todos los cubos que quieras, cada uno con las medidas que tengas en ese momento.</p>
-        </div>
-        <span id="cbTotalBlocks" class="pk-count">1000</span>
-      </div>
-
-      <form id="cbCubeForm" class="cb-cube-grid">
-        <label class="pk-field">
-          <span class="pk-label">Ancho</span>
-          <input id="cbWidth" type="number" min="3" max="100" value="10" inputmode="numeric" />
-        </label>
-        <label class="pk-field">
-          <span class="pk-label">Alto</span>
-          <input id="cbHeight" type="number" min="2" max="100" value="10" inputmode="numeric" />
-        </label>
-        <label class="pk-field">
-          <span class="pk-label">Largo</span>
-          <input id="cbLength" type="number" min="3" max="100" value="10" inputmode="numeric" />
-        </label>
-        <label class="pk-field cb-field-wide">
-          <span class="pk-label">Material</span>
-          <select id="cbBlock"></select>
-        </label>
-      </form>
-      <p id="cbSizeHint" class="pk-hint"></p>
-
-      <div class="cb-cube-grid cb-counters">
-        <label class="pk-field">
-          <span class="pk-label">Cuenta regresiva (segundos)</span>
-          <input id="cbCountdown" type="number" min="0" max="3600" value="10" inputmode="numeric" />
-        </label>
-        <label class="pk-field">
-          <span class="pk-label">Objetivo de wins</span>
-          <input id="cbGoal" type="number" min="-1000000" max="1000000" value="10" inputmode="numeric" />
-        </label>
-        <label class="pk-field">
-          <span class="pk-label">Wins actuales</span>
-          <input id="cbWinsNow" type="number" min="-1000000" max="1000000" value="0" inputmode="numeric" />
-        </label>
-        <button id="cbWinsBtn" class="btn ghost" type="button">Fijar wins</button>
-      </div>
-      <p class="pk-hint">Cuando el jugador termina de llenar un cubo (a mano o con regalos) aparece la cuenta regresiva en grande en medio de la pantalla y, al llegar a 0, se suma 1 win (con 0 se suma al instante). Si rompe un bloque antes de llegar a 0, la cuenta se cancela. En pantalla ves el marcador así: <strong>3/10 wins</strong>. El objetivo y los wins pueden ser negativos. También se cambian en el juego con <code>/cubo contador</code>, <code>/cubo objetivo</code> y <code>/cubo victorias poner</code>.</p>
-
-      <div class="cb-actions">
-        <button id="cbStartBtn" class="btn primary" type="button"><svg width="15" height="15"><use href="#i-cube" /></svg>Crear cubo nuevo</button>
-        <button id="cbRestartBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-refresh" /></svg>Vaciar y reiniciar cubos</button>
-        <button id="cbStopBtn" class="btn ghost" type="button"><svg width="15" height="15"><use href="#i-trash" /></svg>Quitar todos los cubos</button>
-      </div>
-      <p class="pk-hint">Antes de crearlo colócate mirando hacia donde lo quieres: aparece 4 bloques frente a ti con el suelo a tu altura (también si vas volando en creativo). Cada vez que pulsas «Crear cubo nuevo» aparece otro, al lado si el sitio ya está ocupado. Los regalos llenan el último cubo creado; con <code>/cubo seleccionar &lt;número&gt;</code> eliges otro.</p>
-
-      <details class="mc-help">
-        <summary>Comandos dentro del juego</summary>
-        <ul class="cb-list">
-          <li><strong>Tecla K</strong> o <code>/cubomenu</code> — menú visual para configurar todo y crear cubos sin escribir comandos</li>
-          <li><code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code> — <strong>crea un cubo nuevo</strong> con esas medidas, en un solo comando (con <code>/cubo ancho 20</code>, <code>/cubo alto 15</code> o <code>/cubo largo 12</code> cambias una medida sin crear nada)</li>
-          <li><code>/cubo iniciar</code> — crea otro cubo con las últimas medidas (puedes tener varios a la vez) · <code>/cubo lista</code> — ver los cubos · <code>/cubo seleccionar 2</code> — elegir a cuál van los bloques</li>
-          <li><code>/cubo reiniciar</code> / <code>/cubo detener</code> — vacía y empieza otro / quita el cubo seleccionado; con <code>todos</code> o un número al final actúan sobre todos o sobre ese cubo</li>
-          <li><code>/cubo agregar 100</code> — coloca bloques a mano en el cubo seleccionado (también <code>/cubo agregar 100 todos</code> o <code>/cubo agregar 100 2</code>)</li>
-          <li><code>/cubo tnt 10</code> — suelta 10 TNT desde arriba del cubo, en zonas al azar; explotan al tocar un bloque · <code>/cubo rayo 5</code> — rayo de fuerza 5 sobre lo construido (fuerza 1 a 10; <code>/cubo rayo 5 3</code> lanza 3)</li>
-          <li><code>/cubo bloque arcoiris</code> o <code>/cubo bloque minecraft:gold_block</code> — material</li>
-          <li><code>/cubo contador 15</code> — segundos de cuenta regresiva al llenar un cubo (0 = sin cuenta) · <code>/cubo objetivo 10</code> — objetivo de wins (admite negativos)</li>
-          <li><code>/cubo victorias</code> · <code>/cubo victorias poner 0</code> — ver o fijar los wins · <code>/cubo estado</code></li>
+          <li><strong>Los regalos no hacen nada:</strong> comprueba que arriba «Tu juego» esté en «Conectado» (tienes que estar dentro de tu mundo, no en el menú) y que ya hayas creado un cubo. Juega en modo creativo para poder volar y ver el cubo entero.</li>
+          <li><strong>El cubo aparece lejos o dentro de una montaña:</strong> abre el menú (tecla K), pulsa «Quitar todos los cubos», colócate en otro lugar mirando hacia donde lo quieres y vuelve a crearlo (el terreno que quede dentro se despeja).</li>
         </ul>
       </details>
     </section>
@@ -400,7 +345,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/minecraft-cubo.js?v=20261017a"></script>
+  <script src="js/minecraft-cubo.js?v=20261017b"></script>
 </body>
 
 </html>

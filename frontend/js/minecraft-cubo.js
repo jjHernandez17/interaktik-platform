@@ -22,19 +22,6 @@ const modCommandInput = $('cbModCommandInput');
 const toggleModCommandBtn = $('cbToggleModCommandBtn');
 const copyModCommandBtn = $('cbCopyModCommandBtn');
 
-const widthInput = $('cbWidth');
-const heightInput = $('cbHeight');
-const lengthInput = $('cbLength');
-const blockSelect = $('cbBlock');
-const countdownInput = $('cbCountdown');
-const goalInput = $('cbGoal');
-const winsNowInput = $('cbWinsNow');
-const winsBtn = $('cbWinsBtn');
-const totalBlocks = $('cbTotalBlocks');
-const sizeHint = $('cbSizeHint');
-const startBtn = $('cbStartBtn');
-const restartBtn = $('cbRestartBtn');
-const stopBtn = $('cbStopBtn');
 
 const loadGiftsBtn = $('cbLoadGiftsBtn');
 const ruleForm = $('cbRuleForm');
@@ -217,20 +204,6 @@ async function loadConfig() {
     const data = await response.json();
     setKey(data.serverKey);
     if (data.limits) limits = data.limits;
-
-    blockSelect.innerHTML = (data.blockChoices || []).map((choice) => (
-      `<option value="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</option>`
-    )).join('');
-
-    const settings = data.settings || {};
-    widthInput.value = settings.width || 10;
-    heightInput.value = settings.height || 10;
-    lengthInput.value = settings.length || 10;
-    blockSelect.value = settings.block || '';
-    countdownInput.value = settings.countdown ?? 10;
-    goalInput.value = settings.goal ?? 10;
-    [widthInput, heightInput, lengthInput].forEach((input) => { input.max = String(limits.maxSide); });
-    refreshSizeHint();
   } catch (error) {
     setKey('');
     await showAlert(error.message, 'Error');
@@ -299,103 +272,6 @@ async function refreshGameStatus() {
     if (heroServer) heroServer.dataset.state = data.connected ? 'on' : 'off';
   } catch (error) {
     // se reintenta en el siguiente ciclo
-  }
-}
-
-// ===== Control del cubo =====
-function readCube() {
-  return {
-    width: Math.round(Number(widthInput.value)),
-    height: Math.round(Number(heightInput.value)),
-    length: Math.round(Number(lengthInput.value)),
-    block: blockSelect.value,
-    countdown: Math.round(Number(countdownInput.value)),
-    goal: Math.round(Number(goalInput.value)),
-  };
-}
-
-function validateCube(cube) {
-  const sides = [cube.width, cube.height, cube.length];
-  if (sides.some((value) => !Number.isFinite(value) || value > limits.maxSide)) {
-    return `Cada medida puede ser de hasta ${limits.maxSide} bloques.`;
-  }
-  if (!Number.isFinite(cube.countdown) || cube.countdown < 0 || cube.countdown > 3600) return 'La cuenta regresiva debe estar entre 0 y 3600 segundos.';
-  if (!Number.isFinite(cube.goal) || Math.abs(cube.goal) > 1000000) return 'El objetivo de wins debe estar entre -1 000 000 y 1 000 000.';
-  const min = limits.minSides;
-  if (cube.width < min.width || cube.height < min.height || cube.length < min.length) {
-    return `Medidas mínimas: ancho ${min.width}, alto ${min.height} y largo ${min.length} (el vidrio ocupa el borde).`;
-  }
-  if (innerBlocks(cube) > limits.maxBlocks) {
-    return `El interior no puede pasar de ${formatNumber(limits.maxBlocks)} bloques.`;
-  }
-  return '';
-}
-
-// El vidrio ocupa el piso y las paredes: se llena solo el interior
-function innerBlocks(cube) {
-  return Math.max(0, cube.width - 2) * Math.max(0, cube.height - 1) * Math.max(0, cube.length - 2);
-}
-
-function refreshSizeHint() {
-  const cube = readCube();
-  const error = validateCube(cube);
-  const total = innerBlocks(cube);
-  totalBlocks.textContent = Number.isFinite(total) ? formatNumber(total) : '—';
-  sizeHint.textContent = error || `Cada cubo se llena con ${formatNumber(total)} bloques (el vidrio va dentro de esas medidas) y da 1 victoria.`;
-  sizeHint.classList.toggle('is-error', Boolean(error));
-}
-
-async function setWins() {
-  const winsNow = Math.round(Number(winsNowInput.value));
-  if (!Number.isFinite(winsNow) || Math.abs(winsNow) > 1000000) {
-    await showAlert('Los wins deben estar entre -1 000 000 y 1 000 000.', 'Wins no válidos');
-    return;
-  }
-  winsBtn.disabled = true;
-  try {
-    const response = await fetch('/api/minecraft-cube/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'wins', winsNow }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'No se pudo enviar la orden.');
-    await showAlert(`Wins fijados en ${winsNow}.`, 'Listo');
-  } catch (error) {
-    await showAlert(error.message, 'Error');
-  } finally {
-    winsBtn.disabled = false;
-  }
-}
-
-async function controlCube(action, button, doneMessage) {
-  const cube = readCube();
-  if (action === 'start') {
-    const error = validateCube(cube);
-    if (error) {
-      await showAlert(error, 'Medidas no válidas');
-      return;
-    }
-  }
-
-  if (action === 'restart' && !(await showConfirm('Se vaciarán todos los cubos y empezarán de nuevo (con sus propias medidas). ¿Continuar?', 'Reiniciar cubos'))) return;
-  if (action === 'stop' && !(await showConfirm('Se quitarán todos los cubos del mundo. Las victorias se conservan. ¿Continuar?', 'Quitar cubos'))) return;
-
-  const buttons = [startBtn, restartBtn, stopBtn];
-  buttons.forEach((btn) => { btn.disabled = true; });
-  try {
-    const response = await fetch('/api/minecraft-cube/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...cube }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'No se pudo enviar la orden.');
-    await showAlert(doneMessage, 'Listo');
-  } catch (error) {
-    await showAlert(error.message, 'Error');
-  } finally {
-    buttons.forEach((btn) => { btn.disabled = false; });
   }
 }
 
@@ -681,13 +557,6 @@ function bootstrapEventListeners() {
   toggleModCommandBtn.addEventListener('click', () => toggleSecret(modCommandInput, toggleModCommandBtn));
   copyModCommandBtn.addEventListener('click', () => copyFromInput(modCommandInput, copyModCommandBtn, 'Copiar comando', 'Copiado ✓'));
 
-  [widthInput, heightInput, lengthInput].forEach((input) => input.addEventListener('input', refreshSizeHint));
-  $('cbCubeForm').addEventListener('submit', (event) => event.preventDefault());
-  startBtn.addEventListener('click', () => controlCube('start', startBtn, 'Cubo nuevo creado frente a ti. Si no lo ves, revisa que estés dentro del mundo.'));
-  restartBtn.addEventListener('click', () => controlCube('restart', restartBtn, 'Cubos vaciados: empiezan de nuevo.'));
-  stopBtn.addEventListener('click', () => controlCube('stop', stopBtn, 'Se están quitando los cubos.'));
-
-  winsBtn.addEventListener('click', () => setWins());
   powerSelect.addEventListener('change', syncPowerField);
   loadGiftsBtn.addEventListener('click', () => loadGiftCatalog());
   ruleForm.addEventListener('submit', saveRule);

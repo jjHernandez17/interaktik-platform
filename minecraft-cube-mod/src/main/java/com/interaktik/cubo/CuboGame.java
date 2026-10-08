@@ -28,6 +28,7 @@ import org.joml.Vector3f;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.Block;
@@ -103,6 +104,8 @@ final class CuboGame {
         transient int countdownLeft = 0;  // ticks que faltan para sumar la victoria
         transient int countdownTotal = 0;
         transient int repairIdx = 0;      // por donde va la revision del vidrio
+        transient int pendingCreepers = 0; // creepers por invocar
+        transient int creeperCooldown = 0;
         transient int pendingTnt = 0;     // TNT por soltar
         transient final List<Integer> lightning = new ArrayList<>(); // rayos por caer (fuerza de cada uno)
         transient int lightningCooldown = 0;
@@ -596,6 +599,37 @@ final class CuboGame {
     }
 
     static final int MAX_VACUUM_LAYERS = 100;
+    static final int MAX_CREEPERS = 200;
+
+    String addCreepers(Cube cube, int n) {
+        if (n < 1 || n > MAX_CREEPERS) return "Los creepers van de 1 a " + MAX_CREEPERS + ".";
+        cube.pendingCreepers = Math.min(MAX_POWER_QUEUE, cube.pendingCreepers + n);
+        return null;
+    }
+
+    // Un creeper aparece dentro del cubo, encima de lo construido (o en el piso si esta vacio), con humo y un siseo
+    private void summonCreeper(Cube cube, ServerLevel level) {
+        int iw = cube.innerW(), il = cube.innerL(), ih = cube.innerH();
+        int baseY = cube.oy + 1;
+        int x = cube.ox + 1 + level.random.nextInt(iw);
+        int z = cube.oz + 1 + level.random.nextInt(il);
+        int y = baseY;
+        for (int cy = baseY + ih - 1; cy >= baseY; cy--) {
+            if (occupied(level.getBlockState(new BlockPos(x, cy, z)))) { y = cy + 1; break; }
+        }
+        // si lo construido llega hasta arriba, aparece sobre el borde del cubo
+        if (y > baseY + ih - 1) y = baseY + ih;
+
+        Creeper creeper = EntityType.CREEPER.create(level, EntitySpawnReason.TRIGGERED);
+        if (creeper == null) return;
+        creeper.moveTo(x + 0.5, y, z + 0.5, level.random.nextFloat() * 360.0F, 0.0F);
+        creeper.setPersistenceRequired();
+        creeper.addTag("ik_cubo_creeper");
+        level.addFreshEntity(creeper);
+        level.sendParticles(ParticleTypes.POOF, x + 0.5, y + 0.6, z + 0.5, 14, 0.3, 0.4, 0.3, 0.04);
+        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, x + 0.5, y + 1.2, z + 0.5, 6, 0.3, 0.3, 0.3, 0.0);
+        level.playSound(null, BlockPos.containing(x, y, z), SoundEvents.CREEPER_PRIMED, SoundSource.HOSTILE, 1.4F, 1.0F);
+    }
 
     String addVacuum(Cube cube, int layers) {
         if (layers < 1 || layers > MAX_VACUUM_LAYERS) return "Las capas van de 1 a " + MAX_VACUUM_LAYERS + ".";
@@ -755,6 +789,14 @@ final class CuboGame {
     }
 
     private void stepPowers(Cube cube, ServerLevel level) {
+        // Creepers: uno cada pocos ticks
+        if (cube.creeperCooldown > 0) cube.creeperCooldown--;
+        if (cube.pendingCreepers > 0 && cube.creeperCooldown == 0) {
+            cube.pendingCreepers--;
+            summonCreeper(cube, level);
+            cube.creeperCooldown = 4;
+        }
+
         // TNT: caen desde arriba del cubo en puntos al azar; la gravedad hace el resto
         for (int i = 0; i < TNT_PER_TICK && cube.pendingTnt > 0; i++) {
             cube.pendingTnt--;

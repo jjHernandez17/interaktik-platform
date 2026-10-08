@@ -163,6 +163,12 @@ function toJavaSteps(item, options = {}) {
           `cubo tnt ${amount}`,
           `title @a actionbar {"text":"${cleanName(item.nickname)} lanzó ${amount} TNT sobre el cubo","color":"red"}`,
         ];
+      case 'cube_creeper':
+        // Cubo Gigante: aparecen creepers dentro del cubo, encima de lo construido
+        return [
+          `cubo creeper ${amount}`,
+          `title @a actionbar {"text":"${cleanName(item.nickname)} invocó ${amount} ${amount === 1 ? 'creeper' : 'creepers'} en el cubo","color":"green"}`,
+        ];
       case 'cube_vacuum':
         // Cubo Gigante: quita las capas de arriba que haya construido el jugador
         return [

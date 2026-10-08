@@ -117,9 +117,11 @@ const POWERS = {
   tnt: { label: 'TNT', min: 1, max: 500, action: 'cube_tnt' },
   lightning: { label: 'Rayo', min: 1, max: 10, action: 'cube_lightning' },
   vacuum: { label: 'Bomba de vacío', min: 1, max: 50, action: 'cube_vacuum' },
+  creeper: { label: 'Creepers', min: 1, max: 50, action: 'cube_creeper' },
 };
 const MAX_LIGHTNING_STRIKES = 20; // rayos por regalo (un combo los multiplica hasta aqui)
 const MAX_TNT_PER_GIFT = 2000;
+const MAX_CREEPERS_PER_GIFT = 200;
 const MAX_VACUUM_LAYERS = 100; // capas por regalo (un combo las multiplica hasta aqui)
 
 function cleanPower(value) {
@@ -187,6 +189,9 @@ async function enqueuePower(userId, { uniqueId, nickname, power, amount, units }
   if (power === 'tnt') {
     action = 'cube_tnt';
     total = Math.min(MAX_TNT_PER_GIFT, amount * count);
+  } else if (power === 'creeper') {
+    action = 'cube_creeper';
+    total = Math.min(MAX_CREEPERS_PER_GIFT, amount * count);
   } else if (power === 'vacuum') {
     action = 'cube_vacuum';
     total = Math.min(MAX_VACUUM_LAYERS, amount * count);

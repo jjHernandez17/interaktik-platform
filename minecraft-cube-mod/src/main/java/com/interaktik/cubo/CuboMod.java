@@ -30,6 +30,7 @@ import java.util.List;
  *   /cubo iniciar [x y z]                   crea un cubo nuevo donde esta el jugador (o con su piso en esa posicion)
  *   /cubo agregar [cantidad] [id|todos]     coloca bloques en el cubo seleccionado, en el que indiques o en todos
  *   /cubo tnt <cantidad> [id|todos]         suelta TNT desde arriba del cubo (explota al tocar un bloque)
+ *   /cubo creeper <cantidad> [id|todos]     hace aparecer creepers dentro del cubo, sobre lo construido
  *   /cubo vacio <capas> [id|todos]          bomba de vacio: quita las capas de arriba que haya construido
  *   /cubo rayo <fuerza 1-10> [veces] [id|todos]  rayo sobre lo construido; la fuerza decide cuanto rompe
  *   /cubo seleccionar <id> | lista          elige a que cubo van los bloques por defecto / ver los cubos
@@ -113,6 +114,13 @@ public final class CuboMod implements ModInitializer {
                             .then(Commands.literal("todos").executes(c -> tnt(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), "todos")))
                             .then(Commands.argument("id", IntegerArgumentType.integer(1))
                                     .executes(c -> tnt(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), String.valueOf(IntegerArgumentType.getInteger(c, "id")))))));
+
+            root.then(Commands.literal("creeper")
+                    .then(Commands.argument("cantidad", IntegerArgumentType.integer(1, CuboGame.MAX_CREEPERS))
+                            .executes(c -> creepers(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), null))
+                            .then(Commands.literal("todos").executes(c -> creepers(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), "todos")))
+                            .then(Commands.argument("id", IntegerArgumentType.integer(1))
+                                    .executes(c -> creepers(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), String.valueOf(IntegerArgumentType.getInteger(c, "id")))))));
 
             root.then(Commands.literal("vacio")
                     .then(Commands.argument("capas", IntegerArgumentType.integer(1, CuboGame.MAX_VACUUM_LAYERS))
@@ -290,6 +298,14 @@ public final class CuboMod implements ModInitializer {
         if (cubes == null) return 0;
         for (CuboGame.Cube cube : cubes) game.addTnt(cube, n);
         return reply(source, "§c" + n + " TNT caen sobre " + (cubes.size() > 1 ? cubes.size() + " cubos." : "el cubo #" + cubes.get(0).id + "."));
+    }
+
+    private static int creepers(CommandSourceStack source, int n, String target) {
+        if (game == null) return fail(source, "Mundo no listo.");
+        List<CuboGame.Cube> cubes = resolve(source, target);
+        if (cubes == null) return 0;
+        for (CuboGame.Cube cube : cubes) game.addCreepers(cube, n);
+        return reply(source, "§a" + n + " creeper(s) aparecen " + (cubes.size() > 1 ? "en " + cubes.size() + " cubos." : "en el cubo #" + cubes.get(0).id + "."));
     }
 
     private static int vacuum(CommandSourceStack source, int layers, String target) {

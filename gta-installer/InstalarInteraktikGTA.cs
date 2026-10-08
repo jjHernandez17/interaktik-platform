@@ -545,7 +545,8 @@ namespace InteraktikGtaInstaller
                         "; PushSpeed=15      velocidad minima cuesta abajo de lo que cae (0 a 40)",
                         "; BlockPhone=true   apaga el celular durante la partida",
                         "; ShelterHeight=1.7  cuanto asoma (en metros) la punta del container de cada punto seguro",
-                        "; ShelterLean=120    cuanto se inclina la punta hacia abajo de la rampa, en grados (0 a 180)",
+                        "; ShelterLean=120    angulo entre la rampa (lado de abajo) y el container: 90 = perpendicular, 120 = recostado hacia arriba (0 a 180)",
+                        "; ShelterFlip=false   si ves el fondo del container en vez de las puertas, ponlo en true",
                         "; FlipPitch=false   pon true si en tu juego la rampa baja en vez de subir",
                     });
                 }

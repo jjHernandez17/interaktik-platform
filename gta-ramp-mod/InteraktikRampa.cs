@@ -85,7 +85,8 @@ public class InteraktikRampa : Script
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
     float shelterHeight = 1.7f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
-    float shelterLean = 120f;     // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
+    float shelterLean = 120f;     // angulo entre la rampa (lado de abajo) y el container: 90 = perpendicular, mas de 90 = recostado hacia arriba (ShelterLean)
+    bool shelterFlip;             // ShelterFlip=true: intercambia que extremo del container (puertas o fondo) es el que asoma
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -232,6 +233,7 @@ public class InteraktikRampa : Script
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
                 else if (name == "shelterheight") shelterHeight = Math.Max(0.8f, Math.Min(6f, ParseFloat(value, shelterHeight)));
+                else if (name == "shelterflip") shelterFlip = value.ToLowerInvariant() == "true" || value == "1";
                 else if (name == "shelterlean") shelterLean = Math.Max(0f, Math.Min(180f, ParseFloat(value, shelterLean)));
                 else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
                 else if (name == "flippitch") flipPitch = value.ToLowerInvariant() == "true" || value == "1";
@@ -735,10 +737,15 @@ public class InteraktikRampa : Script
             Vector3 axis = longAxisY ? new Vector3(1f, 0f, 0f) : new Vector3(0f, 1f, 0f);
             float angle = (float)(longAxisY ? Math.PI / 2.0 : -Math.PI / 2.0);
             Quaternion upright = prop.Quaternion * Quaternion.RotationAxis(axis, angle);
+            if (shelterFlip) upright = Quaternion.RotationAxis(new Vector3(1f, 0f, 0f), (float)Math.PI) * upright;
 
             // 2) inclinacion extra de la punta hacia abajo de la rampa (giro alrededor del eje lateral X del mundo)
             Vector3 lateralAxis = new Vector3(1f, 0f, 0f);
-            float lean = shelterLean * (float)Math.PI / 180f;
+            // shelterLean se mide entre la rampa (lado de abajo) y el container: el recostado respecto de la perpendicular es lean - 90
+            // (positivo = hacia arriba de la rampa, como en la imagen de referencia; negativo = hacia abajo)
+            float leanDeg = shelterLean - 90f;
+            float lean = Math.Abs(leanDeg) * (float)Math.PI / 180f;
+            float want = leanDeg >= 0f ? -1f : 1f;
             Quaternion best = upright;
             float bestScore = float.MinValue;
             for (int attempt = 0; attempt < 2; attempt++)
@@ -748,7 +755,7 @@ public class InteraktikRampa : Script
                 Vector3 baseEnd = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
                 Vector3 d = (tip - baseEnd).Normalized;
                 if (Vector3.Dot(d, up) < 0f) d = d * -1f; // el extremo que asoma es el que apunta hacia arriba, sea cual sea el del modelo
-                float score = Vector3.Dot(d, down);       // la parte que asoma se inclina cuesta abajo (hacia la parte descendente)
+                float score = Vector3.Dot(d, down) * want; // se queda el giro con el que la parte que asoma se recuesta en el sentido pedido
                 if (score > bestScore) { bestScore = score; best = prop.Quaternion; }
             }
             prop.Quaternion = best;

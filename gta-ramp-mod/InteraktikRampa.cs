@@ -84,7 +84,8 @@ public class InteraktikRampa : Script
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
-    float shelterHeight = 3.4f;   // cuanto asoma la punta del container del punto seguro sobre la rampa, en metros (ShelterHeight)
+    float shelterHeight = 2.0f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
+    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -230,7 +231,8 @@ public class InteraktikRampa : Script
                 else if (name == "speedscale") speedScale = Math.Max(0.5f, Math.Min(4f, ParseFloat(value, speedScale)));
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
-                else if (name == "shelterheight") shelterHeight = Math.Max(1.5f, Math.Min(6f, ParseFloat(value, shelterHeight)));
+                else if (name == "shelterheight") shelterHeight = Math.Max(0.8f, Math.Min(6f, ParseFloat(value, shelterHeight)));
+                else if (name == "shelterlean") shelterLean = Math.Max(0f, Math.Min(65f, ParseFloat(value, shelterLean)));
                 else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
                 else if (name == "flippitch") flipPitch = value.ToLowerInvariant() == "true" || value == "1";
                 else if (name == "originx") ox = ParseFloat(value, ox);
@@ -719,17 +721,41 @@ public class InteraktikRampa : Script
         return prop;
     }
 
-    // Container clavado en la rampa: de pie sobre su extremo (su parte larga perpendicular a la superficie), con casi todo
-    // enterrado en la rampa. center es donde queda el CENTRO del container.
-    void PlaceBuried(Model model, Vector3 localCenter, bool longAxisY, Vector3 desiredCenter, float pitchDeg)
+    // Container clavado en la rampa: casi todo enterrado, con la punta asomando y inclinada hacia la parte de abajo de la rampa.
+    // surfacePoint es el punto de la superficie por donde entra; exposed, cuanto asoma de la punta (en metros, a lo largo de su
+    // eje); down, la direccion cuesta abajo. El sentido de la inclinacion se comprueba midiendo hacia donde apunta la punta.
+    void PlaceBuried(Model model, Vector3 localCenter, bool longAxisY, Vector3 surfacePoint, Vector3 down, float length, float exposed, float pitchDeg)
     {
-        Prop prop = PlaceContainer(model, localCenter, longAxisY, desiredCenter, pitchDeg);
+        Vector3 provisional = surfacePoint + new Vector3(0f, 0f, 0.5f);
+        Prop prop = PlaceContainer(model, localCenter, longAxisY, provisional, pitchDeg);
         try
         {
-            // el eje largo del modelo pasa a ser el vertical del modelo antes de aplicar la inclinacion de la rampa
+            // 1) el eje largo del modelo pasa a ser el vertical del modelo (antes de aplicar la inclinacion de la rampa)
             Vector3 axis = longAxisY ? new Vector3(1f, 0f, 0f) : new Vector3(0f, 1f, 0f);
             float angle = (float)(longAxisY ? Math.PI / 2.0 : -Math.PI / 2.0);
-            prop.Quaternion = prop.Quaternion * Quaternion.RotationAxis(axis, angle);
+            Quaternion upright = prop.Quaternion * Quaternion.RotationAxis(axis, angle);
+
+            // 2) inclinacion extra de la punta hacia abajo de la rampa (giro alrededor del eje lateral X del mundo)
+            Vector3 lateralAxis = new Vector3(1f, 0f, 0f);
+            float lean = shelterLean * (float)Math.PI / 180f;
+            Quaternion best = upright;
+            float bestScore = float.MinValue;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                prop.Quaternion = Quaternion.RotationAxis(lateralAxis, attempt == 0 ? lean : -lean) * upright;
+                Vector3 tip = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + length * 0.5f));
+                Vector3 baseEnd = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
+                Vector3 d = (tip - baseEnd).Normalized;
+                float score = Vector3.Dot(d, down); // cuanto mas apunta la punta cuesta abajo, mejor
+                if (score > bestScore) { bestScore = score; best = prop.Quaternion; }
+            }
+            prop.Quaternion = best;
+
+            // 3) la punta mira hacia d: el centro se coloca para que el eje cruce la superficie en surfacePoint y solo asome "exposed"
+            Vector3 tipNow = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + length * 0.5f));
+            Vector3 baseNow = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
+            Vector3 dir = (tipNow - baseNow).Normalized;
+            Vector3 desiredCenter = surfacePoint + dir * (exposed - length * 0.5f);
             Vector3 center = prop.GetOffsetPosition(localCenter);
             prop.Position = prop.Position + (desiredCenter - center);
             prop.IsPositionFrozen = true;
@@ -840,8 +866,7 @@ public class InteraktikRampa : Script
             int col = shelterSides[k] < 0 ? 1 : columns - 2; // la columna junto a la pared
             Vector3 surface = rampStart + dir * (length * (seg + 0.5f)) + new Vector3(lateral[col], 0f, 0f);
             float exposed = Math.Min(shelterHeight, length * 0.85f);
-            Vector3 center = surface + normal * (exposed - length * 0.5f);
-            PlaceBuried(container, localCenter, longAxisY, center, rampAngle);
+            PlaceBuried(container, localCenter, longAxisY, surface, new Vector3(0f, -cos, -sin), length, exposed, rampAngle);
             Log("Punto seguro " + (k + 1) + " en el segmento " + seg + (shelterSides[k] < 0 ? " (izquierda)" : " (derecha)") + ", asoma " + exposed + " m");
         }
 

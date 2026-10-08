@@ -111,8 +111,9 @@ public class InteraktikRampa : Script
     Vector3 startSpot;
     Vector3 spawnSpot;
     Vector3 winSpot;
-    float zStart, zTop, rampBaseY, rampEndY, halfWidth;
-    float tanAngle;
+    float zStart, zTop, rampBaseY, rampEndY, halfWidth, walkHalf;
+    float wallLeanDeg = 14f;     // cuanto se abren las paredes hacia afuera
+    float tanAngle, sinAngle, cosAngle, spawnDistance;
     DateTime lastClean = DateTime.UtcNow;
     DateTime lastFallNotice = DateTime.MinValue;
     string flash = "";
@@ -704,6 +705,39 @@ public class InteraktikRampa : Script
         return prop;
     }
 
+    // Pared que se abre hacia afuera: se inclina sobre su eje largo, con el signo comprobado midiendo hacia donde queda
+    // su parte de arriba (asi no depende de convenciones de rotacion). side: -1 = izquierda, 1 = derecha.
+    Prop PlaceWall(Model model, Vector3 localCenter, bool longAxisY, Vector3 desiredCenter, float pitchDeg, int side, float height)
+    {
+        Prop prop = PlaceContainer(model, localCenter, longAxisY, desiredCenter, pitchDeg);
+        try
+        {
+            Quaternion q0 = prop.Quaternion;
+            Vector3 axis = longAxisY ? new Vector3(0f, 1f, 0f) : new Vector3(1f, 0f, 0f);
+            float roll = wallLeanDeg * (float)Math.PI / 180f;
+
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                float signed = attempt == 0 ? roll : -roll;
+                prop.Quaternion = q0 * Quaternion.RotationAxis(axis, signed);
+                Vector3 top = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + height * 0.5f));
+                Vector3 bottom = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - height * 0.5f));
+                if ((top.X - bottom.X) * side > 0f) break; // la parte de arriba queda hacia afuera
+            }
+
+            // el centro vuelve a su sitio y se desplaza hacia afuera lo que se abre la base, para no invadir la rampa
+            Vector3 center = prop.GetOffsetPosition(localCenter);
+            float outward = side * (height * 0.5f * (float)Math.Sin(roll) + 0.15f);
+            prop.Position = prop.Position + (desiredCenter - center) + new Vector3(outward, 0f, 0f);
+            prop.IsPositionFrozen = true;
+        }
+        catch (Exception ex)
+        {
+            LogThrottled("wall", "No se pudo inclinar una pared (queda recta): " + ex.Message);
+        }
+        return prop;
+    }
+
     void BuildArena()
     {
         Model container = PickModel(new string[] { "prop_container_ld", "prop_container_01a", "prop_container_01b", "prop_contr_03b_ld" });
@@ -723,16 +757,21 @@ public class InteraktikRampa : Script
         double theta = rampAngle * Math.PI / 180.0;
         float cos = (float)Math.Cos(theta), sin = (float)Math.Sin(theta);
         tanAngle = sin / cos;
+        sinAngle = sin;
+        cosAngle = cos;
         Vector3 dir = new Vector3(0f, cos, sin);           // a lo largo de la rampa (hacia arriba)
         Vector3 normal = new Vector3(0f, -sin, cos);       // perpendicular a la superficie
-        float[] lateral = new float[] { -1.5f * width, -0.5f * width, 0.5f * width, 1.5f * width };
-        halfWidth = 2f * width;
+        const int columns = 6;   // 4 para caminar (el doble que antes) + 1 de pared a cada lado
+        float[] lateral = new float[columns];
+        for (int c = 0; c < columns; c++) lateral[c] = (c - (columns - 1) / 2f) * width;
+        halfWidth = columns * width / 2f;
+        walkHalf = (columns - 2) * width / 2f;
 
         zStart = origin.Z;
         rampBaseY = origin.Y;
 
         // 1) container(es) planos de inicio, antes de la rampa
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; c < columns; c++)
         {
             Vector3 center = new Vector3(origin.X + lateral[c], origin.Y - length * 0.5f, zStart - height * 0.5f);
             PlaceContainer(container, localCenter, longAxisY, center, 0f);
@@ -744,13 +783,13 @@ public class InteraktikRampa : Script
         for (int i = 0; i < segments; i++)
         {
             Vector3 topCenter = rampStart + dir * (length * (i + 0.5f));
-            for (int c = 0; c < 4; c++)
+            for (int c = 0; c < columns; c++)
             {
                 Vector3 lat = new Vector3(lateral[c], 0f, 0f);
                 PlaceContainer(container, localCenter, longAxisY, topCenter - normal * (height * 0.5f) + lat, rampAngle);
-                if (c == 0 || c == 3)
+                if (c == 0 || c == columns - 1)
                 {
-                    PlaceContainer(container, localCenter, longAxisY, topCenter + normal * (height * 0.5f) + lat, rampAngle);
+                    PlaceWall(container, localCenter, longAxisY, topCenter + normal * (height * 0.5f) + lat, rampAngle, c == 0 ? -1 : 1, height);
                 }
             }
         }
@@ -761,17 +800,17 @@ public class InteraktikRampa : Script
         rampEndY = end.Y;
         for (int row = 0; row < 2; row++)
         {
-            for (int c = 0; c < 4; c++)
+            for (int c = 0; c < columns; c++)
             {
                 Vector3 center = new Vector3(origin.X + lateral[c], end.Y + length * (row + 0.5f), zTop - height * 0.5f);
                 PlaceContainer(container, localCenter, longAxisY, center, 0f);
-                if (c == 0 || c == 3)
+                if (c == 0 || c == columns - 1)
                 {
-                    PlaceContainer(container, localCenter, longAxisY, new Vector3(center.X, center.Y, zTop + height * 0.5f), 0f);
+                    PlaceWall(container, localCenter, longAxisY, new Vector3(center.X, center.Y, zTop + height * 0.5f), 0f, c == 0 ? -1 : 1, height);
                 }
             }
         }
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; c < columns; c++)
         {
             float cy = end.Y + length * 2.5f;
             PlaceContainer(container, localCenter, longAxisY, new Vector3(origin.X + lateral[c], cy, zTop - height * 0.5f), 0f);
@@ -779,7 +818,9 @@ public class InteraktikRampa : Script
             PlaceContainer(container, localCenter, longAxisY, new Vector3(origin.X + lateral[c], cy, zTop + height * 1.5f), 0f);
         }
 
-        spawnSpot = new Vector3(origin.X, end.Y + length * 1.6f, zTop + 0.8f);
+        // Lo que cae aparece sobre la pendiente, unos metros antes del final de la rampa, para que ruede cuesta abajo
+        spawnDistance = Math.Min(length * 0.6f, 4.5f);
+        spawnSpot = new Vector3(origin.X, end.Y - spawnDistance * cos, zTop - spawnDistance * sin);
         winSpot = new Vector3(origin.X, end.Y + length * 1.0f, zTop);
         container.MarkAsNoLongerNeeded();
     }
@@ -943,9 +984,10 @@ public class InteraktikRampa : Script
         if (!model.IsValid) { LogThrottled("model-" + spawner.Models[0], "Ningun modelo disponible entre: " + string.Join(", ", spawner.Models)); return; }
         if (!model.Request(2000)) return;
 
-        float lateral = (float)((random.NextDouble() - 0.5) * (halfWidth * 1.1));
+        // a lo ancho de la parte por donde se camina; arriba de la pendiente y empujado cuesta abajo (siguiendo su inclinacion)
+        float lateral = (float)((random.NextDouble() - 0.5) * (walkHalf * 1.7));
         Vector3 pos = new Vector3(spawnSpot.X + lateral, spawnSpot.Y, spawnSpot.Z + spawner.Lift);
-        Vector3 push = new Vector3(0f, -spawner.Speed, 0f);
+        Vector3 push = new Vector3(0f, -spawner.Speed * cosAngle, -spawner.Speed * sinAngle);
 
         if (spawner.Vehicle)
         {

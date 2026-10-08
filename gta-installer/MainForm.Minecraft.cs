@@ -91,6 +91,7 @@ namespace InteraktikGtaInstaller
 
         void BuildChrome(bool startOnMinecraft)
         {
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { } // el icono del .exe (favicon de Interaktik)
             gtaPanel.Dock = DockStyle.Fill;
             gtaPanel.BackColor = Bg;
             mcPanel.Dock = DockStyle.Fill;
@@ -129,7 +130,7 @@ namespace InteraktikGtaInstaller
             gtaPanel.Visible = !minecraft;
             mcTab.BackColor = minecraft ? Accent : Panel;
             gtaTab.BackColor = minecraft ? Panel : Accent;
-            Text = minecraft ? "Interaktik - Instalador de Minecraft" : "Interaktik - Instalador de GTA V";
+            Text = minecraft ? "Interaktik Installer - Minecraft" : "Interaktik Installer - GTA V";
         }
 
         void AddMcLabel(Control host, string text, int x, int y, Font font, Color color)

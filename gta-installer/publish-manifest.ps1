@@ -23,7 +23,7 @@ foreach ($name in 'InteraktikGTA.dll', 'InteraktikMod.jar', 'InteraktikCubo.jar'
   if ($h) { $files[$name] = $h }
 }
 
-$exe = 'InstalarInteraktikGTA.exe'
+$exe = 'InteraktikInstaller.exe'
 $manifest = [ordered]@{
   version = $version
   file    = $exe

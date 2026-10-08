@@ -1,5 +1,5 @@
 @echo off
-rem Compila InstalarInteraktikGTA.exe (instalador de GTA V + Minecraft) con el compilador de C# que trae Windows (.NET Framework 4), sin instalar nada.
+rem Compila InteraktikInstaller.exe (instalador de GTA V + Minecraft) con el compilador de C# que trae Windows (.NET Framework 4), sin instalar nada.
 rem Incluye dentro:
 rem   frontend\downloads\InteraktikGTA.dll   (compilalo antes con gta-mod\build.cmd)
 rem   frontend\downloads\InteraktikMod.jar   (minecraft-mod, ver su README)
@@ -36,17 +36,17 @@ for /f %%v in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmm"')
 > "%~dp0BuildInfo.generated.cs" echo namespace InteraktikGtaInstaller { static class BuildInfo { public const long Version = %BUILDVER%L; } }
 
 set MANIFEST=/win32manifest:"%~dp0app.manifest"
-set OUT=%DL%\InstalarInteraktikGTA.exe
+set OUT=%DL%\InteraktikInstaller.exe
 if /i "%~1"=="test" (
   set MANIFEST=
-  set OUT=%~dp0InstalarInteraktikGTA.test.exe
+  set OUT=%~dp0InteraktikInstaller.test.exe
 )
 
-"%CSC%" /nologo /target:winexe /optimize+ /out:"%OUT%" %MANIFEST% ^
+"%CSC%" /nologo /target:winexe /optimize+ /out:"%OUT%" %MANIFEST% /win32icon:"%~dp0interaktik.ico" ^
   /resource:"%MOD%",InteraktikGTA.dll /resource:"%MCMOD%",InteraktikMod.jar %CUBORES% ^
   /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll ^
   /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll ^
-  "%~dp0InstalarInteraktikGTA.cs" "%~dp0MinecraftInstaller.cs" "%~dp0MainForm.Minecraft.cs" "%~dp0Updater.cs" "%~dp0BuildInfo.generated.cs"
+  "%~dp0InstalarInteraktikGTA.cs" "%~dp0MinecraftInstaller.cs" "%~dp0MainForm.Minecraft.cs" "%~dp0Updater.cs" "%~dp0AssemblyInfo.cs" "%~dp0BuildInfo.generated.cs"
 if errorlevel 1 exit /b 1
 echo Listo: %OUT% ^(version %BUILDVER%^)
 if /i not "%~1"=="test" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0publish-manifest.ps1"

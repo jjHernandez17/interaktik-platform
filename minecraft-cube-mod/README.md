@@ -45,7 +45,7 @@ cambia en Opciones → Controles → «Interaktik Cubo Gigante». El menú manda
 | `/cubo iniciar [x y z]` | Crea un cubo con las últimas medidas (o con la esquina de su piso en esa posición) |
 | `/cubo agregar [cantidad] [id\|todos]` | Coloca bloques en el cubo seleccionado, en el cubo `id` o en todos |
 | `/cubo tnt <cantidad> [id\|todos]` | Suelta TNT desde arriba del cubo, en zonas al azar. Explotan justo al tocar un bloque |
-| `/cubo vacio <capas> [id\|todos]` | Bomba de vacío: quita, de una en una, las capas de arriba que haya construido el jugador |
+| `/cubo vacio <capas> [id\|todos]` | Bomba de vacío: un remolino violeta se forma sobre el cubo (~1,4 s) y luego quita, de una en una, las capas de arriba que haya construido el jugador: los bloques se encogen y vuelan hacia el remolino, con onda de choque, polvo del material, sonido que sube de tono y un destello final |
 | `/cubo rayo <fuerza 1-10> [veces] [id\|todos]` | Rayo sobre lo que hay construido; la fuerza decide cuántos bloques rompe a su alrededor (el vidrio no se toca) |
 | `/cubo seleccionar <id>` · `/cubo lista` | Elige a qué cubo van los bloques por defecto / ver los cubos |
 | `/cubo bloque arcoiris` · `/cubo bloque <id>` | Material de relleno (por defecto, colores por capas) |

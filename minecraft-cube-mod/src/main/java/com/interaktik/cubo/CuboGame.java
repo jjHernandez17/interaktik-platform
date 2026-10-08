@@ -19,7 +19,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.BossEvent;
+import com.mojang.math.Transformation;
+import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.entity.Display;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.PrimedTnt;
@@ -103,6 +108,8 @@ final class CuboGame {
         transient int lightningCooldown = 0;
         transient int pendingVacuum = 0;  // capas por quitar (bomba de vacio)
         transient int vacuumCooldown = 0;
+        transient int vacuumCharge = 0;      // ticks de carga antes de empezar a quitar capas
+        transient boolean vacuumActive = false;
         transient int scanIdx = 0;        // por donde va el barrido que cuenta los bloques puestos
         transient int scanAir = 0;        // huecos vacios encontrados en el barrido actual
         transient int placeCursor = 0;    // por donde va la colocacion automatica (/cubo agregar)
@@ -135,6 +142,7 @@ final class CuboGame {
     private final Data data;
     private final ServerBossEvent winsBar = new ServerBossEvent(Component.literal("Wins"), BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
     private int tick = 0;
+    private final List<Fx> fx = new ArrayList<>();                 // efectos visuales de la bomba de vacio
     private final List<PrimedTnt> fallingTnt = new ArrayList<>(); // TNT soltados por el mod que aun no explotan
     private boolean dirty = false;
 
@@ -328,6 +336,7 @@ final class CuboGame {
             if (level != null && cube.phase != Phase.CLEARING) stepPowers(cube, level);
         }
         watchTnt();
+        tickFx();
         repairShells();
         if (tick % 10 == 0) updateBars();
         if (dirty && tick % 100 == 0) { save(); dirty = false; }
@@ -591,35 +600,158 @@ final class CuboGame {
     String addVacuum(Cube cube, int layers) {
         if (layers < 1 || layers > MAX_VACUUM_LAYERS) return "Las capas van de 1 a " + MAX_VACUUM_LAYERS + ".";
         cube.pendingVacuum = Math.min(MAX_POWER_QUEUE, cube.pendingVacuum + layers);
+        if (!cube.vacuumActive) {
+            cube.vacuumActive = true;
+            cube.vacuumCharge = VACUUM_CHARGE_TICKS;
+            ServerLevel level = level(cube);
+            if (level != null) {
+                broadcastTitle("§5§l¡BOMBA DE VACÍO!", "§fSe quitan §d" + layers + "§f " + (layers == 1 ? "capa" : "capas") + " del cubo", 3, 45, 15);
+                level.playSound(null, BlockPos.containing(cube.ox + cube.w / 2.0, cube.oy + cube.h, cube.oz + cube.l / 2.0),
+                        SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 5.0F, 0.55F);
+            }
+        }
         return null;
     }
 
-    // Quita la capa mas alta que tenga algo construido. Devuelve false si el cubo ya estaba vacio.
+    private static final int VACUUM_CHARGE_TICKS = 28;
+    private static final int VACUUM_SAMPLE_BLOCKS = 56;   // bloques de la capa que vuelan hacia el vortice
+    private static final int VACUUM_FX_TICKS = 26;
+
+    /** Bloques de adorno que se encogen y vuelan hacia el vortice (solo visual). */
+    private static final class Fx {
+        final ServerLevel level;
+        final List<Display.BlockDisplay> displays = new ArrayList<>();
+        final List<Transformation> targets = new ArrayList<>();
+        int age = 0;
+        Fx(ServerLevel level) { this.level = level; }
+    }
+
+    private static Vec3 vortexCenter(Cube cube) {
+        return new Vec3(cube.ox + cube.w / 2.0, cube.oy + cube.h + 3.5, cube.oz + cube.l / 2.0);
+    }
+
+    // Carga: un remolino violeta que se cierra sobre el cubo
+    private void vortex(Cube cube, ServerLevel level, int charge) {
+        Vec3 c = vortexCenter(cube);
+        double span = Math.max(cube.w, cube.l) / 2.0;
+        double progress = charge / (double) VACUUM_CHARGE_TICKS; // 1 -> 0
+        for (int arm = 0; arm < 4; arm++) {
+            double angle = (VACUUM_CHARGE_TICKS - charge) * 0.45 + arm * (Math.PI / 2);
+            double radius = 1.0 + span * progress;
+            double x = c.x + Math.cos(angle) * radius;
+            double z = c.z + Math.sin(angle) * radius;
+            double y = c.y + progress * 3.0 - 1.0;
+            level.sendParticles(ParticleTypes.PORTAL, x, y, z, 6, 0.15, 0.15, 0.15, 0.2);
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, x, y, z, 2, 0.05, 0.05, 0.05, 0.05);
+        }
+        level.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 2, 0.4, 0.4, 0.4, 0.01);
+        if (charge % 7 == 0) {
+            level.playSound(null, BlockPos.containing(c), SoundEvents.BEACON_AMBIENT, SoundSource.BLOCKS, 3.0F, 0.5F + 1.3F * (float) (1.0 - progress));
+        }
+    }
+
+    // Remate: destello y un trueno grave
+    private void finishVacuum(Cube cube, ServerLevel level) {
+        cube.vacuumActive = false;
+        Vec3 c = vortexCenter(cube);
+        level.sendParticles(ParticleTypes.FLASH, c.x, c.y, c.z, 1, 0, 0, 0, 0);
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y, c.z, 1, 0, 0, 0, 0);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 80, 1.5, 1.5, 1.5, 0.4);
+        level.playSound(null, BlockPos.containing(c), SoundEvents.WITHER_BREAK_BLOCK, SoundSource.BLOCKS, 4.0F, 0.6F);
+    }
+
+    // Quita la capa mas alta que tenga algo construido: los bloques vuelan hacia el vortice, hay una onda de choque y
+    // polvo del material. Devuelve false si el cubo ya estaba vacio.
     private boolean peelTopLayer(Cube cube, ServerLevel level) {
         int iw = cube.innerW(), il = cube.innerL(), ih = cube.innerH();
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int layer = ih - 1; layer >= 0; layer--) {
             int y = cube.oy + 1 + layer;
-            boolean any = false;
+            List<BlockPos> removed = new ArrayList<>();
+            List<BlockState> states = new ArrayList<>();
             for (int x = 0; x < iw; x++) {
                 for (int z = 0; z < il; z++) {
                     BlockPos pos = new BlockPos(cube.ox + 1 + x, y, cube.oz + 1 + z);
                     if (!level.hasChunkAt(pos)) continue;
-                    if (occupied(level.getBlockState(pos))) {
+                    BlockState state = level.getBlockState(pos);
+                    if (occupied(state)) {
+                        removed.add(pos);
+                        states.add(state);
                         level.setBlock(pos, air, Block.UPDATE_CLIENTS);
-                        any = true;
                     }
                 }
             }
-            if (any) {
-                double cx = cube.ox + 1 + iw / 2.0, cz = cube.oz + 1 + il / 2.0;
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, cx, y + 0.5, cz, Math.min(60, 10 + iw * il / 6), iw / 2.5, 0.3, il / 2.5, 0.02);
-                level.playSound(null, BlockPos.containing(cx, y, cz), SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 1.4F, 0.6F);
-                dirty = true;
-                return true;
+            if (removed.isEmpty()) continue;
+
+            Vec3 target = vortexCenter(cube);
+            double cx = cube.ox + 1 + iw / 2.0, cz = cube.oz + 1 + il / 2.0;
+
+            // bloques que vuelan hacia el vortice, girando y encogiendose
+            Fx effect = new Fx(level);
+            int step = Math.max(1, removed.size() / VACUUM_SAMPLE_BLOCKS);
+            for (int i = 0; i < removed.size(); i += step) {
+                BlockPos pos = removed.get(i);
+                Display.BlockDisplay display = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
+                if (display == null) break;
+                display.setBlockState(states.get(i));
+                display.moveTo(pos.getX(), pos.getY(), pos.getZ());
+                display.setTransformation(Transformation.identity());
+                level.addFreshEntity(display);
+                effect.displays.add(display);
+                Vector3f move = new Vector3f((float) (target.x - pos.getX() - 0.5), (float) (target.y - pos.getY() - 0.5), (float) (target.z - pos.getZ() - 0.5));
+                Quaternionf spin = new Quaternionf().rotationXYZ(level.random.nextFloat() * 6.0F, level.random.nextFloat() * 6.0F, level.random.nextFloat() * 6.0F);
+                effect.targets.add(new Transformation(move, spin, new Vector3f(0.12F, 0.12F, 0.12F), new Quaternionf()));
             }
+            fx.add(effect);
+
+            // polvo del material y rastro de succion
+            for (int i = 0; i < removed.size(); i += Math.max(1, removed.size() / 40)) {
+                BlockPos pos = removed.get(i);
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, states.get(i)), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 6, 0.4, 0.4, 0.4, 0.15);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 2, 0.2, 0.2, 0.2, 0.3);
+            }
+
+            // onda de choque: anillo que recorre el borde del interior a la altura de la capa
+            for (int i = 0; i <= 2 * (iw + il); i++) {
+                double t = i / (double) (2 * (iw + il));
+                double px, pz;
+                double per = t * 2 * (iw + il);
+                if (per < iw) { px = cube.ox + 1 + per; pz = cube.oz + 1; }
+                else if (per < iw + il) { px = cube.ox + 1 + iw; pz = cube.oz + 1 + (per - iw); }
+                else if (per < 2 * iw + il) { px = cube.ox + 1 + iw - (per - iw - il); pz = cube.oz + 1 + il; }
+                else { px = cube.ox + 1; pz = cube.oz + 1 + il - (per - 2 * iw - il); }
+                level.sendParticles(ParticleTypes.END_ROD, px, y + 0.5, pz, 1, 0.0, 0.05, 0.0, 0.0);
+            }
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, cx, y + 0.5, cz, Math.min(60, 10 + iw * il / 6), iw / 2.5, 0.3, il / 2.5, 0.02);
+            level.sendParticles(ParticleTypes.CLOUD, cx, y + 1.0, cz, 20, iw / 3.0, 0.2, il / 3.0, 0.08);
+            float pitch = 0.5F + Math.min(1.0F, (ih - layer) * 0.08F);
+            level.playSound(null, BlockPos.containing(cx, y, cz), SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 2.0F, pitch);
+            level.playSound(null, BlockPos.containing(cx, y, cz), SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 1.2F, 0.5F);
+            dirty = true;
+            return true;
         }
         return false;
+    }
+
+    // Anima los bloques decorativos (un tick despues de crearlos para que el cliente los interpole) y los quita al terminar
+    private void tickFx() {
+        for (int i = fx.size() - 1; i >= 0; i--) {
+            Fx effect = fx.get(i);
+            effect.age++;
+            if (effect.age == 2) {
+                for (int k = 0; k < effect.displays.size(); k++) {
+                    Display.BlockDisplay display = effect.displays.get(k);
+                    if (display.isRemoved()) continue;
+                    display.setTransformationInterpolationDelay(0);
+                    display.setTransformationInterpolationDuration(18);
+                    display.setTransformation(effect.targets.get(k));
+                }
+            }
+            if (effect.age >= VACUUM_FX_TICKS) {
+                for (Display.BlockDisplay display : effect.displays) display.discard();
+                fx.remove(i);
+            }
+        }
     }
 
     private void stepPowers(Cube cube, ServerLevel level) {
@@ -637,11 +769,17 @@ final class CuboGame {
         }
 
         // Bomba de vacio: quita las capas de arriba, una cada pocos ticks
-        if (cube.vacuumCooldown > 0) cube.vacuumCooldown--;
-        if (cube.pendingVacuum > 0 && cube.vacuumCooldown == 0) {
-            cube.pendingVacuum--;
-            if (!peelTopLayer(cube, level)) cube.pendingVacuum = 0; // ya no queda nada que quitar
-            cube.vacuumCooldown = 6;
+        if (cube.vacuumCharge > 0) {
+            vortex(cube, level, cube.vacuumCharge);
+            cube.vacuumCharge--;
+        } else {
+            if (cube.vacuumCooldown > 0) cube.vacuumCooldown--;
+            if (cube.pendingVacuum > 0 && cube.vacuumCooldown == 0) {
+                cube.pendingVacuum--;
+                if (!peelTopLayer(cube, level)) cube.pendingVacuum = 0; // ya no queda nada que quitar
+                cube.vacuumCooldown = 8;
+            }
+            if (cube.vacuumActive && cube.pendingVacuum == 0 && cube.vacuumCooldown == 0) finishVacuum(cube, level);
         }
 
         // Rayos: uno cada pocos ticks
@@ -742,6 +880,8 @@ final class CuboGame {
     }
 
     void shutdown() {
+        for (Fx effect : fx) for (Display.BlockDisplay display : effect.displays) display.discard();
+        fx.clear();
         winsBar.removeAllPlayers();
         save();
     }

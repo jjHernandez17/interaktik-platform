@@ -81,8 +81,9 @@ public class InteraktikRampa : Script
     float rampAngle = 14f;       // grados de inclinacion de la rampa
     int segments = 13;           // containers de largo de la rampa (RampLength)
     int walkColumns = 6;         // containers de ancho de la parte por donde se camina (RampWidth)
-    float pushAccel = 11f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
-    float pushMinSpeed = 7f;     // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
+    float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
+    float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
+    float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -225,6 +226,7 @@ public class InteraktikRampa : Script
                 else if (name == "rampangle") rampAngle = Math.Max(5f, Math.Min(30f, ParseFloat(value, rampAngle)));
                 else if (name == "ramplength") segments = Math.Max(4, Math.Min(30, (int)ParseFloat(value, segments)));
                 else if (name == "rampwidth") walkColumns = Math.Max(2, Math.Min(12, (int)ParseFloat(value, walkColumns)));
+                else if (name == "speedscale") speedScale = Math.Max(0.5f, Math.Min(4f, ParseFloat(value, speedScale)));
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
                 else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
@@ -804,6 +806,43 @@ public class InteraktikRampa : Script
             }
         }
 
+        // 2b) tres refugios a lo largo de la rampa: un container puesto de lado (escudo) en el extremo de arriba y otro encima
+        // como techo, pegados a una pared. Lo que baja rodando choca con el escudo; detras, bajo el techo, no cae nada.
+        // Se alternan izquierda, derecha e izquierda, al 25 %, 50 % y 75 % de la rampa.
+        int[] shelterSegments = new int[] { segments / 4, segments / 2, (segments * 3) / 4 };
+        int[] shelterSides = new int[] { -1, 1, -1 };
+        for (int k = 0; k < 3; k++)
+        {
+            int seg = Math.Max(1, Math.Min(segments - 2, shelterSegments[k]));
+            int c1 = shelterSides[k] < 0 ? 1 : columns - 3;
+            int c2 = c1 + 1;
+            float latMid = (lateral[c1] + lateral[c2]) / 2f;
+
+            // techo: dos containers paralelos a la rampa, con su parte de abajo a la altura del escudo
+            for (int c = c1; c <= c2; c++)
+            {
+                Vector3 roofTop = rampStart + dir * (length * (seg + 0.5f)) + new Vector3(lateral[c], 0f, 0f);
+                PlaceContainer(container, localCenter, longAxisY, roofTop + normal * (height * 1.5f), rampAngle);
+            }
+
+            // escudo: un container atravesado, en el extremo de arriba del refugio
+            Vector3 shieldTop = rampStart + dir * (length * (seg + 1f) - width * 0.5f) + new Vector3(latMid, 0f, 0f);
+            Prop shield = PlaceContainer(container, localCenter, longAxisY, shieldTop + normal * (height * 0.5f), rampAngle);
+            try
+            {
+                Quaternion q0 = shield.Quaternion;
+                shield.Quaternion = q0 * Quaternion.RotationAxis(new Vector3(0f, 0f, 1f), (float)(Math.PI / 2.0));
+                Vector3 shieldCenter = shield.GetOffsetPosition(localCenter);
+                shield.Position = shield.Position + ((shieldTop + normal * (height * 0.5f)) - shieldCenter);
+                shield.IsPositionFrozen = true;
+            }
+            catch (Exception ex)
+            {
+                LogThrottled("shield", "No se pudo girar un escudo del refugio: " + ex.Message);
+            }
+            Log("Refugio " + (k + 1) + " en el segmento " + seg + (shelterSides[k] < 0 ? " (izquierda)" : " (derecha)"));
+        }
+
         // 3) plataforma de arriba (plana), con paredes a los lados y un muro al fondo
         Vector3 end = rampStart + dir * (length * segments);
         zTop = end.Z;
@@ -1052,10 +1091,19 @@ public class InteraktikRampa : Script
             try
             {
                 int count = Math.Max(1, Math.Min(job.Amount, 40));
+                // los puntos de salida se reparten parejo por todo el ancho de la rampa, en orden mezclado
+                float[] slots = new float[count];
+                for (int i = 0; i < count; i++) slots[i] = (i + 0.15f + (float)random.NextDouble() * 0.7f) / count;
+                for (int i = count - 1; i > 0; i--)
+                {
+                    int j = random.Next(i + 1);
+                    float swap = slots[i]; slots[i] = slots[j]; slots[j] = swap;
+                }
                 for (int i = 0; i < count; i++)
                 {
                     Spawner captured = spawner;
-                    After(i * 350, delegate { SpawnOne(captured); });
+                    float slot = slots[i];
+                    After(i * 250, delegate { SpawnOne(captured, slot); });
                 }
                 string who = string.IsNullOrEmpty(job.Nickname) ? "Alguien" : job.Nickname;
                 Screen.ShowSubtitle(who + ": " + job.Label, 3000);
@@ -1070,7 +1118,7 @@ public class InteraktikRampa : Script
     }
 
     // Lo que cae aparece al final de la rampa (detras de la plataforma de arriba) y baja por su propio peso
-    void SpawnOne(Spawner spawner)
+    void SpawnOne(Spawner spawner, float slot)
     {
         if (mode != Mode.Playing || !built) return;
 
@@ -1079,9 +1127,10 @@ public class InteraktikRampa : Script
         if (!model.Request(2000)) return;
 
         // a lo ancho de la parte por donde se camina; arriba de la pendiente y empujado cuesta abajo (siguiendo su inclinacion)
-        float lateral = (float)((random.NextDouble() - 0.5) * (walkHalf * 1.7));
+        float lateral = (slot - 0.5f) * (2f * walkHalf - 2.2f); // todo el ancho por donde se camina, menos un margen junto a las paredes
         Vector3 pos = new Vector3(spawnSpot.X + lateral, spawnSpot.Y, spawnSpot.Z + spawner.Lift);
-        Vector3 push = new Vector3(0f, -spawner.Speed * cosAngle, -spawner.Speed * sinAngle);
+        float launch = spawner.Speed * speedScale;
+        Vector3 push = new Vector3(0f, -launch * cosAngle, -launch * sinAngle);
 
         if (spawner.Vehicle)
         {

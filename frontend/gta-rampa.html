@@ -191,6 +191,7 @@
         <summary>Cómo funciona la partida</summary>
         <ul class="cb-list">
           <li>Apareces en un container plano, en el aire sobre el mar. Pegada a él hay una rampa de containers que sube hasta una plataforma con paredes; al fondo de esa plataforma aparecen los carros y objetos que mandan tus espectadores y bajan rodando.</li>
+          <li><strong>3 refugios</strong> a lo largo de la rampa (al 25 %, 50 % y 75 %, alternando lados): un container atravesado frena lo que baja y otro encima hace de techo. Detrás del escudo, bajo el techo, estás a salvo para tomar aire.</li>
           <li><strong>No puedes morir.</strong> Si te caes del container vuelves al inicio de inmediato.</li>
           <li><strong>Sin interrupciones:</strong> durante la partida no hay tráfico, policía, misiones, llamadas ni celular, y no puedes subirte a los vehículos que caen.</li>
           <li>Si llegas a la plataforma de arriba cuenta <strong>+1 win</strong> y vuelves al inicio. El marcador (por ejemplo <strong>3/10 wins</strong>) se ve arriba en la pantalla de GTA V.</li>
@@ -203,7 +204,7 @@
         <ul>
           <li><strong>«Mod conectado» no se pone en verde:</strong> abre <code>scripts\InteraktikRampa.log</code> en la carpeta de GTA V; ahí dice el motivo. Revisa que la llave sea la actual y que GTA V esté en modo historia, no en Online.</li>
           <li><strong>Al iniciar la partida no pasa nada:</strong> el botón avisa si el mod no está conectado. También puedes probar la tecla F8 dentro del juego.</li>
-          <li><strong>La rampa sale al revés o muy inclinada:</strong> en <code>scripts\InteraktikRampa.ini</code> puedes cambiar <code>RampAngle</code> (grados), <code>RampLength</code> (largo), <code>RampWidth</code> (ancho) y <code>FlipPitch=true</code> si baja en vez de subir. Si lo que cae no se desliza lo bastante, sube <code>PushAccel</code> y <code>PushSpeed</code>.</li>
+          <li><strong>La rampa sale al revés o muy inclinada:</strong> en <code>scripts\InteraktikRampa.ini</code> puedes cambiar <code>RampAngle</code> (grados), <code>RampLength</code> (largo), <code>RampWidth</code> (ancho) y <code>FlipPitch=true</code> si baja en vez de subir. Si lo que cae no baja lo bastante rápido, sube <code>SpeedScale</code>, <code>PushAccel</code> y <code>PushSpeed</code>.</li>
           <li><strong>GTA V se cierra al abrir:</strong> falta desactivar BattlEye (paso 4) o ScriptHookVDotNet está desactualizado: el instalador lo actualiza.</li>
         </ul>
       </details>

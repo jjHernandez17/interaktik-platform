@@ -540,8 +540,9 @@ namespace InteraktikGtaInstaller
                         "; RampAngle=14      inclinacion de la rampa en grados (5 a 30)",
                         "; RampLength=13     containers de largo (4 a 30)",
                         "; RampWidth=6       containers de ancho de la parte por donde se camina (2 a 12)",
-                        "; PushAccel=11      empuje extra cuesta abajo para lo que cae (0 a 40)",
-                        "; PushSpeed=7       velocidad minima cuesta abajo de lo que cae (0 a 40)",
+                        "; SpeedScale=1.7    velocidad con la que sale lo que cae (0.5 a 4)",
+                        "; PushAccel=24      empuje extra cuesta abajo para lo que cae (0 a 40)",
+                        "; PushSpeed=15      velocidad minima cuesta abajo de lo que cae (0 a 40)",
                         "; BlockPhone=true   apaga el celular durante la partida",
                         "; FlipPitch=false   pon true si en tu juego la rampa baja en vez de subir",
                     });

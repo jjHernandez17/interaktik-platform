@@ -18,7 +18,7 @@ function Hash($name) {
 }
 
 $files = [ordered]@{}
-foreach ($name in 'InteraktikGTA.dll', 'InteraktikMod.jar', 'InteraktikCubo.jar') {
+foreach ($name in 'InteraktikGTA.dll', 'InteraktikRampa.dll', 'InteraktikMod.jar', 'InteraktikCubo.jar') {
   $h = Hash $name
   if ($h) { $files[$name] = $h }
 }

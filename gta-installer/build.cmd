@@ -2,6 +2,7 @@
 rem Compila InteraktikInstaller.exe (instalador de GTA V + Minecraft) con el compilador de C# que trae Windows (.NET Framework 4), sin instalar nada.
 rem Incluye dentro:
 rem   frontend\downloads\InteraktikGTA.dll   (compilalo antes con gta-mod\build.cmd)
+rem   frontend\downloads\InteraktikRampa.dll (gta-ramp-moduild.cmd, opcional)
 rem   frontend\downloads\InteraktikMod.jar   (minecraft-mod, ver su README)
 rem   frontend\downloads\InteraktikCubo.jar  (minecraft-cube-mod, ver su README)
 rem El resultado se copia a frontend\downloads para que la plataforma lo ofrezca.
@@ -25,6 +26,8 @@ if not exist "%MCMOD%" (
   exit /b 1
 )
 set CUBORES=
+set RAMPRES=
+if exist "%DL%\InteraktikRampa.dll" set RAMPRES=/resource:"%DL%\InteraktikRampa.dll",InteraktikRampa.dll
 if exist "%MCCUBO%" (
   set CUBORES=/resource:"%MCCUBO%",InteraktikCubo.jar
 ) else (
@@ -43,7 +46,7 @@ if /i "%~1"=="test" (
 )
 
 "%CSC%" /nologo /target:winexe /optimize+ /out:"%OUT%" %MANIFEST% /win32icon:"%~dp0interaktik.ico" ^
-  /resource:"%MOD%",InteraktikGTA.dll /resource:"%MCMOD%",InteraktikMod.jar %CUBORES% ^
+  /resource:"%MOD%",InteraktikGTA.dll /resource:"%MCMOD%",InteraktikMod.jar %CUBORES% %RAMPRES% ^
   /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll ^
   /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll ^
   "%~dp0InstalarInteraktikGTA.cs" "%~dp0MinecraftInstaller.cs" "%~dp0MainForm.Minecraft.cs" "%~dp0Updater.cs" "%~dp0AssemblyInfo.cs" "%~dp0BuildInfo.generated.cs"

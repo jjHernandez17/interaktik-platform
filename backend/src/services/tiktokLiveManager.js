@@ -7,6 +7,7 @@ const robloxParkourService = require('./robloxParkourService');
 const minecraftService = require('./minecraftService');
 const minecraftCubeService = require('./minecraftCubeService');
 const gtaService = require('./gtaService');
+const gtaRampService = require('./gtaRampService');
 
 let TikTokLiveConnection = null;
 let WebcastEvent = null;
@@ -145,7 +146,7 @@ scheduleConnectionCleanup();
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'minecraft', 'minecraftcubo', 'gta', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     if (gameType === 'roblox-parkour') return 'robloxparkour';
@@ -177,6 +178,7 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('roblox-parkour')) return 'robloxparkour';
   if (referer.includes('minecraft-cubo')) return 'minecraftcubo';
   if (referer.includes('minecraft')) return 'minecraft';
+  if (referer.includes('gta-rampa')) return 'gtarampa';
   if (referer.includes('gta')) return 'gta';
   if (referer.includes('kingdoms')) return 'kingdoms';
   if (referer.includes('shell-game')) return 'shellgame';
@@ -516,6 +518,12 @@ connection.on(WebcastEvent.GIFT, (data) => {
   if (normalizedGameType === 'minecraftcubo' && userId) {
     minecraftCubeService.handleGift(userId, giftPayload).catch((error) => {
       logger.warn('No se pudo procesar regalo para el Cubo Gigante', error);
+    });
+  }
+
+  if (normalizedGameType === 'gtarampa' && userId) {
+    gtaRampService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para GTA V Rampa', error);
     });
   }
 

@@ -826,6 +826,28 @@ router.get('/minecraft-cubo.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft-cubo.js'));
 });
 
+// GTA V "Rampa Imposible"
+router.get(['/gta-rampa', '/gta-rampa.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'gtarampa'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/gta-rampa.html', 'GTA rampa page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/gta-rampa.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/gta-rampa.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/gta-rampa.js'));
+});
+
 // GTA V interactivo
 router.get(['/gta', '/gta.html'], requireAuthPage, async (req, res) => {
   try {

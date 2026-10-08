@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rampa Imposible | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/minecraft.css?v=20261012a" />
+  <link rel="stylesheet" href="assets/css/minecraft-cubo.css?v=20261016c" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Rampa Imposible</h1>
+        <p>
+          Apareces en un mapa vacío hecho solo de containers: un container plano de inicio y, pegada a él, una rampa enorme que sube hasta una plataforma.
+          Tu misión es llegar arriba mientras los regalos de tus espectadores hacen <strong>caer carros, camiones, barriles y de todo</strong> desde lo alto de la rampa.
+          Si te caes, vuelves al inicio (no puedes morir); si llegas arriba, <strong>+1 win</strong>. Tú decides el objetivo de wins y qué hace cada regalo.
+          Funciona con <strong>GTA V clásico</strong> (Epic, Steam o Rockstar).
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="rpHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="rpHeroGame" data-state="off"><span class="pk-dot"></span>Mod conectado</li>
+          <li id="rpHeroPlaying" data-state="off"><span class="pk-dot"></span>Partida en marcha</li>
+        </ul>
+      </div>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="rpConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="rpConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="rpConnectionForm" class="pk-inline-form">
+          <input id="rpUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="rpConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="rpDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Tu juego</h2>
+            <p class="pk-hint">Sigue la guía de abajo para instalar el mod. Aquí ves si ya está conectado.</p>
+          </div>
+        </div>
+        <ul class="mc-status-list">
+          <li>
+            <span>GTA V + mod de Rampa</span>
+            <span id="rpGameBadge" class="status-badge disconnected">Sin conexión</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Guia -->
+    <section class="pk-panel mc-setup" aria-labelledby="rpSetupTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="rpSetupTitle">Instala y juega: guía paso a paso</h2>
+          <p class="pk-hint">El instalador de Windows revisa lo que te falta y deja el mod listo. Si ya tienes el mod de «Modo historia», solo agregas este.</p>
+        </div>
+      </div>
+
+      <div class="mc-compat">
+        <div class="mc-compat-col mc-compat-col--yes">
+          <h3>Funciona con</h3>
+          <ul>
+            <li><strong>GTA V versión clásica</strong> en PC (Epic Games, Steam o Rockstar Launcher)</li>
+            <li>En modo historia (para un jugador)</li>
+          </ul>
+        </div>
+        <div class="mc-compat-col mc-compat-col--no">
+          <h3>No funciona con</h3>
+          <ul>
+            <li>GTA Online</li>
+            <li>La versión «Enhanced» de GTA V</li>
+            <li>Consolas</li>
+          </ul>
+        </div>
+      </div>
+
+      <ol class="mc-guide">
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">1</span>
+          <div class="mc-guide-body">
+            <h3>Descarga el instalador</h3>
+            <p><a class="btn accent small" href="downloads/InteraktikInstaller.exe" download>Descargar Interaktik Installer (Windows)</a></p>
+            <p>Ábrelo y acepta el permiso de administrador. Si Windows muestra «protegió su PC», pulsa <strong>Más información → Ejecutar de todas formas</strong>.
+              Cierra GTA V y tu launcher antes de instalar.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">2</span>
+          <div class="mc-guide-body">
+            <h3>Copia tu llave</h3>
+            <p>Es la misma que usas en «Modo historia».</p>
+            <div class="mc-key-row">
+              <label class="pk-field mc-key-field">
+                <span class="pk-label">Tu llave secreta (no la compartas)</span>
+                <input id="rpServerKeyInput" type="password" readonly value="Cargando..." autocomplete="off" />
+              </label>
+              <div class="mc-key-actions">
+                <button id="rpToggleKeyBtn" class="btn ghost" type="button">Mostrar</button>
+                <button id="rpCopyKeyBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-copy" /></svg>Copiar llave</button>
+                <button id="rpRegenerateBtn" class="btn ghost" type="button">Regenerar</button>
+              </div>
+            </div>
+            <p class="pk-hint">Si regeneras la llave, la anterior deja de funcionar y tendrás que volver a ejecutar el instalador con la nueva (también para «Modo historia»).</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">3</span>
+          <div class="mc-guide-body">
+            <h3>Instala el mod de Rampa Imposible</h3>
+            <p>En el instalador entra a la pestaña <strong>GTA V</strong> y elige la sección <strong>Rampa Imposible</strong>. Pega tu llave y pulsa <strong>Probar conexión</strong>.
+              Mira la lista de requisitos (Script Hook V, ScriptHookVDotNet, .NET y Visual C++): lo que falte tiene su botón de descarga y se pone en verde solo.
+              Cuando todo esté en verde, pulsa <strong>Instalar Rampa Imposible</strong>: el instalador copia el mod a la carpeta <code>scripts</code> de tu GTA V y guarda tu llave.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">4</span>
+          <div class="mc-guide-body">
+            <h3>Desactiva BattlEye y abre GTA V</h3>
+            <p>Sin esto GTA V no abre y muestra el error 0xc000009a. En Epic: Biblioteca → los tres puntos de GTA V → Administrar → activa <strong>Opciones de inicio</strong> y escribe
+              <code>-nobattleye</code>. Apaga también la actualización automática del juego. Abre GTA V en <strong>modo historia</strong> y espera a que cargue:
+              debe aparecer «Interaktik Rampa conectado» y arriba en esta página «Mod conectado».</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">5</span>
+          <div class="mc-guide-body">
+            <h3>Inicia la partida</h3>
+            <p>Pulsa <strong>Iniciar partida</strong> aquí abajo (o la tecla <strong>F8</strong> dentro del juego). La pantalla se oscurece un momento, te llevamos al mapa de containers y empieza la subida.
+              Pulsa de nuevo <strong>F8</strong> o «Terminar partida» para volver a donde estabas.</p>
+          </div>
+        </li>
+
+        <li class="mc-guide-step">
+          <span class="mc-guide-num">6</span>
+          <div class="mc-guide-body">
+            <h3>Conecta tu TikTok y crea tus reglas</h3>
+            <p>Arriba pulsa <strong>Conectar</strong> en «TikTok Live». Abajo crea reglas: eliges un regalo y lo que hace caer. Usa <strong>Probar</strong> con la partida en marcha para ver cómo cae cada cosa.</p>
+          </div>
+        </li>
+      </ol>
+
+      <details class="mc-help">
+        <summary>Cómo funciona la partida</summary>
+        <ul class="cb-list">
+          <li>Apareces en un container plano, en el aire sobre el mar. Pegada a él hay una rampa de containers que sube hasta una plataforma con paredes; al fondo de esa plataforma aparecen los carros y objetos que mandan tus espectadores y bajan rodando.</li>
+          <li><strong>No puedes morir.</strong> Si te caes del container vuelves al inicio de inmediato.</li>
+          <li><strong>Sin interrupciones:</strong> durante la partida no hay tráfico, policía, misiones, llamadas ni celular, y no puedes subirte a los vehículos que caen.</li>
+          <li>Si llegas a la plataforma de arriba cuenta <strong>+1 win</strong> y vuelves al inicio. El marcador (por ejemplo <strong>3/10 wins</strong>) se ve arriba en la pantalla de GTA V.</li>
+          <li>Se limita la cantidad de objetos a la vez y los viejos se borran solos, para que el juego no se trabe.</li>
+        </ul>
+      </details>
+
+      <details class="mc-help">
+        <summary>Algo no funciona</summary>
+        <ul>
+          <li><strong>«Mod conectado» no se pone en verde:</strong> abre <code>scripts\InteraktikRampa.log</code> en la carpeta de GTA V; ahí dice el motivo. Revisa que la llave sea la actual y que GTA V esté en modo historia, no en Online.</li>
+          <li><strong>Al iniciar la partida no pasa nada:</strong> el botón avisa si el mod no está conectado. También puedes probar la tecla F8 dentro del juego.</li>
+          <li><strong>La rampa sale al revés o muy inclinada:</strong> en <code>scripts\InteraktikRampa.ini</code> puedes cambiar <code>RampAngle</code> (grados), <code>Segments</code> (largo) y <code>FlipPitch=true</code> si baja en vez de subir.</li>
+          <li><strong>GTA V se cierra al abrir:</strong> falta desactivar BattlEye (paso 4) o ScriptHookVDotNet está desactualizado: el instalador lo actualiza.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Partida y marcador -->
+    <section class="pk-panel cb-cube" aria-labelledby="rpGameTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="rpGameTitle">Partida y marcador</h2>
+          <p class="pk-hint">Inicia o termina la partida desde aquí y elige cuántos wins quieres alcanzar. Ambos números admiten negativos.</p>
+        </div>
+        <span id="rpScoreChip" class="pk-count">0/10</span>
+      </div>
+
+      <div class="cb-actions">
+        <button id="rpStartBtn" class="btn primary" type="button"><svg width="15" height="15"><use href="#i-play" /></svg>Iniciar partida</button>
+        <button id="rpResetBtn" class="btn accent" type="button"><svg width="15" height="15"><use href="#i-refresh" /></svg>Volver al inicio y limpiar</button>
+        <button id="rpStopBtn" class="btn ghost" type="button"><svg width="15" height="15"><use href="#i-trash" /></svg>Terminar partida</button>
+      </div>
+
+      <div class="cb-cube-grid cb-counters">
+        <label class="pk-field">
+          <span class="pk-label">Objetivo de wins</span>
+          <input id="rpGoal" type="number" min="-1000000" max="1000000" value="10" inputmode="numeric" />
+        </label>
+        <label class="pk-field">
+          <span class="pk-label">Wins actuales</span>
+          <input id="rpWins" type="number" min="-1000000" max="1000000" value="0" inputmode="numeric" />
+        </label>
+        <span></span>
+        <button id="rpSaveScoreBtn" class="btn ghost" type="button">Guardar marcador</button>
+      </div>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="rpRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="rpRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo hace caer algo desde lo alto de la rampa. Un combo multiplica: 5 regalos de «2 camiones» sueltan 10.</p>
+          </div>
+          <span id="rpRuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="rpRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y lo que hace caer.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="rpFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="rpFormTitle">Nueva regla</h2>
+            <button id="rpLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="rpRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="rpGiftPicker" class="gift-picker">
+                <button id="rpGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="rpGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="rpGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="rpGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="rpGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="rpGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="rpGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Qué cae</span>
+              <select id="rpActionSelect">
+                <option value="">Selecciona una opción</option>
+              </select>
+            </label>
+
+            <label id="rpAmountField" class="pk-field" hidden>
+              <span class="pk-label">Cantidad por regalo</span>
+              <input id="rpAmountInput" type="number" min="1" value="1" inputmode="numeric" />
+              <span id="rpAmountHint" class="pk-hint"></span>
+            </label>
+
+            <button id="rpRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/gta-rampa.js?v=20261020a"></script>
+</body>
+
+</html>

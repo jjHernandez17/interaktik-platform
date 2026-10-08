@@ -39,6 +39,7 @@ namespace InteraktikGtaInstaller
 
         public Action<string> Log = delegate { };
         public string ServerUrl = DefaultUrl;
+        public string Game = "story"; // "story" = Modo historia (InteraktikGTA), "ramp" = Rampa Imposible (InteraktikRampa)
         public bool AllowDownloads = true;
 
         // ---------- deteccion ----------
@@ -205,9 +206,19 @@ namespace InteraktikGtaInstaller
             }
         }
 
+        public static string ModName(string game)
+        {
+            return game == "ramp" ? "InteraktikRampa" : "InteraktikGTA";
+        }
+
         public static bool HasMod(string folder)
         {
-            return File.Exists(Path.Combine(folder, @"scripts\InteraktikGTA.dll"));
+            return HasMod(folder, "story");
+        }
+
+        public static bool HasMod(string folder, string game)
+        {
+            return File.Exists(Path.Combine(folder, @"scripts\" + ModName(game) + ".dll"));
         }
 
         public static bool HasNet48()
@@ -249,9 +260,14 @@ namespace InteraktikGtaInstaller
 
         public static string ReadExistingKey(string folder)
         {
+            return ReadExistingKey(folder, "story");
+        }
+
+        public static string ReadExistingKey(string folder, string game)
+        {
             try
             {
-                string path = Path.Combine(folder, @"scripts\InteraktikGTA.ini");
+                string path = Path.Combine(folder, @"scripts\" + ModName(game) + ".ini");
                 if (!File.Exists(path)) return "";
                 foreach (string line in File.ReadAllLines(path))
                 {
@@ -458,7 +474,7 @@ namespace InteraktikGtaInstaller
                     using (WebClient client = new WebClient())
                     {
                         client.Headers[HttpRequestHeader.UserAgent] = "InteraktikGTA-Installer";
-                        byte[] data = client.DownloadData(Updater.Base(ServerUrl) + "InteraktikGTA.dll");
+                        byte[] data = client.DownloadData(Updater.Base(ServerUrl) + ModName(Game) + ".dll");
                         if (data.Length > 5000 && data[0] == 'M' && data[1] == 'Z')
                         {
                             Log("Mod descargado de la plataforma.");
@@ -473,9 +489,9 @@ namespace InteraktikGtaInstaller
                 }
             }
 
-            using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("InteraktikGTA.dll"))
+            using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream(ModName(Game) + ".dll"))
             {
-                if (resource == null) throw new InvalidOperationException("Este instalador no trae el mod incluido.");
+                if (resource == null) throw new InvalidOperationException("Este instalador no trae el mod de este juego incluido: descarga el instalador actualizado de la p\u00e1gina.");
                 using (MemoryStream memory = new MemoryStream())
                 {
                     byte[] buffer = new byte[64 * 1024];
@@ -491,10 +507,10 @@ namespace InteraktikGtaInstaller
             string scripts = Path.Combine(folder, "scripts");
             Directory.CreateDirectory(scripts);
 
-            File.WriteAllBytes(Path.Combine(scripts, "InteraktikGTA.dll"), GetModBytes());
+            File.WriteAllBytes(Path.Combine(scripts, ModName(Game) + ".dll"), GetModBytes());
 
             // Configuracion: si ya existe se conserva todo y solo se cambia la llave
-            string ini = Path.Combine(scripts, "InteraktikGTA.ini");
+            string ini = Path.Combine(scripts, ModName(Game) + ".ini");
             key = key.Trim();
             if (File.Exists(ini))
             {
@@ -513,6 +529,21 @@ namespace InteraktikGtaInstaller
             }
             else
             {
+                if (Game == "ramp")
+                {
+                    File.WriteAllLines(ini, new string[]
+                    {
+                        "; Interaktik Rampa Imposible para GTA V - NO compartas este archivo (contiene tu llave secreta).",
+                        "Key=" + key,
+                        "",
+                        "; Inclinacion de la rampa en grados (5 a 30) y cuantos containers de largo tiene (4 a 20).",
+                        "RampAngle=14",
+                        "Segments=9",
+                        "; Pon true si en tu juego la rampa baja en vez de subir.",
+                        "FlipPitch=false",
+                    });
+                }
+                else
                 File.WriteAllLines(ini, new string[]
                 {
                     "; Interaktik para GTA V - NO compartas este archivo (contiene tu llave secreta).",
@@ -531,7 +562,7 @@ namespace InteraktikGtaInstaller
         public void Uninstall(string folder)
         {
             string scripts = Path.Combine(folder, "scripts");
-            foreach (string name in new string[] { "InteraktikGTA.dll", "InteraktikGTA.ini", "InteraktikGTA.log" })
+            foreach (string name in new string[] { ModName(Game) + ".dll", ModName(Game) + ".ini", ModName(Game) + ".log" })
             {
                 string path = Path.Combine(scripts, name);
                 if (File.Exists(path)) File.Delete(path);
@@ -600,6 +631,9 @@ namespace InteraktikGtaInstaller
         readonly Button installButton = new Button();
         readonly Button uninstallButton = new Button();
         readonly TextBox logBox = new TextBox();
+        readonly Button storyTab = new Button();
+        readonly Button rampTab = new Button();
+        string gtaGame = "story";
         string shvZip = "";
 
         static readonly Color Bg = Color.FromArgb(18, 12, 34);
@@ -628,7 +662,16 @@ namespace InteraktikGtaInstaller
             AddLabel("Instalar Interaktik para GTA V", 16, y, new Font("Segoe UI Semibold", 15f), Color.White);
             y += 34;
             AddLabel("Instala el mod en tu GTA V (versi\u00f3n cl\u00e1sica) en pocos pasos. Cierra GTA V y tu launcher antes de empezar.", 18, y, Font, Muted);
-            y += 34;
+            y += 30;
+
+            StyleGameTab(storyTab, "Modo historia", 18);
+            StyleGameTab(rampTab, "Rampa Imposible", 168);
+            storyTab.Click += delegate { SetGtaGame("story"); };
+            rampTab.Click += delegate { SetGtaGame("ramp"); };
+            gtaPanel.Controls.AddRange(new Control[] { storyTab, rampTab });
+            storyTab.Top = y;
+            rampTab.Top = y;
+            y += 40;
 
             AddLabel("1. Carpeta de GTA V", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
             y += 24;
@@ -649,7 +692,7 @@ namespace InteraktikGtaInstaller
             gtaPanel.Controls.Add(folderInfo);
             y += 30;
 
-            AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de Modo historia en Interaktik)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
+            AddLabel("2. Tu llave (c\u00f3piala desde la p\u00e1gina de tu juego en Interaktik; es la misma para los dos)", 18, y, new Font("Segoe UI Semibold", 10f), Color.White);
             y += 24;
             keyBox.SetBounds(18, y, 470, 26);
             StyleBox(keyBox);
@@ -696,7 +739,7 @@ namespace InteraktikGtaInstaller
             y += 46;
 
             installButton.SetBounds(18, y, 300, 40);
-            installButton.Text = "Instalar";
+            installButton.Text = "Instalar Modo historia";
             installButton.FlatStyle = FlatStyle.Flat;
             installButton.BackColor = Accent;
             installButton.ForeColor = Color.White;
@@ -724,6 +767,7 @@ namespace InteraktikGtaInstaller
             gtaPanel.Controls.Add(logBox);
 
             BuildMinecraftPage(url);
+            SetGtaGame("story");
 
             Load += delegate
             {
@@ -830,7 +874,8 @@ namespace InteraktikGtaInstaller
 
             if (isGame && keyBox.Text.Length == 0)
             {
-                string existing = Installer.ReadExistingKey(folder);
+                string existing = Installer.ReadExistingKey(folder, gtaGame);
+                if (existing.Length == 0) existing = Installer.ReadExistingKey(folder, gtaGame == "ramp" ? "story" : "ramp");
                 if (existing.Length > 0) keyBox.Text = existing;
             }
 
@@ -842,7 +887,8 @@ namespace InteraktikGtaInstaller
                 isGame && Installer.IsShvdnOutdated(folder) ? "ScriptHookVDotNet: versi\u00f3n vieja, se actualizar\u00e1 al instalar" : "ScriptHookVDotNet: se descargar\u00e1 solo al instalar");
             SetStatus(netLabel, Installer.HasNet48(), ".NET Framework 4.8 instalado", ".NET Framework 4.8: falta (bot\u00f3n Requisitos de Windows)");
             SetStatus(vcLabel, Installer.HasVcRedist(), "Visual C++ 2019 (x64) instalado", "Visual C++ 2019 (x64): falta (bot\u00f3n Requisitos de Windows)");
-            SetStatus(modLabel, isGame && Installer.HasMod(folder), "Mod de Interaktik instalado", "Mod de Interaktik: todav\u00eda no instalado");
+            string gameName = gtaGame == "ramp" ? "Rampa Imposible" : "Modo historia";
+            SetStatus(modLabel, isGame && Installer.HasMod(folder, gtaGame), "Mod de " + gameName + " instalado", "Mod de " + gameName + ": todav\u00eda no instalado");
         }
 
         void OnTestKey(object sender, EventArgs e)
@@ -884,6 +930,7 @@ namespace InteraktikGtaInstaller
             string folder = folderBox.Text.Trim();
             string key = keyBox.Text.Trim();
             string zip = shvZip;
+            installer.Game = gtaGame;
             installButton.Enabled = false;
             uninstallButton.Enabled = false;
             AppendLog("Instalando...");
@@ -923,8 +970,30 @@ namespace InteraktikGtaInstaller
             if (Installer.GameRunning()) { AppendLog("Cierra GTA V antes de desinstalar."); return; }
             if (MessageBox.Show(this, "Se quitar\u00e1 el mod de Interaktik (Script Hook V y ScriptHookVDotNet se quedan). \u00bfContinuar?", "Desinstalar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
+            installer.Game = gtaGame;
             try { installer.Uninstall(folder); }
             catch (Exception ex) { AppendLog("No se pudo desinstalar: " + ex.Message); }
+            RefreshStatus();
+        }
+
+        void StyleGameTab(Button tab, string text, int x)
+        {
+            tab.Text = text;
+            tab.SetBounds(x, 0, 140, 30);
+            tab.FlatStyle = FlatStyle.Flat;
+            tab.FlatAppearance.BorderSize = 0;
+            tab.Font = new Font("Segoe UI Semibold", 9.5f);
+            tab.ForeColor = Color.White;
+            tab.BackColor = Panel;
+        }
+
+        // Cada juego de GTA V tiene su propio mod; los requisitos (Script Hook V, ScriptHookVDotNet...) son los mismos
+        void SetGtaGame(string game)
+        {
+            gtaGame = game;
+            storyTab.BackColor = game == "story" ? Accent : Panel;
+            rampTab.BackColor = game == "ramp" ? Accent : Panel;
+            installButton.Text = game == "ramp" ? "Instalar Rampa Imposible" : "Instalar Modo historia";
             RefreshStatus();
         }
     }
@@ -948,6 +1017,7 @@ namespace InteraktikGtaInstaller
             bool noDownload = false;
             bool testKey = false;
             bool checkUpdates = false;
+            string gtaGameArg = "story";
             bool minecraft = false;
             bool keepOthers = false;
             bool fabric = false;
@@ -962,6 +1032,7 @@ namespace InteraktikGtaInstaller
                 else if (args[i] == "--no-update") Updater.Disabled = true;
                 else if (args[i] == "--downloads-url" && i + 1 < args.Length) Updater.DownloadsHost = args[++i];
                 else if (args[i] == "--check-updates") checkUpdates = true;
+                else if (args[i] == "--gta-game" && i + 1 < args.Length) gtaGameArg = args[++i];
                 else if (args[i] == "--updated") Updater.JustUpdated = true;
                 else if (args[i] == "--keep-other-mods") keepOthers = true;
                 else if (args[i] == "--install-fabric") fabric = true;
@@ -989,6 +1060,7 @@ namespace InteraktikGtaInstaller
                 Installer installer = new Installer();
                 installer.ServerUrl = url;
                 installer.AllowDownloads = !noDownload;
+                installer.Game = gtaGameArg;
                 StringBuilder log = new StringBuilder();
                 installer.Log = delegate (string text) { log.AppendLine(text); };
 

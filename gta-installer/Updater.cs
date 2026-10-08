@@ -4,7 +4,7 @@
 //   version  numero de la ultima version del instalador
 //   file     nombre del instalador en /downloads
 //   sha256   huella del instalador
-//   files    huella de cada mod (InteraktikGTA.dll, InteraktikMod.jar, InteraktikCubo.jar)
+//   files    huella de cada mod (InteraktikGTA.dll, InteraktikRampa.dll, InteraktikMod.jar, InteraktikCubo.jar)
 //
 // Al abrirse, el instalador:
 //   1. Si hay una version nueva de si mismo, la baja, comprueba la huella, se reemplaza y se reabre.
@@ -241,8 +241,11 @@ namespace InteraktikGtaInstaller
                 bool gtaRunning = Installer.GameRunning();
                 foreach (string folder in Installer.FindGameFolders())
                 {
-                    int result = UpdateFile(serverUrl, Path.Combine(folder, @"scripts\InteraktikGTA.dll"), "InteraktikGTA.dll", manifest, gtaRunning, "el mod de GTA V", log);
-                    if (result > 0) updated++;
+                    foreach (string mod in new string[] { "InteraktikGTA", "InteraktikRampa" })
+                    {
+                        int result = UpdateFile(serverUrl, Path.Combine(folder, @"scripts\" + mod + ".dll"), mod + ".dll", manifest, gtaRunning, "el mod " + mod + ".dll de GTA V", log);
+                        if (result > 0) updated++;
+                    }
                 }
             }
             catch (Exception ex)

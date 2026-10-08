@@ -84,8 +84,8 @@ public class InteraktikRampa : Script
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
-    float shelterHeight = 2.0f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
-    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
+    float shelterHeight = 1.4f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
+    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de arriba de la rampa, en grados (ShelterLean)
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -721,7 +721,7 @@ public class InteraktikRampa : Script
         return prop;
     }
 
-    // Container clavado en la rampa: casi todo enterrado, con la punta asomando y inclinada hacia la parte de abajo de la rampa.
+    // Container clavado en la rampa: casi todo enterrado, con la punta asomando y inclinada hacia la parte de ARRIBA de la rampa.
     // surfacePoint es el punto de la superficie por donde entra; exposed, cuanto asoma de la punta (en metros, a lo largo de su
     // eje); down, la direccion cuesta abajo. El sentido de la inclinacion se comprueba midiendo hacia donde apunta la punta.
     void PlaceBuried(Model model, Vector3 localCenter, bool longAxisY, Vector3 surfacePoint, Vector3 down, float length, float exposed, float pitchDeg)
@@ -746,7 +746,7 @@ public class InteraktikRampa : Script
                 Vector3 tip = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + length * 0.5f));
                 Vector3 baseEnd = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
                 Vector3 d = (tip - baseEnd).Normalized;
-                float score = Vector3.Dot(d, down); // cuanto mas apunta la punta cuesta abajo, mejor
+                float score = -Vector3.Dot(d, down); // cuanto mas apunta la punta cuesta arriba, mejor
                 if (score > bestScore) { bestScore = score; best = prop.Quaternion; }
             }
             prop.Quaternion = best;

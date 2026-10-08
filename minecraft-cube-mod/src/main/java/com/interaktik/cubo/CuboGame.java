@@ -146,6 +146,7 @@ final class CuboGame {
     private final ServerBossEvent winsBar = new ServerBossEvent(Component.literal("Wins"), BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
     private int tick = 0;
     private final List<Fx> fx = new ArrayList<>();                 // efectos visuales de la bomba de vacio
+    private final List<ActiveCreeper> creepers = new ArrayList<>();  // creepers invocados por el mod
     private final List<PrimedTnt> fallingTnt = new ArrayList<>(); // TNT soltados por el mod que aun no explotan
     private boolean dirty = false;
 
@@ -340,6 +341,7 @@ final class CuboGame {
         }
         watchTnt();
         tickFx();
+        tickCreepers();
         repairShells();
         if (tick % 10 == 0) updateBars();
         if (dirty && tick % 100 == 0) { save(); dirty = false; }
@@ -607,6 +609,47 @@ final class CuboGame {
         return null;
     }
 
+    private static final int CREEPER_APPROACH_RANGE = 48;      // bloques: hasta donde buscan al jugador
+    private static final double CREEPER_IGNITE_DISTANCE = 3.0; // como el creeper normal: se enciende cerca del jugador
+    private static final int CREEPER_ALONE_TICKS = 100;         // sin jugadores cerca: explota a los 5 s
+    private static final int CREEPER_MAX_TICKS = 320;           // pase lo que pase, explota a los 16 s
+
+    private static final class ActiveCreeper {
+        final Creeper entity;
+        int age = 0;
+        ActiveCreeper(Creeper entity) { this.entity = entity; }
+    }
+
+    // Los creepers normales ignoran a los jugadores en creativo. Estos no: buscan al jugador mas cercano (de cualquier modo
+    // menos espectador), se le acercan y se encienden al llegar. Si no llegan, explotan igual a los pocos segundos.
+    private void tickCreepers() {
+        for (int i = creepers.size() - 1; i >= 0; i--) {
+            ActiveCreeper active = creepers.get(i);
+            Creeper creeper = active.entity;
+            if (creeper.isRemoved() || !creeper.isAlive() || creeper.isIgnited()) { creepers.remove(i); continue; }
+            active.age++;
+
+            ServerPlayer nearest = null;
+            double best = Double.MAX_VALUE;
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                if (p.level() != creeper.level() || p.isSpectator() || !p.isAlive()) continue;
+                double d = p.distanceToSqr(creeper);
+                if (d < best) { best = d; nearest = p; }
+            }
+
+            boolean close = nearest != null && best <= CREEPER_IGNITE_DISTANCE * CREEPER_IGNITE_DISTANCE;
+            boolean lost = nearest == null || best > (double) CREEPER_APPROACH_RANGE * CREEPER_APPROACH_RANGE;
+            if (close || active.age >= CREEPER_MAX_TICKS || (lost && active.age >= CREEPER_ALONE_TICKS)) {
+                creeper.ignite();
+                creepers.remove(i);
+                continue;
+            }
+            if (nearest != null && !lost && active.age % 10 == 0) {
+                creeper.getNavigation().moveTo(nearest, 1.15);
+            }
+        }
+    }
+
     // Un creeper aparece dentro del cubo, encima de lo construido (o en el piso si esta vacio), con humo y un siseo
     private void summonCreeper(Cube cube, ServerLevel level) {
         int iw = cube.innerW(), il = cube.innerL(), ih = cube.innerH();
@@ -626,6 +669,7 @@ final class CuboGame {
         creeper.setPersistenceRequired();
         creeper.addTag("ik_cubo_creeper");
         level.addFreshEntity(creeper);
+        creepers.add(new ActiveCreeper(creeper));
         level.sendParticles(ParticleTypes.POOF, x + 0.5, y + 0.6, z + 0.5, 14, 0.3, 0.4, 0.3, 0.04);
         level.sendParticles(ParticleTypes.HAPPY_VILLAGER, x + 0.5, y + 1.2, z + 0.5, 6, 0.3, 0.3, 0.3, 0.0);
         level.playSound(null, BlockPos.containing(x, y, z), SoundEvents.CREEPER_PRIMED, SoundSource.HOSTILE, 1.4F, 1.0F);
@@ -924,6 +968,7 @@ final class CuboGame {
     void shutdown() {
         for (Fx effect : fx) for (Display.BlockDisplay display : effect.displays) display.discard();
         fx.clear();
+        creepers.clear();
         winsBar.removeAllPlayers();
         save();
     }

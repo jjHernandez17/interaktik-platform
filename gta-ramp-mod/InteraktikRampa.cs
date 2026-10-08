@@ -79,7 +79,11 @@ public class InteraktikRampa : Script
     string key = "";
     string url = DefaultUrl;
     float rampAngle = 14f;       // grados de inclinacion de la rampa
-    int segments = 9;            // containers de largo de la rampa
+    int segments = 13;           // containers de largo de la rampa (RampLength)
+    int walkColumns = 6;         // containers de ancho de la parte por donde se camina (RampWidth)
+    float pushAccel = 11f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
+    float pushMinSpeed = 7f;     // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
+    bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
 
@@ -219,7 +223,11 @@ public class InteraktikRampa : Script
                 if (name == "key") key = value;
                 else if (name == "url" && value.Length > 0) url = value;
                 else if (name == "rampangle") rampAngle = Math.Max(5f, Math.Min(30f, ParseFloat(value, rampAngle)));
-                else if (name == "segments") segments = Math.Max(4, Math.Min(20, (int)ParseFloat(value, segments)));
+                else if (name == "ramplength") segments = Math.Max(4, Math.Min(30, (int)ParseFloat(value, segments)));
+                else if (name == "rampwidth") walkColumns = Math.Max(2, Math.Min(12, (int)ParseFloat(value, walkColumns)));
+                else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
+                else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
+                else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
                 else if (name == "flippitch") flipPitch = value.ToLowerInvariant() == "true" || value == "1";
                 else if (name == "originx") ox = ParseFloat(value, ox);
                 else if (name == "originy") oy = ParseFloat(value, oy);
@@ -483,6 +491,7 @@ public class InteraktikRampa : Script
             while (commands.TryDequeue(out command)) HandleCommand(command);
 
             RunDelayed();
+            TickRestorePhone();
 
             if (mode == Mode.Loading) TickLoading();
             else if (mode == Mode.Playing) TickPlaying();
@@ -668,6 +677,7 @@ public class InteraktikRampa : Script
             Log("Error al terminar la partida: " + ex.Message);
         }
 
+        RestorePhone();
         SetMode(Mode.Off);
         if (restorePlayer)
         {
@@ -761,7 +771,7 @@ public class InteraktikRampa : Script
         cosAngle = cos;
         Vector3 dir = new Vector3(0f, cos, sin);           // a lo largo de la rampa (hacia arriba)
         Vector3 normal = new Vector3(0f, -sin, cos);       // perpendicular a la superficie
-        const int columns = 6;   // 4 para caminar (el doble que antes) + 1 de pared a cada lado
+        int columns = walkColumns + 2;   // las de caminar + 1 de pared a cada lado
         float[] lateral = new float[columns];
         for (int c = 0; c < columns; c++) lateral[c] = (c - (columns - 1) / 2f) * width;
         halfWidth = columns * width / 2f;
@@ -867,7 +877,29 @@ public class InteraktikRampa : Script
         }
 
         ProcessInbox();
+        PushDownhill();
         CleanSpawned();
+    }
+
+    // Los vehiculos y objetos no se deslizan solos por una pendiente tan suave: mientras estan sobre la rampa se les da un
+    // empuje extra cuesta abajo (como si la gravedad fuera mayor) hasta que lleven una velocidad minima.
+    void PushDownhill()
+    {
+        float dt = Game.LastFrameTime;
+        if (dt <= 0f || dt > 0.2f) dt = 0.016f;
+        Vector3 down = new Vector3(0f, -cosAngle, -sinAngle);
+        foreach (Tracked t in tracked)
+        {
+            Entity e = t.Entity;
+            if (e == null || !e.Exists()) continue;
+            Vector3 p = e.Position;
+            if (p.Y > rampEndY + 3f || p.Y < rampBaseY - 3f) continue;
+            float surface = SurfaceZ(p.Y);
+            if (p.Z < surface - 2.5f || p.Z > surface + 14f) continue;
+            Vector3 v = e.Velocity;
+            float along = Vector3.Dot(v, down);
+            if (along < pushMinSpeed) e.Velocity = v + down * (pushAccel * dt);
+        }
     }
 
     void KeepWorldQuiet(Ped ped)
@@ -889,9 +921,16 @@ public class InteraktikRampa : Script
 
         // sin celular, llamadas, cambio de personaje ni misiones que interrumpan
         foreach (int control in PhoneAndSwitchControls) Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, control, true);
-        Function.Call(Hash.STOP_SCRIPTED_CONVERSATION, false);
+        if (Function.Call<bool>(Hash.IS_MOBILE_PHONE_CALL_ONGOING) || Function.Call<bool>(Hash.IS_SCRIPTED_CONVERSATION_ONGOING))
+        {
+            Function.Call(Hash.STOP_SCRIPTED_CONVERSATION, false);
+            Function.Call(Hash.STOP_SCRIPTED_CONVERSATION, true);
+            Function.Call(Hash.CLEAR_PRINTS);
+            Function.Call(Hash.CLEAR_HELP, true);
+        }
         Function.Call(Hash.DESTROY_MOBILE_PHONE);
         Function.Call(Hash.CELL_CAM_ACTIVATE, false, false);
+        if (blockPhoneScripts) SilencePhone();
 
         // no se puede subir a los vehiculos que caen
         Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, 23, true);   // entrar a un vehiculo
@@ -899,6 +938,61 @@ public class InteraktikRampa : Script
 
         if (ped.IsInVehicle()) ped.Task.LeaveVehicle(ped.CurrentVehicle, true);
         if (ped.IsRagdoll && (DateTime.UtcNow - lastFallNotice).TotalSeconds > 3) { /* se levanta solo */ }
+    }
+
+    const string PhoneScript = "cellphone_controller";
+    bool phoneKilled;
+    DateTime lastPhoneCheck = DateTime.MinValue;
+    DateTime restorePhoneAt = DateTime.MinValue;
+
+    // El script "cellphone_controller" es el que hace sonar el celular y muestra las llamadas de la historia. Se apaga mientras
+    // dura la partida (se vigila cada segundo por si el juego lo reinicia) y se vuelve a encender al terminar.
+    void SilencePhone()
+    {
+        if ((DateTime.UtcNow - lastPhoneCheck).TotalSeconds < 1.0) return;
+        lastPhoneCheck = DateTime.UtcNow;
+        int hash = Game.GenerateHash(PhoneScript);
+        if (Function.Call<int>(Hash.GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH, hash) > 0)
+        {
+            Function.Call(Hash.TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME, PhoneScript);
+            if (!phoneKilled) Log("Celular apagado durante la partida.");
+        }
+        phoneKilled = true;
+    }
+
+    void RestorePhone()
+    {
+        if (!phoneKilled) return;
+        phoneKilled = false;
+        try
+        {
+            if (Function.Call<int>(Hash.GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH, Game.GenerateHash(PhoneScript)) > 0) return;
+            Function.Call(Hash.REQUEST_SCRIPT, PhoneScript);
+            restorePhoneAt = DateTime.UtcNow.AddMilliseconds(250);
+            Log("Celular: se vuelve a encender.");
+        }
+        catch (Exception ex)
+        {
+            Log("No se pudo pedir el script del celular: " + ex.Message);
+        }
+    }
+
+    // El script se pide al terminar y se arranca cuando ya cargo
+    void TickRestorePhone()
+    {
+        if (restorePhoneAt == DateTime.MinValue || DateTime.UtcNow < restorePhoneAt) return;
+        if (Function.Call<bool>(Hash.HAS_SCRIPT_LOADED, PhoneScript))
+        {
+            Function.Call(Hash.START_NEW_SCRIPT, PhoneScript, 1424);
+            Function.Call(Hash.SET_SCRIPT_AS_NO_LONGER_NEEDED, PhoneScript);
+            restorePhoneAt = DateTime.MinValue;
+            Log("Celular restaurado.");
+        }
+        else if ((DateTime.UtcNow - restorePhoneAt).TotalSeconds > 15)
+        {
+            restorePhoneAt = DateTime.MinValue;
+            Log("El script del celular no cargo; si no tienes celular, reinicia GTA V.");
+        }
     }
 
     // 27 telefono, 19 rueda de personajes, 172-177 navegacion del celular, 165/166/167 cambiar de personaje

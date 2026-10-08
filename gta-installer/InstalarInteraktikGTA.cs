@@ -536,11 +536,14 @@ namespace InteraktikGtaInstaller
                         "; Interaktik Rampa Imposible para GTA V - NO compartas este archivo (contiene tu llave secreta).",
                         "Key=" + key,
                         "",
-                        "; Inclinacion de la rampa en grados (5 a 30) y cuantos containers de largo tiene (4 a 20).",
-                        "RampAngle=14",
-                        "Segments=9",
-                        "; Pon true si en tu juego la rampa baja en vez de subir.",
-                        "FlipPitch=false",
+                        "; Opciones (si las quitas se usan estos valores):",
+                        "; RampAngle=14      inclinacion de la rampa en grados (5 a 30)",
+                        "; RampLength=13     containers de largo (4 a 30)",
+                        "; RampWidth=6       containers de ancho de la parte por donde se camina (2 a 12)",
+                        "; PushAccel=11      empuje extra cuesta abajo para lo que cae (0 a 40)",
+                        "; PushSpeed=7       velocidad minima cuesta abajo de lo que cae (0 a 40)",
+                        "; BlockPhone=true   apaga el celular durante la partida",
+                        "; FlipPitch=false   pon true si en tu juego la rampa baja en vez de subir",
                     });
                 }
                 else

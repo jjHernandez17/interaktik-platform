@@ -52,6 +52,16 @@ public class InteraktikRampa : Script
         public DateTime Born = DateTime.UtcNow;
         public int LifeSeconds;
         public bool IsVehicle;
+        public string Nickname;
+    }
+
+    // Lo que falta por aparecer: todo lo que mandan los espectadores se encola y sale cuando hay sitio (maximo MaxLive a la vez)
+    class Pending
+    {
+        public Spawner Spawner;
+        public float Slot;
+        public string Nickname;
+        public int Attempts;
     }
 
     // Lo que puede caer: candidatos de modelos (se usa el primero que exista en esta version del juego)
@@ -72,8 +82,8 @@ public class InteraktikRampa : Script
 
     const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
     const int MaxJobAgeSeconds = 60;
-    const int MaxVehicles = 14;
-    const int MaxProps = 90;
+    const int MaxLive = 150;           // carros y objetos que pueden existir a la vez; el resto espera en cola
+    const int SpawnIntervalMs = 150;   // tiempo minimo entre una aparicion y la siguiente
 
     // ----- configuracion (InteraktikRampa.ini)
     string key = "";
@@ -111,6 +121,8 @@ public class InteraktikRampa : Script
     readonly List<Delayed> delayed = new List<Delayed>();
     readonly List<Prop> buildings = new List<Prop>();
     readonly List<Tracked> tracked = new List<Tracked>();
+    readonly Queue<Pending> pending = new Queue<Pending>();
+    DateTime lastSpawn = DateTime.MinValue;
     Mode mode = Mode.Off;
     DateTime modeSince = DateTime.UtcNow;
     Vector3 previousPosition;
@@ -953,6 +965,7 @@ public class InteraktikRampa : Script
         }
 
         ProcessInbox();
+        TickQueue();
         PushDownhill();
         CleanSpawned();
     }
@@ -971,6 +984,28 @@ public class InteraktikRampa : Script
             Vector3 p = e.Position;
             if (p.Y > rampEndY + 3f || p.Y < rampBaseY - 3f) continue;
             float surface = SurfaceZ(p.Y);
+
+            // que nada se salga por los lados: si va hacia una pared se le devuelve hacia el centro, y si ya paso por encima
+            // de ella (y todavia esta a la altura de la rampa) se le vuelve a poner dentro
+            float side = p.X - origin.X;
+            float sideAbs = Math.Abs(side);
+            if (sideAbs > walkHalf - 0.6f && p.Z > surface - 6f)
+            {
+                float sign = side > 0f ? 1f : -1f;
+                Vector3 cv = e.Velocity;
+                if (sideAbs > halfWidth - 0.4f)
+                {
+                    e.Position = new Vector3(origin.X + sign * (walkHalf - 1.2f), p.Y, p.Z + 0.5f);
+                    cv.X = -sign * 1.5f;
+                    e.Velocity = cv;
+                }
+                else if (cv.X * sign > -1.5f)
+                {
+                    cv.X = -sign * Math.Max(1.5f, Math.Abs(cv.X) * 0.4f);
+                    e.Velocity = cv;
+                }
+            }
+
             if (p.Z < surface - 2.5f || p.Z > surface + 14f) continue;
             Vector3 v = e.Velocity;
             float along = Vector3.Dot(v, down);
@@ -1127,7 +1162,7 @@ public class InteraktikRampa : Script
 
             try
             {
-                int count = Math.Max(1, Math.Min(job.Amount, 40));
+                int count = Math.Max(1, Math.Min(job.Amount, 500));
                 // los puntos de salida se reparten parejo por todo el ancho de la rampa, en orden mezclado
                 float[] slots = new float[count];
                 for (int i = 0; i < count; i++) slots[i] = (i + 0.15f + (float)random.NextDouble() * 0.7f) / count;
@@ -1138,9 +1173,11 @@ public class InteraktikRampa : Script
                 }
                 for (int i = 0; i < count; i++)
                 {
-                    Spawner captured = spawner;
-                    float slot = slots[i];
-                    After(i * 250, delegate { SpawnOne(captured, slot); });
+                    Pending p = new Pending();
+                    p.Spawner = spawner;
+                    p.Slot = slots[i];
+                    p.Nickname = CleanName(job.Nickname);
+                    pending.Enqueue(p);
                 }
                 string who = string.IsNullOrEmpty(job.Nickname) ? "Alguien" : job.Nickname;
                 Screen.ShowSubtitle(who + ": " + job.Label, 3000);
@@ -1154,17 +1191,50 @@ public class InteraktikRampa : Script
         }
     }
 
-    // Lo que cae aparece al final de la rampa (detras de la plataforma de arriba) y baja por su propio peso
-    void SpawnOne(Spawner spawner, float slot)
+    static string CleanName(string nick)
     {
-        if (mode != Mode.Playing || !built) return;
+        if (string.IsNullOrEmpty(nick)) return "";
+        nick = nick.Replace("~", "").Replace("\n", " ").Replace("\r", " ").Trim();
+        if (nick.Length > 22) nick = nick.Substring(0, 22);
+        return nick;
+    }
+
+    // Saca de la cola lo que toque mientras no se supere el maximo de carros y objetos vivos
+    void TickQueue()
+    {
+        if (pending.Count == 0 || tracked.Count >= MaxLive) return;
+        if ((DateTime.UtcNow - lastSpawn).TotalMilliseconds < SpawnIntervalMs) return;
+        lastSpawn = DateTime.UtcNow;
+
+        Pending p = pending.Peek();
+        int result;
+        try { result = SpawnOne(p); }
+        catch (Exception ex) { Log("Error al crear algo de la cola: " + ex.Message); result = 0; }
+
+        if (result == 1) { pending.Dequeue(); return; }
+        p.Attempts++;
+        if (result < 0 || p.Attempts >= 40)
+        {
+            pending.Dequeue();
+            Log("Se descarto algo de la cola (" + (p.Spawner.Models.Length > 0 ? p.Spawner.Models[0] : "?") + ")");
+        }
+        else lastSpawn = DateTime.UtcNow.AddMilliseconds(400); // reintenta un poco despues
+    }
+
+    // Lo que cae aparece al final de la rampa (detras de la plataforma de arriba) y baja por su propio peso.
+    // Devuelve 1 si aparecio, 0 si hay que reintentar y -1 si no se puede crear nunca.
+    int SpawnOne(Pending job)
+    {
+        if (mode != Mode.Playing || !built) return 0;
+        Spawner spawner = job.Spawner;
+        float slot = job.Slot;
 
         Model model = PickModel(spawner.Models);
-        if (!model.IsValid) { LogThrottled("model-" + spawner.Models[0], "Ningun modelo disponible entre: " + string.Join(", ", spawner.Models)); return; }
-        if (!model.Request(2000)) return;
+        if (!model.IsValid) { LogThrottled("model-" + spawner.Models[0], "Ningun modelo disponible entre: " + string.Join(", ", spawner.Models)); return -1; }
+        if (!model.Request(1000)) return 0;
 
         // a lo ancho de la parte por donde se camina; arriba de la pendiente y empujado cuesta abajo (siguiendo su inclinacion)
-        float lateral = (slot - 0.5f) * (2f * walkHalf - 2.2f); // todo el ancho por donde se camina, menos un margen junto a las paredes
+        float lateral = (slot - 0.5f) * (2f * walkHalf - 4.4f); // todo el ancho por donde se camina, con margen junto a las paredes
         Vector3 pos = new Vector3(spawnSpot.X + lateral, spawnSpot.Y, spawnSpot.Z + spawner.Lift + spawnHeight);
         float launch = spawner.Speed * speedScale;
         Vector3 push = new Vector3(0f, -launch * cosAngle, -launch * sinAngle);
@@ -1172,7 +1242,7 @@ public class InteraktikRampa : Script
         if (spawner.Vehicle)
         {
             Vehicle vehicle = World.CreateVehicle(model, pos, 180f);
-            if (vehicle == null) return;
+            if (vehicle == null) { model.MarkAsNoLongerNeeded(); return 0; }
             // cae de lado, de techo o de punta, nunca parado sobre sus ruedas
             float[] rolls = new float[] { 90f, -90f, 180f, 180f };
             float roll = rolls[random.Next(rolls.Length)];
@@ -1183,38 +1253,30 @@ public class InteraktikRampa : Script
             vehicle.LockStatus = VehicleLockStatus.CannotBeTriedToEnter;
             Function.Call(Hash.SET_VEHICLE_DOORS_LOCKED_FOR_PLAYER, vehicle, Game.Player, true);
             vehicle.Velocity = push;
-            Track(vehicle, spawner.Life, true);
+            Track(vehicle, spawner.Life, true, job.Nickname);
         }
         else
         {
             Vector3 rotation = new Vector3((float)random.NextDouble() * 360f, (float)random.NextDouble() * 360f, (float)random.NextDouble() * 360f);
             Prop prop = World.CreateProp(model, pos, rotation, true, false);
-            if (prop == null) return;
+            if (prop == null) { model.MarkAsNoLongerNeeded(); return 0; }
             prop.IsPersistent = true;
             prop.ActivatePhysics();
             prop.Velocity = push;
-            Track(prop, spawner.Life, false);
+            Track(prop, spawner.Life, false, job.Nickname);
         }
         model.MarkAsNoLongerNeeded();
+        return 1;
     }
 
-    void Track(Entity entity, int life, bool isVehicle)
+    void Track(Entity entity, int life, bool isVehicle, string nickname)
     {
         Tracked item = new Tracked();
         item.Entity = entity;
         item.LifeSeconds = life;
         item.IsVehicle = isVehicle;
+        item.Nickname = nickname;
         tracked.Add(item);
-
-        // si hay demasiados, se borran los mas viejos
-        int vehicles = 0, props = 0;
-        foreach (Tracked t in tracked) { if (t.IsVehicle) vehicles++; else props++; }
-        for (int i = 0; i < tracked.Count && (vehicles > MaxVehicles || props > MaxProps); i++)
-        {
-            Tracked old = tracked[i];
-            if (old.IsVehicle && vehicles > MaxVehicles) { vehicles--; Remove(old); tracked.RemoveAt(i); i--; }
-            else if (!old.IsVehicle && props > MaxProps) { props--; Remove(old); tracked.RemoveAt(i); i--; }
-        }
     }
 
     static void Remove(Tracked t)
@@ -1249,9 +1311,46 @@ public class InteraktikRampa : Script
     {
         foreach (Tracked t in tracked) Remove(t);
         tracked.Clear();
+        pending.Clear();
     }
 
     // ================= pantalla =================
+
+    // Nombre de quien mando cada carro u objeto, flotando encima mientras baja
+    void DrawLabels()
+    {
+        Vector3 me = Game.Player.Character.Position;
+        List<Tracked> near = new List<Tracked>();
+        List<float> dist = new List<float>();
+        foreach (Tracked t in tracked)
+        {
+            if (string.IsNullOrEmpty(t.Nickname) || t.Entity == null || !t.Entity.Exists()) continue;
+            float d = t.Entity.Position.DistanceTo(me);
+            if (d > 220f) continue;
+            int at = near.Count;
+            while (at > 0 && dist[at - 1] > d) at--;
+            near.Insert(at, t); dist.Insert(at, d);
+        }
+        int shown = 0;
+        for (int i = 0; i < near.Count && shown < 60; i++)
+        {
+            Tracked t = near[i];
+            Vector3 p = t.Entity.Position + new Vector3(0f, 0f, t.IsVehicle ? 2.6f : 1.4f);
+            OutputArgument ox = new OutputArgument();
+            OutputArgument oy = new OutputArgument();
+            if (!Function.Call<bool>(Hash.GET_SCREEN_COORD_FROM_WORLD_COORD, p.X, p.Y, p.Z, ox, oy)) continue;
+            float scale = Math.Max(0.24f, Math.Min(0.5f, 14f / (dist[i] + 6f)));
+            Function.Call(Hash.SET_TEXT_FONT, 4);
+            Function.Call(Hash.SET_TEXT_SCALE, 0f, scale);
+            Function.Call(Hash.SET_TEXT_COLOUR, 255, 255, 255, 235);
+            Function.Call(Hash.SET_TEXT_OUTLINE);
+            Function.Call(Hash.SET_TEXT_CENTRE, true);
+            Function.Call(Hash.BEGIN_TEXT_COMMAND_DISPLAY_TEXT, "STRING");
+            Function.Call(Hash.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, t.Nickname);
+            Function.Call(Hash.END_TEXT_COMMAND_DISPLAY_TEXT, ox.GetResult<float>(), oy.GetResult<float>(), 0);
+            shown++;
+        }
+    }
 
     void DrawHud()
     {
@@ -1260,6 +1359,16 @@ public class InteraktikRampa : Script
         string wins = cfgWins + "/" + cfgGoal + " wins";
         TextElement counter = new TextElement(wins, new PointF(640f, 18f), 0.9f, Color.White, GTA.UI.Font.ChaletLondon, Alignment.Center, true, true);
         counter.Draw();
+
+        if (mode == Mode.Playing)
+        {
+            DrawLabels();
+            if (pending.Count > 0)
+            {
+                TextElement queue = new TextElement("En cola: " + pending.Count, new PointF(1260f, 18f), 0.5f, Color.White, GTA.UI.Font.ChaletLondon, Alignment.Right, true, true);
+                queue.Draw();
+            }
+        }
 
         if (DateTime.UtcNow < flashUntil && flash.Length > 0)
         {

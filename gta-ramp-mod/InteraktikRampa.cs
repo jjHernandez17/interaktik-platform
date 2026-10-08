@@ -84,8 +84,7 @@ public class InteraktikRampa : Script
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
-    bool shelterUpright;          // ShelterStyle=upright: los containers del punto seguro se paran sobre su extremo
-    bool shelterFlip;             // ShelterFlip=true: gira 180 grados los containers del punto seguro (si las puertas quedan al reves)
+    float shelterHeight = 3.4f;   // cuanto asoma la punta del container del punto seguro sobre la rampa, en metros (ShelterHeight)
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -231,8 +230,7 @@ public class InteraktikRampa : Script
                 else if (name == "speedscale") speedScale = Math.Max(0.5f, Math.Min(4f, ParseFloat(value, speedScale)));
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
-                else if (name == "shelterstyle") shelterUpright = value.ToLowerInvariant() == "upright";
-                else if (name == "shelterflip") shelterFlip = value.ToLowerInvariant() == "true" || value == "1";
+                else if (name == "shelterheight") shelterHeight = Math.Max(1.5f, Math.Min(6f, ParseFloat(value, shelterHeight)));
                 else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
                 else if (name == "flippitch") flipPitch = value.ToLowerInvariant() == "true" || value == "1";
                 else if (name == "originx") ox = ParseFloat(value, ox);
@@ -721,46 +719,24 @@ public class InteraktikRampa : Script
         return prop;
     }
 
-    // Container de un punto seguro: tumbado a lo largo de la pendiente (puerta hacia abajo), o girado 180 si hace falta
-    Prop PlaceShelterBlock(Model model, Vector3 localCenter, bool longAxisY, Vector3 desiredCenter, float pitchDeg)
+    // Container clavado en la rampa: de pie sobre su extremo (su parte larga perpendicular a la superficie), con casi todo
+    // enterrado en la rampa. center es donde queda el CENTRO del container.
+    void PlaceBuried(Model model, Vector3 localCenter, bool longAxisY, Vector3 desiredCenter, float pitchDeg)
     {
         Prop prop = PlaceContainer(model, localCenter, longAxisY, desiredCenter, pitchDeg);
-        if (!shelterFlip) return prop;
         try
         {
-            // medio giro alrededor de su eje vertical local (antes de la inclinacion de la rampa)
-            prop.Quaternion = prop.Quaternion * Quaternion.RotationAxis(new Vector3(0f, 0f, 1f), (float)Math.PI);
+            // el eje largo del modelo pasa a ser el vertical del modelo antes de aplicar la inclinacion de la rampa
+            Vector3 axis = longAxisY ? new Vector3(1f, 0f, 0f) : new Vector3(0f, 1f, 0f);
+            float angle = (float)(longAxisY ? Math.PI / 2.0 : -Math.PI / 2.0);
+            prop.Quaternion = prop.Quaternion * Quaternion.RotationAxis(axis, angle);
             Vector3 center = prop.GetOffsetPosition(localCenter);
             prop.Position = prop.Position + (desiredCenter - center);
             prop.IsPositionFrozen = true;
         }
         catch (Exception ex)
         {
-            LogThrottled("shelterflip", "No se pudo girar un container del punto seguro: " + ex.Message);
-        }
-        return prop;
-    }
-
-    // Variante: el container se para sobre su extremo, perpendicular a la rampa (su parte larga queda "vertical")
-    void PlaceUpright(Model model, Vector3 localCenter, bool longAxisY, Vector3 surfacePoint, Vector3 normal, float length, float pitchDeg, int level)
-    {
-        // un container parado ocupa "length" de alto: el segundo nivel no hace falta, se apila solo el primero
-        if (level > 0) return;
-        Vector3 desired = surfacePoint + normal * (length * 0.5f);
-        Prop prop = PlaceContainer(model, localCenter, longAxisY, desired, pitchDeg);
-        try
-        {
-            // su eje largo (Y o X del modelo) pasa a ser el vertical del modelo antes de aplicar la inclinacion de la rampa
-            Vector3 axis = longAxisY ? new Vector3(1f, 0f, 0f) : new Vector3(0f, 1f, 0f);
-            float angle = (float)(longAxisY ? Math.PI / 2.0 : -Math.PI / 2.0);
-            prop.Quaternion = prop.Quaternion * Quaternion.RotationAxis(axis, angle);
-            Vector3 center = prop.GetOffsetPosition(localCenter);
-            prop.Position = prop.Position + (desired - center);
-            prop.IsPositionFrozen = true;
-        }
-        catch (Exception ex)
-        {
-            LogThrottled("upright", "No se pudo parar un container del punto seguro: " + ex.Message);
+            LogThrottled("buried", "No se pudo clavar un container del punto seguro: " + ex.Message);
         }
     }
 
@@ -853,26 +829,20 @@ public class InteraktikRampa : Script
             }
         }
 
-        // 2b) tres puntos seguros a lo largo de la rampa (al 25 %, 50 % y 75 %, alternando izquierda, derecha e izquierda):
-        // dos pilas de containers puestos a lo largo de la pendiente, de dos de alto, apoyados en la rampa. Lo que baja rodando
-        // choca con su extremo de arriba y se abre hacia los lados; el jugador se queda detras, al abrigo.
+        // 2b) tres puntos seguros (al 25 %, 50 % y 75 % de la rampa; izquierda, derecha e izquierda): UN container cada uno,
+        // clavado de lado a lado de la rampa y atravesandola, de modo que solo asoma su punta por encima. El resto queda
+        // tapado dentro de la propia rampa. El jugador se esconde detras de la punta.
         int[] shelterSegments = new int[] { segments / 4, segments / 2, (segments * 3) / 4 };
         int[] shelterSides = new int[] { -1, 1, -1 };
         for (int k = 0; k < 3; k++)
         {
             int seg = Math.Max(1, Math.Min(segments - 2, shelterSegments[k]));
-            int c1 = shelterSides[k] < 0 ? 1 : columns - 3;
-            for (int c = c1; c <= c1 + 1; c++)
-            {
-                for (int level = 0; level < 2; level++)
-                {
-                    Vector3 top = rampStart + dir * (length * (seg + 0.5f)) + new Vector3(lateral[c], 0f, 0f);
-                    Vector3 center = top + normal * (height * (0.5f + level));
-                    if (shelterUpright) PlaceUpright(container, localCenter, longAxisY, top, normal, length, rampAngle, level);
-                    else PlaceShelterBlock(container, localCenter, longAxisY, center, rampAngle);
-                }
-            }
-            Log("Punto seguro " + (k + 1) + " en el segmento " + seg + (shelterSides[k] < 0 ? " (izquierda)" : " (derecha)"));
+            int col = shelterSides[k] < 0 ? 1 : columns - 2; // la columna junto a la pared
+            Vector3 surface = rampStart + dir * (length * (seg + 0.5f)) + new Vector3(lateral[col], 0f, 0f);
+            float exposed = Math.Min(shelterHeight, length * 0.85f);
+            Vector3 center = surface + normal * (exposed - length * 0.5f);
+            PlaceBuried(container, localCenter, longAxisY, center, rampAngle);
+            Log("Punto seguro " + (k + 1) + " en el segmento " + seg + (shelterSides[k] < 0 ? " (izquierda)" : " (derecha)") + ", asoma " + exposed + " m");
         }
 
         // 3) plataforma de arriba (plana), con paredes a los lados y un muro al fondo

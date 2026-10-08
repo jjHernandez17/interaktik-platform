@@ -544,8 +544,7 @@ namespace InteraktikGtaInstaller
                         "; PushAccel=24      empuje extra cuesta abajo para lo que cae (0 a 40)",
                         "; PushSpeed=15      velocidad minima cuesta abajo de lo que cae (0 a 40)",
                         "; BlockPhone=true   apaga el celular durante la partida",
-                        "; ShelterStyle=along  puntos seguros: along (a lo largo de la rampa) o upright (parados sobre su extremo)",
-                        "; ShelterFlip=false   gira 180 grados los containers de los puntos seguros",
+                        "; ShelterHeight=3.4  cuanto asoma (en metros) la punta del container de cada punto seguro",
                         "; FlipPitch=false   pon true si en tu juego la rampa baja en vez de subir",
                     });
                 }

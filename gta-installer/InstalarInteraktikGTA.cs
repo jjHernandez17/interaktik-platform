@@ -538,7 +538,7 @@ namespace InteraktikGtaInstaller
                         "",
                         "; Opciones (si las quitas se usan estos valores):",
                         "; RampAngle=14      inclinacion de la rampa en grados (5 a 30)",
-                        "; RampLength=13     containers de largo (4 a 30)",
+                        "; RampLength=26     containers de largo (4 a 60)",
                         "; RampWidth=6       containers de ancho de la parte por donde se camina (2 a 12)",
                         "; SpeedScale=1.7    velocidad con la que sale lo que cae (0.5 a 4)",
                         "; SpawnHeight=30    metros extra de altura desde donde caen carros y objetos (0 a 150)",

@@ -79,7 +79,7 @@ public class InteraktikRampa : Script
     string key = "";
     string url = DefaultUrl;
     float rampAngle = 14f;       // grados de inclinacion de la rampa
-    int segments = 13;           // containers de largo de la rampa (RampLength)
+    int segments = 26;           // containers de largo de la rampa (RampLength)
     int walkColumns = 6;         // containers de ancho de la parte por donde se camina (RampWidth)
     float spawnHeight = 30f;     // metros extra de altura desde donde caen los carros y objetos, SpawnHeight
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
@@ -228,7 +228,7 @@ public class InteraktikRampa : Script
                 if (name == "key") key = value;
                 else if (name == "url" && value.Length > 0) url = value;
                 else if (name == "rampangle") rampAngle = Math.Max(5f, Math.Min(30f, ParseFloat(value, rampAngle)));
-                else if (name == "ramplength") segments = Math.Max(4, Math.Min(30, (int)ParseFloat(value, segments)));
+                else if (name == "ramplength") segments = Math.Max(4, Math.Min(60, (int)ParseFloat(value, segments)));
                 else if (name == "rampwidth") walkColumns = Math.Max(2, Math.Min(12, (int)ParseFloat(value, walkColumns)));
                 else if (name == "speedscale") speedScale = Math.Max(0.5f, Math.Min(4f, ParseFloat(value, speedScale)));
                 else if (name == "spawnheight") spawnHeight = Math.Max(0f, Math.Min(150f, ParseFloat(value, spawnHeight)));

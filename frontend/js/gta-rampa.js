@@ -1,4 +1,4 @@
-// GTA V "Rampa Imposible": conexion TikTok, llave, control de la partida, marcador de wins y reglas regalo -> lo que cae.
+// GTA V "Montaña Imposible": conexion TikTok, llave, control de la partida, marcador de wins y reglas regalo -> lo que cae.
 // Mismo patron que minecraft-cubo.js.
 const GAME_TYPE = 'gtarampa';
 

@@ -39,7 +39,7 @@ namespace InteraktikGtaInstaller
 
         public Action<string> Log = delegate { };
         public string ServerUrl = DefaultUrl;
-        public string Game = "story"; // "story" = Modo historia (InteraktikGTA), "ramp" = Rampa Imposible (InteraktikRampa)
+        public string Game = "story"; // "story" = Modo historia (InteraktikGTA), "ramp" = Montaña Imposible (InteraktikRampa)
         public bool AllowDownloads = true;
 
         // ---------- deteccion ----------
@@ -533,7 +533,7 @@ namespace InteraktikGtaInstaller
                 {
                     File.WriteAllLines(ini, new string[]
                     {
-                        "; Interaktik Rampa Imposible para GTA V - NO compartas este archivo (contiene tu llave secreta).",
+                        "; Interaktik Montaña Imposible para GTA V - NO compartas este archivo (contiene tu llave secreta).",
                         "Key=" + key,
                         "",
                         "; Opciones (si las quitas se usan estos valores):",
@@ -673,7 +673,7 @@ namespace InteraktikGtaInstaller
             y += 30;
 
             StyleGameTab(storyTab, "Modo historia", 18);
-            StyleGameTab(rampTab, "Rampa Imposible", 168);
+            StyleGameTab(rampTab, "Montaña Imposible", 168);
             storyTab.Click += delegate { SetGtaGame("story"); };
             rampTab.Click += delegate { SetGtaGame("ramp"); };
             gtaPanel.Controls.AddRange(new Control[] { storyTab, rampTab });
@@ -895,7 +895,7 @@ namespace InteraktikGtaInstaller
                 isGame && Installer.IsShvdnOutdated(folder) ? "ScriptHookVDotNet: versi\u00f3n vieja, se actualizar\u00e1 al instalar" : "ScriptHookVDotNet: se descargar\u00e1 solo al instalar");
             SetStatus(netLabel, Installer.HasNet48(), ".NET Framework 4.8 instalado", ".NET Framework 4.8: falta (bot\u00f3n Requisitos de Windows)");
             SetStatus(vcLabel, Installer.HasVcRedist(), "Visual C++ 2019 (x64) instalado", "Visual C++ 2019 (x64): falta (bot\u00f3n Requisitos de Windows)");
-            string gameName = gtaGame == "ramp" ? "Rampa Imposible" : "Modo historia";
+            string gameName = gtaGame == "ramp" ? "Montaña Imposible" : "Modo historia";
             SetStatus(modLabel, isGame && Installer.HasMod(folder, gtaGame), "Mod de " + gameName + " instalado", "Mod de " + gameName + ": todav\u00eda no instalado");
         }
 
@@ -1001,7 +1001,7 @@ namespace InteraktikGtaInstaller
             gtaGame = game;
             storyTab.BackColor = game == "story" ? Accent : Panel;
             rampTab.BackColor = game == "ramp" ? Accent : Panel;
-            installButton.Text = game == "ramp" ? "Instalar Rampa Imposible" : "Instalar Modo historia";
+            installButton.Text = game == "ramp" ? "Instalar Montaña Imposible" : "Instalar Modo historia";
             RefreshStatus();
         }
     }

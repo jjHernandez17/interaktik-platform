@@ -1,4 +1,4 @@
-// GTA V "Rampa Imposible": el jugador aparece en un mapa de containers y tiene que subir una rampa mientras los
+// GTA V "Montaña Imposible": el jugador aparece en un mapa de containers y tiene que subir una rampa mientras los
 // regalos de TikTok hacen caer carros, camiones y objetos desde arriba. Un mod aparte de ScriptHookVDotNet
 // (gta-ramp-mod/) se conecta por WebSocket (gtaRampBridge.js). Comparte la llave con GTA V modo historia (gta_config).
 //

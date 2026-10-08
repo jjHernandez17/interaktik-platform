@@ -826,7 +826,7 @@ router.get('/minecraft-cubo.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/minecraft-cubo.js'));
 });
 
-// GTA V "Rampa Imposible"
+// GTA V "Montaña Imposible"
 router.get(['/gta-rampa', '/gta-rampa.html'], requireAuthPage, async (req, res) => {
   try {
     if (!(await requireEnabledGame(req, res, 'gtarampa'))) return;

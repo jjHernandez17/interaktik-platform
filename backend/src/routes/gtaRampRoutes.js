@@ -1,6 +1,6 @@
 // tiktokinteractik/backend/src/routes/gtaRampRoutes.js
 //
-// Rutas de GTA V "Rampa Imposible". Usan la sesion del navegador (requireAuth); el mod se conecta por
+// Rutas de GTA V "Montaña Imposible". Usan la sesion del navegador (requireAuth); el mod se conecta por
 // WebSocket (gtaRampBridge.js) con la llave del usuario.
 
 const express = require('express');

@@ -1,4 +1,4 @@
--- GTA V "Rampa Imposible": el jugador sube una rampa de containers en un mapa aparte mientras los regalos de TikTok
+-- GTA V "Montaña Imposible": el jugador sube una rampa de containers en un mapa aparte mientras los regalos de TikTok
 -- hacen caer carros, camiones y objetos desde arriba. Usa la misma llave que GTA V modo historia (gta_config),
 -- pero con su propio mod, su propio puente WebSocket, sus reglas y su marcador de wins.
 

@@ -298,7 +298,7 @@ const GAME_LABELS = {
   minecraft: 'Survivaltik',
   minecraftcubo: 'Cubecraft',
   gta: 'Modo historia',
-  gtarampa: 'Rampa Imposible',
+  gtarampa: 'Montaña Imposible',
   kingdoms: 'Batalla de Reinos',
 };
 

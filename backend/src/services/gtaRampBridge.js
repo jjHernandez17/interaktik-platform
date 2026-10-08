@@ -1,6 +1,6 @@
 // tiktokinteractik/backend/src/services/gtaRampBridge.js
 //
-// Puente WebSocket de GTA V "Rampa Imposible": el mod aparte (gta-ramp-mod/) se conecta como cliente a
+// Puente WebSocket de GTA V "Montaña Imposible": el mod aparte (gta-ramp-mod/) se conecta como cliente a
 // <plataforma>/gtaramp-bridge/<llave> (la misma llave que el modo historia, pero otro canal: no se estorban).
 //
 // Mensajes del servidor al mod:

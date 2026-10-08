@@ -81,10 +81,11 @@ public class InteraktikRampa : Script
     float rampAngle = 14f;       // grados de inclinacion de la rampa
     int segments = 13;           // containers de largo de la rampa (RampLength)
     int walkColumns = 6;         // containers de ancho de la parte por donde se camina (RampWidth)
+    float spawnHeight = 30f;     // metros extra de altura desde donde caen los carros y objetos, SpawnHeight
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
-    float shelterHeight = 1.7f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
+    float shelterHeight = 1.3f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
     float shelterLean = 120f;     // angulo entre la rampa (lado de abajo) y el container: 90 = perpendicular, mas de 90 = recostado hacia arriba (ShelterLean)
     bool shelterFlip;             // ShelterFlip=true: intercambia que extremo del container (puertas o fondo) es el que asoma
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
@@ -230,6 +231,7 @@ public class InteraktikRampa : Script
                 else if (name == "ramplength") segments = Math.Max(4, Math.Min(30, (int)ParseFloat(value, segments)));
                 else if (name == "rampwidth") walkColumns = Math.Max(2, Math.Min(12, (int)ParseFloat(value, walkColumns)));
                 else if (name == "speedscale") speedScale = Math.Max(0.5f, Math.Min(4f, ParseFloat(value, speedScale)));
+                else if (name == "spawnheight") spawnHeight = Math.Max(0f, Math.Min(150f, ParseFloat(value, spawnHeight)));
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
                 else if (name == "shelterheight") shelterHeight = Math.Max(0.8f, Math.Min(6f, ParseFloat(value, shelterHeight)));
@@ -1163,7 +1165,7 @@ public class InteraktikRampa : Script
 
         // a lo ancho de la parte por donde se camina; arriba de la pendiente y empujado cuesta abajo (siguiendo su inclinacion)
         float lateral = (slot - 0.5f) * (2f * walkHalf - 2.2f); // todo el ancho por donde se camina, menos un margen junto a las paredes
-        Vector3 pos = new Vector3(spawnSpot.X + lateral, spawnSpot.Y, spawnSpot.Z + spawner.Lift);
+        Vector3 pos = new Vector3(spawnSpot.X + lateral, spawnSpot.Y, spawnSpot.Z + spawner.Lift + spawnHeight);
         float launch = spawner.Speed * speedScale;
         Vector3 push = new Vector3(0f, -launch * cosAngle, -launch * sinAngle);
 
@@ -1171,6 +1173,11 @@ public class InteraktikRampa : Script
         {
             Vehicle vehicle = World.CreateVehicle(model, pos, 180f);
             if (vehicle == null) return;
+            // cae de lado, de techo o de punta, nunca parado sobre sus ruedas
+            float[] rolls = new float[] { 90f, -90f, 180f, 180f };
+            float roll = rolls[random.Next(rolls.Length)];
+            float pitch = random.Next(3) == 0 ? (random.Next(2) == 0 ? 70f : -70f) : 0f;
+            vehicle.Rotation = new Vector3(pitch, roll, (float)random.NextDouble() * 360f);
             vehicle.IsPersistent = true;
             vehicle.IsEngineRunning = false;
             vehicle.LockStatus = VehicleLockStatus.CannotBeTriedToEnter;

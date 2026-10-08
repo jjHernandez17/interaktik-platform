@@ -2453,3 +2453,117 @@ a {
   cursor: not-allowed;
   background: rgba(148, 163, 184, 0.08);
 }
+
+/* ---------- Tarjetas de juegos: solo portada y titulo; al pasar el mouse aparece la descripcion con los botones ----------
+   Solo en dispositivos con mouse. En pantallas tactiles (sin hover) se queda la tarjeta con la descripcion visible debajo. */
+@media (hover: hover) and (pointer: fine) {
+  .game-card:not(.disabled) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+    isolation: isolate;
+  }
+
+  /* todo se apila en la misma celda: la portada manda el tamano de la tarjeta */
+  .game-card:not(.disabled) > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  .game-card:not(.disabled) > img {
+    width: 100%;
+    margin: 0;
+    z-index: 0;
+  }
+
+  /* titulo sobre la portada, con degradado para que se lea */
+  .game-card:not(.disabled) > h3 {
+    z-index: 3;
+    align-self: end;
+    margin: 0;
+    padding: 56px 16px 16px;
+    background: linear-gradient(180deg, transparent, rgba(4, 7, 16, 0.88));
+    pointer-events: none;
+  }
+
+  /* fondo oscuro semitransparente que aparece al pasar el mouse */
+  .game-card:not(.disabled)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(5, 8, 18, 0.8);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    pointer-events: none;
+  }
+
+  .game-card:not(.disabled) > p,
+  .game-card:not(.disabled) > .start-btn,
+  .game-card:not(.disabled) > .game-card-actions,
+  .game-card:not(.disabled) > .game-disabled-message,
+  .game-card:not(.disabled) > .game-locked-message {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+  }
+
+  .game-card:not(.disabled) > p {
+    z-index: 2;
+    align-self: start;
+    margin: 52px 18px 0;
+    color: #dbe4f3;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .game-card:not(.disabled) > .start-btn,
+  .game-card:not(.disabled) > .game-card-actions {
+    z-index: 4;
+    align-self: end;
+    justify-self: center;
+    margin-bottom: 68px;
+  }
+
+  .game-card:not(.disabled) > .game-disabled-message,
+  .game-card:not(.disabled) > .game-locked-message {
+    z-index: 2;
+    align-self: end;
+    margin: 0 18px 118px;
+    text-align: center;
+  }
+
+  .game-card:not(.disabled):hover::after,
+  .game-card:not(.disabled):focus-within::after {
+    opacity: 1;
+  }
+
+  .game-card:not(.disabled):hover > p,
+  .game-card:not(.disabled):hover > .start-btn,
+  .game-card:not(.disabled):hover > .game-card-actions,
+  .game-card:not(.disabled):hover > .game-disabled-message,
+  .game-card:not(.disabled):hover > .game-locked-message,
+  .game-card:not(.disabled):focus-within > p,
+  .game-card:not(.disabled):focus-within > .start-btn,
+  .game-card:not(.disabled):focus-within > .game-card-actions,
+  .game-card:not(.disabled):focus-within > .game-disabled-message,
+  .game-card:not(.disabled):focus-within > .game-locked-message {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  /* control del administrador (habilitar/deshabilitar): chip arriba a la derecha, siempre visible */
+  .game-card:not(.disabled) > .admin-game-toggle.in-card {
+    z-index: 5;
+    align-self: start;
+    justify-self: end;
+    margin: 10px;
+    padding: 5px 10px;
+    font-size: 0.74rem;
+    background: rgba(5, 8, 18, 0.82);
+    border-radius: 999px;
+  }
+}

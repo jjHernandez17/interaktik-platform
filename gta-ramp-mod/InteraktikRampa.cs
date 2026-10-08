@@ -84,8 +84,8 @@ public class InteraktikRampa : Script
     float pushAccel = 24f;       // empuje extra cuesta abajo para lo que cae (m/s2), PushAccel
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
-    float shelterHeight = 1.4f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
-    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de arriba de la rampa, en grados (ShelterLean)
+    float shelterHeight = 1.7f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
+    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -721,11 +721,12 @@ public class InteraktikRampa : Script
         return prop;
     }
 
-    // Container clavado en la rampa: casi todo enterrado, con la punta asomando y inclinada hacia la parte de ARRIBA de la rampa.
+    // Container clavado en la rampa: casi todo enterrado, con la punta asomando e inclinada hacia la parte descendente de la rampa.
     // surfacePoint es el punto de la superficie por donde entra; exposed, cuanto asoma de la punta (en metros, a lo largo de su
     // eje); down, la direccion cuesta abajo. El sentido de la inclinacion se comprueba midiendo hacia donde apunta la punta.
     void PlaceBuried(Model model, Vector3 localCenter, bool longAxisY, Vector3 surfacePoint, Vector3 down, float length, float exposed, float pitchDeg)
     {
+        Vector3 up = new Vector3(0f, 0f, 1f);
         Vector3 provisional = surfacePoint + new Vector3(0f, 0f, 0.5f);
         Prop prop = PlaceContainer(model, localCenter, longAxisY, provisional, pitchDeg);
         try
@@ -746,7 +747,8 @@ public class InteraktikRampa : Script
                 Vector3 tip = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + length * 0.5f));
                 Vector3 baseEnd = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
                 Vector3 d = (tip - baseEnd).Normalized;
-                float score = -Vector3.Dot(d, down); // cuanto mas apunta la punta cuesta arriba, mejor
+                if (Vector3.Dot(d, up) < 0f) d = d * -1f; // el extremo que asoma es el que apunta hacia arriba, sea cual sea el del modelo
+                float score = Vector3.Dot(d, down);       // la parte que asoma se inclina cuesta abajo (hacia la parte descendente)
                 if (score > bestScore) { bestScore = score; best = prop.Quaternion; }
             }
             prop.Quaternion = best;
@@ -755,6 +757,7 @@ public class InteraktikRampa : Script
             Vector3 tipNow = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z + length * 0.5f));
             Vector3 baseNow = prop.GetOffsetPosition(new Vector3(localCenter.X, localCenter.Y, localCenter.Z - length * 0.5f));
             Vector3 dir = (tipNow - baseNow).Normalized;
+            if (Vector3.Dot(dir, up) < 0f) dir = dir * -1f;
             Vector3 desiredCenter = surfacePoint + dir * (exposed - length * 0.5f);
             Vector3 center = prop.GetOffsetPosition(localCenter);
             prop.Position = prop.Position + (desiredCenter - center);
@@ -855,19 +858,17 @@ public class InteraktikRampa : Script
             }
         }
 
-        // 2b) tres puntos seguros (al 25 %, 50 % y 75 % de la rampa; izquierda, derecha e izquierda): UN container cada uno,
+        // 2b) dos puntos seguros (al 33 % y 66 % de la rampa, en la mitad del camino): UN container cada uno,
         // clavado de lado a lado de la rampa y atravesandola, de modo que solo asoma su punta por encima. El resto queda
         // tapado dentro de la propia rampa. El jugador se esconde detras de la punta.
-        int[] shelterSegments = new int[] { segments / 4, segments / 2, (segments * 3) / 4 };
-        int[] shelterSides = new int[] { -1, 1, -1 };
-        for (int k = 0; k < 3; k++)
+        int[] shelterSegments = new int[] { segments / 3, (segments * 2) / 3 };
+        for (int k = 0; k < shelterSegments.Length; k++)
         {
             int seg = Math.Max(1, Math.Min(segments - 2, shelterSegments[k]));
-            int col = shelterSides[k] < 0 ? 1 : columns - 2; // la columna junto a la pared
-            Vector3 surface = rampStart + dir * (length * (seg + 0.5f)) + new Vector3(lateral[col], 0f, 0f);
+            Vector3 surface = rampStart + dir * (length * (seg + 0.5f)); // justo en la mitad del camino, de pared a pared
             float exposed = Math.Min(shelterHeight, length * 0.85f);
             PlaceBuried(container, localCenter, longAxisY, surface, new Vector3(0f, -cos, -sin), length, exposed, rampAngle);
-            Log("Punto seguro " + (k + 1) + " en el segmento " + seg + (shelterSides[k] < 0 ? " (izquierda)" : " (derecha)") + ", asoma " + exposed + " m");
+            Log("Punto seguro " + (k + 1) + " en el segmento " + seg + " (centro), asoma " + exposed + " m");
         }
 
         // 3) plataforma de arriba (plana), con paredes a los lados y un muro al fondo

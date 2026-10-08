@@ -85,7 +85,7 @@ public class InteraktikRampa : Script
     float speedScale = 1.7f;     // multiplica la velocidad con la que sale todo lo que cae (SpeedScale)
     float pushMinSpeed = 15f;    // velocidad minima cuesta abajo mientras esta sobre la rampa (m/s), PushSpeed
     float shelterHeight = 1.7f;   // cuanto asoma la punta del container del punto seguro, en metros a lo largo de su eje (ShelterHeight)
-    float shelterLean = 38f;      // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
+    float shelterLean = 120f;     // inclinacion extra de la punta hacia la parte de abajo de la rampa, en grados (ShelterLean)
     bool blockPhoneScripts = true; // apaga el script del celular durante la partida (BlockPhone)
     bool flipPitch;              // por si en tu juego la rampa baja en vez de subir
     Vector3 origin = new Vector3(-3000f, 500f, 650f); // esquina del frente de la rampa (arriba del mar)
@@ -232,7 +232,7 @@ public class InteraktikRampa : Script
                 else if (name == "pushaccel") pushAccel = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushAccel)));
                 else if (name == "pushspeed") pushMinSpeed = Math.Max(0f, Math.Min(40f, ParseFloat(value, pushMinSpeed)));
                 else if (name == "shelterheight") shelterHeight = Math.Max(0.8f, Math.Min(6f, ParseFloat(value, shelterHeight)));
-                else if (name == "shelterlean") shelterLean = Math.Max(0f, Math.Min(65f, ParseFloat(value, shelterLean)));
+                else if (name == "shelterlean") shelterLean = Math.Max(0f, Math.Min(180f, ParseFloat(value, shelterLean)));
                 else if (name == "blockphone") blockPhoneScripts = !(value.ToLowerInvariant() == "false" || value == "0");
                 else if (name == "flippitch") flipPitch = value.ToLowerInvariant() == "true" || value == "1";
                 else if (name == "originx") ox = ParseFloat(value, ox);

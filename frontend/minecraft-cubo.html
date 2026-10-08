@@ -239,13 +239,13 @@
       <details class="mc-help">
         <summary>Menú y comandos dentro del juego</summary>
         <ul class="cb-list">
-          <li><strong>Tecla K</strong> o <code>/cubomenu</code> — menú visual: medidas, material, cuenta regresiva, objetivo de wins, wins actuales y botones para crear, vaciar o quitar cubos</li>
+          <li><strong>Tecla K</strong> o <code>/cubomenu</code> — menú visual: medidas, material, cuenta regresiva, objetivo de wins, wins actuales, botones para crear, vaciar o quitar cubos y el interruptor «Colocar bloques sin pausa» (mantener el clic derecho coloca un bloque en cada tick, sin esperas)</li>
           <li><code>/cubo tamano &lt;ancho&gt; &lt;alto&gt; &lt;largo&gt;</code> — <strong>crea un cubo nuevo</strong> con esas medidas (del cubo completo, vidrio incluido; mínimo 3 × 2 × 3). Puedes tener varios a la vez</li>
           <li><code>/cubo lista</code> · <code>/cubo seleccionar 2</code> — ver los cubos / elegir a cuál van los bloques y los regalos (por defecto, el último que creaste)</li>
           <li><code>/cubo reiniciar</code> · <code>/cubo detener</code> — vaciar y empezar de nuevo / quitar el cubo seleccionado; con <code>todos</code> o un número actúan sobre todos o sobre ese cubo</li>
           <li><code>/cubo contador 15</code> — segundos de cuenta regresiva al llenar un cubo (0 = sin cuenta) · <code>/cubo objetivo 10</code> — objetivo de wins (admite negativos) · <code>/cubo victorias poner 0</code> — fijar los wins</li>
           <li><code>/cubo agregar 100</code> — coloca bloques a mano en el cubo seleccionado · <code>/cubo bloque arcoiris</code> o <code>/cubo bloque minecraft:gold_block</code> — material</li>
-          <li><code>/cubo tnt 10</code> — suelta 10 TNT desde arriba del cubo, en zonas al azar; explotan al tocar un bloque · <code>/cubo rayo 5</code> — rayo de fuerza 5 sobre lo construido (fuerza 1 a 10; <code>/cubo rayo 5 3</code> lanza 3)</li>
+          <li><code>/cubo tnt 10</code> — suelta 10 TNT desde arriba del cubo, en zonas al azar; explotan al tocar un bloque · <code>/cubo rayo 5</code> — rayo de fuerza 5 sobre lo construido (fuerza 1 a 10; <code>/cubo rayo 5 3</code> lanza 3) · <code>/cubo vacio 2</code> — bomba de vacío: quita las 2 capas de arriba que haya construido</li>
         </ul>
         <p class="pk-hint">Cuando el jugador termina de llenar un cubo (a mano o con regalos) aparece la cuenta regresiva en grande en medio de la pantalla y, al llegar a 0, se suma 1 win. Si rompe un bloque antes de llegar a 0, la cuenta se cancela. El vidrio del cubo es indestructible.</p>
       </details>
@@ -271,7 +271,7 @@
         <div class="pk-panel-head">
           <div>
             <h2 id="cbRulesTitle">Reglas de regalos</h2>
-            <p class="pk-hint">Cada regalo puede poner bloques en el cubo, soltar TNT o lanzar un rayo. Un combo multiplica: 5 rosas de «20 bloques» ponen 100, 5 regalos de «10 TNT» sueltan 50.</p>
+            <p class="pk-hint">Cada regalo puede poner bloques en el cubo, soltar TNT, lanzar un rayo o quitar capas con una bomba de vacío. Un combo multiplica: 5 rosas de «20 bloques» ponen 100, 5 regalos de «10 TNT» sueltan 50.</p>
           </div>
           <span id="cbRuleCount" class="pk-count">0</span>
         </div>
@@ -324,6 +324,7 @@
                 <option value="blocks">Bloques para el cubo</option>
                 <option value="tnt">TNT: cae sobre el cubo</option>
                 <option value="lightning">Rayo: cae sobre lo construido</option>
+                <option value="vacuum">Bomba de vacío: quita capas de arriba</option>
               </select>
             </label>
 
@@ -345,7 +346,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/minecraft-cubo.js?v=20261017b"></script>
+  <script src="js/minecraft-cubo.js?v=20261018a"></script>
 </body>
 
 </html>

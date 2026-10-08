@@ -101,6 +101,8 @@ final class CuboGame {
         transient int pendingTnt = 0;     // TNT por soltar
         transient final List<Integer> lightning = new ArrayList<>(); // rayos por caer (fuerza de cada uno)
         transient int lightningCooldown = 0;
+        transient int pendingVacuum = 0;  // capas por quitar (bomba de vacio)
+        transient int vacuumCooldown = 0;
         transient int scanIdx = 0;        // por donde va el barrido que cuenta los bloques puestos
         transient int scanAir = 0;        // huecos vacios encontrados en el barrido actual
         transient int placeCursor = 0;    // por donde va la colocacion automatica (/cubo agregar)
@@ -584,6 +586,42 @@ final class CuboGame {
         return null;
     }
 
+    static final int MAX_VACUUM_LAYERS = 100;
+
+    String addVacuum(Cube cube, int layers) {
+        if (layers < 1 || layers > MAX_VACUUM_LAYERS) return "Las capas van de 1 a " + MAX_VACUUM_LAYERS + ".";
+        cube.pendingVacuum = Math.min(MAX_POWER_QUEUE, cube.pendingVacuum + layers);
+        return null;
+    }
+
+    // Quita la capa mas alta que tenga algo construido. Devuelve false si el cubo ya estaba vacio.
+    private boolean peelTopLayer(Cube cube, ServerLevel level) {
+        int iw = cube.innerW(), il = cube.innerL(), ih = cube.innerH();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int layer = ih - 1; layer >= 0; layer--) {
+            int y = cube.oy + 1 + layer;
+            boolean any = false;
+            for (int x = 0; x < iw; x++) {
+                for (int z = 0; z < il; z++) {
+                    BlockPos pos = new BlockPos(cube.ox + 1 + x, y, cube.oz + 1 + z);
+                    if (!level.hasChunkAt(pos)) continue;
+                    if (occupied(level.getBlockState(pos))) {
+                        level.setBlock(pos, air, Block.UPDATE_CLIENTS);
+                        any = true;
+                    }
+                }
+            }
+            if (any) {
+                double cx = cube.ox + 1 + iw / 2.0, cz = cube.oz + 1 + il / 2.0;
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, cx, y + 0.5, cz, Math.min(60, 10 + iw * il / 6), iw / 2.5, 0.3, il / 2.5, 0.02);
+                level.playSound(null, BlockPos.containing(cx, y, cz), SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 1.4F, 0.6F);
+                dirty = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void stepPowers(Cube cube, ServerLevel level) {
         // TNT: caen desde arriba del cubo en puntos al azar; la gravedad hace el resto
         for (int i = 0; i < TNT_PER_TICK && cube.pendingTnt > 0; i++) {
@@ -596,6 +634,14 @@ final class CuboGame {
             tnt.setFuse(TNT_FALL_FUSE);
             level.addFreshEntity(tnt);
             fallingTnt.add(tnt);
+        }
+
+        // Bomba de vacio: quita las capas de arriba, una cada pocos ticks
+        if (cube.vacuumCooldown > 0) cube.vacuumCooldown--;
+        if (cube.pendingVacuum > 0 && cube.vacuumCooldown == 0) {
+            cube.pendingVacuum--;
+            if (!peelTopLayer(cube, level)) cube.pendingVacuum = 0; // ya no queda nada que quitar
+            cube.vacuumCooldown = 6;
         }
 
         // Rayos: uno cada pocos ticks

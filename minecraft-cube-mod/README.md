@@ -24,6 +24,12 @@ comandos (`/cubo agregar <cantidad>`).
 - Todo el estado se guarda **dentro de cada mundo** (`interaktik_cubo.json` en la carpeta del mundo): un mundo nuevo
   empieza sin cubos ni victorias.
 
+## Colocar bloques sin pausa
+
+En Minecraft, mantener el clic derecho coloca un bloque cada 0,2 s. Con el mod, mientras tengas un bloque en la mano se coloca
+uno en cada tick (hasta 20 por segundo), sin espera entre bloque y bloque. Se puede apagar en el menú (tecla K) con el botón
+«Colocar bloques sin pausa». Solo afecta a la colocación de bloques, no a comer, atacar ni usar otros objetos.
+
 ## Menú visual
 
 Pulsa **K** (o escribe `/cubomenu`) para abrir el menú: ancho, alto y largo, material, cuenta regresiva, objetivo de
@@ -39,6 +45,7 @@ cambia en Opciones → Controles → «Interaktik Cubo Gigante». El menú manda
 | `/cubo iniciar [x y z]` | Crea un cubo con las últimas medidas (o con la esquina de su piso en esa posición) |
 | `/cubo agregar [cantidad] [id\|todos]` | Coloca bloques en el cubo seleccionado, en el cubo `id` o en todos |
 | `/cubo tnt <cantidad> [id\|todos]` | Suelta TNT desde arriba del cubo, en zonas al azar. Explotan justo al tocar un bloque |
+| `/cubo vacio <capas> [id\|todos]` | Bomba de vacío: quita, de una en una, las capas de arriba que haya construido el jugador |
 | `/cubo rayo <fuerza 1-10> [veces] [id\|todos]` | Rayo sobre lo que hay construido; la fuerza decide cuántos bloques rompe a su alrededor (el vidrio no se toca) |
 | `/cubo seleccionar <id>` · `/cubo lista` | Elige a qué cubo van los bloques por defecto / ver los cubos |
 | `/cubo bloque arcoiris` · `/cubo bloque <id>` | Material de relleno (por defecto, colores por capas) |

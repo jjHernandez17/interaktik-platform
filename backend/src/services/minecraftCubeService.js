@@ -116,9 +116,11 @@ const POWERS = {
   blocks: { label: 'Bloques', min: 1, max: MAX_RULE_BLOCKS, action: 'cube_add' },
   tnt: { label: 'TNT', min: 1, max: 500, action: 'cube_tnt' },
   lightning: { label: 'Rayo', min: 1, max: 10, action: 'cube_lightning' },
+  vacuum: { label: 'Bomba de vacío', min: 1, max: 50, action: 'cube_vacuum' },
 };
 const MAX_LIGHTNING_STRIKES = 20; // rayos por regalo (un combo los multiplica hasta aqui)
 const MAX_TNT_PER_GIFT = 2000;
+const MAX_VACUUM_LAYERS = 100; // capas por regalo (un combo las multiplica hasta aqui)
 
 function cleanPower(value) {
   const power = String(value || 'blocks').trim();
@@ -155,7 +157,7 @@ async function upsertRule(userId, { giftId, giftName, giftImageUrl, power, amoun
   const definition = POWERS[kind];
   const value = Math.round(Number(amount !== undefined ? amount : blocks));
   if (!Number.isFinite(value) || value < definition.min || value > definition.max) {
-    const what = kind === 'lightning' ? 'La fuerza del rayo' : `Los ${definition.label.toLowerCase()} por regalo`;
+    const what = kind === 'lightning' ? 'La fuerza del rayo' : kind === 'vacuum' ? 'Las capas por regalo' : `Los ${definition.label.toLowerCase()} por regalo`;
     throw badRequest(`${what} debe estar entre ${definition.min} y ${definition.max}.`);
   }
 
@@ -185,6 +187,9 @@ async function enqueuePower(userId, { uniqueId, nickname, power, amount, units }
   if (power === 'tnt') {
     action = 'cube_tnt';
     total = Math.min(MAX_TNT_PER_GIFT, amount * count);
+  } else if (power === 'vacuum') {
+    action = 'cube_vacuum';
+    total = Math.min(MAX_VACUUM_LAYERS, amount * count);
   } else if (power === 'lightning') {
     action = 'cube_lightning';
     total = Math.min(MAX_LIGHTNING_STRIKES, count) * 100 + Math.min(10, Math.max(1, amount));

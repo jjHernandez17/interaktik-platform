@@ -25,6 +25,11 @@ def bundledModules = [
         'fabric-key-binding-api-v1',
 ]
 
+loom {
+    // permite quitar la pausa entre un bloque y el siguiente al colocar (Minecraft.rightClickDelay)
+    accessWidenerPath = file('src/main/resources/interaktik_cubo.accesswidener')
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()

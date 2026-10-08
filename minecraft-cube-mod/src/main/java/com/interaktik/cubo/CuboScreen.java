@@ -91,6 +91,12 @@ final class CuboScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("§cQuitar todos los cubos"), button -> run("cubo detener todos")).bounds(left + 153, y, 147, 20).build());
 
         y += 26;
+        addRenderableWidget(Button.builder(instantLabel(), button -> {
+            CuboClient.setInstantPlace(!CuboClient.instantPlace());
+            button.setMessage(instantLabel());
+        }).bounds(left, y, 300, 20).build());
+
+        y += 26;
         addRenderableWidget(Button.builder(Component.literal("Cerrar"), button -> onClose()).bounds(left, y, 300, 20).build());
     }
 
@@ -101,6 +107,10 @@ final class CuboScreen extends Screen {
         box.setValue(value);
         addRenderableWidget(box);
         return box;
+    }
+
+    private static Component instantLabel() {
+        return Component.literal("Colocar bloques sin pausa: " + (CuboClient.instantPlace() ? "§aSí" : "§cNo"));
     }
 
     private Component materialLabel() {
@@ -186,7 +196,7 @@ final class CuboScreen extends Screen {
         graphics.drawString(font, "Objetivo de wins", left + 103, y2 - 10, 0xE0E0E0);
         graphics.drawString(font, "Wins actuales", left + 206, y2 - 10, 0xE0E0E0);
 
-        int bottom = y2 + 34 + 26 + 26 + 26;
+        int bottom = y2 + 34 + 26 + 26 + 26 + 26;
         if (!status.isEmpty()) graphics.drawCenteredString(font, status, width / 2, bottom, statusColor);
         graphics.drawCenteredString(font, "Al llenar un cubo empieza la cuenta regresiva y al llegar a 0 suma 1 win", width / 2, bottom + 14, 0x808080);
     }

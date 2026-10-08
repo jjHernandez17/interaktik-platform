@@ -30,6 +30,7 @@ import java.util.List;
  *   /cubo iniciar [x y z]                   crea un cubo nuevo donde esta el jugador (o con su piso en esa posicion)
  *   /cubo agregar [cantidad] [id|todos]     coloca bloques en el cubo seleccionado, en el que indiques o en todos
  *   /cubo tnt <cantidad> [id|todos]         suelta TNT desde arriba del cubo (explota al tocar un bloque)
+ *   /cubo vacio <capas> [id|todos]          bomba de vacio: quita las capas de arriba que haya construido
  *   /cubo rayo <fuerza 1-10> [veces] [id|todos]  rayo sobre lo construido; la fuerza decide cuanto rompe
  *   /cubo seleccionar <id> | lista          elige a que cubo van los bloques por defecto / ver los cubos
  *   /cubo bloque arcoiris | <bloque>        material de relleno
@@ -112,6 +113,13 @@ public final class CuboMod implements ModInitializer {
                             .then(Commands.literal("todos").executes(c -> tnt(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), "todos")))
                             .then(Commands.argument("id", IntegerArgumentType.integer(1))
                                     .executes(c -> tnt(c.getSource(), IntegerArgumentType.getInteger(c, "cantidad"), String.valueOf(IntegerArgumentType.getInteger(c, "id")))))));
+
+            root.then(Commands.literal("vacio")
+                    .then(Commands.argument("capas", IntegerArgumentType.integer(1, CuboGame.MAX_VACUUM_LAYERS))
+                            .executes(c -> vacuum(c.getSource(), IntegerArgumentType.getInteger(c, "capas"), null))
+                            .then(Commands.literal("todos").executes(c -> vacuum(c.getSource(), IntegerArgumentType.getInteger(c, "capas"), "todos")))
+                            .then(Commands.argument("id", IntegerArgumentType.integer(1))
+                                    .executes(c -> vacuum(c.getSource(), IntegerArgumentType.getInteger(c, "capas"), String.valueOf(IntegerArgumentType.getInteger(c, "id")))))));
 
             root.then(Commands.literal("rayo")
                     .then(Commands.argument("fuerza", IntegerArgumentType.integer(1, CuboGame.MAX_LIGHTNING_STRENGTH))
@@ -282,6 +290,14 @@ public final class CuboMod implements ModInitializer {
         if (cubes == null) return 0;
         for (CuboGame.Cube cube : cubes) game.addTnt(cube, n);
         return reply(source, "§c" + n + " TNT caen sobre " + (cubes.size() > 1 ? cubes.size() + " cubos." : "el cubo #" + cubes.get(0).id + "."));
+    }
+
+    private static int vacuum(CommandSourceStack source, int layers, String target) {
+        if (game == null) return fail(source, "Mundo no listo.");
+        List<CuboGame.Cube> cubes = resolve(source, target);
+        if (cubes == null) return 0;
+        for (CuboGame.Cube cube : cubes) game.addVacuum(cube, layers);
+        return reply(source, "§5Bomba de vacío: se quitan " + layers + " capa(s) " + (cubes.size() > 1 ? "de " + cubes.size() + " cubos." : "del cubo #" + cubes.get(0).id + "."));
     }
 
     private static int lightning(CommandSourceStack source, int strength, int times, String target) {

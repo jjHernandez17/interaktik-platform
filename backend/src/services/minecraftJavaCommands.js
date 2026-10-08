@@ -163,6 +163,12 @@ function toJavaSteps(item, options = {}) {
           `cubo tnt ${amount}`,
           `title @a actionbar {"text":"${cleanName(item.nickname)} lanzó ${amount} TNT sobre el cubo","color":"red"}`,
         ];
+      case 'cube_vacuum':
+        // Cubo Gigante: quita las capas de arriba que haya construido el jugador
+        return [
+          `cubo vacio ${amount}`,
+          `title @a actionbar {"text":"${cleanName(item.nickname)} activó una bomba de vacío: -${amount} ${amount === 1 ? 'capa' : 'capas'}","color":"dark_purple"}`,
+        ];
       case 'cube_lightning': {
         // amount = veces * 100 + fuerza (1 a 10)
         const strength = Math.min(10, Math.max(1, amount % 100));

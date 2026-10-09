@@ -625,6 +625,12 @@ async function restoreTiktokConnection() {
     if (data.connected && data.tiktok_username) {
       kdUsername.value = `@${data.tiktok_username}`;
       setConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Presiona "Conectar a live" cuando ya estés transmitiendo.`);
+      window.interaktikResumeLive?.('kingdoms', (info) => {
+        isConnected = true;
+        setConnectionStatus('connected', info.message || '', '');
+        connectToEvents();
+        void loadGiftCatalog();
+      });
     } else {
       kdUsername.value = '';
       setConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');

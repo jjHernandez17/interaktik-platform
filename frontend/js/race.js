@@ -1100,6 +1100,12 @@ async function restoreTiktokConnectionRace() {
       raceUsername.value = `@${data.tiktok_username}`;
       lockRaceUsernameInput();
       setRaceConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      window.interaktikResumeLive?.('race', (info) => {
+        isConnected = true;
+        if (raceLiveIndicator) raceLiveIndicator.classList.remove('hidden');
+        setRaceConnectionStatus('connected', info.message || '', '');
+        connectToEvents();
+      });
     } else {
       raceUsername.value = '';
       unlockRaceUsernameInput();

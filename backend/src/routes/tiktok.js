@@ -16,14 +16,20 @@ async function getConnectionByGameType(req, res, gameType) {
 
   const connection = await tiktokService.getTiktokConnection(userId, gameType);
 
+  // La pagina necesita la clave firmada de su conexion para abrir el canal de eventos sin depender de la cookie de sesion
+  const normalizedGameType = tiktokLiveManager.normalizeGameType(gameType);
+  const eventsAccess = tiktokLiveManager.getEventsAccess({ userId, sessionId: req.sessionID, gameType: normalizedGameType });
+
   if (!connection) {
-    return res.json({ connected: false, tiktok_username: null });
+    return res.json({ connected: false, tiktok_username: null, gameType: normalizedGameType, ...eventsAccess });
   }
 
   return res.json({
     connected: connection.is_linked,
     tiktok_username: connection.tiktok_username,
     linked_at: connection.linked_at,
+    gameType: normalizedGameType,
+    ...eventsAccess,
   });
 }
 

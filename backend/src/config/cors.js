@@ -50,7 +50,8 @@ function getCorsConfig() {
       'Content-Type',
       'Accept',
       'Authorization',
-      'Cache-Control'
+      'Cache-Control',
+      'Last-Event-ID' // el navegador la manda al reabrir el canal de eventos (EventSource) para pedir lo que se perdio
     ],
     optionsSuccessStatus: 200 // Para legacy browsers
   };

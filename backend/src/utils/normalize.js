@@ -149,7 +149,7 @@ function sanitizeSnakePlayer(player, fallbackSide) {
   };
 
   const defaultPlayer = defaults[fallbackSide || 'left'];
-  const apples = Array.isArray(player?.apples) ? player.apples.slice(0, 100).map(sanitizeSnakeApple) : [];
+  const apples = Array.isArray(player?.apples) ? player.apples.slice(0, 600).map(sanitizeSnakeApple) : [];
 
   return {
     side: String(player?.side || defaultPlayer.side).trim().slice(0, 20),

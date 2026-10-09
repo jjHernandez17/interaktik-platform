@@ -106,6 +106,11 @@ async function restoreTiktokConnection() {
       usernameInput.value = `@${data.tiktok_username}`;
       lockUsernameInput();
       setStatus('linked', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      window.interaktikResumeLive?.('roblox', (info) => {
+        liveConnected = true;
+        setStatus('connected', info.message || `Conectado a @${data.tiktok_username}.`);
+        connectLiveEvents();
+      });
     } else {
       setStatus('unlinked', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
@@ -199,9 +204,22 @@ function connectLiveEvents() {
     }
   });
 
+  // El estado real del live llega por este canal: se muestra tal cual (un corte del canal no significa que el live se haya caido,
+  // el navegador reintenta solo y el servidor reenvia el estado al volver)
+  liveEventsSource.addEventListener('status', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const known = ['connected', 'connecting', 'disconnected', 'error'];
+      const status = payload.status === 'live_off' ? 'error' : (known.includes(payload.status) ? payload.status : 'disconnected');
+      const message = payload.status === 'live_off' ? 'El live está apagado.' : (payload.message || '');
+      liveConnected = payload.status === 'connected';
+      setStatus(status, message);
+    } catch (error) {
+      console.error('[LIVE] Error leyendo el estado del live:', error);
+    }
+  });
   liveEventsSource.addEventListener('error', () => {
-    liveConnected = false;
-    setStatus('disconnected', 'La conexion de eventos con el servidor se interrumpio.');
+    // EventSource reintenta solo; el estado real llega en el siguiente evento 'status'
   });
 }
 

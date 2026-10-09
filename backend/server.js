@@ -41,7 +41,7 @@ const overlayAccumulator = require('./src/services/overlayAccumulator');
 const overlayAutoConnect = require('./src/services/overlayAutoConnect');
 const streamStatsTracker = require('./src/services/streamStatsTracker');
 const streamStatsRouter = require('./src/routes/streamStatsRoutes');
-const { hub } = require('./src/services/liveHub');
+const { hub, getReplayEvents } = require('./src/services/liveHub');
 const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest, resolveEventsOwnerKey, getConnectionStateByOwnerKey } = require('./src/services/tiktokLiveManager');
 
 // Initialize Express app
@@ -147,7 +147,7 @@ app.get('/events', (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'Cache-Control',
+    'Access-Control-Allow-Headers': 'Cache-Control, Last-Event-ID',
     'X-Accel-Buffering': 'no',
   };
 
@@ -178,20 +178,39 @@ app.get('/events', (req, res) => {
     gameType
   })}\n\n`);
 
+  const writeEvent = (eventName, payload) => {
+    if (eventName === 'gift') {
+      logger.info(`[SSE-PUSH] Enviando gift al cliente (${gameType}):`, {
+        giftName: payload?.giftName,
+        eventId: payload?.eventId,
+        timestamp: payload?.timestamp,
+      });
+    }
+
+    // El id permite que el navegador, tras un corte, pida lo que se perdio (cabecera Last-Event-ID)
+    if (payload?.eventId) {
+      res.write(`id: ${payload.eventId}\n`);
+    }
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  // Si el cliente ya habia estado conectado y se corto el canal, se le reenvian los regalos que no alcanzo a recibir
+  const resumeFrom = req.get('Last-Event-ID') || req.query?.lastEventId || '';
+  if (resumeFrom) {
+    const missed = getReplayEvents(ownerKey, gameType, resumeFrom);
+    if (missed.length) {
+      logger.info(`[SSE-REPLAY] Reenviando ${missed.length} evento(s) perdidos a un cliente de ${gameType} (desde ${resumeFrom})`);
+    }
+    missed.forEach((item) => writeEvent(item.eventName, item.payload));
+  }
+
   const pushEvent = ({ eventName, payload }) => {
     if (!payload || payload.gameType !== gameType || payload.ownerKey !== ownerKey) {
       return;
     }
 
-    if (eventName === 'gift') {
-      logger.info(`[SSE-PUSH] Enviando gift al cliente (${gameType}):`, {
-        giftName: payload?.giftName,
-        timestamp: payload?.timestamp,
-      });
-    }
-
-    res.write(`event: ${eventName}\n`);
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    writeEvent(eventName, payload);
   };
 
   hub.on('live-event', pushEvent);
@@ -236,7 +255,7 @@ app.get('/events/overlay', async (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'Cache-Control',
+    'Access-Control-Allow-Headers': 'Cache-Control, Last-Event-ID',
     'X-Accel-Buffering': 'no',
   };
 

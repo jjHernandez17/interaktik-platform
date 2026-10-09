@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const env = require('../config/env');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
+const { createGiftPipeline } = require('./giftPipeline');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
 const minecraftService = require('./minecraftService');
@@ -31,6 +32,19 @@ const connections = new Map();
 
 const STALE_CONNECTION_CHECK_INTERVAL_MS = 30000;
 const RECENT_MSG_ID_LIMIT = 300;
+
+// Como se entregan a cada juego los regalos con racha (combo). 'final' = un evento por racha con el total (cuando TikTok
+// manda su cierre, o por inactividad si no llega). 'delta' = cada toque se entrega al instante con las unidades nuevas.
+// Snake aplica manzanas por unidad, asi que ahi cada toque se ve en el momento.
+const GIFT_MODE_BY_GAME = {
+  snake: 'delta',
+};
+
+// Si el live se corta sin que el streamer lo pida (TikTok cierra la conexion, termina la transmision, hay un corte de red),
+// el servidor intenta reconectar solo, cada vez mas espaciado, antes de rendirse.
+const RECONNECT_DELAYS_MS = [4000, 8000, 15000, 25000, 40000, 60000, 60000, 60000];
+const stoppedByUser = new Set();
+const reconnectTimers = new Map();
 
 // El WS de TikTok a veces reentrega el mismo evento (reconexiones internas de
 // la libreria, mensajes de "historial" al reconectar, etc.). Sin esto, un solo
@@ -192,6 +206,122 @@ function scheduleConnectionCleanup() {
 }
 
 scheduleConnectionCleanup();
+
+function cancelReconnect(ownerKey) {
+  const timer = reconnectTimers.get(ownerKey);
+  if (timer) {
+    clearTimeout(timer);
+    reconnectTimers.delete(ownerKey);
+  }
+}
+
+function scheduleReconnect({ gameType, uniqueId, userId, sessionId, ownerKey }, attempt = 0) {
+  if (stoppedByUser.has(ownerKey)) return;
+
+  const delay = RECONNECT_DELAYS_MS[attempt];
+  if (delay === undefined) {
+    logger.warn(`TikTok Live: se agotaron los intentos de reconexion para ${gameType} @${uniqueId}`);
+    publish(gameType, 'status', {
+      ownerKey,
+      ...getEmptyState(gameType),
+      uniqueId,
+      status: 'disconnected',
+      message: 'No se pudo reconectar automaticamente. Pulsa Conectar para volver a intentarlo.',
+    });
+    return;
+  }
+
+  cancelReconnect(ownerKey);
+  const timer = setTimeout(async () => {
+    reconnectTimers.delete(ownerKey);
+    if (stoppedByUser.has(ownerKey)) return;
+
+    const current = connections.get(ownerKey);
+    if (current && current.status === 'connected') return; // ya volvio (el streamer lo reconecto a mano)
+    if (current && current.status === 'connecting' && !current.autoReconnect) return; // hay una conexion manual en curso
+
+    logger.info(`TikTok Live: reconectando ${gameType} @${uniqueId} (intento ${attempt + 1}/${RECONNECT_DELAYS_MS.length})`);
+    publish(gameType, 'status', {
+      ownerKey,
+      ...getEmptyState(gameType),
+      uniqueId,
+      status: 'connecting',
+      message: `Reconectando con @${uniqueId} (intento ${attempt + 1})...`,
+    });
+
+    let result = null;
+    try {
+      result = await connectGame({ gameType, uniqueId, userId, sessionId, autoReconnect: true });
+    } catch (error) {
+      logger.warn(`TikTok Live: fallo el intento de reconexion de ${gameType}`, error);
+    }
+
+    if (stoppedByUser.has(ownerKey)) return;
+    if (!result || result.status !== 'connected') {
+      scheduleReconnect({ gameType, uniqueId, userId, sessionId, ownerKey }, attempt + 1);
+    } else {
+      logger.success(`TikTok Live: reconectado ${gameType} @${uniqueId}`);
+    }
+  }, delay);
+
+  if (typeof timer.unref === 'function') timer.unref();
+  reconnectTimers.set(ownerKey, timer);
+}
+
+// Entrega un regalo ya normalizado (ver giftPipeline.js) a la pagina del juego y a los servicios del servidor
+function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
+  const giftPayload = {
+    ...simplifyGiftEvent(data),
+    // repeatCount = unidades NUEVAS de este evento; repeatEnd siempre true para que ningun juego espere un cierre
+    repeatCount: chunk.repeatCount,
+    repeatEnd: true,
+    streakTotal: chunk.streakTotal,
+    deliveredAs: chunk.reason,
+  };
+
+  logger.info(
+    `[GIFT] ${gameType} @${giftPayload.user?.uniqueId || '?'} ${giftPayload.giftName}#${giftPayload.giftId} `
+    + `x${chunk.repeatCount} (racha ${chunk.streakTotal}, ${chunk.reason}) -> publicado`,
+  );
+
+  publish(gameType, 'gift', { ownerKey, ...giftPayload });
+
+  if (gameType === 'roblox' && userId) {
+    robloxDanceService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Roblox Dance', error);
+    });
+  }
+
+  if (gameType === 'robloxparkour' && userId) {
+    robloxParkourService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Roblox Parkour', error);
+    });
+  }
+
+  if (gameType === 'minecraft' && userId) {
+    minecraftService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para Minecraft', error);
+    });
+  }
+
+  if (gameType === 'minecraftcubo' && userId) {
+    minecraftCubeService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para el Cubo Gigante', error);
+    });
+  }
+
+  if (gameType === 'gtarampa' && userId) {
+    gtaRampService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para GTA V Rampa', error);
+    });
+  }
+
+  if (gameType === 'gta' && userId) {
+    gtaService.handleGift(userId, giftPayload).catch((error) => {
+      logger.warn('No se pudo procesar regalo para GTA V', error);
+    });
+  }
+}
 
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
@@ -442,13 +572,19 @@ async function getGiftCatalog(gameType = 'app', { userId = null, sessionId = nul
   };
 }
 
-async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionId = null }) {
+async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionId = null, autoReconnect = false }) {
   const normalizedGameType = normalizeGameType(gameType);
   const normalizedUniqueId = String(uniqueId || '').trim().replace(/^@/, '');
   const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalizedGameType });
 
   if (!normalizedUniqueId) {
     throw new Error('Debes proporcionar uniqueId.');
+  }
+
+  // Una conexion pedida por el streamer cancela cualquier reconexion automatica pendiente y la vuelve a permitir
+  if (!autoReconnect) {
+    stoppedByUser.delete(ownerKey);
+    cancelReconnect(ownerKey);
   }
 
   const existing = connections.get(ownerKey);
@@ -458,7 +594,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
   }
 
   if (existing?.connection) {
-    await disconnectGame(normalizedGameType, { userId, sessionId }).catch((error) => {
+    await disconnectGame(normalizedGameType, { userId, sessionId, byUser: false }).catch((error) => {
       logger.warn(`No se pudo cerrar la conexión previa de ${normalizedGameType}`, error);
     });
   }
@@ -498,7 +634,18 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
     connectedAt: null,
     updatedAt: new Date().toISOString(),
     connection,
+    autoReconnect,
+    wasConnected: false,
+    giftPipeline: null,
   };
+
+  entry.giftPipeline = createGiftPipeline({
+    mode: GIFT_MODE_BY_GAME[normalizedGameType] || 'final',
+    log: (kind, info) => {
+      if (kind === 'drop') logger.info(`[GIFT-DROP] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user}`);
+    },
+    emit: (chunk, rawData) => deliverGift({ gameType: normalizedGameType, ownerKey, userId, chunk, data: rawData }),
+  });
 
   connections.set(ownerKey, entry);
   publish(normalizedGameType, 'status', getOwnedConnectionState(normalizedGameType, { userId, sessionId, ownerKey }));
@@ -507,83 +654,24 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
 
 
 connection.on(WebcastEvent.GIFT, (data) => {
-
-  console.log("🎁 BACKEND GIFT", {
-    giftId: data?.giftId,
-    repeatCount: data?.repeatCount,
-    repeatEnd: data?.repeatEnd,
-    combo: data?.giftDetails?.combo,
-    giftType: data?.giftDetails?.giftType,
-    createTime: data?.createTime,
-    userId: data?.user?.userId,
-    uniqueId: data?.user?.uniqueId,
-  });
-
   const currentEntry = connections.get(ownerKey);
   if (!currentEntry || currentEntry.connection !== connection) return;
-  if (isDuplicateMessage(currentEntry, data)) {
-    logger.warn(`Regalo duplicado ignorado para ${normalizedGameType} (msgId repetido)`);
-    return;
+
+  // Una linea por mensaje crudo de TikTok: sirve para ver en los logs que llego exactamente, incluso lo que no se entrega
+  logger.info(
+    `[GIFT-RAW] ${normalizedGameType} @${data?.user?.uniqueId || '?'} ${data?.giftDetails?.giftName || '?'}#${data?.giftId} `
+    + `count=${data?.repeatCount} end=${data?.repeatEnd} combo=${data?.giftDetails?.combo} type=${data?.giftDetails?.giftType} `
+    + `group=${data?.groupId || '-'} msg=${data?.common?.msgId || data?.msgId || '-'}`,
+  );
+
+  try {
+    // El pipeline decide cuando se entrega cada regalo (ver giftPipeline.js): nunca depende de que llegue un cierre de racha
+    currentEntry.giftPipeline.handle(data);
+  } catch (error) {
+    logger.error(`Error procesando un regalo en ${normalizedGameType}`, error);
   }
-
-  // Los regalos "en racha" (ej. Rosa: se puede mantener presionado para
-  // mandar varios seguidos) llegan como VARIOS mensajes mientras dura la
-  // racha — uno por cada incremento, con repeatCount subiendo y
-  // repeatEnd:false, y uno final con repeatEnd:true que confirma el total
-  // real. Sin este filtro, cada mensaje intermedio se publicaba como si
-  // fuera un regalo completo aparte: hasta un solo regalo (que igual pasa
-  // por este protocolo aunque se mande una sola vez) terminaba disparando 2
-  // veces en todos los juegos. combo:false = regalo que no tiene racha
-  // (siempre viene ya "final", se deja pasar directo).
-  const isStreakableGift = Boolean(data?.giftDetails?.combo);
-  if (isStreakableGift && !data?.repeatEnd) {
-    return;
-  }
-
-  const giftPayload = simplifyGiftEvent(data);
-
-  publish(normalizedGameType, "gift", {
-    ownerKey,
-    ...giftPayload,
-  });
-
-  if (normalizedGameType === 'roblox' && userId) {
-    robloxDanceService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para Roblox Dance', error);
-    });
-  }
-
-  if (normalizedGameType === 'robloxparkour' && userId) {
-    robloxParkourService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para Roblox Parkour', error);
-    });
-  }
-
-  if (normalizedGameType === 'minecraft' && userId) {
-    minecraftService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para Minecraft', error);
-    });
-  }
-
-  if (normalizedGameType === 'minecraftcubo' && userId) {
-    minecraftCubeService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para el Cubo Gigante', error);
-    });
-  }
-
-  if (normalizedGameType === 'gtarampa' && userId) {
-    gtaRampService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para GTA V Rampa', error);
-    });
-  }
-
-  if (normalizedGameType === 'gta' && userId) {
-    gtaService.handleGift(userId, giftPayload).catch((error) => {
-      logger.warn('No se pudo procesar regalo para GTA V', error);
-    });
-  }
-
 });
+
   // connection.on(WebcastEvent.GIFT, (data) => {
   //   logger.info(`[GIFT EVENT] Recibido en backend para ${normalizedGameType}:`, {
   //     giftId: data?.giftId,
@@ -694,6 +782,7 @@ connection.on(WebcastEvent.CHAT, (data) => {
     if (!current) return;
 
     current.status = 'connected';
+    current.wasConnected = true;
     current.roomId = state?.roomId || connection.roomId || '';
     current.roomInfo = state?.roomInfo || connection.roomInfo || null;
     current.availableGifts = Array.isArray(state?.availableGifts) && state.availableGifts.length > 0
@@ -741,6 +830,12 @@ connection.on(WebcastEvent.CHAT, (data) => {
       error: '',
     });
     logger.info(`TikTok Live desconectado: ${normalizedGameType} code=${code} reason=${reason || ''}`);
+
+    // Lo que estaba esperando el cierre de su racha se entrega ahora, y se intenta reconectar sin que el streamer haga nada
+    try { current.giftPipeline?.dispose(); } catch (error) { logger.warn('No se pudo vaciar la cola de regalos', error); }
+    if (current.wasConnected && !stoppedByUser.has(ownerKey)) {
+      scheduleReconnect({ gameType: normalizedGameType, uniqueId: normalizedUniqueId, userId, sessionId, ownerKey }, 0);
+    }
   });
 
   connection.on(ControlEvent.ERROR, (error) => {
@@ -769,6 +864,7 @@ connection.on(WebcastEvent.CHAT, (data) => {
         ? connectedState.availableGifts
         : Array.isArray(connection.availableGifts) ? connection.availableGifts : current.availableGifts;
       current.status = 'connected';
+      current.wasConnected = true;
       current.message = `Conectado a @${normalizedUniqueId}.`;
       current.error = '';
       current.connectedAt = current.connectedAt || new Date().toISOString();
@@ -829,9 +925,16 @@ connection.on(WebcastEvent.CHAT, (data) => {
   }
 }
 
-async function disconnectGame(gameType = 'app', { userId = null, sessionId = null } = {}) {
+async function disconnectGame(gameType = 'app', { userId = null, sessionId = null, byUser = true } = {}) {
   const normalizedGameType = normalizeGameType(gameType);
   const ownerKey = buildConnectionKey({ userId, sessionId, gameType: normalizedGameType });
+
+  // Si lo cerro el streamer (o el sistema a proposito) no se reconecta solo. Un cierre interno (para abrir otra conexion) no cuenta.
+  if (byUser) {
+    stoppedByUser.add(ownerKey);
+    cancelReconnect(ownerKey);
+  }
+
   const entry = connections.get(ownerKey);
 
   if (!entry) {
@@ -840,6 +943,9 @@ async function disconnectGame(gameType = 'app', { userId = null, sessionId = nul
 
   const connection = entry.connection;
   connections.delete(ownerKey);
+
+  // Una racha que estaba esperando su cierre no se pierde al desconectar
+  try { entry.giftPipeline?.dispose(); } catch (error) { logger.warn('No se pudo vaciar la cola de regalos', error); }
 
   if (connection) {
     try {

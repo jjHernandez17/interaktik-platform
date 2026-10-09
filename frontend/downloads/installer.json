@@ -1,10 +1,10 @@
 {
-    "version":  202610082359,
+    "version":  202610091625,
     "file":  "InteraktikInstaller.exe",
-    "sha256":  "46fe2980e285c0cc050c9b3ecc1fa6b4ad9af8e1ba0bc6446abfaaf957f8f832",
+    "sha256":  "9eba27d753a488b4b03379f5b64aa5530f08a904f5b3df317f84b00c95d724bc",
     "files":  {
                   "InteraktikGTA.dll":  "4dc3349b34af44fcf461cc6a4ea2271cc41dd5c65e1c447e1d9ed91da140588f",
-                  "InteraktikRampa.dll":  "99c64cba6b01f77f9e0d5a2b9722b2eb60ca054f3a18edb0d4d02965577d5a9e",
+                  "InteraktikRampa.dll":  "aa836c7d5fb85268eb137af378fd17e4e65e08875244b2d86d1e71885b07e96d",
                   "InteraktikMod.jar":  "819d40b46cf96cd3337bc1cfecb6a19288cc11ed1f16bfe51317a16a30517aa4",
                   "InteraktikCubo.jar":  "4c2c68aa40efc305e4e58dfb818503c7b9165be8cc426590c0485e268bb77c2d"
               }

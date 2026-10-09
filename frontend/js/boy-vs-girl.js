@@ -817,6 +817,11 @@ async function restoreTiktokConnection() {
     if (data.connected && data.tiktok_username) {
       bvgUsername.value = `@${data.tiktok_username}`;
       setBvgConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Presiona "Conectar a live" cuando ya estés transmitiendo.`);
+      window.interaktikResumeLive?.('boyvsgirl', (info) => {
+        isConnected = true;
+        setBvgConnectionStatus('connected', info.message || '', '');
+        connectToEvents();
+      });
     } else {
       bvgUsername.value = '';
       setBvgConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');

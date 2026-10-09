@@ -81,7 +81,7 @@ public class InteraktikRampa : Script
     enum Mode { Off, Loading, Playing, Won }
 
     const string DefaultUrl = "https://interaktik-platform-production.up.railway.app";
-    const int MaxJobAgeSeconds = 60;
+    const int MaxJobAgeSeconds = 300; // un regalo recibido durante la carga del mapa no se pierde (solo caducan los muy viejos)
     const int MaxLive = 150;           // carros y objetos que pueden existir a la vez; el resto espera en cola
     const int SpawnIntervalMs = 150;   // tiempo minimo entre una aparicion y la siguiente
 
@@ -1120,7 +1120,7 @@ public class InteraktikRampa : Script
     void Win()
     {
         SetMode(Mode.Won);
-        ClearSpawned();
+        ClearSpawned(true);
         cfgWins += 1; // la plataforma confirma el numero real enseguida
         SendNow("{\"type\":\"win\"}");
         Flash(cfgWins == cfgGoal ? "¡OBJETIVO DE WINS CUMPLIDO!" : "¡+1 WIN!", 3500);
@@ -1307,11 +1307,12 @@ public class InteraktikRampa : Script
         }
     }
 
-    void ClearSpawned()
+    // keepQueue: al ganar solo se limpia lo que ya cayo; los regalos que seguian en cola se siguen sacando en la ronda nueva
+    void ClearSpawned(bool keepQueue = false)
     {
         foreach (Tracked t in tracked) Remove(t);
         tracked.Clear();
-        pending.Clear();
+        if (!keepQueue) pending.Clear();
     }
 
     // ================= pantalla =================

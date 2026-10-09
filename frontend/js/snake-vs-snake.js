@@ -34,6 +34,9 @@ let lastProcessedGiftAt = 0;
 const boardImageCache = { left: null, right: null };
 const carryOverApples = { left: 0, right: 0 };
 const pendingGiftApples = { left: [], right: [] };
+const processedGiftEventIds = new Set();
+const PENDING_APPLES_STORAGE_KEY = 'ik:snake-pending-apples';
+const MAX_APPLES_ON_BOARD = 600;
 
 // Gift catalog state variables for LEFT snake
 let leftSelectedCatalogGiftId = '';
@@ -310,7 +313,7 @@ function sanitizeLoadedSnake(player, fallback) {
     applesEaten: Math.max(0, Number(player?.applesEaten || 0) || 0),
     wins: Math.max(0, Number(player?.wins || 0) || 0),
     finished: Boolean(player?.finished),
-    apples: apples.slice(0, 100).map((apple, index) => ({
+    apples: apples.slice(0, MAX_APPLES_ON_BOARD).map((apple, index) => ({
       id: String(apple?.id || `apple-${index + 1}`),
       index: Math.max(0, Number(apple?.index || 0) || 0),
       value: Math.max(1, Number(apple?.value || 1) || 1),
@@ -388,7 +391,7 @@ function normalizeSnakeState(side) {
       usedAppleCells.add(apple.index);
       return true;
     })
-    .slice(0, 100);
+    .slice(0, Math.min(MAX_APPLES_ON_BOARD, pathLength));
 
   if (snake.length >= pathLength) {
     snake.finished = true;
@@ -548,16 +551,16 @@ function setLiveStatus(status, message = '', error = '') {
     setText(snakeConnectionDetails, 'No has vinculado un ID de TikTok Live.');
   }
 }
-// El usuario del live se escribe en este mismo campo (es propio de este juego, no el vinculado en "Juegos").
-// Solo se bloquea mientras hay un live conectado.
+// El usuario del live es el que se vincula en la seccion "Juegos": este campo nunca se edita a mano.
+// El boton Conectar solo se habilita si hay un usuario vinculado.
 function lockUsernameInput() {
   snakeUsernameInput.disabled = true;
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = false;
 }
 
 function unlockUsernameInput() {
-  snakeUsernameInput.disabled = false;
-  if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = false;
+  snakeUsernameInput.disabled = true;
+  if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = true;
 }
 
 function restoreUsernameInputState() {
@@ -578,12 +581,9 @@ function updateConnectionState(nextState) {
   };
   setLiveStatus(state.live.status, state.live.message, state.live.error);
 
-  // Bloquear input cuando se conecta; en cualquier otro estado se puede cambiar el usuario
+  // Bloquear input cuando se conecta
   if (nextState.status === 'connected') {
-    if (state.live.uniqueId) snakeUsernameInput.value = `@${state.live.uniqueId}`;
     lockUsernameInput();
-  } else {
-    unlockUsernameInput();
   }
 }
 
@@ -1118,10 +1118,24 @@ function drawFood(ctx, apples, path, cellWidth, cellHeight) {
 
     const x = point.x * cellWidth + cellWidth / 2;
     const y = point.y * cellHeight + cellHeight / 2;
+    const value = Math.max(1, Number(apple.value || 1) || 1);
+    // Una manzana que vale varias (cuando el tablero no tiene sitio para todas) se dibuja mas grande y con su valor
+    const radius = value > 1 ? foodRadius * Math.min(2.2, 1 + Math.log2(value) * 0.28) : foodRadius;
 
     ctx.beginPath();
-    ctx.arc(x, y, foodRadius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
+
+    if (value > 1) {
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#1b1b1b';
+      ctx.font = `bold ${Math.max(9, Math.round(radius * 1.05))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(value), x, y + 1);
+      ctx.restore();
+    }
   });
 
   ctx.restore();
@@ -1260,7 +1274,11 @@ function gameLoop(currentTime) {
 
   if (gameRunning) {
     while (currentTime - lastUpdateTime >= tickDuration) {
-      tickGame();
+      try {
+        tickGame();
+      } catch (error) {
+        console.error('[SNAKE] Error en un turno del juego:', error);
+      }
       lastUpdateTime += tickDuration;
 
       if (!gameRunning) {
@@ -1271,8 +1289,13 @@ function gameLoop(currentTime) {
 
   let alpha = (currentTime - lastUpdateTime) / tickDuration;
   alpha = Math.min(Math.max(alpha, 0), 1);
-  renderBoards(alpha);
+  try {
+    renderBoards(alpha);
+  } catch (error) {
+    console.error('[SNAKE] Error al dibujar el tablero:', error);
+  }
 
+  // Pase lo que pase en un turno, el juego sigue
   animationFrameId = requestAnimationFrame(gameLoop);
 }
 
@@ -1319,6 +1342,17 @@ function renderHistory() {
     .map((entry) => {
       const sideLabel = entry.side === 'right' ? 'Derecha' : 'Izquierda';
       const sourceLabel = entry.source === 'live' ? 'TikTok Live' : 'Manual';
+      if (entry.source === 'info') {
+        return `
+        <article class="history-item">
+          <div class="history-main">
+            <strong>${escapeHtml(entry.message)}</strong>
+            <div class="history-meta">Aviso</div>
+          </div>
+          <div class="history-meta">${escapeHtml(entry.timeLabel || '')}</div>
+        </article>
+      `;
+      }
       return `
         <article class="history-item">
           <div class="history-main">
@@ -1622,6 +1656,25 @@ function queueCarryOverApples(side, amount) {
   carryOverApples[sideKey] += qty;
 }
 
+function persistPendingGiftApples() {
+  try {
+    window.localStorage.setItem(PENDING_APPLES_STORAGE_KEY, JSON.stringify(pendingGiftApples));
+  } catch (error) { /* sin almacenamiento */ }
+}
+
+function loadPendingGiftApples() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PENDING_APPLES_STORAGE_KEY) || 'null');
+    ['left', 'right'].forEach((side) => {
+      const list = Array.isArray(stored?.[side]) ? stored[side] : [];
+      list.forEach((entry) => {
+        const amount = Math.max(0, Math.round(Number(entry?.amount || 0)) || 0);
+        if (amount > 0) pendingGiftApples[side].push({ amount, gift: entry.gift || null });
+      });
+    });
+  } catch (error) { /* sin almacenamiento o dato roto */ }
+}
+
 function queuePendingGiftSpawns(side, amount, gift = null) {
   const sideKey = side === 'right' ? 'right' : 'left';
   const qty = Math.max(0, Number(amount || 0) || 0);
@@ -1630,10 +1683,13 @@ function queuePendingGiftSpawns(side, amount, gift = null) {
   }
 
   pendingGiftApples[sideKey].push({ amount: qty, gift });
+  persistPendingGiftApples();
   drainPendingGiftSpawns();
 }
 
 function drainPendingGiftSpawns() {
+  let changed = false;
+
   ['left', 'right'].forEach((side) => {
     const queue = pendingGiftApples[side];
     if (!queue.length) {
@@ -1644,21 +1700,87 @@ function drainPendingGiftSpawns() {
     let createdAny = false;
 
     queue.forEach((entry) => {
-      const created = spawnApples(side, entry.amount, 'live', entry.gift || null);
-      if (created > 0) {
+      const result = placeGiftApples(side, entry.amount, 'live', entry.gift || null);
+      if (result.placed > 0 || result.merged) {
         createdAny = true;
       }
-      if (created < entry.amount) {
-        remaining.push({ amount: entry.amount - created, gift: entry.gift || null });
+      if (result.queued > 0) {
+        remaining.push({ amount: result.queued, gift: entry.gift || null });
       }
     });
 
+    if (remaining.length !== queue.length || createdAny) {
+      changed = true;
+    }
     pendingGiftApples[side] = remaining;
 
     if (createdAny) {
       renderBoards();
     }
   });
+
+  if (changed) {
+    persistPendingGiftApples();
+  }
+}
+
+function addAppleToSnake(snake, index, value, source, gift) {
+  snake.apples.push({
+    id: crypto.randomUUID(),
+    index,
+    value,
+    source,
+    giftId: gift?.giftId || null,
+    giftName: gift?.giftName || 'Manzana',
+  });
+}
+
+// Coloca las manzanas de un regalo SIN perder ninguna:
+//  - si hay casillas libres de sobra, una manzana por casilla;
+//  - si no caben todas, se reparten en las casillas libres y cada manzana vale mas (se dibuja mas grande con su valor);
+//  - si el tablero no tiene ni una casilla libre, el valor se suma a las manzanas que ya hay;
+//  - solo si la serpiente ya termino la ronda quedan en cola para la siguiente.
+function placeGiftApples(side, amount, source = 'live', gift = null) {
+  const snake = getSnake(side);
+  const total = Math.max(1, Math.round(Number(amount) || 1));
+
+  if (snake.finished) {
+    return { placed: 0, stacked: false, merged: false, queued: total, total };
+  }
+
+  const free = shuffle(getFreeFutureCells(side));
+
+  if (free.length >= total) {
+    for (let i = 0; i < total; i += 1) {
+      addAppleToSnake(snake, free[i], 1, source, gift);
+    }
+    scheduleSaveState();
+    return { placed: total, stacked: false, merged: false, queued: 0, total };
+  }
+
+  if (free.length > 0) {
+    const base = Math.floor(total / free.length);
+    let extra = total % free.length;
+    free.forEach((index) => {
+      addAppleToSnake(snake, index, base + (extra > 0 ? 1 : 0), source, gift);
+      if (extra > 0) extra -= 1;
+    });
+    scheduleSaveState();
+    return { placed: free.length, stacked: true, merged: false, queued: 0, total };
+  }
+
+  if (snake.apples.length > 0) {
+    const base = Math.floor(total / snake.apples.length);
+    let extra = total % snake.apples.length;
+    snake.apples.forEach((apple) => {
+      apple.value = Math.max(1, Number(apple.value || 1) || 1) + base + (extra > 0 ? 1 : 0);
+      if (extra > 0) extra -= 1;
+    });
+    scheduleSaveState();
+    return { placed: 0, stacked: true, merged: true, queued: 0, total };
+  }
+
+  return { placed: 0, stacked: false, merged: false, queued: total, total };
 }
 
 function applyCarryOverApplesToNewRound() {
@@ -1820,117 +1942,115 @@ function resumeGame() {
   setLiveStatus('running', 'Juego reanudado.');
 }
 
+function normalizeGiftKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 function findRuleForGift(payload) {
-  const giftId = String(payload?.giftId || '').trim();
-  const giftName = normalizeText(payload?.giftName).toLowerCase();
+  const giftId = String(payload?.giftId ?? '').trim();
+  const nameKey = normalizeGiftKey(payload?.giftName);
+  const activeRules = state.rules.filter((rule) => rule.active);
 
-  return state.rules.find((rule) => {
-    if (!rule.active) {
-      return false;
+  if (giftId) {
+    const byId = activeRules.find((rule) => rule.giftId && String(rule.giftId).trim() === giftId);
+    if (byId) {
+      return byId;
     }
+  }
 
-    if (rule.giftId && giftId && String(rule.giftId) === giftId) {
-      return true;
+  if (nameKey) {
+    const byName = activeRules.find((rule) => normalizeGiftKey(rule.giftName) === nameKey);
+    if (byName) {
+      return byName;
     }
+  }
 
-    return normalizeText(rule.giftName).toLowerCase() === giftName;
-  });
+  return null;
 }
 
 function getGiftRepeatCount(payload) {
   return Math.max(1, Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1);
 }
 
+function describeGiftSender(payload) {
+  return String(payload?.user?.nickname || payload?.user?.uniqueId || '').trim();
+}
+
 function applyRuleToSnake(rule, payload) {
-  const applesPerGift = Math.max(1, Number(rule.apples || 1) || 1);
-  const repeatCount = Math.max(
-    1,
-    Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1
-  );
-
+  const applesPerGift = Math.max(1, Math.round(Number(rule.apples || 1)) || 1);
+  const repeatCount = Math.max(1, Math.round(Number(payload?.repeatCount ?? payload?.giftCount ?? 1)) || 1);
   const totalApples = applesPerGift * repeatCount;
-
-  console.log("APLICANDO REGLA", {
-    regalo: payload?.giftName,
-    lado: rule.side,
-    manzanasPorRegalo: applesPerGift,
-    repeatCount,
-    totalApples
-  });
-
+  const giftName = payload?.giftName || rule.giftName;
+  const gift = { giftId: payload?.giftId || rule.giftId, giftName };
   const snakeLabel = getSnake(rule.side).label;
+  const sender = describeGiftSender(payload);
 
-  const created = spawnApples(rule.side, totalApples, 'live', {
-    giftId: payload?.giftId || rule.giftId,
-    giftName: payload?.giftName || rule.giftName,
-  });
+  const result = placeGiftApples(rule.side, totalApples, 'live', gift);
 
-  if (created > 0) {
-    pushGiftActionToHistory(
-      `${payload?.giftName || rule.giftName} x${repeatCount} añadió ${created} manzana(s) a ${snakeLabel}`,
-      rule.side,
-      created,
-      'live'
-    );
-    renderBoards();
+  if (result.queued > 0) {
+    pendingGiftApples[rule.side === 'right' ? 'right' : 'left'].push({ amount: result.queued, gift });
+    persistPendingGiftApples();
   }
 
-  const overflow = Math.max(0, totalApples - created);
-  if (overflow > 0) {
-    queuePendingGiftSpawns(rule.side, overflow, {
-      giftId: payload?.giftId || rule.giftId,
-      giftName: payload?.giftName || rule.giftName,
-    });
+  let detail = '';
+  if (result.merged) {
+    detail = ' (tablero lleno: se sumaron a las manzanas que ya había)';
+  } else if (result.stacked) {
+    detail = ' (casi no había sitio: se juntaron en manzanas que valen más)';
+  } else if (result.queued > 0) {
+    detail = ' (en cola hasta la siguiente ronda)';
   }
+
+  const message = `${sender ? `${sender}: ` : ''}${giftName}${repeatCount > 1 ? ` x${repeatCount}` : ''} → ${totalApples} manzana(s) a ${snakeLabel}${detail}`;
+  console.log('[SNAKE] Regalo aplicado:', message, result);
+  pushGiftActionToHistory(message, rule.side, totalApples, 'live');
+  setLiveStatus(state.live.status, message);
+  renderBoards();
+}
+
+// Un regalo que llega pero no coincide con ninguna regla queda a la vista, para poder crear la regla que falta
+function reportGiftWithoutRule(payload) {
+  const giftName = payload?.giftName || 'sin nombre';
+  const sender = describeGiftSender(payload);
+  const coins = Number(payload?.diamondCount || 0) || 0;
+  const message = `Regalo sin regla: ${giftName}${payload?.giftId ? ` (ID ${payload.giftId})` : ''}${coins ? `, ${coins} monedas` : ''}${sender ? `, de ${sender}` : ''}. Crea una regla para este regalo.`;
+
+  console.warn('[SNAKE]', message, 'Reglas activas:', state.rules.filter((rule) => rule.active).map((rule) => `${rule.giftName}#${rule.giftId || '-'}`));
+  addHistoryEntry(message, 'left', 1, 'info');
+  scheduleHistoryRender();
+  setLiveStatus(state.live.status, message);
 }
 
 function handleLiveGift(payload) {
   console.log("🎁 Gift recibido:", payload);
-  console.log("REGLAS ACTIVAS:", state.rules);
 
-  const repeatCount = Math.max(
-    1,
-    Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1
-  );
-
-  // El servidor ya descarta los mensajes intermedios de las rachas (solo manda el final de cada combo) y los duplicados.
-  // Los regalos sin racha llegan con repeatEnd en false, asi que aqui NO se filtra por repeatEnd.
-  const repeatEnd = Boolean(payload?.repeatEnd);
-
-  const giftSignature = [
-    String(payload?.giftId || '').trim(),
-    normalizeText(payload?.giftName || '').toLowerCase(),
-    String(payload?.user?.uniqueId || '').trim().toLowerCase(),
-    String(repeatCount),
-    String(repeatEnd)
-  ].join('|');
-
-  const now = Date.now();
-  if (giftSignature === lastProcessedGiftSignature && now - lastProcessedGiftAt < 300) {
-    console.log("⏭️ Gift duplicado ignorado:", giftSignature);
-    return;
+  // Cada regalo trae un id unico desde el servidor: si por un corte del canal llega repetido, no se cuenta dos veces
+  const eventId = payload?.eventId ? String(payload.eventId) : '';
+  if (eventId) {
+    if (processedGiftEventIds.has(eventId)) {
+      console.log('[SNAKE] Regalo repetido ignorado:', eventId);
+      return;
+    }
+    processedGiftEventIds.add(eventId);
+    if (processedGiftEventIds.size > 500) {
+      processedGiftEventIds.delete(processedGiftEventIds.values().next().value);
+    }
   }
 
-  lastProcessedGiftSignature = giftSignature;
-  lastProcessedGiftAt = now;
-
+  const repeatCount = Math.max(1, Math.round(Number(payload?.repeatCount ?? payload?.giftCount ?? 1)) || 1);
   const rule = findRuleForGift(payload);
 
   if (!rule) {
-    console.log("⚠️ No hay regla para este regalo:", {
-      giftId: payload?.giftId,
-      giftName: payload?.giftName,
-      repeatCount
-    });
-    setLiveStatus(state.live.status, `Llegó el regalo "${payload?.giftName || 'sin nombre'}" pero no tiene regla activa. Agrégalo en las reglas.`);
+    reportGiftWithoutRule(payload);
     return;
   }
 
-  console.log("✅ Regla encontrada:", rule);
-  applyRuleToSnake(rule, {
-    ...payload,
-    repeatCount
-  });
+  applyRuleToSnake(rule, { ...payload, repeatCount });
 }
 
 // Pregunta al servidor como esta la conexion real con el live (por si la pagina se recargo o se cayo el canal de eventos)
@@ -2131,12 +2251,12 @@ async function restoreTiktokConnectionSnake() {
     const data = await response.json();
     if (data.connected && data.tiktok_username) {
       snakeUsernameInput.value = `@${data.tiktok_username}`;
-      unlockUsernameInput();
-      setLiveStatus('disconnected', `Último usuario usado: @${data.tiktok_username}. Puedes cambiarlo antes de conectar.`);
+      lockUsernameInput();
+      setLiveStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
     } else {
       snakeUsernameInput.value = '';
       unlockUsernameInput();
-      setLiveStatus('disconnected', 'Escribe el usuario de TikTok del live y pulsa Conectar.');
+      setLiveStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
     }
   } catch (error) {
     snakeUsernameInput.value = '';
@@ -2905,6 +3025,7 @@ async function initializeApp() {
   updateConnectionState(state.live);
 
   await loadStateFromServer();
+  loadPendingGiftApples();
   await restoreTiktokConnectionSnake();
 
   ['left', 'right'].forEach((side) => {

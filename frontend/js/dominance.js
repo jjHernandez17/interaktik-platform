@@ -1795,6 +1795,10 @@ async function restoreLinkedTiktokUsername() {
     if (data?.tiktok_username) {
       dominanceUsernameInput.value = `@${data.tiktok_username}`;
       setConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Presiona "Conectar a live" cuando ya estés transmitiendo.`);
+      window.interaktikResumeLive?.('dominance', (info) => {
+        setConnectionStatus('connected', info.message || 'Conectado al live.');
+        connectToEvents();
+      });
     } else {
       dominanceUsernameInput.value = '';
       setConnectionStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');

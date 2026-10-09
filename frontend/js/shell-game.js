@@ -952,6 +952,11 @@ async function restoreTiktokConnection() {
       shellUsername.value = `@${data.tiktok_username}`;
       lockShellUsernameInput();
       setShellConnectionStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      window.interaktikResumeLive?.('shellgame', (info) => {
+        isConnected = true;
+        setShellConnectionStatus('connected', info.message || '', '');
+        connectToEvents();
+      });
     } else {
       shellUsername.value = '';
       unlockShellUsernameInput();

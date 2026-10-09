@@ -52,7 +52,7 @@ const ACTIONS = [
 ];
 
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
-const MAX_PER_EVENT = 40; // lo mismo que acepta el mod por evento
+const MAX_PER_EVENT = 500; // lo mismo que acepta el mod por evento (el mod los pone en cola y los saca de a poco, sin perder ninguno)
 
 const events = new EventEmitter(); // 'queued' (userId), 'keyChanged' (userId, via gtaService), 'settingsChanged' (userId)
 const giftRuleCache = new Map();

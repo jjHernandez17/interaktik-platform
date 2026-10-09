@@ -42,7 +42,7 @@ const overlayAutoConnect = require('./src/services/overlayAutoConnect');
 const streamStatsTracker = require('./src/services/streamStatsTracker');
 const streamStatsRouter = require('./src/routes/streamStatsRoutes');
 const { hub } = require('./src/services/liveHub');
-const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest } = require('./src/services/tiktokLiveManager');
+const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest, resolveEventsOwnerKey, getConnectionStateByOwnerKey } = require('./src/services/tiktokLiveManager');
 
 // Initialize Express app
 const app = express();
@@ -134,7 +134,7 @@ streamStatsTracker.start();
 app.get('/events', (req, res) => {
   const origin = req.headers.origin;
   const gameType = inferGameTypeFromRequest(req);
-  const ownerKey = getOwnerKeyFromRequest(req, gameType);
+  const { ownerKey, signed } = resolveEventsOwnerKey(req, gameType);
 
   // Verificar CORS dinámicamente
   if (!isOriginAllowed(origin)) {
@@ -159,14 +159,16 @@ app.get('/events', (req, res) => {
   res.writeHead(200, headers);
   res.flushHeaders();
 
-  logger.success(`Cliente conectado a /events (${gameType}) desde origin: ${origin || 'sin origin'}`);
+  logger.success(`Cliente conectado a /events (${gameType}) desde origin: ${origin || 'sin origin'} [clave ${signed ? 'firmada' : 'de sesion'}: ${ownerKey}]`);
 
   res.write('retry: 3000\n\n');
 
-  const liveState = getConnectionState(gameType, {
-    userId: req.session?.user?.id || req.session?.userId || null,
-    sessionId: req.sessionID,
-  });
+  const liveState = signed
+    ? getConnectionStateByOwnerKey(ownerKey, gameType)
+    : getConnectionState(gameType, {
+      userId: req.session?.user?.id || req.session?.userId || null,
+      sessionId: req.sessionID,
+    });
 
 
 

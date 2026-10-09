@@ -1,4 +1,5 @@
 const logger = require('../config/logger');
+const crypto = require('crypto');
 const env = require('../config/env');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
@@ -70,6 +71,54 @@ function buildConnectionKey({ userId = null, sessionId = null, gameType = 'app' 
   }
 
   return `session:${String(sessionId)}:${normalizedGameType}`;
+}
+
+// Acceso a /events sin depender de la cookie de sesion (en produccion la pagina y la API estan en dominios distintos y
+// el canal de eventos puede llegar sin la sesion). El servidor entrega a la pagina, tras conectar, la clave de su conexion
+// junto con una firma que solo el servidor puede generar; /events acepta esa pareja como prueba de que es suya.
+function signOwnerKey(ownerKey) {
+  return crypto.createHmac('sha256', String(env.SESSION_SECRET || '')).update(`sse:${ownerKey}`).digest('hex');
+}
+
+function verifyOwnerKeyToken(ownerKey, token) {
+  if (!ownerKey || !token) return false;
+  const expected = Buffer.from(signOwnerKey(ownerKey), 'utf8');
+  const received = Buffer.from(String(token), 'utf8');
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+}
+
+function getEventsAccess({ userId = null, sessionId = null, gameType = 'app' } = {}) {
+  const ownerKey = buildConnectionKey({ userId, sessionId, gameType });
+  return { ownerKey, eventsToken: signOwnerKey(ownerKey) };
+}
+
+// Clave de conexion que corresponde a una peticion de /events: la firmada si viene y es valida; si no, la de la sesion
+function resolveEventsOwnerKey(req, gameType) {
+  const normalized = normalizeGameType(gameType);
+  const requestedKey = String(req.query?.ownerKey || '');
+  const token = String(req.query?.token || '');
+  if (requestedKey && token && requestedKey.endsWith(`:${normalized}`) && verifyOwnerKeyToken(requestedKey, token)) {
+    return { ownerKey: requestedKey, signed: true };
+  }
+  return { ownerKey: getOwnerKeyFromRequest(req, normalized), signed: false };
+}
+
+function getConnectionStateByOwnerKey(ownerKey, gameType) {
+  const normalized = normalizeGameType(gameType);
+  const entry = connections.get(ownerKey);
+  if (!entry) return getEmptyState(normalized);
+  return {
+    gameType: normalized,
+    uniqueId: entry.uniqueId,
+    status: entry.status,
+    message: entry.message,
+    error: entry.error,
+    roomId: entry.roomId || '',
+    roomInfo: entry.roomInfo || null,
+    availableGifts: entry.availableGifts || [],
+    connectedAt: entry.connectedAt,
+    updatedAt: entry.updatedAt,
+  };
 }
 
 function getOwnerKeyFromRequest(req, gameType) {
@@ -838,6 +887,9 @@ module.exports = {
   inferGameTypeFromRequest,
   normalizeGameType,
   getOwnerKeyFromRequest,
+  getEventsAccess,
+  resolveEventsOwnerKey,
+  getConnectionStateByOwnerKey,
   cleanupStaleConnection,
   checkIsLive,
 };

@@ -1940,6 +1940,7 @@ async function syncLiveStatusFromServer() {
     if (!response.ok) return;
     const data = await response.json();
     console.log('[SNAKE] respuesta de /api/status:', data && { status: data.status, uniqueId: data.uniqueId, message: data.message, error: data.error });
+    rememberEventsAccess(data);
     if (!data || !data.status) return;
     if (data.status === 'connected' || data.status === 'connecting' || data.status === 'live_off' || data.status === 'error') {
       updateConnectionState({
@@ -1956,6 +1957,15 @@ async function syncLiveStatusFromServer() {
   }
 }
 
+// Clave de conexion y firma que entrega el servidor: permiten abrir el canal de eventos sin depender de la cookie de sesion
+let liveEventsAccess = null;
+
+function rememberEventsAccess(data) {
+  if (data && data.ownerKey && data.eventsToken) {
+    liveEventsAccess = { ownerKey: data.ownerKey, eventsToken: data.eventsToken };
+  }
+}
+
 function connectLiveEvents() {
   if (liveEventsSource) {
     liveEventsSource.close();
@@ -1965,7 +1975,12 @@ function connectLiveEvents() {
   liveEventsConnected = false;
 
   console.log("[SNAKE] Abriendo SSE /events...");
-  liveEventsSource = new EventSource('/events?gameType=snake');
+  const eventsParams = new URLSearchParams({ gameType: 'snake' });
+  if (liveEventsAccess) {
+    eventsParams.set('ownerKey', liveEventsAccess.ownerKey);
+    eventsParams.set('token', liveEventsAccess.eventsToken);
+  }
+  liveEventsSource = new EventSource('/events?' + eventsParams.toString());
 
   liveEventsSource.addEventListener('open', () => {
     console.log('[SNAKE] SSE conectado');
@@ -2042,6 +2057,7 @@ async function connectTikTok() {
 
     const payload = await response.json();
     console.log('[SNAKE] respuesta de /api/connect:', response.status, payload);
+    rememberEventsAccess(payload);
     if (!response.ok) {
       throw new Error(payload.error || 'No se pudo conectar.');
     }
@@ -2158,6 +2174,7 @@ async function connectSnakeLiveFromSavedUsername() {
 
     const payload = await response.json();
     console.log('[SNAKE] respuesta de /api/connect:', response.status, payload);
+    rememberEventsAccess(payload);
     if (!response.ok) {
       throw new Error(payload.error || 'No se pudo conectar.');
     }

@@ -66,6 +66,7 @@ router.get('/status', requireAuth, async (req, res) => {
     return res.json({
       // Campos de TikTok Live (principales para el frontend)
       ...tiktokLiveState,
+      ...tiktokLiveManager.getEventsAccess({ userId: getSessionUserId(req), sessionId: req.sessionID, gameType }),
       // Detalles del servidor
       server: serverStatus,
       gameType,
@@ -166,6 +167,7 @@ router.post('/connect', requireAuth, async (req, res) => {
 
     return res.json({
       ...state,
+      ...tiktokLiveManager.getEventsAccess({ userId: getSessionUserId(req), sessionId: req.sessionID, gameType }),
       status: state.status || 'connected',
       message: state.message || `Conexión preparada para @${uniqueId}.`,
     });

@@ -95,7 +95,8 @@ async function isConnectionStillLinked(entry) {
       return false;
     }
 
-    if (storedConnection.tiktok_username?.trim().replace(/^@/, '') !== entry.uniqueId?.trim().replace(/^@/, '')) {
+    const clean = (value) => String(value || '').trim().replace(/^@/, '').toLowerCase();
+    if (clean(storedConnection.tiktok_username) !== clean(entry.uniqueId)) {
       return false;
     }
 

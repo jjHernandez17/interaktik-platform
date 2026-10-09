@@ -548,14 +548,16 @@ function setLiveStatus(status, message = '', error = '') {
     setText(snakeConnectionDetails, 'No has vinculado un ID de TikTok Live.');
   }
 }
+// El usuario del live se escribe en este mismo campo (es propio de este juego, no el vinculado en "Juegos").
+// Solo se bloquea mientras hay un live conectado.
 function lockUsernameInput() {
   snakeUsernameInput.disabled = true;
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = false;
 }
 
 function unlockUsernameInput() {
-  snakeUsernameInput.disabled = true;
-  if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = true;
+  snakeUsernameInput.disabled = false;
+  if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = false;
 }
 
 function restoreUsernameInputState() {
@@ -576,9 +578,12 @@ function updateConnectionState(nextState) {
   };
   setLiveStatus(state.live.status, state.live.message, state.live.error);
 
-  // Bloquear input cuando se conecta
+  // Bloquear input cuando se conecta; en cualquier otro estado se puede cambiar el usuario
   if (nextState.status === 'connected') {
+    if (state.live.uniqueId) snakeUsernameInput.value = `@${state.live.uniqueId}`;
     lockUsernameInput();
+  } else {
+    unlockUsernameInput();
   }
 }
 
@@ -2024,6 +2029,7 @@ async function connectTikTok() {
   }
 
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = true;
+  state.live.uniqueId = uniqueId;
   setLiveStatus('connecting', `Conectando a @${uniqueId}...`);
 
   try {
@@ -2107,12 +2113,12 @@ async function restoreTiktokConnectionSnake() {
     const data = await response.json();
     if (data.connected && data.tiktok_username) {
       snakeUsernameInput.value = `@${data.tiktok_username}`;
-      lockUsernameInput();
-      setLiveStatus('disconnected', `Cuenta vinculada a @${data.tiktok_username}. Ahora puedes conectar el live.`);
+      unlockUsernameInput();
+      setLiveStatus('disconnected', `Último usuario usado: @${data.tiktok_username}. Puedes cambiarlo antes de conectar.`);
     } else {
       snakeUsernameInput.value = '';
       unlockUsernameInput();
-      setLiveStatus('disconnected', 'Vincula tu usuario de TikTok desde la sección "Juegos" del panel.');
+      setLiveStatus('disconnected', 'Escribe el usuario de TikTok del live y pulsa Conectar.');
     }
   } catch (error) {
     snakeUsernameInput.value = '';
@@ -2138,6 +2144,7 @@ async function connectSnakeLiveFromSavedUsername() {
   }
 
   if (snakeConnectLiveBtn) snakeConnectLiveBtn.disabled = true;
+  state.live.uniqueId = uniqueId;
   setLiveStatus('connecting', `Conectando a @${uniqueId}...`);
 
   try {

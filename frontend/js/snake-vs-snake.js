@@ -1938,6 +1938,28 @@ function handleLiveGift(payload) {
   });
 }
 
+// Pregunta al servidor como esta la conexion real con el live (por si la pagina se recargo o se cayo el canal de eventos)
+async function syncLiveStatusFromServer() {
+  try {
+    const response = await fetch('/api/status?gameType=snake', { cache: 'no-store' });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data || !data.status) return;
+    if (data.status === 'connected' || data.status === 'connecting' || data.status === 'live_off' || data.status === 'error') {
+      updateConnectionState({
+        status: data.status,
+        uniqueId: data.uniqueId || state.live.uniqueId,
+        roomId: data.roomId || '',
+        message: data.message || '',
+        error: data.error || '',
+      });
+      if (data.status === 'connected' && liveIndicator) liveIndicator.classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('[SNAKE] No se pudo sincronizar el estado del live:', error.message);
+  }
+}
+
 function connectLiveEvents() {
   if (liveEventsSource) {
     liveEventsSource.close();
@@ -1952,6 +1974,7 @@ function connectLiveEvents() {
   liveEventsSource.addEventListener('open', () => {
     console.log('[SNAKE] SSE conectado');
     liveEventsConnected = true;
+    syncLiveStatusFromServer();
   });
 
   liveEventsSource.addEventListener('status', (event) => {
@@ -1994,10 +2017,13 @@ function connectLiveEvents() {
     // Aquí solo marca visualmente que hubo problema temporal.
     liveEventsConnected = false;
 
-    setLiveStatus(
-      state.live.uniqueId ? 'disconnected' : 'unlinked',
-      'La conexión de eventos con el servidor se interrumpió.'
-    );
+    // EventSource reintenta solo; si el live estaba conectado se deja como esta y se resincroniza al reabrir
+    if (state.live.status !== 'connected') {
+      setLiveStatus(
+        state.live.uniqueId ? 'disconnected' : 'unlinked',
+        'La conexión de eventos con el servidor se interrumpió.'
+      );
+    }
   });
 }
 async function connectTikTok() {
@@ -2033,7 +2059,7 @@ async function connectTikTok() {
     if (payload.status === 'connected' && liveIndicator) {
       liveIndicator.classList.remove("hidden");
     }
-    if (payload.status === 'connected') connectLiveEvents();
+    connectLiveEvents();
   } catch (error) {
     setLiveStatus('error', error.message || 'No se pudo conectar.');
   } finally {
@@ -2147,7 +2173,7 @@ async function connectSnakeLiveFromSavedUsername() {
     if (payload.status === 'connected' && liveIndicator) {
       liveIndicator.classList.remove('hidden');
     }
-    if (payload.status === 'connected') connectLiveEvents();
+    connectLiveEvents();
   } catch (error) {
     setLiveStatus('error', error.message || 'No se pudo conectar.');
   } finally {
@@ -2884,8 +2910,11 @@ async function initializeApp() {
   renderRules();
   renderHistory();
 
-  // ❌ NO abrir SSE aquí
-  // connectLiveEvents();
+  // Si el live ya estaba conectado en el servidor, se recupera el estado y se abre el canal de eventos
+  if (state.live.uniqueId) {
+    await syncLiveStatusFromServer();
+    if (state.live.status === 'connected' || state.live.status === 'connecting') connectLiveEvents();
+  }
 
   startGameLoop();
 }

@@ -471,6 +471,14 @@ namespace InteraktikGtaInstaller
                 MessageBox.Show(this, "Todav\u00eda no encuentro Minecraft. Usa el bot\u00f3n \"Descargar TLauncher\", \u00e1brelo una vez y vuelve a pulsar Detectar.", "Interaktik", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            string otherGame = game == MinecraftInstaller.GameCube ? MinecraftInstaller.GameSurvival : MinecraftInstaller.GameCube;
+            if (MinecraftInstaller.HasMods(folder, otherGame))
+            {
+                string thisName = game == MinecraftInstaller.GameCube ? "Cubo Gigante" : "Survivaltik";
+                string otherName = game == MinecraftInstaller.GameCube ? "Survivaltik" : "Cubo Gigante";
+                if (MessageBox.Show(this, "Ya tienes instalado " + otherName + ".\n\nLos juegos de Minecraft de Interaktik no se pueden mezclar: si instalas "
+                    + thisName + ", se quitar\u00e1 " + otherName + ".\n\n\u00bfContinuar?", "Interaktik", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            }
             if (MinecraftInstaller.GameRunning())
             {
                 if (MessageBox.Show(this, "Parece que Minecraft est\u00e1 abierto. Ci\u00e9rralo antes de instalar para que cargue los mods nuevos. \u00bfInstalar de todos modos?",

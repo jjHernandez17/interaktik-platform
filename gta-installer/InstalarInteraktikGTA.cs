@@ -1066,7 +1066,7 @@ namespace InteraktikGtaInstaller
             bool minecraft = false;
             bool keepOthers = false;
             bool fabric = false;
-            string game = MinecraftInstaller.GameAll;
+            string game = MinecraftInstaller.GameSurvival;
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--auto") auto = true;

@@ -122,6 +122,8 @@ namespace InteraktikGtaInstaller
             {
                 if (!File.Exists(Path.Combine(mods, file))) return false;
             }
+            // Los juegos de Minecraft de Interaktik no se mezclan: si esta el mod del Cubo Gigante, Survivaltik no cuenta como instalado
+            if (game == GameSurvival && File.Exists(Path.Combine(mods, "InteraktikCubo.jar"))) return false;
             return true;
         }
 
@@ -300,11 +302,7 @@ namespace InteraktikGtaInstaller
             {
                 if (!IsMinecraftFolder(folder)) return "No encuentro la carpeta de Minecraft. Elige la carpeta .minecraft (la que tiene la carpeta versions).";
                 if (!Installer.IsValidKey(key)) return "La llave no es v\u00e1lida. C\u00f3piala completa desde la p\u00e1gina de Interaktik.";
-                if (game == GameAll)
-                {
-                    string first = Run(folder, key, moveOthers, GameSurvival);
-                    return first != null ? first : Run(folder, key, false, GameCube);
-                }
+                if (game == GameAll) return "Los juegos de Minecraft de Interaktik no se pueden mezclar: elige uno (survival o cube).";
                 if (!GameBundled(game)) return "Esta versi\u00f3n del instalador no incluye los mods de este juego todav\u00eda. Descarga el instalador actualizado de la p\u00e1gina.";
 
                 string mods = ModsFolder(folder);
@@ -332,6 +330,13 @@ namespace InteraktikGtaInstaller
                 {
                     ExtractResource(file, Path.Combine(mods, file));
                     Log("Instalado " + file + ".");
+                }
+
+                // Survivaltik y el Cubo Gigante no se mezclan: al instalar Survivaltik se quita el mod del cubo
+                if (game == GameSurvival)
+                {
+                    string cubeJar = Path.Combine(mods, "InteraktikCubo.jar");
+                    if (File.Exists(cubeJar)) { File.Delete(cubeJar); Log("Se quito InteraktikCubo.jar: no puede estar junto con Survivaltik."); }
                 }
 
                 WriteConfig(folder, key);

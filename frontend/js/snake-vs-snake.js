@@ -1888,20 +1888,9 @@ function handleLiveGift(payload) {
     Number(payload?.repeatCount ?? payload?.giftCount ?? 1) || 1
   );
 
-  const hasRepeatEndField = Object.prototype.hasOwnProperty.call(payload || {}, 'repeatEnd');
+  // El servidor ya descarta los mensajes intermedios de las rachas (solo manda el final de cada combo) y los duplicados.
+  // Los regalos sin racha llegan con repeatEnd en false, asi que aqui NO se filtra por repeatEnd.
   const repeatEnd = Boolean(payload?.repeatEnd);
-
-  // Si el payload trae repeatEnd, ignoramos TODOS los eventos intermedios
-  // y solo procesamos el final del combo.
-  if (hasRepeatEndField && repeatEnd === false) {
-    console.log("⏭️ Gift repetido intermedio ignorado hasta repeatEnd:", {
-      giftId: payload?.giftId,
-      giftName: payload?.giftName,
-      repeatCount,
-      repeatEnd
-    });
-    return;
-  }
 
   const giftSignature = [
     String(payload?.giftId || '').trim(),
@@ -1912,7 +1901,7 @@ function handleLiveGift(payload) {
   ].join('|');
 
   const now = Date.now();
-  if (giftSignature === lastProcessedGiftSignature && now - lastProcessedGiftAt < 1200) {
+  if (giftSignature === lastProcessedGiftSignature && now - lastProcessedGiftAt < 300) {
     console.log("⏭️ Gift duplicado ignorado:", giftSignature);
     return;
   }
@@ -1928,6 +1917,7 @@ function handleLiveGift(payload) {
       giftName: payload?.giftName,
       repeatCount
     });
+    setLiveStatus(state.live.status, `Llegó el regalo "${payload?.giftName || 'sin nombre'}" pero no tiene regla activa. Agrégalo en las reglas.`);
     return;
   }
 

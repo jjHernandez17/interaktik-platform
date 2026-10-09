@@ -1939,6 +1939,7 @@ async function syncLiveStatusFromServer() {
     const response = await fetch('/api/status?gameType=snake', { cache: 'no-store' });
     if (!response.ok) return;
     const data = await response.json();
+    console.log('[SNAKE] respuesta de /api/status:', data && { status: data.status, uniqueId: data.uniqueId, message: data.message, error: data.error });
     if (!data || !data.status) return;
     if (data.status === 'connected' || data.status === 'connecting' || data.status === 'live_off' || data.status === 'error') {
       updateConnectionState({
@@ -2040,6 +2041,7 @@ async function connectTikTok() {
     });
 
     const payload = await response.json();
+    console.log('[SNAKE] respuesta de /api/connect:', response.status, payload);
     if (!response.ok) {
       throw new Error(payload.error || 'No se pudo conectar.');
     }
@@ -2155,6 +2157,7 @@ async function connectSnakeLiveFromSavedUsername() {
     });
 
     const payload = await response.json();
+    console.log('[SNAKE] respuesta de /api/connect:', response.status, payload);
     if (!response.ok) {
       throw new Error(payload.error || 'No se pudo conectar.');
     }

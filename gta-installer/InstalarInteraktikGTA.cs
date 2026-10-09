@@ -211,6 +211,33 @@ namespace InteraktikGtaInstaller
             return game == "ramp" ? "InteraktikRampa" : "InteraktikGTA";
         }
 
+        public static string OtherGame(string game)
+        {
+            return game == "ramp" ? "story" : "ramp";
+        }
+
+        public static string GameTitle(string game)
+        {
+            return game == "ramp" ? "Monta\u00f1a Imposible" : "Modo historia";
+        }
+
+        // Los mods de GTA V de Interaktik no se mezclan: solo puede haber uno instalado a la vez. Se quita el otro
+        // (su .dll y su .log; el .ini se conserva por si despues se vuelve a instalar y para reusar la llave).
+        public void RemoveOtherMod(string folder)
+        {
+            string scripts = Path.Combine(folder, "scripts");
+            string other = ModName(OtherGame(Game));
+            foreach (string name in new string[] { other + ".dll", other + ".log" })
+            {
+                string path = Path.Combine(scripts, name);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    Log("Se quito el mod de " + GameTitle(OtherGame(Game)) + " (" + name + "): no pueden estar los dos instalados a la vez.");
+                }
+            }
+        }
+
         public static bool HasMod(string folder)
         {
             return HasMod(folder, "story");
@@ -507,6 +534,7 @@ namespace InteraktikGtaInstaller
             string scripts = Path.Combine(folder, "scripts");
             Directory.CreateDirectory(scripts);
 
+            RemoveOtherMod(folder);
             File.WriteAllBytes(Path.Combine(scripts, ModName(Game) + ".dll"), GetModBytes());
 
             // Configuracion: si ya existe se conserva todo y solo se cambia la llave
@@ -939,6 +967,15 @@ namespace InteraktikGtaInstaller
             string key = keyBox.Text.Trim();
             string zip = shvZip;
             installer.Game = gtaGame;
+
+            string otherGame = Installer.OtherGame(gtaGame);
+            if (Installer.HasMod(folder, otherGame))
+            {
+                string question = "Ya tienes instalado el mod de " + Installer.GameTitle(otherGame) + ".\n\nLos mods de GTA V de Interaktik no se pueden mezclar: "
+                    + "si instalas " + Installer.GameTitle(gtaGame) + ", se quitar\u00e1 el de " + Installer.GameTitle(otherGame) + ".\n\n\u00bfContinuar?";
+                if (MessageBox.Show(this, question, "Interaktik", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            }
+
             installButton.Enabled = false;
             uninstallButton.Enabled = false;
             AppendLog("Instalando...");

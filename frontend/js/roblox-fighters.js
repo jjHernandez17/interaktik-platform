@@ -1,7 +1,7 @@
 const GAME_TYPE = 'robloxfighters';
 
 // Cuando el juego este publicado en Roblox, su enlace va aqui y aparece el boton "Abrir en Roblox".
-const ROBLOX_GAME_URL = '';
+const ROBLOX_GAME_URL = 'https://www.roblox.com/games/70535718261477';
 
 // Mismos poderes y estilos que entiende el servidor (backend/src/services/robloxFightersService.js) y el juego de Roblox.
 const POWER_CATALOG = {
@@ -25,7 +25,6 @@ const STYLE_CATALOG = {
   taekwondo: { label: 'Taekwondista', note: 'Patadas de largo alcance y giros que barren la arena.' },
 };
 
-const SIDE_LABELS = { viewer: 'El lado del espectador', left: 'Siempre el izquierdo', right: 'Siempre el derecho' };
 
 const connectionForm = document.getElementById('pfConnectionForm');
 const usernameInput = document.getElementById('pfUsernameInput');
@@ -49,7 +48,7 @@ const sideInputs = {
     color: document.getElementById('pfLeftColor'),
     style: document.getElementById('pfLeftStyle'),
     note: document.getElementById('pfLeftStyleNote'),
-    keyword: document.getElementById('pfLeftKeyword'),
+    joinHint: document.getElementById('pfLeftJoinHint'),
   },
   right: {
     card: document.querySelector('.pf-side-card[data-side="right"]'),
@@ -57,7 +56,7 @@ const sideInputs = {
     color: document.getElementById('pfRightColor'),
     style: document.getElementById('pfRightStyle'),
     note: document.getElementById('pfRightStyleNote'),
-    keyword: document.getElementById('pfRightKeyword'),
+    joinHint: document.getElementById('pfRightJoinHint'),
   },
 };
 
@@ -65,7 +64,6 @@ const settingsForm = document.getElementById('pfSettingsForm');
 const winGoalInput = document.getElementById('pfWinGoal');
 const roundSecondsInput = document.getElementById('pfRoundSeconds');
 const maxHealthInput = document.getElementById('pfMaxHealth');
-const aiLevelSelect = document.getElementById('pfAiLevel');
 const settingsSaveBtn = document.getElementById('pfSettingsSaveBtn');
 const saveState = document.getElementById('pfSaveState');
 
@@ -99,7 +97,6 @@ const durationFields = document.getElementById('pfDurationFields');
 const ruleDurationInput = document.getElementById('pfRuleDurationInput');
 const styleFields = document.getElementById('pfStyleFields');
 const ruleStyleSelect = document.getElementById('pfRuleStyleSelect');
-const ruleSideSelect = document.getElementById('pfRuleSideSelect');
 const ruleSaveBtn = document.getElementById('pfRuleSaveBtn');
 const rulesList = document.getElementById('pfRulesList');
 const ruleCount = document.getElementById('pfRuleCount');
@@ -122,6 +119,16 @@ async function showConfirm(message, title = 'Confirmacion') {
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+// Igual que en el servidor: minusculas, sin tildes ni signos ("¡Águilas!" -> "aguilas")
+function foldText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 function escapeHtml(value) {
@@ -307,9 +314,27 @@ function paintSide(side) {
   inputs.note.textContent = STYLE_CATALOG[inputs.style.value]?.note || '';
 }
 
+// Como se unen los espectadores: el nombre del lado o solo su primera letra (la letra no vale si los dos nombres empiezan igual)
 function paintKeywords() {
-  if (stepLeftWord) stepLeftWord.textContent = normalizeText(sideInputs.left.keyword.value) || 'rojo';
-  if (stepRightWord) stepRightWord.textContent = normalizeText(sideInputs.right.keyword.value) || 'azul';
+  const names = {
+    left: sideInputs.left.name.value.trim() || 'Rojo',
+    right: sideInputs.right.name.value.trim() || 'Azul',
+  };
+  const initials = {
+    left: foldText(names.left).charAt(0),
+    right: foldText(names.right).charAt(0),
+  };
+  const letterWorks = initials.left && initials.right && initials.left !== initials.right;
+
+  for (const side of ['left', 'right']) {
+    const hint = sideInputs[side].joinHint;
+    if (!hint) continue;
+    hint.textContent = letterWorks
+      ? `Tus espectadores se unen comentando "${names[side]}" o solo "${initials[side].toUpperCase()}" (sin importar mayúsculas ni tildes).`
+      : `Tus espectadores se unen comentando "${names[side]}" (sin importar mayúsculas ni tildes). Con la misma letra inicial en los dos lados hay que escribir el nombre completo.`;
+  }
+  if (stepLeftWord) stepLeftWord.textContent = names.left;
+  if (stepRightWord) stepRightWord.textContent = names.right;
 }
 
 function applySettings(settings) {
@@ -321,14 +346,12 @@ function applySettings(settings) {
     inputs.name.value = data.name;
     inputs.color.value = data.color;
     inputs.style.value = data.style;
-    inputs.keyword.value = data.keyword;
     paintSide(side);
   }
 
   winGoalInput.value = settings.winGoal;
   roundSecondsInput.value = settings.roundSeconds;
   maxHealthInput.value = settings.maxHealth;
-  aiLevelSelect.value = String(settings.aiLevel);
 
   scoreLeftName.textContent = settings.left.name;
   scoreRightName.textContent = settings.right.name;
@@ -383,18 +406,15 @@ async function saveSettings(event) {
           name: sideInputs.left.name.value,
           color: sideInputs.left.color.value,
           style: sideInputs.left.style.value,
-          keyword: sideInputs.left.keyword.value,
         },
         right: {
           name: sideInputs.right.name.value,
           color: sideInputs.right.color.value,
           style: sideInputs.right.style.value,
-          keyword: sideInputs.right.keyword.value,
         },
         winGoal: Number(winGoalInput.value),
         roundSeconds: Number(roundSecondsInput.value),
         maxHealth: Number(maxHealthInput.value),
-        aiLevel: Number(aiLevelSelect.value),
       }),
     });
 
@@ -629,12 +649,6 @@ function describeRule(rule) {
   return { text: `${power.label} · ${STYLE_CATALOG[rule.param]?.label || rule.param}`, category: power.category };
 }
 
-function sideChip(side) {
-  const name = side === 'left' ? currentSettings?.left.name : side === 'right' ? currentSettings?.right.name : '';
-  const label = side === 'viewer' ? SIDE_LABELS.viewer : `Siempre ${escapeHtml(name || (side === 'left' ? 'izquierdo' : 'derecho'))}`;
-  return `<span class="pf-side-chip" data-side="${escapeHtml(side)}">${label}</span>`;
-}
-
 async function saveRule(event) {
   event.preventDefault();
 
@@ -664,7 +678,6 @@ async function saveRule(event) {
         amount: Number(ruleAmountInput.value) || power.def,
         durationSeconds: Number(ruleDurationInput.value) || power.def,
         param: ruleStyleSelect.value,
-        side: ruleSideSelect.value,
       }),
     });
 
@@ -709,18 +722,18 @@ async function loadRules() {
           <strong>${escapeHtml(rule.gift_name)}</strong>
           <div class="pf-rule-meta">
             <span class="pk-chip pk-chip--${escapeHtml(info.category)}"><svg width="13" height="13"><use href="#i-swords" /></svg>${escapeHtml(info.text)}</span>
-            ${sideChip(rule.side)}
           </div>
         </div>
         <div class="rule-actions">
-          <button class="btn ghost small test-rule-btn" type="button" title="Enviar este poder al juego ahora"><svg><use href="#i-play" /></svg>Probar</button>
+          <button class="btn ghost small test-rule-btn" type="button" data-side="left" title="Enviar este poder al luchador de la izquierda"><svg><use href="#i-play" /></svg>Probar izq.</button>
+          <button class="btn ghost small test-rule-btn" type="button" data-side="right" title="Enviar este poder al luchador de la derecha"><svg><use href="#i-play" /></svg>Probar der.</button>
           <button class="btn ghost small icon-only delete-rule-btn" type="button" title="Eliminar regla" aria-label="Eliminar regla"><svg><use href="#i-trash" /></svg></button>
         </div>
       </div>`;
     }).join('');
 
     rulesList.querySelectorAll('.test-rule-btn').forEach((btn) => {
-      btn.addEventListener('click', () => testRule(btn.closest('.rule-item').dataset.ruleId, btn));
+      btn.addEventListener('click', () => testRule(btn.closest('.rule-item').dataset.ruleId, btn, btn.dataset.side));
     });
     rulesList.querySelectorAll('.delete-rule-btn').forEach((btn) => {
       btn.addEventListener('click', () => deleteRule(btn.closest('.rule-item').dataset.ruleId));
@@ -730,10 +743,14 @@ async function loadRules() {
   }
 }
 
-async function testRule(ruleId, button) {
+async function testRule(ruleId, button, side) {
   button.disabled = true;
   try {
-    const response = await fetch(`/api/roblox-fighters/rules/${ruleId}/test`, { method: 'POST' });
+    const response = await fetch(`/api/roblox-fighters/rules/${ruleId}/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ side }),
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo probar el poder.');
     await showAlert('Poder de prueba enviado. Debería activarse en tu juego de Roblox en un par de segundos.', 'Listo');
@@ -768,7 +785,7 @@ function bootstrapEventListeners() {
     fillStyleSelect(inputs.style);
     inputs.color.addEventListener('input', () => paintSide(side));
     inputs.style.addEventListener('change', () => paintSide(side));
-    inputs.keyword.addEventListener('input', paintKeywords);
+    inputs.name.addEventListener('input', paintKeywords);
   }
   settingsForm.addEventListener('submit', saveSettings);
   resetScoreBtn.addEventListener('click', resetScore);

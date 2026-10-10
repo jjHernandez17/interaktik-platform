@@ -8,6 +8,11 @@ Config.GameName = "Pelea Callejera"
 -- Servidor de Interaktik: de aqui salen los regalos, los comentarios y el marcador
 Config.BaseUrl = "https://interaktik-platform-production.up.railway.app"
 Config.ApiPath = "/api/roblox-fighters"
+-- Solo en Roblox Studio: si el backend local esta encendido se usa ese en vez del de produccion
+Config.LocalUrl = "http://localhost:3000"
+-- Solo en Studio: ID de Roblox a usar cuando se ejecuta con "Run" (F8), que no tiene jugador. Con "Play" se usa tu cuenta.
+Config.StudioTestRobloxUserId = 10495506917
+Config.LocalProbeSec = 15 -- cada cuanto se vuelve a mirar si el backend local esta encendido
 
 Config.QueueIntervalSec = 1 -- cada cuanto se piden regalos nuevos
 Config.SessionIntervalSec = 20 -- cada cuanto se revisan los ajustes de la pagina
@@ -32,7 +37,7 @@ Config.Defaults = {
 	winGoal = 5,
 	roundSeconds = 90,
 	maxHealth = 1000,
-	aiLevel = 2,
+	aiLevel = 0,
 }
 
 return Config

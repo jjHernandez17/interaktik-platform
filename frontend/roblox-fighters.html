@@ -53,7 +53,7 @@
         </ul>
       </div>
       <figure class="pk-hero-art pf-hero-art">
-        <img src="assets/images/pelea-callejera.svg" alt="Portada de Pelea Callejera" />
+        <img src="assets/images/peleaCallejera.png" alt="Portada de Pelea Callejera" />
       </figure>
     </header>
 
@@ -104,7 +104,7 @@
         <li><span class="pf-step-n">1</span><div><strong>Vincula tus cuentas</strong><span>Tu usuario de TikTok (en "Juegos") y tu ID de Roblox (aquí arriba).</span></div></li>
         <li><span class="pf-step-n">2</span><div><strong>Abre el juego en Roblox</strong><span>Entra a Pelea Callejera con la cuenta que vinculaste. <a id="pfOpenRoblox" class="pf-open-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir en Roblox</a></span></div></li>
         <li><span class="pf-step-n">3</span><div><strong>Conecta tu live</strong><span>Pulsa "Conectar" cuando ya estés transmitiendo.</span></div></li>
-        <li><span class="pf-step-n">4</span><div><strong>Que tus espectadores se unan</strong><span>Comentan la palabra de su lado (por ejemplo "<b id="pfStepLeftWord">rojo</b>" o "<b id="pfStepRightWord">azul</b>") y sus regalos ayudan a su luchador.</span></div></li>
+        <li><span class="pf-step-n">4</span><div><strong>Que tus espectadores se unan</strong><span>Comentan el nombre de su lado (por ejemplo "<b id="pfStepLeftWord">Rojo</b>" o "<b id="pfStepRightWord">Azul</b>") o solo su primera letra, y sus regalos ayudan a su luchador.</span></div></li>
       </ol>
     </section>
 
@@ -138,10 +138,7 @@
             </label>
           </div>
           <p id="pfLeftStyleNote" class="pk-hint pf-style-note"></p>
-          <label class="pk-field">
-            <span class="pk-label">Palabra para apoyar a este lado</span>
-            <input id="pfLeftKeyword" type="text" maxlength="20" autocomplete="off" />
-          </label>
+          <p id="pfLeftJoinHint" class="pk-hint pf-join-hint"></p>
         </article>
 
         <div class="pf-vs" aria-hidden="true">VS</div>
@@ -166,10 +163,7 @@
             </label>
           </div>
           <p id="pfRightStyleNote" class="pk-hint pf-style-note"></p>
-          <label class="pk-field">
-            <span class="pk-label">Palabra para apoyar a este lado</span>
-            <input id="pfRightKeyword" type="text" maxlength="20" autocomplete="off" />
-          </label>
+          <p id="pfRightJoinHint" class="pk-hint pf-join-hint"></p>
         </article>
       </div>
     </section>
@@ -196,14 +190,6 @@
           <label class="pk-field">
             <span class="pk-label">Vida de cada luchador</span>
             <input id="pfMaxHealth" type="number" min="200" max="5000" step="50" value="1000" />
-          </label>
-          <label class="pk-field">
-            <span class="pk-label">Nivel de los luchadores</span>
-            <select id="pfAiLevel">
-              <option value="1">Fácil (pelean más despacio)</option>
-              <option value="2" selected>Normal</option>
-              <option value="3">Difícil (muy agresivos)</option>
-            </select>
           </label>
           <div class="pf-save-row">
             <button id="pfSettingsSaveBtn" class="btn primary" type="submit">Guardar cambios</button>
@@ -314,15 +300,7 @@
               </label>
             </div>
 
-            <label class="pk-field">
-              <span class="pk-label">¿Para quién es?</span>
-              <select id="pfRuleSideSelect">
-                <option value="viewer">Para el lado que apoya el espectador</option>
-                <option value="left">Siempre para el lado izquierdo</option>
-                <option value="right">Siempre para el lado derecho</option>
-              </select>
-            </label>
-            <p class="pk-hint">Si el espectador todavía no eligió lado, se le asigna el que tenga menos seguidores.</p>
+            <p class="pk-hint">Esta regla vale para los dos lados: el poder lo activa el lado que eligió el espectador al comentar. Si todavía no eligió, se le asigna el lado con menos seguidores.</p>
 
             <button id="pfRuleSaveBtn" class="btn primary pk-submit" type="submit">
               <svg><use href="#i-plus" /></svg>Agregar regla
@@ -336,7 +314,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js?v=20261009g"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/roblox-fighters.js?v=20261010a"></script>
+  <script src="js/roblox-fighters.js?v=20261019b"></script>
 </body>
 
 </html>

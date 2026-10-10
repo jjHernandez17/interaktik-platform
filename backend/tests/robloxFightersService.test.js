@@ -136,19 +136,35 @@ async function resetDb() {
 const rule = (over) => Object.assign({ gift_id: '5655', power: 'golpe', amount: 60, duration_seconds: 0, param: null, side: 'viewer' }, over);
 const gift = (over) => Object.assign({ giftId: 5655, repeatCount: 1, user: { uniqueId: 'ana', nickname: 'Ana' } }, over);
 
-test('palabras para elegir lado: ignora mayusculas, acentos, signos y emojis', () => {
-  const keywords = { left: 'rojo', right: 'azul' };
-  assert.equal(service.matchSideKeyword('ROJO', keywords), 'left');
-  assert.equal(service.matchSideKeyword('¡rojo! 🔥', keywords), 'left');
-  assert.equal(service.matchSideKeyword('equipo azul', keywords), 'right');
-  assert.equal(service.matchSideKeyword('Azul!!!', keywords), 'right');
-  assert.equal(service.matchSideKeyword('hola a todos', keywords), null);
-  assert.equal(service.matchSideKeyword('rojo o azul', keywords), null, 'si nombra los dos lados no cuenta');
-  assert.equal(service.matchSideKeyword('yo creo que el rojo va a ganar sin duda alguna', keywords), null, 'una frase larga no cuenta');
-  assert.equal(service.matchSideKeyword('', keywords), null);
+test('elegir lado: nombre completo o primera letra, sin importar mayusculas ni tildes', () => {
+  const names = { left: 'Rojo', right: 'Azul' };
+  assert.equal(service.matchSide('rojo', names), 'left');
+  assert.equal(service.matchSide('ROJO', names), 'left');
+  assert.equal(service.matchSide('¡Rojo! 🔥', names), 'left');
+  assert.equal(service.matchSide('r', names), 'left', 'la primera letra basta');
+  assert.equal(service.matchSide('R', names), 'left');
+  assert.equal(service.matchSide('azul', names), 'right');
+  assert.equal(service.matchSide('A', names), 'right');
+  assert.equal(service.matchSide('hola', names), null);
+  assert.equal(service.matchSide('equipo rojo', names), null, 'tiene que ser el nombre y nada mas');
+  assert.equal(service.matchSide('ro', names), null, 'una parte del nombre no cuenta');
+  assert.equal(service.matchSide('', names), null);
+
+  const accents = { left: 'Águilas Ñandú', right: 'Cóndor' };
+  assert.equal(service.matchSide('aguilas nandu', accents), 'left', 'sin tildes');
+  assert.equal(service.matchSide('ÁGUILAS ÑANDÚ', accents), 'left', 'con tildes y en mayusculas');
+  assert.equal(service.matchSide('a', accents), 'left');
+  assert.equal(service.matchSide('Condor', accents), 'right');
+  assert.equal(service.matchSide('ć', accents), 'right', 'la letra tambien ignora tildes');
+
+  // si los dos nombres empiezan igual, la letra no vale para ninguno
+  const sameInitial = { left: 'Tigres', right: 'Toros' };
+  assert.equal(service.matchSide('t', sameInitial), null);
+  assert.equal(service.matchSide('tigres', sameInitial), 'left');
+  assert.equal(service.matchSide('Toros', sameInitial), 'right');
 });
 
-test('ajustes: se validan y se limitan, y las palabras de los dos lados no pueden ser iguales', () => {
+test('ajustes: se validan y se limitan, y los nombres de los dos lados no pueden ser iguales', () => {
   const row = { ...db.config };
   const merged = service.mergeSettings(row, { winGoal: 500, roundSeconds: 5, maxHealth: 99999, aiLevel: 9, left: { color: 'rojo', style: 'inventado' } });
   assert.equal(merged.winGoal, 99);
@@ -157,7 +173,6 @@ test('ajustes: se validan y se limitan, y las palabras de los dos lados no puede
   assert.equal(merged.aiLevel, 3);
   assert.equal(merged.leftColor, '#e63946', 'un color invalido se queda como estaba');
   assert.equal(merged.leftStyle, 'karateka', 'un estilo invalido se queda como estaba');
-  assert.throws(() => service.mergeSettings(row, { left: { keyword: 'Azul' } }), /distintas/);
   assert.throws(() => service.mergeSettings(row, { left: { name: 'azul' } }), /nombres distintos/);
 });
 
@@ -225,14 +240,25 @@ test('la asignacion automatica equilibra los lados', async () => {
   assert.equal(db.viewers.get('nuevo').side, 'right', 'va al lado con menos seguidores');
 });
 
-test('una regla con lado fijo ignora el lado del espectador y no lo cambia', async () => {
+test('las reglas valen para los dos lados: el poder lo activa el lado que eligio el espectador', async () => {
+  await resetDb();
+  db.rules = [rule()];
+  db.viewers.set('ana', { nickname: 'Ana', side: 'left' });
+  db.viewers.set('luis', { nickname: 'Luis', side: 'right' });
+  await service.handleGift(1, gift({ user: { uniqueId: 'ana', nickname: 'Ana' } }));
+  await service.handleGift(1, gift({ user: { uniqueId: 'luis', nickname: 'Luis' } }));
+
+  assert.deepEqual(db.queue.map((i) => i.side), ['left', 'right']);
+});
+
+test('una regla vieja con lado fijo se ignora: manda el lado del espectador', async () => {
   await resetDb();
   db.rules = [rule({ side: 'right' })];
   db.viewers.set('ana', { nickname: 'Ana', side: 'left' });
   await service.handleGift(1, gift());
 
   assert.equal(db.queue.length, 1);
-  assert.equal(db.queue[0].side, 'right');
+  assert.equal(db.queue[0].side, 'left');
   assert.equal(db.viewers.get('ana').side, 'left');
 });
 
@@ -245,7 +271,8 @@ test('un regalo sin regla no encola nada', async () => {
 
 test('si la base falla un instante, el regalo se reintenta y no se pierde', async () => {
   await resetDb();
-  db.rules = [rule({ side: 'left' })];
+  db.rules = [rule()];
+  db.viewers.set('ana', { nickname: 'Ana', side: 'left' });
   db.failNextQueueInsert = 2;
   await service.handleGift(1, gift());
   assert.equal(db.queue.length, 1);
@@ -259,7 +286,7 @@ test('comentarios: elegir lado una vez, y repetir el mismo comentario no duplica
   assert.equal(db.queue[0].kind, 'join');
   assert.equal(db.queue[0].side, 'left');
 
-  // cambiar de lado si comenta la otra palabra
+  // cambiar de lado si comenta el otro nombre (o su primera letra)
   await service.handleChatComment(1, { comment: 'azul', user: { uniqueId: 'bea', nickname: 'Bea' } });
   assert.equal(db.viewers.get('bea').side, 'right');
   assert.equal(db.queue.length, 2);
@@ -271,7 +298,9 @@ test('comentarios: elegir lado una vez, y repetir el mismo comentario no duplica
 
 test('la cola entrega en orden, vuelve a entregar lo no confirmado y no repite lo confirmado', async () => {
   await resetDb();
-  db.rules = [rule({ side: 'left' })];
+  db.rules = [rule()];
+  db.viewers.set('a', { nickname: 'A', side: 'left' });
+  db.viewers.set('b', { nickname: 'B', side: 'left' });
   await service.handleGift(1, gift({ user: { uniqueId: 'a' } }));
   await service.handleGift(1, gift({ user: { uniqueId: 'b' } }));
 

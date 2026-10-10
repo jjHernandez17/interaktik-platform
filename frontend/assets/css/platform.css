@@ -1745,6 +1745,10 @@ a {
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
+.start-btn[hidden] {
+  display: none;
+}
+
 .start-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 34px rgba(124, 92, 255, 0.36);

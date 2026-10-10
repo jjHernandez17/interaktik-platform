@@ -5,6 +5,7 @@
 -- Sin cuenta vinculada (o sin HTTP) el juego corre en modo demostracion con regalos de mentira.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
@@ -108,6 +109,12 @@ match:start()
 local owner = nil
 local live = false
 
+-- En Studio con "Run" (F8) no hay ningun jugador; para las pruebas se puede usar un ID fijo (Config.StudioTestRobloxUserId)
+local studioTestId = RunService:IsStudio() and Config.StudioTestRobloxUserId or nil
+local function ownerId()
+	return owner and owner.UserId or studioTestId
+end
+
 local function setOwner(player)
 	owner = player
 	live = false
@@ -146,14 +153,14 @@ task.spawn(function()
 	while true do
 		local delay = Config.SessionRetrySec
 
-		if not owner then
+		if not ownerId() then
 			match:setStatus("", "info")
 		elseif not Net.httpEnabled() then
 			live = false
 			match:setDemo(true)
 			match:setStatus("Modo demostración: activa HTTP Requests en Game Settings > Security para conectar con Interaktik.", "warn")
 		else
-			Net.robloxUserId = owner.UserId
+			Net.robloxUserId = ownerId()
 			local ok, data = Net.getSession()
 
 			if ok and type(data) == "table" and data.ready then
@@ -168,7 +175,7 @@ task.spawn(function()
 				live = false
 				match:setDemo(true)
 				if data.linked == false then
-					match:setStatus("Modo demostración: tu cuenta de Roblox (ID " .. tostring(owner.UserId) .. ") no está vinculada. Vincúlala en interaktik.com > Pelea Callejera.", "warn")
+					match:setStatus("Modo demostración: tu cuenta de Roblox (ID " .. tostring(ownerId()) .. ") no está vinculada. Vincúlala en interaktik.com > Pelea Callejera.", "warn")
 				else
 					match:setStatus("Modo demostración: tu prueba o plan de Interaktik venció.", "warn")
 				end
@@ -200,7 +207,7 @@ end
 
 task.spawn(function()
 	while true do
-		if live and owner and Net.robloxUserId then
+		if live and ownerId() and Net.robloxUserId then
 			local ok, data = Net.pollQueue()
 			if ok and type(data) == "table" and type(data.items) == "table" and #data.items > 0 then
 				local ids = {}

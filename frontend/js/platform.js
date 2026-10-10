@@ -2,6 +2,15 @@ const navButtons = document.querySelectorAll('.nav-item');
 const sections = document.querySelectorAll('.content-card');
 const logoutBtn = document.getElementById('logoutBtn');
 
+// Enlace de Pelea Callejera en Roblox: cuando la experiencia este publicada se pone aqui y aparece el boton en su tarjeta.
+const FIGHTERS_ROBLOX_URL = 'https://www.roblox.com/games/70535718261477';
+(function initFightersRobloxButton() {
+  const button = document.getElementById('fightersRobloxBtn');
+  if (!button || !FIGHTERS_ROBLOX_URL) return;
+  button.href = FIGHTERS_ROBLOX_URL;
+  button.hidden = false;
+})();
+
 const userMenuToggle = document.getElementById('userMenuToggle');
 const userMenuPopover = document.getElementById('userMenuPopover');
 const sidebarUserName = document.getElementById('sidebarUserName');

@@ -2,6 +2,7 @@
 -- El juego se identifica con el ID de la cuenta de Roblox del jugador, que el streamer vinculo en la pagina del juego.
 
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local Config = require(script.Parent.Config)
 
@@ -16,6 +17,34 @@ function Net.httpEnabled()
 	return ok and enabled == true
 end
 
+-- En Studio se prueba primero contra el backend local; fuera de Studio siempre el de produccion.
+local isStudio = RunService:IsStudio()
+local usingLocal = false
+local lastProbe = -math.huge
+
+local function baseUrl()
+	if not isStudio then
+		return Config.BaseUrl
+	end
+
+	if os.clock() - lastProbe >= Config.LocalProbeSec then
+		lastProbe = os.clock()
+		-- cualquier respuesta HTTP (aunque sea un error) significa que el backend local esta encendido
+		local ok = pcall(function()
+			return HttpService:RequestAsync({
+				Url = Config.LocalUrl .. Config.ApiPath .. "/session?robloxUserId=0",
+				Method = "GET",
+			})
+		end)
+		if ok ~= usingLocal then
+			print("[PeleaCallejera] Backend: " .. (ok and ("local (" .. Config.LocalUrl .. ")") or "produccion"))
+		end
+		usingLocal = ok
+	end
+
+	return usingLocal and Config.LocalUrl or Config.BaseUrl
+end
+
 -- Devuelve: ok, datos (o texto del error), codigo HTTP, cuerpo del error
 function Net.request(method, path, body)
 	if not Net.robloxUserId then
@@ -23,7 +52,7 @@ function Net.request(method, path, body)
 	end
 
 	local request = {
-		Url = Config.BaseUrl .. Config.ApiPath .. path .. "?robloxUserId=" .. tostring(Net.robloxUserId),
+		Url = baseUrl() .. Config.ApiPath .. path .. "?robloxUserId=" .. tostring(Net.robloxUserId),
 		Method = method,
 		Headers = { ["Content-Type"] = "application/json" },
 	}

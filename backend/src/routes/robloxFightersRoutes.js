@@ -107,7 +107,6 @@ router.post('/roblox-fighters/rules', requireAuth, requireActiveAccess, async (r
       amount: req.body?.amount,
       durationSeconds: req.body?.durationSeconds,
       param: req.body?.param,
-      side: req.body?.side,
     });
     return res.json({ rule });
   } catch (error) {
@@ -126,7 +125,7 @@ router.delete('/roblox-fighters/rules/:id', requireAuth, requireActiveAccess, as
 
 router.post('/roblox-fighters/rules/:id/test', requireAuth, requireActiveAccess, async (req, res) => {
   try {
-    await robloxFightersService.enqueueTestPower(getSessionUserId(req), Number(req.params.id));
+    await robloxFightersService.enqueueTestPower(getSessionUserId(req), Number(req.params.id), req.body?.side);
     return res.json({ success: true });
   } catch (error) {
     return sendError(res, error, 'Error probando poder de Pelea Callejera');

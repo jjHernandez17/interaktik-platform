@@ -4,7 +4,6 @@
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
-local AI = require(script.Parent.AI)
 local Combat = require(script.Parent.Combat)
 local Config = require(script.Parent.Config)
 local Effects = require(script.Parent.Effects)
@@ -60,7 +59,7 @@ local function normalizeSettings(raw)
 		winGoal = Util.clamp(math.floor(tonumber(raw.winGoal) or defaults.winGoal), 1, 99),
 		roundSeconds = Util.clamp(math.floor(tonumber(raw.roundSeconds) or defaults.roundSeconds), 20, 180),
 		maxHealth = Util.clamp(math.floor(tonumber(raw.maxHealth) or defaults.maxHealth), 200, 5000),
-		aiLevel = Util.clamp(math.floor(tonumber(raw.aiLevel) or defaults.aiLevel), 1, 3),
+		aiLevel = Util.clamp(math.floor(tonumber(raw.aiLevel) or defaults.aiLevel), 0, 3),
 	}
 end
 
@@ -307,7 +306,9 @@ function Match:step(dt)
 
 	if fighting then
 		for _, side in ipairs({ "left", "right" }) do
-			AI.update(self.fighters[side], now, self.settings.aiLevel)
+			-- los luchadores nunca actuan solos: todo lo que hacen viene de un regalo (o de uno de mentira en la demostracion)
+			local intent = self.fighters[side].intent
+			intent.move, intent.jump, intent.block = 0, false, false
 		end
 
 		if self.demo and now >= self.nextDemoAt then
@@ -322,7 +323,12 @@ function Match:step(dt)
 		end
 	end
 
-	for _, fighter in pairs(self.fighters) do
+	-- el orden cambia al azar: si los dos golpean al mismo tiempo, no gana siempre el mismo lado
+	local order = { self.fighters.left, self.fighters.right }
+	if math.random() < 0.5 then
+		order[1], order[2] = order[2], order[1]
+	end
+	for _, fighter in ipairs(order) do
 		fighter:update(now, dt, fighting)
 	end
 

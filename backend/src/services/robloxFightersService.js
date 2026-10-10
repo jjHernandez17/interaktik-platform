@@ -37,12 +37,10 @@ const DEFAULTS = {
   rightColor: '#3a86ff',
   leftStyle: 'karateka',
   rightStyle: 'ninja',
-  leftKeyword: 'rojo',
-  rightKeyword: 'azul',
   winGoal: 5,
   roundSeconds: 90,
   maxHealth: 1000,
-  aiLevel: 2,
+  aiLevel: 0,
 };
 
 const SETTINGS_CACHE_TTL_MS = 30000;
@@ -97,31 +95,32 @@ function normalizeComment(text) {
     .trim();
 }
 
-function cleanKeyword(value, fallback) {
-  const word = normalizeComment(value).split(' ')[0] || '';
-  return word ? word.slice(0, 20) : fallback;
-}
-
-// "rojo", "ROJO!!", "equipo rojo" y "rojo 🔥" eligen el lado rojo; si el comentario nombra los dos lados, no cuenta.
-function matchSideKeyword(comment, keywords) {
+// El espectador elige lado comentando el nombre completo del lado o solo su primera letra, en mayusculas o minusculas,
+// con o sin tildes: "Los Tigres", "los tigres", "LOS TIGRES!" o "l". La letra solo vale si no es tambien la inicial del otro
+// lado (si las dos empiezan igual, hay que escribir el nombre completo).
+function matchSide(comment, names) {
   const text = normalizeComment(comment);
-  if (!text || text.length > 40) return null;
+  if (!text) return null;
 
-  const words = text.split(' ');
-  if (words.length > 3) return null;
+  const left = normalizeComment(names.left);
+  const right = normalizeComment(names.right);
 
-  const left = words.includes(keywords.left);
-  const right = words.includes(keywords.right);
-  if (left === right) return null;
-  return left ? 'left' : 'right';
+  if (text === left) return 'left';
+  if (text === right) return 'right';
+
+  if (text.length === 1 && left[0] !== right[0]) {
+    if (text === left[0]) return 'left';
+    if (text === right[0]) return 'right';
+  }
+  return null;
 }
 
 // ---------- conversion fila <-> objeto ----------
 
 function toSettings(row) {
   return {
-    left: { name: row.left_name, color: row.left_color, style: row.left_style, keyword: row.left_keyword },
-    right: { name: row.right_name, color: row.right_color, style: row.right_style, keyword: row.right_keyword },
+    left: { name: row.left_name, color: row.left_color, style: row.left_style },
+    right: { name: row.right_name, color: row.right_color, style: row.right_style },
     winGoal: row.win_goal,
     roundSeconds: row.round_seconds,
     maxHealth: row.max_health,
@@ -164,17 +163,12 @@ function mergeSettings(currentRow, input) {
     rightColor: cleanColor(input?.right?.color, current.right.color),
     leftStyle: cleanStyle(input?.left?.style, current.left.style),
     rightStyle: cleanStyle(input?.right?.style, current.right.style),
-    leftKeyword: cleanKeyword(input?.left?.keyword, current.left.keyword),
-    rightKeyword: cleanKeyword(input?.right?.keyword, current.right.keyword),
     winGoal: clampInt(input?.winGoal, 1, 99, current.winGoal),
     roundSeconds: clampInt(input?.roundSeconds, 20, 180, current.roundSeconds),
     maxHealth: clampInt(input?.maxHealth, 200, 5000, current.maxHealth),
-    aiLevel: clampInt(input?.aiLevel, 1, 3, current.aiLevel),
+    aiLevel: clampInt(input?.aiLevel, 0, 3, current.aiLevel),
   };
 
-  if (next.leftKeyword === next.rightKeyword) {
-    throw badRequest('Las palabras para elegir lado deben ser distintas.');
-  }
   if (normalizeComment(next.leftName) === normalizeComment(next.rightName)) {
     throw badRequest('Los dos lados deben tener nombres distintos.');
   }
@@ -188,12 +182,12 @@ async function updateSettings(userId, input) {
   const result = await pool.query(
     `UPDATE roblox_fighters_config SET
        left_name = $2, right_name = $3, left_color = $4, right_color = $5, left_style = $6, right_style = $7,
-       left_keyword = $8, right_keyword = $9, win_goal = $10, round_seconds = $11, max_health = $12, ai_level = $13,
+       win_goal = $8, round_seconds = $9, max_health = $10, ai_level = $11,
        updated_at = NOW()
      WHERE user_id = $1
      RETURNING *`,
     [userId, next.leftName, next.rightName, next.leftColor, next.rightColor, next.leftStyle, next.rightStyle,
-      next.leftKeyword, next.rightKeyword, next.winGoal, next.roundSeconds, next.maxHealth, next.aiLevel],
+      next.winGoal, next.roundSeconds, next.maxHealth, next.aiLevel],
   );
 
   settingsCache.delete(Number(userId));
@@ -281,12 +275,13 @@ function normalizeRulePower({ power, amount, durationSeconds, param }) {
   return { power: cleanPower, amount: 0, durationSeconds: 0, param: style };
 }
 
-async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, amount, durationSeconds, param, side }) {
+async function upsertGiftRule(userId, { giftId, giftName, giftImageUrl, power, amount, durationSeconds, param }) {
   const cleanGiftId = String(giftId || '').trim().slice(0, 60);
   const cleanGiftName = String(giftName || '').trim().slice(0, 120);
   if (!cleanGiftId || !cleanGiftName) throw badRequest('Debes seleccionar un regalo.');
 
-  const ruleSide = ['viewer', 'left', 'right'].includes(side) ? side : 'viewer';
+  // las reglas valen para los dos lados: el poder lo activa el lado que eligio el espectador
+  const ruleSide = 'viewer';
   const rule = normalizeRulePower({ power, amount, durationSeconds, param });
 
   const result = await pool.query(
@@ -406,13 +401,9 @@ function whoIs(user) {
   return { uniqueId, nickname: String(user?.nickname || uniqueId) };
 }
 
-// Lado de un regalo: el fijo de la regla, o el que eligio el espectador; si todavia no eligio, se le asigna el lado con
-// menos seguidores (asi la pelea queda pareja y el regalo nunca se pierde por no tener lado).
-async function resolveGiftSide(userId, rule, who) {
-  if (rule.side === 'left' || rule.side === 'right') {
-    return { side: rule.side, joined: false };
-  }
-
+// Lado de un regalo: el que eligio el espectador; si todavia no eligio, se le asigna el lado con menos seguidores
+// (asi la pelea queda pareja y el regalo nunca se pierde por no tener lado).
+async function resolveGiftSide(userId, who) {
   const known = await getViewerSide(userId, who.uniqueId);
   if (known) return { side: known, joined: false };
 
@@ -437,7 +428,7 @@ async function handleGift(userId, { giftId, repeatCount, user } = {}) {
 
   const who = whoIs(user);
   const units = Math.max(1, Math.round(Number(repeatCount) || 1));
-  const { side, joined } = await resolveGiftSide(userId, rule, who);
+  const { side, joined } = await resolveGiftSide(userId, who);
 
   if (joined) {
     await enqueue(userId, { kind: 'join', uniqueId: who.uniqueId, nickname: who.nickname, side });
@@ -456,23 +447,23 @@ async function handleGift(userId, { giftId, repeatCount, user } = {}) {
   logger.info(`[FIGHTERS] regalo ${giftId} de @${who.uniqueId} -> ${rule.power} para ${side} (x${units})`);
 }
 
-async function getSideKeywords(userId) {
+async function getSideNames(userId) {
   const key = Number(userId);
   const cached = settingsCache.get(key);
   if (cached && Date.now() - cached.at < SETTINGS_CACHE_TTL_MS) return cached;
 
   const row = await getOrCreateConfig(userId);
-  const entry = { at: Date.now(), left: row.left_keyword, right: row.right_keyword };
+  const entry = { at: Date.now(), left: row.left_name, right: row.right_name };
   settingsCache.set(key, entry);
   return entry;
 }
 
-// Un comentario con la palabra de un lado hace que ese espectador apoye a ese lado
+// Un comentario con el nombre de un lado (o su primera letra) hace que ese espectador apoye a ese lado
 async function handleChatComment(userId, { comment, user } = {}) {
   if (!comment) return;
 
-  const keywords = await getSideKeywords(userId);
-  const side = matchSideKeyword(comment, keywords);
+  const names = await getSideNames(userId);
+  const side = matchSide(comment, names);
   if (!side) return;
 
   const who = whoIs(user);
@@ -482,9 +473,10 @@ async function handleChatComment(userId, { comment, user } = {}) {
   await enqueue(userId, { kind: 'join', uniqueId: who.uniqueId, nickname: who.nickname, side });
 }
 
-async function enqueueTestPower(userId, ruleId) {
+// side: lado al que se manda el poder de prueba ('left' o 'right')
+async function enqueueTestPower(userId, ruleId, side) {
   const result = await pool.query(
-    'SELECT power, amount, duration_seconds, param, side FROM roblox_fighters_gift_rules WHERE id = $1 AND user_id = $2',
+    'SELECT power, amount, duration_seconds, param FROM roblox_fighters_gift_rules WHERE id = $1 AND user_id = $2',
     [ruleId, userId],
   );
 
@@ -499,7 +491,7 @@ async function enqueueTestPower(userId, ruleId) {
     kind: 'power',
     uniqueId: 'test-user',
     nickname: 'Prueba',
-    side: rule.side === 'right' ? 'right' : 'left',
+    side: side === 'right' ? 'right' : 'left',
     power: rule.power,
     amount: rule.amount,
     durationSeconds: rule.duration_seconds,
@@ -674,7 +666,7 @@ module.exports = {
   POWERS,
   DEFAULTS,
   normalizeComment,
-  matchSideKeyword,
+  matchSide,
   mergeSettings,
   normalizeRulePower,
   toSettings,

@@ -6,6 +6,7 @@ const { emitLiveEvent } = require('./liveHub');
 const { createGiftPipeline } = require('./giftPipeline');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
+const robloxFightersService = require('./robloxFightersService');
 const minecraftService = require('./minecraftService');
 const minecraftCubeService = require('./minecraftCubeService');
 const gtaService = require('./gtaService');
@@ -38,6 +39,7 @@ const RECENT_MSG_ID_LIMIT = 300;
 // Snake aplica manzanas por unidad, asi que ahi cada toque se ve en el momento.
 const GIFT_MODE_BY_GAME = {
   snake: 'delta',
+  robloxfighters: 'delta', // cada toque de una racha pega al instante en la pelea
 };
 
 // Si el live se corta sin que el streamer lo pida (TikTok cierra la conexion, termina la transmision, hay un corte de red),
@@ -298,6 +300,12 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
     });
   }
 
+  if (gameType === 'robloxfighters' && userId) {
+    robloxFightersService.handleGift(userId, giftPayload).catch((error) => {
+      logger.error('No se pudo procesar regalo para Pelea Callejera (Roblox)', error);
+    });
+  }
+
   if (gameType === 'minecraft' && userId) {
     minecraftService.handleGift(userId, giftPayload).catch((error) => {
       logger.warn('No se pudo procesar regalo para Minecraft', error);
@@ -326,10 +334,11 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'robloxfighters', 'roblox-fighters', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     if (gameType === 'roblox-parkour') return 'robloxparkour';
+    if (gameType === 'roblox-fighters') return 'robloxfighters';
     return gameType;
   }
 
@@ -356,6 +365,7 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('snake-vs-snake')) return 'snake';
   if (referer.includes('roblox-dance')) return 'roblox';
   if (referer.includes('roblox-parkour')) return 'robloxparkour';
+  if (referer.includes('roblox-fighters')) return 'robloxfighters';
   if (referer.includes('minecraft-cubo')) return 'minecraftcubo';
   if (referer.includes('minecraft')) return 'minecraft';
   if (referer.includes('gta-rampa')) return 'gtarampa';
@@ -715,6 +725,12 @@ connection.on(WebcastEvent.CHAT, (data) => {
   if (normalizedGameType === 'roblox' && userId) {
     robloxDanceService.handleChatComment(userId, chatPayload).catch((error) => {
       logger.warn('No se pudo procesar comentario para Roblox Dance', error);
+    });
+  }
+
+  if (normalizedGameType === 'robloxfighters' && userId) {
+    robloxFightersService.handleChatComment(userId, chatPayload).catch((error) => {
+      logger.warn('No se pudo procesar comentario para Pelea Callejera (Roblox)', error);
     });
   }
 });

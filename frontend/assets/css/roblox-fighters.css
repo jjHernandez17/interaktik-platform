@@ -1,0 +1,363 @@
+/* Interaktik — Pelea Callejera (se suma a roblox-parkour.css, que da la estructura) */
+
+.pf-shell {
+  --pf-red: #e63946;
+  --pf-blue: #3a86ff;
+}
+
+/* ---------- Encabezado: la portada es vertical ---------- */
+
+.pf-hero-art {
+  aspect-ratio: 3 / 4;
+  width: min(100%, 340px);
+  justify-self: center;
+  background: #0b0b18;
+}
+
+/* ---------- Cómo se juega ---------- */
+
+.pf-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pf-steps-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.pf-step-n {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2a1c3f;
+  color: #ffb4c0;
+  font-weight: 800;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf-steps-list strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.92rem;
+}
+
+.pf-steps-list span:not(.pf-step-n) {
+  color: var(--ds-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.pf-steps-list b {
+  color: var(--ds-text);
+  font-weight: 700;
+}
+
+.pf-open-link {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--ds-accent);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.pf-open-link[hidden] {
+  display: none;
+}
+
+/* ---------- Luchadores ---------- */
+
+.pf-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.pf-side-card {
+  --pf-side: var(--pf-red);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--ds-radius-lg);
+  border: 1px solid color-mix(in srgb, var(--pf-side) 45%, transparent);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--pf-side) 16%, transparent), transparent 55%),
+    rgba(8, 12, 22, 0.55);
+  box-shadow: inset 0 3px 0 var(--pf-side);
+}
+
+.pf-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pf-side-tag {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pf-side) 70%, #ffffff);
+}
+
+.pf-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pf-side);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pf-side) 30%, transparent);
+}
+
+.pf-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.pf-vs {
+  font-family: var(--ds-font-display);
+  font-weight: 900;
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  color: #ffd166;
+  text-shadow: 0 0 22px rgba(255, 179, 0, 0.45);
+}
+
+.pf-shell input[type="color"] {
+  width: 100%;
+  height: 43px;
+  padding: 4px;
+  box-sizing: border-box;
+  background-color: rgba(4, 8, 16, 0.55);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+}
+
+.pf-shell input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.pf-shell input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+.pf-style-note {
+  margin: -4px 0 0;
+  min-height: 2.4em;
+}
+
+/* ---------- Partida y marcador ---------- */
+
+.pf-match-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.pf-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pf-save-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pf-save-state {
+  font-size: 0.84rem;
+  color: var(--ds-text-muted);
+}
+
+.pf-save-state[data-tone="ok"] {
+  color: var(--ds-success);
+}
+
+.pf-save-state[data-tone="error"] {
+  color: var(--ds-danger);
+}
+
+.pf-scoreboard {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: var(--ds-radius-lg);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+}
+
+.pf-score-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pf-score-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.pf-score-side {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pf-score-side strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--pf-side) 65%, #ffffff);
+}
+
+.pf-score-num {
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  font-size: 2.6rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf-score-sep {
+  font-size: 1.6rem;
+  color: var(--ds-text-faint);
+}
+
+.pf-score-goal,
+.pf-score-champs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.84rem;
+}
+
+.pf-score-goal svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pf-score-goal b,
+.pf-score-champs b {
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Reglas: colores por tipo de poder ---------- */
+
+.pf-power-help {
+  margin: -6px 0 0;
+  min-height: 2.4em;
+}
+
+.pk-chip--attack {
+  color: #fb7185;
+  background: #3a1620;
+}
+
+.pk-chip--support {
+  color: #4ade80;
+  background: #0f2e1f;
+}
+
+.pk-chip--boost {
+  color: #fbbf24;
+  background: #35280f;
+}
+
+.pk-chip--control {
+  color: var(--ds-accent);
+  background: #0f2e3a;
+}
+
+.pk-chip--style {
+  color: #c4b5fd;
+  background: #251d4e;
+}
+
+.pf-rule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pf-side-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--ds-text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.pf-side-chip[data-side="left"] {
+  color: #ffb4bd;
+  background: rgba(230, 57, 70, 0.16);
+}
+
+.pf-side-chip[data-side="right"] {
+  color: #a9ccff;
+  background: rgba(58, 134, 255, 0.16);
+}
+
+/* ---------- Adaptación ---------- */
+
+@media (max-width: 960px) {
+  .pf-steps-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pf-match-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .pf-sides {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-vs {
+    text-align: center;
+  }
+
+  .pf-steps-list {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-settings {
+    grid-template-columns: 1fr;
+  }
+}

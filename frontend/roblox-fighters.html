@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pelea Callejera | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/roblox-fighters.css?v=20261010a" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5L18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2" /></symbol>
+      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-1.5 4L16 12H5" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell pf-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Pelea Callejera</h1>
+        <p>
+          Dos luchadores, uno por lado, se pelean en una arena hasta quedarse sin vida. Tus espectadores eligen un lado
+          comentando su palabra y los regalos activan golpes, bolas de energía, súper ataques, escudos y curaciones para su
+          luchador. Aquí decides qué hace cada regalo.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="pfHeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="pfHeroRoblox" data-state="off"><span class="pk-dot"></span>Cuenta de Roblox</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art pf-hero-art">
+        <img src="assets/images/pelea-callejera.svg" alt="Portada de Pelea Callejera" />
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="pfConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="pfConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="pfConnectionForm" class="pk-inline-form">
+          <input id="pfUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="pfConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="pfDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Cuenta de Roblox</h2>
+            <p id="pfLinkStatus" class="pk-hint">
+              Aún no has vinculado ninguna cuenta. Tu ID numérico está en roblox.com/users/<strong>TU_ID</strong>/profile.
+            </p>
+          </div>
+        </div>
+        <form id="pfLinkForm" class="pk-inline-form">
+          <input id="pfUserIdInput" type="text" inputmode="numeric" placeholder="ID numérico de Roblox" required />
+          <button id="pfLinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Cómo se juega -->
+    <section class="pk-panel pf-steps" aria-labelledby="pfStepsTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="pfStepsTitle">Cómo se juega</h2>
+          <p class="pk-hint">Tú solo transmites: la pelea se juega sola y tus espectadores deciden quién gana.</p>
+        </div>
+      </div>
+      <ol class="pf-steps-list">
+        <li><span class="pf-step-n">1</span><div><strong>Vincula tus cuentas</strong><span>Tu usuario de TikTok (en "Juegos") y tu ID de Roblox (aquí arriba).</span></div></li>
+        <li><span class="pf-step-n">2</span><div><strong>Abre el juego en Roblox</strong><span>Entra a Pelea Callejera con la cuenta que vinculaste. <a id="pfOpenRoblox" class="pf-open-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir en Roblox</a></span></div></li>
+        <li><span class="pf-step-n">3</span><div><strong>Conecta tu live</strong><span>Pulsa "Conectar" cuando ya estés transmitiendo.</span></div></li>
+        <li><span class="pf-step-n">4</span><div><strong>Que tus espectadores se unan</strong><span>Comentan la palabra de su lado (por ejemplo "<b id="pfStepLeftWord">rojo</b>" o "<b id="pfStepRightWord">azul</b>") y sus regalos ayudan a su luchador.</span></div></li>
+      </ol>
+    </section>
+
+    <!-- Luchadores -->
+    <section class="pk-panel pf-fighters" aria-labelledby="pfFightersTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="pfFightersTitle">Los luchadores</h2>
+          <p class="pk-hint">Cada lado tiene su nombre, su color y su estilo de pelea. Los espectadores se unen comentando la palabra de su lado.</p>
+        </div>
+      </div>
+
+      <div class="pf-sides">
+        <article class="pf-side-card" data-side="left" style="--pf-side: #e63946">
+          <header class="pf-side-head">
+            <span class="pf-side-tag">Lado izquierdo</span>
+            <span class="pf-swatch" aria-hidden="true"></span>
+          </header>
+          <label class="pk-field">
+            <span class="pk-label">Nombre</span>
+            <input id="pfLeftName" type="text" maxlength="24" autocomplete="off" />
+          </label>
+          <div class="pf-row">
+            <label class="pk-field">
+              <span class="pk-label">Color</span>
+              <input id="pfLeftColor" type="color" value="#e63946" />
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Estilo de pelea</span>
+              <select id="pfLeftStyle"></select>
+            </label>
+          </div>
+          <p id="pfLeftStyleNote" class="pk-hint pf-style-note"></p>
+          <label class="pk-field">
+            <span class="pk-label">Palabra para apoyar a este lado</span>
+            <input id="pfLeftKeyword" type="text" maxlength="20" autocomplete="off" />
+          </label>
+        </article>
+
+        <div class="pf-vs" aria-hidden="true">VS</div>
+
+        <article class="pf-side-card" data-side="right" style="--pf-side: #3a86ff">
+          <header class="pf-side-head">
+            <span class="pf-side-tag">Lado derecho</span>
+            <span class="pf-swatch" aria-hidden="true"></span>
+          </header>
+          <label class="pk-field">
+            <span class="pk-label">Nombre</span>
+            <input id="pfRightName" type="text" maxlength="24" autocomplete="off" />
+          </label>
+          <div class="pf-row">
+            <label class="pk-field">
+              <span class="pk-label">Color</span>
+              <input id="pfRightColor" type="color" value="#3a86ff" />
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Estilo de pelea</span>
+              <select id="pfRightStyle"></select>
+            </label>
+          </div>
+          <p id="pfRightStyleNote" class="pk-hint pf-style-note"></p>
+          <label class="pk-field">
+            <span class="pk-label">Palabra para apoyar a este lado</span>
+            <input id="pfRightKeyword" type="text" maxlength="20" autocomplete="off" />
+          </label>
+        </article>
+      </div>
+    </section>
+
+    <!-- Partida y marcador -->
+    <section class="pk-panel pf-match" aria-labelledby="pfMatchTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="pfMatchTitle">La partida</h2>
+          <p class="pk-hint">Cada round lo gana quien deje al otro sin vida (o quien tenga más vida cuando se acabe el tiempo). Gana el campeonato quien llegue primero a la meta de victorias.</p>
+        </div>
+      </div>
+
+      <div class="pf-match-grid">
+        <form id="pfSettingsForm" class="pf-settings">
+          <label class="pk-field">
+            <span class="pk-label">Victorias para ser campeón</span>
+            <input id="pfWinGoal" type="number" min="1" max="99" value="5" />
+          </label>
+          <label class="pk-field">
+            <span class="pk-label">Duración de cada round (segundos)</span>
+            <input id="pfRoundSeconds" type="number" min="20" max="180" value="90" />
+          </label>
+          <label class="pk-field">
+            <span class="pk-label">Vida de cada luchador</span>
+            <input id="pfMaxHealth" type="number" min="200" max="5000" step="50" value="1000" />
+          </label>
+          <label class="pk-field">
+            <span class="pk-label">Nivel de los luchadores</span>
+            <select id="pfAiLevel">
+              <option value="1">Fácil (pelean más despacio)</option>
+              <option value="2" selected>Normal</option>
+              <option value="3">Difícil (muy agresivos)</option>
+            </select>
+          </label>
+          <div class="pf-save-row">
+            <button id="pfSettingsSaveBtn" class="btn primary" type="submit">Guardar cambios</button>
+            <span id="pfSaveState" class="pf-save-state" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <div class="pf-scoreboard" aria-label="Marcador">
+          <div class="pf-score-head">
+            <span class="pk-label">Marcador</span>
+            <button id="pfResetScoreBtn" class="pk-link-btn" type="button"><svg><use href="#i-refresh" /></svg>Reiniciar marcador</button>
+          </div>
+          <div class="pf-score-main">
+            <div class="pf-score-side" style="--pf-side: #e63946">
+              <strong id="pfScoreLeftName">Rojo</strong>
+              <span id="pfScoreLeft" class="pf-score-num">0</span>
+            </div>
+            <span class="pf-score-sep">-</span>
+            <div class="pf-score-side" style="--pf-side: #3a86ff">
+              <strong id="pfScoreRightName">Azul</strong>
+              <span id="pfScoreRight" class="pf-score-num">0</span>
+            </div>
+          </div>
+          <p class="pf-score-goal"><svg><use href="#i-flag" /></svg>Meta: <b id="pfScoreGoal">5</b> victorias</p>
+          <p class="pf-score-champs">Campeonatos ganados: <b id="pfChampLeft">0</b> - <b id="pfChampRight">0</b></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="pfRulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="pfRulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo activa un poder para el luchador del espectador que lo manda. Un combo multiplica el efecto.</p>
+          </div>
+          <span id="pfRuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="pfRulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="pfFormTitle">
+          <div class="pk-panel-head">
+            <h2 id="pfFormTitle">Nueva regla</h2>
+            <button id="pfLoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="pfRuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="pfGiftPicker" class="gift-picker">
+                <button id="pfGiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="pfGiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="pfGiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="pfGiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="pfGiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="pfGiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="pfGiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Poder</span>
+              <select id="pfRulePowerSelect"></select>
+            </label>
+            <p id="pfPowerHelp" class="pk-hint pf-power-help"></p>
+
+            <div id="pfAmountFields" class="pk-subfields" hidden>
+              <label class="pk-field">
+                <span id="pfAmountLabel" class="pk-label">Cantidad</span>
+                <input id="pfRuleAmountInput" type="number" min="1" value="60" />
+              </label>
+            </div>
+
+            <div id="pfDurationFields" class="pk-subfields" hidden>
+              <label class="pk-field">
+                <span class="pk-label">Duración (segundos)</span>
+                <input id="pfRuleDurationInput" type="number" min="1" value="10" />
+              </label>
+            </div>
+
+            <div id="pfStyleFields" class="pk-subfields" hidden>
+              <label class="pk-field">
+                <span class="pk-label">Estilo que toma el luchador</span>
+                <select id="pfRuleStyleSelect"></select>
+              </label>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">¿Para quién es?</span>
+              <select id="pfRuleSideSelect">
+                <option value="viewer">Para el lado que apoya el espectador</option>
+                <option value="left">Siempre para el lado izquierdo</option>
+                <option value="right">Siempre para el lado derecho</option>
+              </select>
+            </label>
+            <p class="pk-hint">Si el espectador todavía no eligió lado, se le asigna el que tenga menos seguidores.</p>
+
+            <button id="pfRuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js?v=20261009g"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/roblox-fighters.js?v=20261010a"></script>
+</body>
+
+</html>

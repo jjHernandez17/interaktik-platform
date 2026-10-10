@@ -782,6 +782,28 @@ router.get('/roblox-parkour.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-parkour.js'));
 });
 
+// Pelea Callejera (Roblox)
+router.get(['/roblox-fighters', '/roblox-fighters.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'robloxfighters'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/roblox-fighters.html', 'Pelea Callejera page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/roblox-fighters.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/roblox-fighters.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-fighters.js'));
+});
+
 // Minecraft interactivo
 router.get(['/minecraft', '/minecraft.html'], requireAuthPage, async (req, res) => {
   try {

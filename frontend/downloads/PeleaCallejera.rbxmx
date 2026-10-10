@@ -1,0 +1,4795 @@
+<roblox version="4">
+<Item class="Script" referent="RBX9D145C6F29F04A9AB804BDB8B2093D11">
+<Properties>
+<string name="Name">PeleaCallejera</string>
+<token name="RunContext">0</token>
+<ProtectedString name="Source"><![CDATA[-- Pelea Callejera para Interaktik: dos luchadores pelean solos en una arena y los regalos de TikTok Live los ayudan.
+--
+-- Como instalarlo: este Script (con todo lo que trae dentro) va en ServerScriptService.
+-- Activa "Allow HTTP Requests" en Game Settings > Security para que hable con Interaktik.
+-- Sin cuenta vinculada (o sin HTTP) el juego corre en modo demostracion con regalos de mentira.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local Arena = require(script.Arena)
+local Config = require(script.Config)
+local Effects = require(script.Effects)
+local Match = require(script.Match)
+local Net = require(script.Net)
+local Util = require(script.Util)
+
+-- No hay avatares de jugadores: el jugador solo mira la pelea
+Players.CharacterAutoLoads = false
+
+-- ---------- lo que se comparte con los clientes ----------
+
+local function ensureFolder(parent, name)
+	local folder = parent:FindFirstChild(name)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	end
+	return folder
+end
+
+local stateFolder = ensureFolder(ReplicatedStorage, "PeleaState")
+local remotesFolder = ensureFolder(ReplicatedStorage, "PeleaRemotes")
+
+local function ensureRemote(name)
+	local remote = remotesFolder:FindFirstChild(name)
+	if not remote then
+		remote = Instance.new("RemoteEvent")
+		remote.Name = name
+		remote.Parent = remotesFolder
+	end
+	return remote
+end
+
+local remotes = { Feed = ensureRemote("Feed"), Fx = ensureRemote("Fx") }
+
+-- El script del cliente (camara, pantalla y animaciones) viaja dentro de este Script y se copia a cada jugador
+local clientTemplate = script:FindFirstChild("Client")
+-- Los jugadores no tienen personaje (la camara es fija), asi que con "StreamingEnabled" no les llegaria nada del mundo.
+-- Este punto invisible en el centro de la arena es lo que el servidor les manda como foco.
+local focusPart = Instance.new("Part")
+focusPart.Name = "PeleaFocus"
+focusPart.Anchored = true
+focusPart.CanCollide = false
+focusPart.CanQuery = false
+focusPart.Transparency = 1
+focusPart.Size = Vector3.one
+focusPart.Position = Vector3.new(0, 6, 0)
+focusPart.Parent = workspace
+
+local function giveClient(player)
+	pcall(function()
+		player.ReplicationFocus = focusPart
+	end)
+	if not clientTemplate then
+		warn("[PeleaCallejera] Falta la carpeta Client dentro del Script principal")
+		return
+	end
+	local scripts = player:FindFirstChild("PlayerScripts")
+	if scripts and not scripts:FindFirstChild("PeleaCallejeraClient") then
+		local copy = clientTemplate:Clone()
+		copy.Name = "PeleaCallejeraClient"
+		copy.Parent = scripts
+	end
+end
+
+if clientTemplate then
+	local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+	if starterScripts and not starterScripts:FindFirstChild("PeleaCallejeraClient") then
+		local copy = clientTemplate:Clone()
+		copy.Name = "PeleaCallejeraClient"
+		copy.Parent = starterScripts
+	end
+end
+for _, player in ipairs(Players:GetPlayers()) do
+	giveClient(player)
+end
+
+-- ---------- el mundo ----------
+
+local fightersFolder = ensureFolder(workspace, "Fighters")
+local effectsFolder = ensureFolder(workspace, "PeleaEffects")
+local arena = Arena.build(workspace)
+Effects.init(effectsFolder, remotes.Fx)
+
+local match = Match.new({
+	state = stateFolder,
+	remotes = remotes,
+	fightersFolder = fightersFolder,
+	arena = arena,
+})
+match:publish()
+match:start()
+
+-- ---------- cuenta de Roblox del que juega ----------
+
+local owner = nil
+local live = false
+
+local function setOwner(player)
+	owner = player
+	live = false
+	Net.robloxUserId = player and player.UserId or nil
+	match:setDemo(true)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	giveClient(player)
+	if not owner then
+		setOwner(player)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if player == owner then
+		local others = {}
+		for _, other in ipairs(Players:GetPlayers()) do
+			if other ~= player then
+				table.insert(others, other)
+			end
+		end
+		setOwner(others[1])
+	end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	if not owner then
+		setOwner(player)
+	end
+end
+
+-- ---------- ajustes y marcador (cada cierto tiempo) ----------
+
+task.spawn(function()
+	while true do
+		local delay = Config.SessionRetrySec
+
+		if not owner then
+			match:setStatus("", "info")
+		elseif not Net.httpEnabled() then
+			live = false
+			match:setDemo(true)
+			match:setStatus("Modo demostración: activa HTTP Requests en Game Settings > Security para conectar con Interaktik.", "warn")
+		else
+			Net.robloxUserId = owner.UserId
+			local ok, data = Net.getSession()
+
+			if ok and type(data) == "table" and data.ready then
+				if not live then
+					live = true
+					match:setDemo(false)
+				end
+				match:setStatus("", "ok")
+				match:applySession(data)
+				delay = Config.SessionIntervalSec
+			elseif ok and type(data) == "table" then
+				live = false
+				match:setDemo(true)
+				if data.linked == false then
+					match:setStatus("Modo demostración: tu cuenta de Roblox (ID " .. tostring(owner.UserId) .. ") no está vinculada. Vincúlala en interaktik.com > Pelea Callejera.", "warn")
+				else
+					match:setStatus("Modo demostración: tu prueba o plan de Interaktik venció.", "warn")
+				end
+			else
+				-- sin red o el servidor tardo: si ya estaba conectado no se interrumpe la partida
+				if not live then
+					match:setDemo(true)
+				end
+				match:setStatus("No se pudo hablar con Interaktik (" .. tostring(data) .. "). Reintentando...", "warn")
+			end
+		end
+
+		task.wait(delay)
+	end
+end)
+
+-- ---------- regalos y comentarios (cada segundo) ----------
+
+local seen = {}
+local seenOrder = {}
+
+local function remember(id)
+	seen[id] = true
+	table.insert(seenOrder, id)
+	if #seenOrder > 3000 then
+		seen[table.remove(seenOrder, 1)] = nil
+	end
+end
+
+task.spawn(function()
+	while true do
+		if live and owner and Net.robloxUserId then
+			local ok, data = Net.pollQueue()
+			if ok and type(data) == "table" and type(data.items) == "table" and #data.items > 0 then
+				local ids = {}
+				for _, item in ipairs(data.items) do
+					table.insert(ids, item.id)
+					-- el servidor repite lo que no se confirmo: lo ya aplicado se descarta por su id
+					if not seen[item.id] then
+						remember(item.id)
+						Util.safe("evento de la cola", match.handleItem, match, item)
+					end
+				end
+
+				local confirmed = false
+				for _ = 1, 3 do
+					local ackOk = Net.ack(ids)
+					if ackOk then
+						confirmed = true
+						break
+					end
+					task.wait(0.4)
+				end
+				if not confirmed then
+					warn("[PeleaCallejera] No se pudo confirmar la cola; el servidor la volvera a enviar")
+				end
+			end
+		end
+		task.wait(Config.QueueIntervalSec)
+	end
+end)
+]]></ProtectedString>
+</Properties>
+<Item class="ModuleScript" referent="RBX586510B1AD8C4CCAA2A0BCFD8F8402F1">
+<Properties>
+<string name="Name">AI</string>
+
+<ProtectedString name="Source"><![CDATA[-- El "cerebro" de cada luchador: nadie lo maneja, asi que decide solo cuando acercarse, alejarse, saltar, taparse o pegar.
+-- El nivel (1 facil, 2 normal, 3 dificil) cambia que tan rapido piensa, cuanto ataca y cuanto se defiende.
+
+local Combat = require(script.Parent.Combat)
+local Config = require(script.Parent.Config)
+local Util = require(script.Parent.Util)
+
+local AI = {}
+
+local LEVELS = {
+	[1] = { interval = 0.4, attackChance = 0.4, blockChance = 0.12, jumpChance = 0.03, dodgeChance = 0.1 },
+	[2] = { interval = 0.26, attackChance = 0.62, blockChance = 0.3, jumpChance = 0.05, dodgeChance = 0.35 },
+	[3] = { interval = 0.16, attackChance = 0.82, blockChance = 0.5, jumpChance = 0.08, dodgeChance = 0.6 },
+}
+
+local CLOSE_RANGE = 6.8
+local MID_RANGE = 15
+
+local function newState()
+	return {
+		nextThink = 0,
+		plan = "approach",
+		planUntil = 0,
+		blockUntil = 0,
+		reactedTo = nil,
+		jumpedForProjectile = 0,
+	}
+end
+
+local function band(distance)
+	if distance <= CLOSE_RANGE then
+		return "close"
+	elseif distance <= MID_RANGE then
+		return "mid"
+	end
+	return "far"
+end
+
+-- Golpes que sirven ahora: listos (sin esperar) y que alcanzan (o que traen su propio avance)
+local function usableMoves(fighter, now, distance)
+	local weights = {}
+	local table_ = fighter.style.ai[band(distance)] or {}
+	for key, weight in pairs(table_) do
+		local def = fighter.style.moves[key]
+		if def and fighter:isReady(key, def, now) then
+			local reachesNow = distance <= def.range + 1.2 + (def.lunge and def.lunge * 0.25 or 0)
+			if def.kind == "projectile" or reachesNow then
+				weights[key] = weight
+			end
+		end
+	end
+	return weights
+end
+
+local function choosePlan(ai, now, distance, idealRange, nearWall)
+	local plan
+	if distance > idealRange + 1.2 then
+		plan = "approach"
+	elseif distance < idealRange - 1.6 then
+		plan = (math.random() < 0.55 and not nearWall) and "retreat" or "hold"
+	else
+		local roll = math.random()
+		plan = roll < 0.4 and "hold" or (roll < 0.75 and "approach" or "retreat")
+		if plan == "retreat" and nearWall then
+			plan = "hold"
+		end
+	end
+	ai.plan = plan
+	ai.planUntil = now + 0.25 + math.random() * 0.45
+end
+
+-- Se llama cada cuadro para cada luchador mientras dura el round
+function AI.update(fighter, now, level)
+	local ai = fighter.ai
+	if not ai then
+		ai = newState()
+		fighter.ai = ai
+	end
+
+	local cfg = LEVELS[level] or LEVELS[2]
+	local intent = fighter.intent
+	intent.jump = false
+	intent.block = false
+
+	local enemy = fighter.enemy
+	if not enemy or not enemy.root or not fighter.root or not fighter.alive then
+		intent.move = 0
+		return
+	end
+
+	local delta = enemy.root.Position.X - fighter.root.Position.X
+	local distance = math.abs(delta)
+	local direction = Util.sign(delta)
+
+	-- defensa: si el rival empieza un golpe cerca, a veces se tapa
+	local enemyRun = enemy.state == "attack" and enemy.run or nil
+	if enemyRun and enemyRun ~= ai.reactedTo and distance < enemyRun.def.range + 2.5 then
+		ai.reactedTo = enemyRun
+		if math.random() < cfg.blockChance and not enemyRun.def.unblockable then
+			ai.blockUntil = now + enemyRun.startup + enemyRun.active + 0.2
+		end
+	end
+
+	if not fighter:canAct(now) then
+		intent.move = 0
+		return
+	end
+
+	-- esquiva las bolas de energia saltando
+	local incoming = Combat.incomingFor(fighter)
+	if incoming and incoming < 14 and incoming > 4 and now - ai.jumpedForProjectile > 1.2 and fighter:isGrounded() then
+		if math.random() < cfg.dodgeChance then
+			ai.jumpedForProjectile = now
+			intent.jump = true
+		end
+	end
+
+	if now < ai.blockUntil then
+		intent.block = true
+		intent.move = 0
+		return
+	end
+
+	-- cada tanto piensa: ¿pega o se mueve?
+	if now >= ai.nextThink then
+		ai.nextThink = now + cfg.interval * (0.8 + math.random() * 0.4)
+
+		-- si nadie se hace dano en un buen rato, se vuelven mas agresivos para que el round termine
+		local idle = now - math.max(fighter.lastDamageAt, enemy.lastDamageAt)
+		local pressure = idle > 6 and 0.25 or 0
+
+		if math.random() < cfg.attackChance + pressure then
+			local weights = usableMoves(fighter, now, distance)
+			local key = Util.weightedPick(weights)
+			if key then
+				fighter:startMove(key, fighter.style.moves[key])
+				return
+			end
+		end
+
+		local nearWall = math.abs(fighter.root.Position.X) > Config.ArenaHalfWidth - 5
+		if now >= ai.planUntil then
+			choosePlan(ai, now, distance, fighter.style.idealRange, nearWall)
+		end
+
+		if math.random() < cfg.jumpChance and fighter:isGrounded() and distance > 6 then
+			intent.jump = true
+		end
+	end
+
+	if now >= ai.planUntil then
+		choosePlan(ai, now, distance, fighter.style.idealRange, math.abs(fighter.root.Position.X) > Config.ArenaHalfWidth - 5)
+	end
+
+	if ai.plan == "approach" then
+		intent.move = direction
+	elseif ai.plan == "retreat" then
+		intent.move = -direction
+	else
+		intent.move = 0
+	end
+end
+
+return AI
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX574E7B6B86A043458F03C378B2A1BD1E">
+<Properties>
+<string name="Name">Arena</string>
+
+<ProtectedString name="Source"><![CDATA[-- La arena: una calle de noche con edificios al fondo, luces de cada equipo y paredes invisibles a los lados.
+-- Se construye entera por codigo para que el juego funcione sin armar nada a mano.
+
+local Lighting = game:GetService("Lighting")
+
+local Config = require(script.Parent.Config)
+local Util = require(script.Parent.Util)
+
+local Arena = {}
+
+local ARENA_FOLDER_NAME = "Arena"
+
+local function clearOld(parent)
+	local old = parent:FindFirstChild(ARENA_FOLDER_NAME)
+	if old then
+		old:Destroy()
+	end
+end
+
+local function setupLighting()
+	Lighting.ClockTime = 21.5
+	Lighting.Brightness = 1.4
+	Lighting.Ambient = Color3.fromRGB(78, 66, 120)
+	Lighting.OutdoorAmbient = Color3.fromRGB(70, 60, 110)
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 0.4
+	Lighting.GlobalShadows = true
+	Lighting.FogColor = Color3.fromRGB(32, 24, 60)
+	Lighting.FogStart = 140
+	Lighting.FogEnd = 520
+
+	-- la plantilla de Roblox trae sus propios efectos (bloom, desenfoque, cielo...) y se sumarian a los nuestros
+	for _, child in ipairs(Lighting:GetChildren()) do
+		local isEffect = child:IsA("PostEffect") or child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("Clouds")
+		if isEffect and string.sub(child.Name, 1, 5) ~= "Pelea" then
+			child:Destroy()
+		end
+	end
+
+	local function ensure(className, name)
+		local existing = Lighting:FindFirstChild(name)
+		if existing and existing.ClassName == className then
+			return existing
+		end
+		local created = Instance.new(className)
+		created.Name = name
+		created.Parent = Lighting
+		return created
+	end
+
+	local atmosphere = ensure("Atmosphere", "PeleaAtmosphere")
+	atmosphere.Density = 0.28
+	atmosphere.Offset = 0.2
+	atmosphere.Color = Color3.fromRGB(120, 95, 190)
+	atmosphere.Decay = Color3.fromRGB(70, 40, 110)
+	atmosphere.Glare = 0.3
+	atmosphere.Haze = 1.2
+
+	local bloom = ensure("BloomEffect", "PeleaBloom")
+	bloom.Intensity = 0.7
+	bloom.Size = 28
+	bloom.Threshold = 1.05
+
+	local correction = ensure("ColorCorrectionEffect", "PeleaColor")
+	correction.Contrast = 0.12
+	correction.Saturation = 0.18
+	correction.TintColor = Color3.fromRGB(245, 235, 255)
+
+	ensure("Sky", "PeleaSky")
+end
+
+local function buildSkyline(folder)
+	local random = Random.new(7)
+	local windowColors = {
+		Color3.fromRGB(255, 226, 140),
+		Color3.fromRGB(255, 244, 210),
+		Color3.fromRGB(150, 225, 255),
+		Color3.fromRGB(255, 170, 215),
+	}
+
+	local x = -190
+	while x < 190 do
+		local width = random:NextInteger(14, 26)
+		local height = random:NextInteger(46, 120)
+		local depth = random:NextInteger(14, 22)
+		local z = -random:NextInteger(46, 96)
+		local shade = random:NextInteger(18, 34)
+
+		Util.part({
+			Name = "Building",
+			Size = Vector3.new(width, height, depth),
+			Material = Enum.Material.Concrete,
+			Color = Color3.fromRGB(shade, shade - 4, shade + 22),
+			CFrame = CFrame.new(x + width / 2, height / 2 - 2, z),
+			CastShadow = true,
+		}, folder)
+
+		-- ventanas encendidas al azar sobre la cara que mira a la camara
+		for _ = 1, 12 do
+			local wx = x + random:NextNumber(2, width - 2)
+			local wy = random:NextNumber(6, height - 4)
+			Util.part({
+				Name = "Window",
+				Size = Vector3.new(1.6, 2.2, 0.3),
+				Material = Enum.Material.Neon,
+				Color = windowColors[random:NextInteger(1, #windowColors)],
+				CFrame = CFrame.new(wx, wy, z + depth / 2 + 0.2),
+			}, folder)
+		end
+
+		x += width + random:NextInteger(1, 5)
+	end
+end
+
+local function buildBackWall(folder)
+	local width = Config.ArenaHalfWidth * 2 + 70
+
+	Util.part({
+		Name = "BackWall",
+		Size = Vector3.new(width, 30, 3),
+		Material = Enum.Material.Brick,
+		Color = Color3.fromRGB(46, 40, 66),
+		CFrame = CFrame.new(0, 13, -15),
+		CastShadow = true,
+	}, folder)
+
+	-- murales de colores
+	local random = Random.new(21)
+	local mural = {
+		Color3.fromRGB(255, 70, 110),
+		Color3.fromRGB(70, 200, 255),
+		Color3.fromRGB(255, 200, 60),
+		Color3.fromRGB(150, 90, 255),
+	}
+	for i = 1, 9 do
+		local panelWidth = random:NextInteger(5, 9)
+		local panelHeight = random:NextInteger(4, 8)
+		Util.part({
+			Name = "Mural",
+			Size = Vector3.new(panelWidth, panelHeight, 0.3),
+			Material = Enum.Material.SmoothPlastic,
+			Color = mural[(i % #mural) + 1]:Lerp(Color3.new(0, 0, 0), 0.62),
+			CFrame = CFrame.new(-Config.ArenaHalfWidth - 20 + (i - 1) * 11.5, 8 + random:NextInteger(0, 8), -13.3),
+		}, folder)
+	end
+
+	-- letrero luminoso con el nombre del juego
+	local sign = Util.part({
+		Name = "Sign",
+		Size = Vector3.new(34, 7, 0.4),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(14, 10, 26),
+		CFrame = CFrame.new(0, 27, -13.2),
+	}, folder)
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.LightInfluence = 0
+	gui.Brightness = 3
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.Parent = sign
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = string.upper(Config.GameName)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.TextColor3 = Color3.fromRGB(255, 214, 102)
+	label.TextStrokeColor3 = Color3.fromRGB(255, 70, 110)
+	label.TextStrokeTransparency = 0.2
+	label.Parent = gui
+end
+
+local function buildFloor(folder, onMarkers)
+	local half = Config.ArenaHalfWidth
+
+	Util.part({
+		Name = "Floor",
+		Size = Vector3.new(half * 2 + 80, 4, 40),
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(58, 56, 72),
+		CFrame = CFrame.new(0, Config.FloorTopY - 2, -2),
+		CanCollide = true,
+		CanQuery = true,
+		CastShadow = false,
+	}, folder)
+
+	-- linea central
+	Util.part({
+		Name = "CenterLine",
+		Size = Vector3.new(0.5, 0.06, 24),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(240, 240, 255),
+		Transparency = 0.15,
+		CFrame = CFrame.new(0, Config.FloorTopY + 0.03, 0),
+	}, folder)
+
+	-- bordes de la zona de pelea
+	for _, sign in ipairs({ -1, 1 }) do
+		Util.part({
+			Name = "EdgeLine",
+			Size = Vector3.new(0.6, 0.06, 24),
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 214, 102),
+			Transparency = 0.3,
+			CFrame = CFrame.new(sign * half, Config.FloorTopY + 0.03, 0),
+		}, folder)
+	end
+
+	-- discos de salida de cada equipo
+	local markers = {}
+	for side, sign in pairs({ left = -1, right = 1 }) do
+		markers[side] = Util.part({
+			Name = "StartMarker_" .. side,
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.12, 5.2, 5.2),
+			Material = Enum.Material.Neon,
+			Color = Color3.new(1, 1, 1),
+			Transparency = 0.3,
+			CFrame = CFrame.new(sign * Config.StartOffset, Config.FloorTopY + 0.07, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		}, folder)
+	end
+	onMarkers(markers)
+end
+
+local function buildWalls(folder)
+	local half = Config.ArenaHalfWidth
+
+	-- los luchadores no pueden salirse de la arena
+	for _, sign in ipairs({ -1, 1 }) do
+		Util.part({
+			Name = "SideWall",
+			Size = Vector3.new(2, 60, 40),
+			Transparency = 1,
+			CFrame = CFrame.new(sign * (half + 2.2), 28, 0),
+			CanCollide = true,
+		}, folder)
+	end
+	for _, z in ipairs({ -6, 6 }) do
+		Util.part({
+			Name = "DepthWall",
+			Size = Vector3.new(half * 2 + 12, 60, 2),
+			Transparency = 1,
+			CFrame = CFrame.new(0, 28, z),
+			CanCollide = true,
+		}, folder)
+	end
+	Util.part({
+		Name = "Ceiling",
+		Size = Vector3.new(half * 2 + 12, 2, 14),
+		Transparency = 1,
+		CFrame = CFrame.new(0, 60, 0),
+		CanCollide = true,
+	}, folder)
+end
+
+local function buildLamps(folder)
+	local half = Config.ArenaHalfWidth
+	for _, sign in ipairs({ -1, 1 }) do
+		local x = sign * (half + 8)
+		Util.part({
+			Name = "LampPost",
+			Size = Vector3.new(0.9, 18, 0.9),
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(28, 28, 36),
+			CFrame = CFrame.new(x, 9, -8),
+		}, folder)
+		local head = Util.part({
+			Name = "LampHead",
+			Size = Vector3.new(3.4, 0.8, 1.6),
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 232, 170),
+			CFrame = CFrame.new(x - sign * 1.2, 18.4, -8),
+		}, folder)
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 232, 170)
+		light.Range = 45
+		light.Brightness = 1.6
+		light.Parent = head
+	end
+end
+
+-- Devuelve { folder, setTeamColors = function(leftColor, rightColor) }
+function Arena.build(parent)
+	clearOld(parent)
+	setupLighting()
+
+	-- piezas de la plantilla "Baseplate" que estorban: el suelo gris y el punto de aparicion
+	for _, name in ipairs({ "Baseplate", "SpawnLocation" }) do
+		local leftover = parent:FindFirstChild(name)
+		if leftover and (leftover:IsA("BasePart")) then
+			leftover:Destroy()
+		end
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = ARENA_FOLDER_NAME
+	folder.Parent = parent
+
+	local markers = {}
+	buildFloor(folder, function(created)
+		markers = created
+	end)
+	buildWalls(folder)
+	buildBackWall(folder)
+	buildSkyline(folder)
+	buildLamps(folder)
+
+	-- luces de cada equipo sobre su lado de la arena
+	local teamLights = {}
+	for side, sign in pairs({ left = -1, right = 1 }) do
+		local anchor = Util.part({
+			Name = "TeamLight_" .. side,
+			Size = Vector3.new(1, 1, 1),
+			Transparency = 1,
+			CFrame = CFrame.new(sign * 16, 22, 12),
+		}, folder)
+		local light = Instance.new("PointLight")
+		light.Range = 70
+		light.Brightness = 2.2
+		light.Shadows = false
+		light.Parent = anchor
+		teamLights[side] = light
+	end
+
+	local arena = { folder = folder }
+
+	function arena.setTeamColors(leftColor, rightColor)
+		teamLights.left.Color = leftColor
+		teamLights.right.Color = rightColor
+		markers.left.Color = leftColor
+		markers.right.Color = rightColor
+	end
+
+	arena.setTeamColors(Config.Defaults.left.color, Config.Defaults.right.color)
+	return arena
+end
+
+return Arena
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX09963D2330364B4EA80114FDD0CDFF82">
+<Properties>
+<string name="Name">Combat</string>
+
+<ProtectedString name="Source"><![CDATA[-- Proyectiles (bolas de energia y shurikens) y meteoros. Los golpes cuerpo a cuerpo viven en Fighter.lua.
+
+local Config = require(script.Parent.Config)
+local Effects = require(script.Parent.Effects)
+local Util = require(script.Parent.Util)
+
+local Combat = {}
+
+local projectiles = {}
+
+function Combat.clear()
+	for _, projectile in ipairs(projectiles) do
+		if projectile.part then
+			projectile.part:Destroy()
+		end
+	end
+	table.clear(projectiles)
+end
+
+-- spec: { speed, dmg, size, life, unblockable, hitstun, kb, kind }
+function Combat.spawnProjectile(owner, spec)
+	local root = owner.root
+	if not root then
+		return
+	end
+
+	local facing = owner.facing
+	local position = root.Position + Vector3.new(facing * 2.6, 0.6, 0)
+	local part = Effects.projectileBall(position, owner.color, spec.size)
+
+	table.insert(projectiles, {
+		part = part,
+		owner = owner,
+		vx = facing * spec.speed,
+		dmg = spec.dmg,
+		size = spec.size,
+		bornAt = Util.now(),
+		life = spec.life or 2.5,
+		unblockable = spec.unblockable,
+		hitstun = spec.hitstun or 0.4,
+		kb = spec.kb or 14,
+		power = spec.power or 2,
+	})
+end
+
+local function remove(index)
+	local projectile = projectiles[index]
+	if projectile and projectile.part then
+		projectile.part:Destroy()
+	end
+	table.remove(projectiles, index)
+end
+
+function Combat.step(dt)
+	local now = Util.now()
+
+	-- se mueve y comprueba contra el rival
+	for index = #projectiles, 1, -1 do
+		local projectile = projectiles[index]
+		local part = projectile.part
+		local enemy = projectile.owner.enemy
+
+		if not part or not part.Parent then
+			table.remove(projectiles, index)
+		else
+			local position = part.Position + Vector3.new(projectile.vx * dt, 0, 0)
+			part.Position = position
+
+			local expired = now - projectile.bornAt > projectile.life or math.abs(position.X) > Config.ArenaHalfWidth + 12
+			local hit = false
+
+			if enemy and enemy.root and enemy:isTargetable() then
+				local target = enemy.root.Position
+				if math.abs(position.X - target.X) < 2 + projectile.size * 0.5 and math.abs(position.Y - target.Y) < 3.4 + projectile.size * 0.5 then
+					hit = true
+					enemy:takeHit(projectile.owner, {
+						dmg = projectile.dmg,
+						hitstun = projectile.hitstun,
+						kb = projectile.kb,
+						launch = 0,
+						unblockable = projectile.unblockable,
+						position = position,
+						power = projectile.power,
+					})
+				end
+			end
+
+			if hit then
+				Effects.explosion(position, 4)
+				remove(index)
+			elseif expired then
+				remove(index)
+			end
+		end
+	end
+
+	-- dos bolas de energia de equipos distintos que se cruzan se anulan
+	for i = #projectiles, 2, -1 do
+		for j = i - 1, 1, -1 do
+			local a = projectiles[i]
+			local b = projectiles[j]
+			if a and b and a.owner ~= b.owner and a.part and b.part then
+				local delta = a.part.Position - b.part.Position
+				if math.abs(delta.X) < (a.size + b.size) * 0.5 + 0.6 and math.abs(delta.Y) < (a.size + b.size) * 0.5 + 1 then
+					local middle = (a.part.Position + b.part.Position) / 2
+					Effects.hit(middle, Color3.fromRGB(255, 240, 200), 2)
+					Effects.explosion(middle, 4)
+					remove(i)
+					remove(j)
+					break
+				end
+			end
+		end
+	end
+end
+
+-- Distancia a la bola de energia mas cercana que va hacia este luchador (nil si no hay ninguna). La usa la IA para esquivar.
+function Combat.incomingFor(fighter)
+	if not fighter.root then
+		return nil
+	end
+
+	local nearest = nil
+	for _, projectile in ipairs(projectiles) do
+		if projectile.owner ~= fighter and projectile.part and projectile.part.Parent then
+			local ahead = (fighter.root.Position.X - projectile.part.Position.X) * Util.sign(projectile.vx)
+			if ahead > 0 and (not nearest or ahead < nearest) then
+				nearest = ahead
+			end
+		end
+	end
+	return nearest
+end
+
+-- Lluvia de meteoros sobre el rival. Cada uno hace "damage" si el rival sigue cerca del punto de impacto.
+function Combat.meteorShower(owner, count, damage)
+	local enemy = owner.enemy
+	if not enemy or not enemy.root then
+		return
+	end
+
+	for index = 1, count do
+		task.delay((index - 1) * 0.28, function()
+			if not enemy.root or not enemy.alive then
+				return
+			end
+
+			-- apuntan cerca de donde esta el rival ahora (con un poco de azar para que se vea natural)
+			local target = enemy.root.Position
+			local ground = Vector3.new(target.X + math.random(-3, 3), Config.FloorTopY + 0.6, Config.LaneZ)
+			Effects.meteor(ground, owner.color, function(impact)
+				if enemy.root and enemy:isTargetable() and math.abs(enemy.root.Position.X - impact.X) < 5.5 and enemy.root.Position.Y < impact.Y + 7 then
+					enemy:takeHit(owner, {
+						dmg = damage,
+						hitstun = 0.45,
+						kb = 10,
+						launch = 0,
+						unblockable = true,
+						position = impact + Vector3.new(0, 2, 0),
+						power = 2,
+					})
+				end
+			end)
+		end)
+	end
+end
+
+return Combat
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX31E7E49530724F94BA7ABE5C8A3074A4">
+<Properties>
+<string name="Name">Config</string>
+
+<ProtectedString name="Source"><![CDATA[-- Pelea Callejera: ajustes generales del juego (no cambian entre partidas).
+-- Lo que decide el streamer (nombres, colores, estilos, vida, tiempo...) llega desde la pagina de Interaktik.
+
+local Config = {}
+
+Config.GameName = "Pelea Callejera"
+
+-- Servidor de Interaktik: de aqui salen los regalos, los comentarios y el marcador
+Config.BaseUrl = "https://interaktik-platform-production.up.railway.app"
+Config.ApiPath = "/api/roblox-fighters"
+
+Config.QueueIntervalSec = 1 -- cada cuanto se piden regalos nuevos
+Config.SessionIntervalSec = 20 -- cada cuanto se revisan los ajustes de la pagina
+Config.SessionRetrySec = 5 -- mientras la cuenta no este lista, cada cuanto se vuelve a preguntar
+
+-- Arena: los luchadores solo se mueven por el eje X (hacia los lados); el eje Z queda fijo
+Config.LaneZ = 0
+Config.FloorTopY = 0
+Config.ArenaHalfWidth = 38
+Config.StartOffset = 11 -- cada luchador empieza a esta distancia del centro
+
+-- Ritmo de la partida (segundos)
+Config.IntroSec = 3.2
+Config.RoundEndSec = 4.6
+Config.ChampionSec = 9
+Config.MaxPowerWaitSec = 3 -- un poder que no puede ejecutarse (luchador aturdido) se aplica directo pasado este tiempo
+
+-- Lo que se usa mientras no haya cuenta vinculada (modo demostracion)
+Config.Defaults = {
+	left = { name = "Rojo", color = Color3.fromRGB(230, 57, 70), style = "karateka", keyword = "rojo" },
+	right = { name = "Azul", color = Color3.fromRGB(58, 134, 255), style = "ninja", keyword = "azul" },
+	winGoal = 5,
+	roundSeconds = 90,
+	maxHealth = 1000,
+	aiLevel = 2,
+}
+
+return Config
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX8534B830C26748C6BDEFCE6028FC3B7B">
+<Properties>
+<string name="Name">Effects</string>
+
+<ProtectedString name="Source"><![CDATA[-- Efectos visuales del servidor: chispas, ondas, bolas de energia, auras, escudos, hielo, meteoros y numeros de daño.
+-- Todo se crea como piezas simples (sin imagenes ni sonidos externos) y se borra solo.
+
+local TweenService = game:GetService("TweenService")
+
+local Util = require(script.Parent.Util)
+
+local Effects = {}
+
+local container = nil
+local fxRemote = nil
+
+function Effects.init(folder, remote)
+	container = folder
+	fxRemote = remote
+end
+
+-- Efectos de pantalla que dibuja el cliente: "shake", "flash", "slowmo", "ko", "zoom"
+function Effects.screen(name, ...)
+	if fxRemote then
+		fxRemote:FireAllClients(name, ...)
+	end
+end
+
+-- Pieza invisible para colgar emisores de particulas en un punto
+local function anchorPoint(position, lifetime)
+	local part = Util.part({
+		Size = Vector3.new(0.4, 0.4, 0.4),
+		Transparency = 1,
+		CFrame = CFrame.new(position),
+	}, container)
+	Util.debris(part, lifetime or 2)
+	return part
+end
+
+local function burst(position, color, count, speedMin, speedMax, size, lifetime)
+	local part = anchorPoint(position, 2)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	emitter.Lifetime = NumberRange.new(lifetime * 0.6, lifetime)
+	emitter.Speed = NumberRange.new(speedMin, speedMax)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Rate = 0
+	emitter.Drag = 4
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size), NumberSequenceKeypoint.new(1, 0) })
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Parent = part
+	emitter:Emit(count)
+end
+
+-- Onda que se expande y se desvanece
+function Effects.ring(position, color, startSize, endSize, duration)
+	local ring = Util.part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(startSize, startSize, startSize),
+		Material = Enum.Material.Neon,
+		Color = color,
+		Transparency = 0.25,
+		CFrame = CFrame.new(position),
+	}, container)
+	Util.tween(ring, duration, { Size = Vector3.new(endSize, endSize, endSize), Transparency = 1 })
+	Util.debris(ring, duration + 0.1)
+end
+
+-- Golpe que conecta. power: 1 normal, 2 fuerte, 3 enorme
+function Effects.hit(position, color, power)
+	power = power or 1
+	burst(position, color, 10 * power, 14 * power, 26 * power, 1.1 * power, 0.45)
+	Effects.ring(position, color, 0.6, 3.2 * power, 0.22)
+end
+
+function Effects.block(position, color)
+	burst(position, Color3.fromRGB(190, 225, 255), 8, 10, 18, 0.8, 0.35)
+	Effects.ring(position, Color3.fromRGB(150, 205, 255), 0.5, 2.6, 0.2)
+end
+
+-- Numero flotante: dano, curacion, escudo...
+function Effects.floatingText(position, text, color, size)
+	local part = anchorPoint(position + Vector3.new(0, 2.5, 0), 1.4)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(size or 150, (size or 150) * 0.4)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Parent = part
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = color
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.Parent = gui
+
+	Util.tween(part, 1.1, { CFrame = part.CFrame + Vector3.new(0, 4.5, 0) })
+	local fade = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.6), {
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	})
+	fade:Play()
+end
+
+function Effects.healBurst(position)
+	burst(position, Color3.fromRGB(90, 255, 140), 18, 6, 14, 1.1, 0.8)
+	Effects.ring(position, Color3.fromRGB(90, 255, 140), 0.8, 5, 0.5)
+end
+
+-- Bola de energia o shuriken (la mueve Combat.lua)
+function Effects.projectileBall(position, color, size)
+	local part = Util.part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(size, size, size),
+		Material = Enum.Material.Neon,
+		Color = color,
+		CFrame = CFrame.new(position),
+	}, container)
+
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 14
+	light.Brightness = 3
+	light.Parent = part
+
+	local top = Instance.new("Attachment")
+	top.Position = Vector3.new(0, size * 0.5, 0)
+	top.Parent = part
+	local bottom = Instance.new("Attachment")
+	bottom.Position = Vector3.new(0, -size * 0.5, 0)
+	bottom.Parent = part
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = top
+	trail.Attachment1 = bottom
+	trail.Lifetime = 0.3
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new(0.1, 1)
+	trail.LightEmission = 1
+	trail.Parent = part
+
+	return part
+end
+
+-- Explosion de adorno (no empuja ni rompe nada)
+function Effects.explosion(position, radius)
+	local explosion = Instance.new("Explosion")
+	explosion.BlastPressure = 0
+	explosion.BlastRadius = radius or 6
+	explosion.DestroyJointRadiusPercent = 0
+	explosion.Position = position
+	explosion.Parent = container
+end
+
+-- Meteoro que cae desde el cielo y avisa al llegar al suelo
+function Effects.meteor(targetPosition, color, onImpact)
+	local size = 4.2
+	local startPosition = targetPosition + Vector3.new(math.random(-8, 8), 70, 0)
+	local rock = Util.part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(size, size, size),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 140, 40),
+		CFrame = CFrame.new(startPosition),
+	}, container)
+
+	local fire = Instance.new("Fire")
+	fire.Size = 12
+	fire.Heat = 10
+	fire.Color = Color3.fromRGB(255, 160, 40)
+	fire.SecondaryColor = color
+	fire.Parent = rock
+
+	local fall = Util.tween(rock, 0.65, { Position = targetPosition }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	fall.Completed:Connect(function()
+		rock:Destroy()
+		Effects.explosion(targetPosition, 7)
+		Effects.ring(targetPosition, color, 1, 9, 0.35)
+		burst(targetPosition, Color3.fromRGB(255, 190, 80), 24, 16, 34, 1.4, 0.6)
+		if onImpact then
+			onImpact(targetPosition)
+		end
+	end)
+end
+
+-- Llama alrededor del luchador (furia). Devuelve una funcion para quitarla.
+function Effects.fireAura(model, color)
+	local torso = model:FindFirstChild("UpperTorso") or model:FindFirstChild("Torso")
+	if not torso then
+		return function() end
+	end
+	local fire = Instance.new("Fire")
+	fire.Size = 9
+	fire.Heat = 12
+	fire.Color = color
+	fire.SecondaryColor = Color3.fromRGB(255, 220, 90)
+	fire.Parent = torso
+	return function()
+		fire:Destroy()
+	end
+end
+
+-- Chispas alrededor del luchador (velocidad). Devuelve una funcion para quitarlas.
+function Effects.sparkleAura(model, color)
+	local torso = model:FindFirstChild("UpperTorso") or model:FindFirstChild("Torso")
+	if not torso then
+		return function() end
+	end
+	local sparkles = Instance.new("Sparkles")
+	sparkles.SparkleColor = color
+	sparkles.Parent = torso
+	return function()
+		sparkles:Destroy()
+	end
+end
+
+-- Esfera transparente pegada al luchador (escudo)
+function Effects.bubble(model, color)
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+
+	local bubble = Instance.new("Part")
+	bubble.Shape = Enum.PartType.Ball
+	bubble.Size = Vector3.new(8.5, 8.5, 8.5)
+	bubble.Material = Enum.Material.ForceField
+	bubble.Color = color
+	bubble.Transparency = 0.35
+	bubble.CanCollide = false
+	bubble.CanQuery = false
+	bubble.CanTouch = false
+	bubble.Massless = true
+	bubble.CastShadow = false
+	bubble.CFrame = root.CFrame
+	bubble.Parent = model
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = bubble
+	weld.Parent = bubble
+	return bubble
+end
+
+-- Bloque de hielo alrededor del luchador (congelado)
+function Effects.iceBlock(model)
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+
+	local ice = Instance.new("Part")
+	ice.Size = Vector3.new(5.2, 8.4, 4.4)
+	ice.Material = Enum.Material.Glass
+	ice.Color = Color3.fromRGB(165, 225, 255)
+	ice.Transparency = 0.4
+	ice.CanCollide = false
+	ice.CanQuery = false
+	ice.CanTouch = false
+	ice.Massless = true
+	ice.CastShadow = false
+	ice.CFrame = root.CFrame
+	ice.Parent = model
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = ice
+	weld.Parent = ice
+	return ice
+end
+
+-- Rayo de energia que cruza la arena (super ataque). Es solo visual; el dano lo pone Combat.lua.
+function Effects.beam(fromPosition, toPosition, color)
+	local distance = (toPosition - fromPosition).Magnitude
+	local middle = (fromPosition + toPosition) / 2
+	local beam = Util.part({
+		Size = Vector3.new(distance, 3.2, 3.2),
+		Material = Enum.Material.Neon,
+		Color = color,
+		Transparency = 0.1,
+		CFrame = CFrame.new(middle), -- la pelea es de lado: el rayo siempre va a lo largo del eje X
+	}, container)
+	local core = Util.part({
+		Size = Vector3.new(distance, 1.4, 1.4),
+		Material = Enum.Material.Neon,
+		Color = Color3.new(1, 1, 1),
+		CFrame = beam.CFrame,
+	}, container)
+	Util.tween(beam, 0.5, { Size = Vector3.new(distance, 0.4, 0.4), Transparency = 1 })
+	Util.tween(core, 0.5, { Size = Vector3.new(distance, 0.2, 0.2), Transparency = 1 })
+	Util.debris(beam, 0.6)
+	Util.debris(core, 0.6)
+end
+
+-- Confeti de colores (celebracion del campeon)
+function Effects.confetti(position)
+	local colors = {
+		Color3.fromRGB(255, 90, 120),
+		Color3.fromRGB(255, 214, 102),
+		Color3.fromRGB(90, 200, 255),
+		Color3.fromRGB(150, 255, 160),
+		Color3.fromRGB(190, 130, 255),
+	}
+
+	for _, color in ipairs(colors) do
+		local part = anchorPoint(position + Vector3.new(0, 4, 0), 6)
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		emitter.Color = ColorSequence.new(color)
+		emitter.Lifetime = NumberRange.new(2.4, 3.6)
+		emitter.Speed = NumberRange.new(14, 34)
+		emitter.SpreadAngle = Vector2.new(70, 70)
+		emitter.Acceleration = Vector3.new(0, -26, 0)
+		emitter.Rate = 0
+		emitter.RotSpeed = NumberRange.new(-240, 240)
+		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0.5) })
+		emitter.LightEmission = 0.4
+		emitter.Parent = part
+		emitter:Emit(36)
+	end
+end
+
+return Effects
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX3D4B557DA81744E497956AC004CB550B">
+<Properties>
+<string name="Name">Fighter</string>
+
+<ProtectedString name="Source"><![CDATA[-- Un luchador: su cuerpo (un personaje R15), su vida, sus golpes, sus defensas y sus efectos (furia, escudo, hielo...).
+-- El servidor manda todo; el cliente solo dibuja la pose segun los atributos del modelo (ver client/Poses.lua).
+--
+-- Atributos del modelo que lee el cliente: Action, ActionT, ActionDur, Facing, Style, Side, Fury, Haste, Frozen, HitT, Shielded
+
+local Players = game:GetService("Players")
+
+local Combat = require(script.Parent.Combat)
+local Config = require(script.Parent.Config)
+local Effects = require(script.Parent.Effects)
+local Styles = require(script.Parent.Styles)
+local Util = require(script.Parent.Util)
+
+local Fighter = {}
+Fighter.__index = Fighter
+
+local FURY_MULTIPLIER = 2
+local HASTE_SPEED = 1.5
+local HASTE_ATTACK = 1.35
+local BLOCK_MAX_SEC = 1.4
+
+function Fighter.new(side, folder)
+	return setmetatable({
+		side = side,
+		folder = folder,
+		enemy = nil,
+		model = nil,
+		root = nil,
+		humanoid = nil,
+		alive = false,
+		name = "",
+		color = Color3.new(1, 1, 1),
+		styleId = "karateka",
+		style = Styles.get("karateka"),
+		maxHealth = 1000,
+		health = 1000,
+		shield = 0,
+		facing = side == "left" and 1 or -1,
+		state = "idle",
+		stateUntil = 0,
+		run = nil,
+		cooldowns = {},
+		furyUntil = 0,
+		hasteUntil = 0,
+		frozenUntil = 0,
+		invulnUntil = 0,
+		slideVx = 0,
+		slideUntil = 0,
+		intent = { move = 0, jump = false, block = false },
+		blockSince = 0,
+		blockLockedUntil = 0,
+		giftQueue = {},
+		giftRun = false,
+		auras = {},
+		bubble = nil,
+		ice = nil,
+		accessories = nil,
+		lastDamageAt = 0,
+		damageDealt = 0,
+		onKO = nil,
+	}, Fighter)
+end
+
+-- ---------- construccion del cuerpo ----------
+
+local function weldTo(part, anchorPart)
+	part.Anchored = false
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Massless = true
+	part.CastShadow = false
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = anchorPart
+	weld.Part1 = part
+	weld.Parent = part
+end
+
+local function accessoryPart(props, anchorPart, offset, folder)
+	local part = Instance.new("Part")
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Material = Enum.Material.SmoothPlastic
+	for key, value in pairs(props) do
+		part[key] = value
+	end
+	part.CFrame = anchorPart.CFrame * offset
+	part.Parent = folder
+	weldTo(part, anchorPart)
+	return part
+end
+
+-- Adornos que distinguen el estilo (guantes, banda, mascara...). Se pegan al cuerpo con soldaduras.
+function Fighter:applyAccessory()
+	if not self.model then
+		return
+	end
+	if self.accessories then
+		self.accessories:Destroy()
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "Accessories"
+	folder.Parent = self.model
+	self.accessories = folder
+
+	local kind = self.style.accessory
+	local head = self.model:FindFirstChild("Head")
+	local torso = self.model:FindFirstChild("UpperTorso")
+	local rightHand = self.model:FindFirstChild("RightHand")
+	local leftHand = self.model:FindFirstChild("LeftHand")
+	local accent = Util.tint(self.color, 0.15)
+	local dark = Color3.fromRGB(24, 24, 30)
+
+	if kind == "gloves" and rightHand and leftHand then
+		for _, hand in ipairs({ rightHand, leftHand }) do
+			accessoryPart({ Shape = Enum.PartType.Ball, Size = Vector3.new(1.5, 1.5, 1.5), Color = Color3.fromRGB(200, 30, 40) }, hand, CFrame.new(0, -0.1, 0), folder)
+		end
+	elseif kind == "headband" and head then
+		accessoryPart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, head.Size.X * 1.08, head.Size.X * 1.08), Color = accent }, head, CFrame.new(0, 0.25, 0) * CFrame.Angles(0, 0, math.rad(90)), folder)
+		accessoryPart({ Size = Vector3.new(0.35, 0.35, 1.6), Color = accent }, head, CFrame.new(0.2, 0.25, 0.9), folder)
+	elseif kind == "mask" and head then
+		accessoryPart({ Shape = Enum.PartType.Ball, Size = Vector3.new(1.55, 1.55, 1.55), Color = accent }, head, CFrame.new(0, 0, 0), folder)
+		accessoryPart({ Size = Vector3.new(0.9, 0.22, 0.12), Color = Color3.new(1, 1, 1) }, head, CFrame.new(0, 0.1, -0.75), folder)
+	elseif kind == "ninja" and head and torso then
+		accessoryPart({ Size = Vector3.new(head.Size.X * 1.05, head.Size.Y * 0.55, head.Size.Z * 1.05), Color = dark }, head, CFrame.new(0, -0.22, 0), folder)
+		accessoryPart({ Size = Vector3.new(0.5, 0.4, 2.4), Color = accent }, torso, CFrame.new(0, 0.7, 1.2), folder)
+	elseif kind == "chest" and torso then
+		accessoryPart({ Size = Vector3.new(torso.Size.X * 1.05, torso.Size.Y * 0.8, 0.3), Color = Color3.fromRGB(245, 245, 245) }, torso, CFrame.new(0, 0, -torso.Size.Z * 0.5), folder)
+		accessoryPart({ Size = Vector3.new(torso.Size.X * 0.5, torso.Size.Y * 0.35, 0.34), Color = accent }, torso, CFrame.new(0, 0.1, -torso.Size.Z * 0.5), folder)
+	end
+end
+
+local function configureHumanoid(humanoid, root, style)
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	humanoid.AutoRotate = false
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = style.jumpPower
+	humanoid.WalkSpeed = style.walkSpeed
+	humanoid.BreakJointsOnDeath = false
+	humanoid.RequiresNeck = false
+	humanoid.MaxHealth = 1000000
+	humanoid.Health = 1000000
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+
+	-- el servidor es quien lo mueve (si no, la fisica la calcularia el cliente y todo seria menos preciso)
+	pcall(function()
+		root:SetNetworkOwner(nil)
+	end)
+end
+
+-- Crea (o vuelve a crear) el personaje. Puede tardar un poco: la plataforma arma el R15 con una descripcion.
+function Fighter:build(name, color, styleId)
+	self.name = name
+	self.color = color
+	self.styleId = Styles.isValid(styleId) and styleId or "karateka"
+	self.style = Styles.get(self.styleId)
+
+	if self.model then
+		self.model:Destroy()
+		self.model = nil
+	end
+
+	local description = Instance.new("HumanoidDescription")
+	description.HeadColor = self.style.skin
+	description.LeftArmColor = self.style.skin
+	description.RightArmColor = self.style.skin
+	description.TorsoColor = color
+	description.LeftLegColor = self.style.pants
+	description.RightLegColor = self.style.pants
+
+	local ok, model = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model then
+		warn("[PeleaCallejera] No se pudo crear el luchador: " .. tostring(model))
+		return false
+	end
+
+	model.Name = self.side == "left" and "FighterLeft" or "FighterRight"
+	model:SetAttribute("Side", self.side)
+	model:SetAttribute("Style", self.styleId)
+	model:SetAttribute("Facing", self.facing)
+	model:SetAttribute("Action", "idle")
+	model:SetAttribute("ActionT", Util.now())
+	model:SetAttribute("ActionDur", 0)
+	model:SetAttribute("Fury", false)
+	model:SetAttribute("Haste", false)
+	model:SetAttribute("Frozen", false)
+	model:SetAttribute("Shielded", false)
+	model:SetAttribute("HitT", 0)
+	model.Parent = self.folder
+
+	self.model = model
+	self.root = model:WaitForChild("HumanoidRootPart", 5)
+	self.humanoid = model:WaitForChild("Humanoid", 5)
+	if not self.root or not self.humanoid then
+		warn("[PeleaCallejera] El luchador se creo incompleto")
+		return false
+	end
+
+	configureHumanoid(self.humanoid, self.root, self.style)
+	self.auras = {}
+	self.bubble = nil
+	self.ice = nil
+	self:applyAccessory()
+	return true
+end
+
+-- Cambia de estilo sin perder vida ni posicion (regalo "Cambiar estilo")
+function Fighter:setStyle(styleId)
+	if not Styles.isValid(styleId) or not self.model then
+		return
+	end
+
+	local cframe = self.root.CFrame
+	local health, shield = self.health, self.shield
+	local fury, haste, frozen = self.furyUntil, self.hasteUntil, self.frozenUntil
+	local wasAlive = self.alive
+
+	-- el modelo se vuelve a armar con el cuerpo del estilo nuevo
+	if self:build(self.name, self.color, styleId) then
+		self.root.CFrame = cframe
+		self.health, self.shield = health, shield
+		self.furyUntil, self.hasteUntil, self.frozenUntil = fury, haste, frozen
+		self.alive = wasAlive
+		self.run = nil
+		self.state = "idle"
+		self:setAction("idle")
+		Effects.ring(cframe.Position, self.color, 1, 7, 0.4)
+		Effects.floatingText(cframe.Position + Vector3.new(0, 3, 0), string.upper(self.style.label), self.color, 190)
+	end
+end
+
+function Fighter:destroy()
+	self:clearEffects()
+	if self.model then
+		self.model:Destroy()
+		self.model = nil
+	end
+	self.root = nil
+	self.humanoid = nil
+end
+
+-- ---------- estado y animacion ----------
+
+-- hitFraction: en que parte de la duracion (0..1) cae el golpe; el cliente usa ese dato para que la pose llegue a tiempo
+function Fighter:setAction(name, duration, hitFraction)
+	if not self.model then
+		return
+	end
+	local current = self.model:GetAttribute("Action")
+	if current == name and duration == nil then
+		return
+	end
+	self.model:SetAttribute("Action", name)
+	self.model:SetAttribute("ActionT", Util.now())
+	self.model:SetAttribute("ActionDur", duration or 0)
+	self.model:SetAttribute("ActionHit", hitFraction or 0.4)
+end
+
+function Fighter:setState(state, untilTime)
+	self.state = state
+	self.stateUntil = untilTime or 0
+end
+
+function Fighter:setFacing(facing)
+	if facing ~= self.facing then
+		self.facing = facing
+		if self.model then
+			self.model:SetAttribute("Facing", facing)
+		end
+	end
+end
+
+-- Mantiene el cuerpo mirando a donde toca (la fisica a veces lo gira un poco al chocar)
+function Fighter:orient()
+	local root = self.root
+	local look = root.CFrame.LookVector
+	if look.X * self.facing < 0.985 then
+		local position = root.Position
+		root.CFrame = CFrame.lookAt(position, position + Vector3.new(self.facing, 0, 0))
+	end
+end
+
+function Fighter:isFrozen(now)
+	return now < self.frozenUntil
+end
+
+function Fighter:isHasted(now)
+	return now < self.hasteUntil
+end
+
+function Fighter:isFurious(now)
+	return now < self.furyUntil
+end
+
+function Fighter:isGrounded()
+	return self.humanoid.FloorMaterial ~= Enum.Material.Air
+end
+
+function Fighter:isTargetable()
+	return self.alive and self.model ~= nil and self.root ~= nil and self.state ~= "ko" and Util.now() >= self.invulnUntil
+end
+
+-- ¿Puede empezar un golpe o un poder ahora?
+function Fighter:canAct(now)
+	if not self.alive or self:isFrozen(now) then
+		return false
+	end
+	return self.state == "idle" or self.state == "walk" or self.state == "jump" or self.state == "block"
+end
+
+function Fighter:healthFraction()
+	return self.health / math.max(1, self.maxHealth)
+end
+
+function Fighter:damageScale()
+	return self.maxHealth / 1000
+end
+
+function Fighter:setSlide(vx, duration)
+	self.slideVx = vx
+	self.slideUntil = Util.now() + duration
+end
+
+-- ---------- efectos de estado: furia, velocidad, escudo, hielo ----------
+
+function Fighter:clearEffects()
+	for _, cleanup in pairs(self.auras) do
+		cleanup()
+	end
+	self.auras = {}
+	if self.bubble then
+		self.bubble:Destroy()
+		self.bubble = nil
+	end
+	if self.ice then
+		self.ice:Destroy()
+		self.ice = nil
+	end
+end
+
+function Fighter:refreshEffects(now)
+	if not self.model then
+		return
+	end
+
+	local furious = self:isFurious(now)
+	if furious and not self.auras.fury then
+		self.auras.fury = Effects.fireAura(self.model, Color3.fromRGB(255, 70, 40))
+	elseif not furious and self.auras.fury then
+		self.auras.fury()
+		self.auras.fury = nil
+	end
+	if self.model:GetAttribute("Fury") ~= furious then
+		self.model:SetAttribute("Fury", furious)
+	end
+
+	local hasted = self:isHasted(now)
+	if hasted and not self.auras.haste then
+		self.auras.haste = Effects.sparkleAura(self.model, Color3.fromRGB(90, 200, 255))
+		self.humanoid.WalkSpeed = self.style.walkSpeed * HASTE_SPEED
+	elseif not hasted and self.auras.haste then
+		self.auras.haste()
+		self.auras.haste = nil
+		self.humanoid.WalkSpeed = self.style.walkSpeed
+	end
+	if self.model:GetAttribute("Haste") ~= hasted then
+		self.model:SetAttribute("Haste", hasted)
+	end
+
+	local shielded = self.shield > 0
+	if shielded and not self.bubble then
+		self.bubble = Effects.bubble(self.model, Color3.fromRGB(110, 200, 255))
+	elseif not shielded and self.bubble then
+		self.bubble:Destroy()
+		self.bubble = nil
+	end
+	if self.model:GetAttribute("Shielded") ~= shielded then
+		self.model:SetAttribute("Shielded", shielded)
+	end
+
+	local frozen = self:isFrozen(now)
+	if frozen and not self.ice then
+		self.ice = Effects.iceBlock(self.model)
+	elseif not frozen and self.ice then
+		self.ice:Destroy()
+		self.ice = nil
+		if self.state == "frozen" then
+			self:setState("idle")
+		end
+	end
+	if self.model:GetAttribute("Frozen") ~= frozen then
+		self.model:SetAttribute("Frozen", frozen)
+	end
+end
+
+function Fighter:heal(amount)
+	if not self.alive then
+		return
+	end
+	local before = self.health
+	self.health = math.min(self.maxHealth, self.health + amount)
+	local healed = math.floor(self.health - before + 0.5)
+	if self.root then
+		Effects.healBurst(self.root.Position)
+		Effects.floatingText(self.root.Position, "+" .. tostring(math.max(healed, math.floor(amount))), Color3.fromRGB(90, 255, 140), 170)
+	end
+end
+
+function Fighter:addShield(amount)
+	if not self.alive then
+		return
+	end
+	self.shield = math.min(self.maxHealth, self.shield + amount)
+	if self.root then
+		Effects.ring(self.root.Position, Color3.fromRGB(110, 200, 255), 1, 8, 0.4)
+		Effects.floatingText(self.root.Position, "ESCUDO +" .. tostring(math.floor(amount)), Color3.fromRGB(130, 215, 255), 200)
+	end
+end
+
+function Fighter:addFury(seconds)
+	local now = Util.now()
+	self.furyUntil = math.max(now, self.furyUntil) + seconds
+	if self.root then
+		Effects.ring(self.root.Position, Color3.fromRGB(255, 70, 40), 1, 7, 0.4)
+		Effects.floatingText(self.root.Position, "FURIA", Color3.fromRGB(255, 90, 60), 160)
+	end
+end
+
+function Fighter:addHaste(seconds)
+	local now = Util.now()
+	self.hasteUntil = math.max(now, self.hasteUntil) + seconds
+	if self.root then
+		Effects.ring(self.root.Position, Color3.fromRGB(90, 200, 255), 1, 7, 0.4)
+		Effects.floatingText(self.root.Position, "VELOCIDAD", Color3.fromRGB(110, 210, 255), 190)
+	end
+end
+
+function Fighter:freeze(seconds)
+	if not self.alive then
+		return
+	end
+	local now = Util.now()
+	self.frozenUntil = math.max(now, self.frozenUntil) + seconds
+	-- un golpe en curso (que no sea de un regalo) se corta; si estaba en el aire, cae y se queda quieto
+	if self.run and not self.run.armor then
+		self.run = nil
+	end
+	if not self.run then
+		self:setState("frozen", self.frozenUntil)
+		self:setAction("frozen")
+	end
+	if self.root then
+		Effects.ring(self.root.Position, Color3.fromRGB(170, 225, 255), 1, 8, 0.4)
+	end
+end
+
+-- ---------- recibir golpes ----------
+
+-- info: { dmg, hitstun, kb, launch, unblockable, position, power }
+function Fighter:takeHit(attacker, info)
+	if not self:isTargetable() then
+		return nil
+	end
+
+	local now = Util.now()
+	local dmg = info.dmg
+	local blocked = false
+	local position = info.position or self.root.Position
+
+	if self.state == "block" and not info.unblockable then
+		blocked = true
+		dmg = math.max(1, dmg * (1 - self.style.blockReduction))
+		Effects.block(position, self.color)
+		self:setSlide(attacker.facing * 6, 0.12) -- el bloqueo lo empuja un poco hacia atras
+	end
+
+	-- el escudo se come el dano primero
+	local absorbed = 0
+	if self.shield > 0 then
+		absorbed = math.min(self.shield, dmg)
+		self.shield -= absorbed
+		dmg -= absorbed
+	end
+
+	self.health = math.max(0, self.health - dmg)
+	self.lastDamageAt = now
+	attacker.lastDamageAt = now
+	attacker.damageDealt += dmg
+
+	if not blocked then
+		Effects.hit(position, attacker.color, info.power or 1)
+		self.model:SetAttribute("HitT", now)
+	end
+
+	local shown = math.floor(dmg + absorbed + 0.5)
+	if shown > 0 then
+		Effects.floatingText(position + Vector3.new(0, 1, 0), tostring(shown), blocked and Color3.fromRGB(170, 215, 255) or Color3.fromRGB(255, 240, 150), 120 + math.min(110, shown * 0.6))
+	end
+
+	if info.power and info.power >= 2 then
+		Effects.screen("shake", 0.35 * info.power, 0.25)
+	end
+
+	if self.health <= 0 then
+		self:knockOut(attacker, info)
+		return { blocked = false, dmg = dmg, ko = true }
+	end
+
+	if not blocked then
+		self:reactToHit(attacker, info, now)
+	end
+	return { blocked = blocked, dmg = dmg }
+end
+
+function Fighter:reactToHit(attacker, info, now)
+	-- un golpe de regalo en curso no se interrumpe (asi un regalo nunca se pierde)
+	if self.run and self.run.armor then
+		return
+	end
+
+	self.run = nil
+	local pushDirection = attacker.facing
+
+	if (info.launch or 0) > 0 then
+		-- por el aire y al suelo: sube, cae y se levanta
+		local velocity = self.root.AssemblyLinearVelocity
+		self.root.AssemblyLinearVelocity = Vector3.new(pushDirection * (info.kb or 8), info.launch, velocity.Z)
+		self:setState("down", now + 1.7)
+		self:setAction("knockdown", 1.7)
+		self.invulnUntil = now + 1.6 -- tirado en el suelo no se le puede seguir pegando
+	else
+		self:setSlide(pushDirection * (info.kb or 8) * 2.2, 0.16)
+		self:setState("hit", now + (info.hitstun or 0.3))
+		self:setAction("hit", info.hitstun or 0.3)
+	end
+end
+
+function Fighter:knockOut(attacker, info)
+	self.alive = false
+	self.run = nil
+	self.shield = 0
+	self.giftQueue = {}
+	self:setState("ko", math.huge)
+	self:setAction("ko", 0.8)
+	self.humanoid:Move(Vector3.zero, false)
+
+	local direction = attacker and attacker.facing or -self.facing
+	local velocity = self.root.AssemblyLinearVelocity
+	self.root.AssemblyLinearVelocity = Vector3.new(direction * 22, 26, velocity.Z)
+	self:setSlide(direction * 12, 0.5)
+
+	Effects.hit(self.root.Position, Color3.fromRGB(255, 240, 200), 3)
+	Effects.screen("ko")
+	if self.onKO then
+		self.onKO(self, attacker)
+	end
+end
+
+function Fighter:victory()
+	self.alive = false
+	self.run = nil
+	self.giftQueue = {}
+	self.humanoid:Move(Vector3.zero, false)
+	self:setState("victory", math.huge)
+	self:setAction("victory")
+end
+
+-- ---------- golpes ----------
+
+function Fighter:isReady(key, def, now)
+	return (self.cooldowns[key] or 0) <= now
+end
+
+-- opts: { dmg (dano fijo), unblockable, approach, armor, projectileDmg, onDone }
+function Fighter:startMove(key, def, opts)
+	opts = opts or {}
+	local now = Util.now()
+	local haste = self:isHasted(now) and HASTE_ATTACK or 1
+
+	local run = {
+		key = key,
+		def = def,
+		t0 = now,
+		startup = def.startup / haste,
+		active = def.active / haste,
+		recovery = def.recovery / haste,
+		fixedDamage = opts.dmg,
+		unblockable = opts.unblockable or def.unblockable,
+		armor = opts.armor,
+		approach = opts.approach or def.approach,
+		projectileDmg = opts.projectileDmg,
+		onDone = opts.onDone,
+		hitsDone = 0,
+		fired = false,
+		jumped = false,
+		launched = false,
+	}
+	run.total = run.startup + run.active + run.recovery
+
+	self.run = run
+	self.cooldowns[key] = now + (def.cooldown or 0)
+	self.humanoid:Move(Vector3.zero, false)
+	self:setState("attack", math.huge)
+
+	if run.approach then
+		run.approachUntil = now + 0.65
+		self:setAction("dash", 0.65)
+	else
+		self:setAction(def.anim, run.total, run.startup / run.total)
+	end
+	return true
+end
+
+function Fighter:endMove(now)
+	local run = self.run
+	self.run = nil
+	if self.state == "attack" then
+		self:setState("idle")
+	end
+	if run and run.onDone then
+		run.onDone()
+	end
+end
+
+-- ¿Alcanza el golpe al rival ahora?
+function Fighter:reaches(def)
+	local enemy = self.enemy
+	if not enemy or not enemy:isTargetable() then
+		return false
+	end
+	local dx = (enemy.root.Position.X - self.root.Position.X) * self.facing
+	local dy = enemy.root.Position.Y - self.root.Position.Y
+	return dx > -0.8 and dx < def.range + 1.2 and dy >= def.win[1] and dy <= def.win[2]
+end
+
+function Fighter:resolveMeleeHit(run)
+	local def = run.def
+	if not self:reaches(def) then
+		return false
+	end
+
+	local now = Util.now()
+	local base = run.fixedDamage or (def.dmg * self:damageScale())
+	if self:isFurious(now) then
+		base *= FURY_MULTIPLIER
+	end
+
+	local enemyPosition = self.enemy.root.Position
+	local power = (def.kind == "light") and 1 or 2
+	if run.fixedDamage then
+		power = 3
+	end
+
+	self.enemy:takeHit(self, {
+		dmg = base,
+		hitstun = def.hitstun,
+		kb = def.kb,
+		launch = def.launch,
+		unblockable = run.unblockable,
+		position = Vector3.new((enemyPosition.X + self.root.Position.X) / 2 + self.facing * 0.8, enemyPosition.Y + 0.6, enemyPosition.Z),
+		power = power,
+	})
+	return true
+end
+
+function Fighter:fireProjectile(run)
+	local spec = run.def.projectile
+	local now = Util.now()
+	local damage = run.projectileDmg or (spec.dmg * self:damageScale())
+	if self:isFurious(now) then
+		damage *= FURY_MULTIPLIER
+	end
+
+	Combat.spawnProjectile(self, {
+		speed = spec.speed,
+		dmg = damage,
+		size = spec.size,
+		life = spec.life,
+		unblockable = run.unblockable,
+		power = run.projectileDmg and 3 or 2,
+	})
+end
+
+-- Super ataque: rayo que cruza la arena (el rival quedo inmovil durante la carga, asi que siempre le llega)
+function Fighter:fireSuper(run)
+	local enemy = self.enemy
+	local now = Util.now()
+	local damage = run.fixedDamage or (260 * self:damageScale())
+	if self:isFurious(now) then
+		damage *= FURY_MULTIPLIER
+	end
+
+	local fromPosition = self.root.Position + Vector3.new(self.facing * 2, 0.5, 0)
+	local toPosition = Vector3.new(self.facing * (Config.ArenaHalfWidth + 6), fromPosition.Y, fromPosition.Z)
+	if enemy and enemy.root then
+		toPosition = Vector3.new(enemy.root.Position.X + self.facing * 3, fromPosition.Y, fromPosition.Z)
+	end
+	Effects.beam(fromPosition, toPosition, self.color)
+	Effects.screen("flash", self.color, 0.35)
+
+	if enemy and enemy:isTargetable() then
+		enemy.invulnUntil = 0
+		enemy:takeHit(self, {
+			dmg = damage,
+			hitstun = 0.9,
+			kb = 26,
+			launch = 30,
+			unblockable = true,
+			position = enemy.root.Position + Vector3.new(0, 1, 0),
+			power = 3,
+		})
+	end
+end
+
+function Fighter:updateAttack(now, dt)
+	local run = self.run
+	local def = run.def
+	local root = self.root
+
+	-- primero corre hacia el rival hasta quedar a tiro (golpes con "approach", como los de los regalos)
+	if run.approach then
+		local enemy = self.enemy
+		local close = enemy and enemy.root and math.abs(enemy.root.Position.X - root.Position.X) <= math.max(2.4, def.range * 0.75)
+		if close or now >= run.approachUntil then
+			run.approach = false
+			run.t0 = now
+			self:setAction(def.anim, run.total, run.startup / run.total)
+		else
+			root.CFrame = root.CFrame + Vector3.new(self.facing * 62 * dt, 0, 0)
+			return
+		end
+	end
+
+	local t = now - run.t0
+
+	if def.jumpFirst and not run.jumped then
+		run.jumped = true
+		self.humanoid.Jump = true
+		self:setSlide(self.facing * 15, 0.55)
+	end
+
+	if def.selfLaunch and not run.launched and t >= run.startup * 0.4 then
+		run.launched = true
+		local velocity = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(self.facing * 4, def.selfLaunch, velocity.Z)
+	end
+
+	if def.lunge and t < run.startup + run.active then
+		root.CFrame = root.CFrame + Vector3.new(self.facing * def.lunge * dt, 0, 0)
+	end
+
+	if def.kind == "projectile" then
+		if not run.fired and t >= run.startup then
+			run.fired = true
+			self:fireProjectile(run)
+		end
+	elseif def.kind == "super" then
+		if t < run.startup then
+			-- mientras carga, el rival no puede hacer nada
+			local enemy = self.enemy
+			if enemy and enemy.alive and not run.froze then
+				run.froze = true
+				enemy.invulnUntil = 0
+				enemy:freeze(run.startup + 0.5)
+			end
+		elseif not run.fired then
+			run.fired = true
+			self:fireSuper(run)
+		end
+	else
+		local hits = def.hits
+		local interval = hits > 1 and (run.active / hits) or 0
+		while run.hitsDone < hits and t >= run.startup + interval * run.hitsDone do
+			run.hitsDone += 1
+			self:resolveMeleeHit(run)
+		end
+	end
+
+	if t >= run.total then
+		self:endMove(now)
+	end
+end
+
+-- ---------- regalos que se ejecutan con animacion ----------
+
+-- action: { kind = "strike" | "hadouken" | "super", amount = numero, queuedAt = hora }
+function Fighter:queueGift(action)
+	action.queuedAt = Util.now()
+	table.insert(self.giftQueue, action)
+end
+
+local function giftDef(self, action)
+	if action.kind == "strike" then
+		local base = self.style.moves[self.style.strike]
+		return self.style.strike, base, { dmg = action.amount, unblockable = true, approach = true, armor = true }
+	elseif action.kind == "hadouken" then
+		return "hadouken", Styles.common.hadouken, { projectileDmg = action.amount, armor = true, unblockable = false }
+	end
+	return "super", Styles.common.super, { dmg = action.amount, armor = true, unblockable = true }
+end
+
+-- Si un regalo lleva mucho esperando (rival congelado o atrapado en una cadena de golpes), se aplica directo para no perderlo
+function Fighter:applyGiftDirect(action)
+	local enemy = self.enemy
+	if not enemy or not enemy:isTargetable() then
+		return
+	end
+
+	if action.kind == "hadouken" then
+		Combat.spawnProjectile(self, { speed = 56, dmg = action.amount, size = 2.8, life = 2.6, power = 3 })
+		return
+	end
+
+	enemy:takeHit(self, {
+		dmg = action.amount,
+		hitstun = 0.5,
+		kb = action.kind == "super" and 26 or 16,
+		launch = action.kind == "super" and 30 or 0,
+		unblockable = true,
+		position = enemy.root.Position + Vector3.new(0, 1, 0),
+		power = 3,
+	})
+end
+
+function Fighter:processGifts(now)
+	if #self.giftQueue == 0 then
+		return
+	end
+
+	local waited = now - self.giftQueue[1].queuedAt
+	if self.giftRun then
+		return
+	end
+
+	if not self:canAct(now) then
+		if waited > Config.MaxPowerWaitSec then
+			self:applyGiftDirect(table.remove(self.giftQueue, 1))
+		end
+		return
+	end
+
+	local action = table.remove(self.giftQueue, 1)
+	local key, def, opts = giftDef(self, action)
+	self.giftRun = true
+	opts.onDone = function()
+		self.giftRun = false
+	end
+	if not self:startMove(key, def, opts) then
+		self.giftRun = false
+	end
+end
+
+-- ---------- turno ----------
+
+function Fighter:applyIntent(now, dt)
+	local intent = self.intent
+	local humanoid = self.humanoid
+	local grounded = self:isGrounded()
+
+	-- bloqueo (con limite de tiempo para que nadie se quede tapado para siempre)
+	if self.state == "block" then
+		if not intent.block or now - self.blockSince > BLOCK_MAX_SEC then
+			self:setState("idle")
+			self.blockLockedUntil = now + 0.5
+		else
+			humanoid:Move(Vector3.zero, false)
+			return
+		end
+	end
+
+	if intent.block and grounded and now >= self.blockLockedUntil and (self.state == "idle" or self.state == "walk") then
+		self:setState("block")
+		self.blockSince = now
+		self:setAction("block")
+		humanoid:Move(Vector3.zero, false)
+		return
+	end
+
+	humanoid:Move(Vector3.new(intent.move, 0, 0), false)
+
+	if intent.jump and grounded and (self.state == "idle" or self.state == "walk") then
+		humanoid.Jump = true
+	end
+
+	if not grounded then
+		self:setState("jump")
+		self:setAction("jump")
+	else
+		local speed = math.abs(self.root.AssemblyLinearVelocity.X)
+		if speed > 2 and intent.move ~= 0 then
+			self:setState("walk")
+			self:setAction("walk")
+		else
+			self:setState("idle")
+			self:setAction("idle")
+		end
+	end
+end
+
+function Fighter:update(now, dt, fighting)
+	local root = self.root
+	if not self.model or not root then
+		return
+	end
+
+	-- se queda en su carril y dentro de la arena
+	local position = root.Position
+	local half = Config.ArenaHalfWidth
+	local clampedX = Util.clamp(position.X, -half, half)
+	if math.abs(position.Z - Config.LaneZ) > 0.05 or clampedX ~= position.X or position.Y < Config.FloorTopY - 8 then
+		local y = position.Y < Config.FloorTopY - 8 and (Config.FloorTopY + 4) or position.Y
+		root.CFrame = CFrame.lookAt(Vector3.new(clampedX, y, Config.LaneZ), Vector3.new(clampedX + self.facing, y, Config.LaneZ))
+		local velocity = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(0, math.min(velocity.Y, 0), 0)
+	end
+
+	self:refreshEffects(now)
+
+	-- empuje por golpes (se mueve directo para que no lo frene el controlador del personaje)
+	if now < self.slideUntil then
+		root.CFrame = root.CFrame + Vector3.new(self.slideVx * dt, 0, 0)
+	end
+
+	local enemy = self.enemy
+	local state = self.state
+
+	if state == "ko" or state == "victory" then
+		self:orient()
+		return
+	end
+
+	if self:isFrozen(now) then
+		if not (self.run and self.run.armor) then
+			self.humanoid:Move(Vector3.zero, false)
+			if state ~= "frozen" then
+				self:setState("frozen", self.frozenUntil)
+				self:setAction("frozen")
+			end
+			self:orient()
+			return
+		end
+	elseif state == "frozen" then
+		self:setState("idle")
+	end
+
+	-- el rival siempre queda de frente, salvo en medio de un golpe
+	if enemy and enemy.root and state ~= "attack" and state ~= "down" then
+		local dx = enemy.root.Position.X - root.Position.X
+		if math.abs(dx) > 0.4 then
+			self:setFacing(dx > 0 and 1 or -1)
+		end
+	end
+	self:orient()
+
+	if state == "hit" then
+		self.humanoid:Move(Vector3.zero, false)
+		if now >= self.stateUntil then
+			self:setState("idle")
+		end
+		return
+	end
+
+	if state == "down" then
+		self.humanoid:Move(Vector3.zero, false)
+		if now >= self.stateUntil then
+			self:setState("getup", now + 0.5)
+			self:setAction("getup", 0.5)
+		end
+		return
+	end
+
+	if state == "getup" then
+		self.humanoid:Move(Vector3.zero, false)
+		if now >= self.stateUntil then
+			self:setState("idle")
+		end
+		return
+	end
+
+	if not fighting then
+		self.humanoid:Move(Vector3.zero, false)
+		if state == "idle" or state == "walk" or state == "block" or state == "jump" then
+			self:setState("idle")
+			if self:isGrounded() then
+				self:setAction("idle")
+			end
+		end
+		return
+	end
+
+	if state == "attack" then
+		if self.run then
+			self:updateAttack(now, dt)
+			return
+		end
+		self:setState("idle") -- no deberia pasar, pero un golpe sin datos no puede dejarlo atascado
+	end
+
+	self:processGifts(now)
+	if self.state == "attack" then
+		return
+	end
+
+	self:applyIntent(now, dt)
+end
+
+-- ---------- colocar para el round ----------
+
+function Fighter:resetForRound(maxHealth, x)
+	self:clearEffects()
+	self.maxHealth = maxHealth * self.style.healthMul
+	self.health = self.maxHealth
+	self.shield = 0
+	self.alive = true
+	self.run = nil
+	self.cooldowns = {}
+	self.furyUntil, self.hasteUntil, self.frozenUntil, self.invulnUntil = 0, 0, 0, 0
+	self.slideVx, self.slideUntil = 0, 0
+	self.giftQueue = {}
+	self.giftRun = false
+	self.intent = { move = 0, jump = false, block = false }
+	self.blockLockedUntil = 0
+	self.damageDealt = 0
+	self.lastDamageAt = 0
+
+	if self.humanoid then
+		self.humanoid.WalkSpeed = self.style.walkSpeed
+		self.humanoid.JumpPower = self.style.jumpPower
+	end
+
+	self.facing = x < 0 and 1 or -1
+	if self.model then
+		self.model:SetAttribute("Facing", self.facing)
+	end
+
+	if self.root then
+		local position = Vector3.new(x, Config.FloorTopY + 4, Config.LaneZ)
+		self.root.AssemblyLinearVelocity = Vector3.zero
+		self.root.AssemblyAngularVelocity = Vector3.zero
+		self.root.CFrame = CFrame.lookAt(position, position + Vector3.new(self.facing, 0, 0))
+	end
+
+	self:setState("idle")
+	self:setAction("idle", 0)
+end
+
+return Fighter
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBXE2865FC011F348A78A1E45B8F9CCDDA8">
+<Properties>
+<string name="Name">Match</string>
+
+<ProtectedString name="Source"><![CDATA[-- La partida: rounds, tiempo, marcador, campeon, y el puente con lo que llega de Interaktik (regalos y comentarios).
+-- Lo que ven los jugadores sale de atributos en ReplicatedStorage.PeleaState y de los modelos de los luchadores.
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local AI = require(script.Parent.AI)
+local Combat = require(script.Parent.Combat)
+local Config = require(script.Parent.Config)
+local Effects = require(script.Parent.Effects)
+local Fighter = require(script.Parent.Fighter)
+local Net = require(script.Parent.Net)
+local Powers = require(script.Parent.Powers)
+local Styles = require(script.Parent.Styles)
+local Util = require(script.Parent.Util)
+
+local Match = {}
+Match.__index = Match
+
+local DEMO_NAMES = { "Ana", "Luis", "Marta", "Pedro", "Sofía", "Diego", "Valeria", "Camilo", "Laura", "Andrés" }
+
+-- poderes de la demostracion: { poder, cantidad, duracion, peso }
+local DEMO_POWERS = {
+	{ "golpe", 90, 0, 5 },
+	{ "hadouken", 80, 0, 4 },
+	{ "curar", 160, 0, 3 },
+	{ "escudo", 180, 0, 2 },
+	{ "furia", 0, 10, 2 },
+	{ "velocidad", 0, 10, 2 },
+	{ "congelar", 0, 3, 1 },
+	{ "meteoros", 5, 0, 1.5 },
+	{ "super", 280, 0, 0.8 },
+	{ "estilo", 0, 0, 1 },
+}
+
+local function setAttr(instance, name, value)
+	if instance:GetAttribute(name) ~= value then
+		instance:SetAttribute(name, value)
+	end
+end
+
+local function normalizeSettings(raw)
+	local defaults = Config.Defaults
+	raw = type(raw) == "table" and raw or {}
+
+	local function side(key)
+		local base = defaults[key]
+		local given = type(raw[key]) == "table" and raw[key] or {}
+		return {
+			name = (type(given.name) == "string" and given.name ~= "") and given.name or base.name,
+			color = Util.hexToColor3(given.color, base.color),
+			style = Styles.isValid(given.style) and given.style or base.style,
+			keyword = type(given.keyword) == "string" and given.keyword or base.keyword,
+		}
+	end
+
+	return {
+		left = side("left"),
+		right = side("right"),
+		winGoal = Util.clamp(math.floor(tonumber(raw.winGoal) or defaults.winGoal), 1, 99),
+		roundSeconds = Util.clamp(math.floor(tonumber(raw.roundSeconds) or defaults.roundSeconds), 20, 180),
+		maxHealth = Util.clamp(math.floor(tonumber(raw.maxHealth) or defaults.maxHealth), 200, 5000),
+		aiLevel = Util.clamp(math.floor(tonumber(raw.aiLevel) or defaults.aiLevel), 1, 3),
+	}
+end
+
+-- env: { state = Folder, remotes = { Feed, Fx }, fightersFolder = Folder, arena = { setTeamColors } }
+function Match.new(env)
+	local self = setmetatable({}, Match)
+
+	self.state = env.state
+	self.remotes = env.remotes
+	self.arena = env.arena
+	self.fighters = {
+		left = Fighter.new("left", env.fightersFolder),
+		right = Fighter.new("right", env.fightersFolder),
+	}
+	self.fighters.left.enemy = self.fighters.right
+	self.fighters.right.enemy = self.fighters.left
+	for _, fighter in pairs(self.fighters) do
+		fighter.onKO = function(f, attacker)
+			self:onFighterKO(f, attacker)
+		end
+	end
+
+	self.settings = normalizeSettings(nil)
+	self.pendingSettings = nil
+	self.score = { leftWins = 0, rightWins = 0, winGoal = self.settings.winGoal, championsLeft = 0, championsRight = 0 }
+	self.supporters = { left = 0, right = 0 }
+	self.joined = {}
+	self.phase = "waiting"
+	self.round = 0
+	self.roundEndsAt = 0
+	self.result = nil
+	self.deferred = {}
+	self.demo = true
+	self.running = false
+	self.nextDemoAt = 0
+	self.bannerId = 0
+	self.statusText = ""
+	self.statusTone = "info"
+	return self
+end
+
+-- ---------- lo que ven los clientes ----------
+
+function Match:publish()
+	local state = self.state
+	local settings = self.settings
+	local left, right = self.fighters.left, self.fighters.right
+
+	setAttr(state, "Phase", self.phase)
+	setAttr(state, "Round", self.round)
+	setAttr(state, "RoundEndsAt", self.phase == "fight" and self.roundEndsAt or 0)
+	setAttr(state, "RoundSeconds", settings.roundSeconds)
+	setAttr(state, "Demo", self.demo)
+	setAttr(state, "Status", self.statusText)
+	setAttr(state, "StatusTone", self.statusTone)
+
+	setAttr(state, "LeftName", settings.left.name)
+	setAttr(state, "RightName", settings.right.name)
+	setAttr(state, "LeftColor", settings.left.color)
+	setAttr(state, "RightColor", settings.right.color)
+	setAttr(state, "LeftStyle", left.style.label)
+	setAttr(state, "RightStyle", right.style.label)
+
+	setAttr(state, "LeftHealth", math.floor(left.health + 0.5))
+	setAttr(state, "RightHealth", math.floor(right.health + 0.5))
+	setAttr(state, "LeftMax", math.floor(left.maxHealth + 0.5))
+	setAttr(state, "RightMax", math.floor(right.maxHealth + 0.5))
+	setAttr(state, "LeftShield", math.floor(left.shield + 0.5))
+	setAttr(state, "RightShield", math.floor(right.shield + 0.5))
+
+	setAttr(state, "LeftWins", self.score.leftWins)
+	setAttr(state, "RightWins", self.score.rightWins)
+	setAttr(state, "WinGoal", self.score.winGoal)
+	setAttr(state, "ChampsLeft", self.score.championsLeft)
+	setAttr(state, "ChampsRight", self.score.championsRight)
+	setAttr(state, "LeftSupporters", self.supporters.left)
+	setAttr(state, "RightSupporters", self.supporters.right)
+end
+
+function Match:banner(text, sub)
+	self.bannerId += 1
+	self.state:SetAttribute("Banner", text)
+	self.state:SetAttribute("BannerSub", sub or "")
+	self.state:SetAttribute("BannerId", self.bannerId)
+end
+
+function Match:feed(text, side, kind)
+	if self.remotes.Feed then
+		self.remotes.Feed:FireAllClients(text, side, kind or "power")
+	end
+end
+
+function Match:setStatus(text, tone)
+	self.statusText = text or ""
+	self.statusTone = tone or "info"
+end
+
+function Match:setDemo(flag)
+	self.demo = flag
+end
+
+-- ---------- ajustes que llegan de la pagina ----------
+
+-- payload = respuesta de /session: { settings, score, supporters }
+function Match:applySession(payload)
+	if type(payload) ~= "table" then
+		return
+	end
+
+	if type(payload.settings) == "table" then
+		self.pendingSettings = normalizeSettings(payload.settings)
+	end
+
+	if type(payload.score) == "table" and self.phase ~= "roundEnd" and self.phase ~= "champion" then
+		local score = payload.score
+		self.score.leftWins = tonumber(score.leftWins) or self.score.leftWins
+		self.score.rightWins = tonumber(score.rightWins) or self.score.rightWins
+		self.score.championsLeft = tonumber(score.championsLeft) or self.score.championsLeft
+		self.score.championsRight = tonumber(score.championsRight) or self.score.championsRight
+		self.score.winGoal = tonumber(score.winGoal) or self.score.winGoal
+	end
+
+	if type(payload.supporters) == "table" then
+		self.supporters.left = math.max(self.supporters.left, tonumber(payload.supporters.left) or 0)
+		self.supporters.right = math.max(self.supporters.right, tonumber(payload.supporters.right) or 0)
+	end
+end
+
+-- Los nombres, colores y estilos nuevos se aplican entre rounds (reconstruye el cuerpo si cambia el color o el estilo)
+function Match:applyPendingSettings()
+	if self.pendingSettings then
+		self.settings = self.pendingSettings
+		self.pendingSettings = nil
+		self.score.winGoal = self.settings.winGoal
+	end
+
+	for _, side in ipairs({ "left", "right" }) do
+		local wanted = self.settings[side]
+		local fighter = self.fighters[side]
+		fighter.name = wanted.name
+		if not fighter.model or fighter.styleId ~= wanted.style or fighter.color ~= wanted.color then
+			fighter:build(wanted.name, wanted.color, wanted.style)
+		end
+	end
+	self.arena.setTeamColors(self.settings.left.color, self.settings.right.color)
+end
+
+function Match:refreshAppearance()
+	self:publish()
+end
+
+-- ---------- regalos y comentarios ----------
+
+function Match:announcePower(item)
+	local sideName = self.settings[item.side].name
+	local who = (item.nickname and item.nickname ~= "") and item.nickname or "Alguien"
+	self:feed(Powers.message(item.power, who, sideName), item.side, "power")
+end
+
+function Match:onJoin(item)
+	local side = item.side
+	if side ~= "left" and side ~= "right" then
+		return
+	end
+
+	local id = item.uniqueId or item.nickname or ""
+	local previous = self.joined[id]
+	if previous == side then
+		return
+	end
+
+	if previous then
+		self.supporters[previous] = math.max(0, self.supporters[previous] - 1)
+	end
+	self.joined[id] = side
+	self.supporters[side] += 1
+
+	local who = (item.nickname and item.nickname ~= "") and item.nickname or "Alguien"
+	self:feed(who .. " se unió a " .. self.settings[side].name, side, "join")
+end
+
+-- Un poder que llega cuando no hay pelea (entre rounds) espera al siguiente round
+function Match:deferPower(item)
+	local last = self.deferred[#self.deferred]
+	if #self.deferred >= 40 and last and last.side == item.side and last.power == item.power then
+		-- demasiados esperando: se juntan los iguales para que el round no empiece con una cola eterna
+		last.amount = (last.amount or 0) + (item.amount or 0)
+		last.duration = (last.duration or 0) + (item.duration or 0)
+		return
+	end
+	table.insert(self.deferred, item)
+end
+
+function Match:flushDeferred()
+	local items = self.deferred
+	self.deferred = {}
+	task.spawn(function()
+		for _, item in ipairs(items) do
+			if self.phase ~= "fight" then
+				table.insert(self.deferred, item)
+			else
+				Util.safe("poder diferido", Powers.apply, self, item)
+				task.wait(0.12)
+			end
+		end
+	end)
+end
+
+-- item = { kind = "join" | "power", side, power, amount, duration, param, nickname, uniqueId }
+function Match:handleItem(item)
+	if item.kind == "join" then
+		self:onJoin(item)
+		return
+	end
+
+	if self.phase == "fight" then
+		Util.safe("poder", Powers.apply, self, item)
+	else
+		self:deferPower(item)
+	end
+end
+
+-- ---------- rounds ----------
+
+function Match:onFighterKO(fighter, attacker)
+	if self.phase ~= "fight" then
+		return
+	end
+	self.result = { winner = Util.otherSide(fighter.side), reason = "ko" }
+	self.phase = "ending"
+end
+
+function Match:decideByTime()
+	local left, right = self.fighters.left:healthFraction(), self.fighters.right:healthFraction()
+	if math.abs(left - right) < 0.01 then
+		return { winner = "draw", reason = "time" }
+	end
+	return { winner = left > right and "left" or "right", reason = "time" }
+end
+
+function Match:step(dt)
+	local now = Util.now()
+	local fighting = self.phase == "fight"
+
+	if fighting then
+		for _, side in ipairs({ "left", "right" }) do
+			AI.update(self.fighters[side], now, self.settings.aiLevel)
+		end
+
+		if self.demo and now >= self.nextDemoAt then
+			self.nextDemoAt = now + 2.4 + math.random() * 3
+			self:simulateGift()
+		end
+
+		if now >= self.roundEndsAt then
+			self.result = self:decideByTime()
+			self.phase = "ending"
+			fighting = false
+		end
+	end
+
+	for _, fighter in pairs(self.fighters) do
+		fighter:update(now, dt, fighting)
+	end
+
+	if fighting or self.phase == "ending" then
+		Combat.step(dt)
+		self:separateFighters()
+	end
+
+	self:publish()
+end
+
+-- Los dos luchadores no se pueden atravesar: si estan en el suelo y muy juntos, se separan
+local MIN_GAP = 2.6
+
+function Match:separateFighters()
+	local left, right = self.fighters.left, self.fighters.right
+	local a, b = left.root, right.root
+	if not a or not b or not left.alive or not right.alive then
+		return
+	end
+
+	local delta = b.Position.X - a.Position.X
+	if math.abs(delta) >= MIN_GAP or math.abs(b.Position.Y - a.Position.Y) > 2.2 then
+		return
+	end
+
+	local direction = delta >= 0 and 1 or -1
+	local push = (MIN_GAP - math.abs(delta)) / 2
+	local half = Config.ArenaHalfWidth
+	local ax = Util.clamp(a.Position.X - direction * push, -half, half)
+	local bx = Util.clamp(b.Position.X + direction * push, -half, half)
+	a.CFrame = a.CFrame + Vector3.new(ax - a.Position.X, 0, 0)
+	b.CFrame = b.CFrame + Vector3.new(bx - b.Position.X, 0, 0)
+end
+
+-- Regalos de mentira para la demostracion
+function Match:simulateGift()
+	local total = 0
+	for _, entry in ipairs(DEMO_POWERS) do
+		total += entry[4]
+	end
+	local roll = math.random() * total
+	local chosen = DEMO_POWERS[1]
+	for _, entry in ipairs(DEMO_POWERS) do
+		roll -= entry[4]
+		if roll <= 0 then
+			chosen = entry
+			break
+		end
+	end
+
+	local side = math.random() < 0.5 and "left" or "right"
+	local name = DEMO_NAMES[math.random(1, #DEMO_NAMES)]
+	if not self.joined[name] then
+		self:onJoin({ kind = "join", side = side, nickname = name, uniqueId = name })
+	end
+
+	self:handleItem({
+		kind = "power",
+		side = self.joined[name] or side,
+		power = chosen[1],
+		amount = chosen[2],
+		duration = chosen[3],
+		param = chosen[1] == "estilo" and Styles.randomOther(self.fighters[side].styleId) or nil,
+		nickname = name,
+		uniqueId = name,
+	})
+end
+
+function Match:resetFighters()
+	local offset = Config.StartOffset
+	self.fighters.left:resetForRound(self.settings.maxHealth, -offset)
+	self.fighters.right:resetForRound(self.settings.maxHealth, offset)
+end
+
+function Match:playRound()
+	self:applyPendingSettings()
+	Combat.clear()
+
+	self.round += 1
+	self.result = nil
+	self.phase = "intro"
+	self:resetFighters()
+	self:publish()
+
+	self:banner("ROUND " .. self.round, self.settings.left.name .. "  VS  " .. self.settings.right.name)
+	task.wait(Config.IntroSec * 0.65)
+	self:banner("¡PELEA!", "")
+	task.wait(Config.IntroSec * 0.35)
+
+	self.roundEndsAt = Util.now() + self.settings.roundSeconds
+	self.phase = "fight"
+	self:flushDeferred()
+
+	while self.phase == "fight" do
+		task.wait(0.05)
+	end
+
+	self:finishRound()
+end
+
+-- Avisa del resultado al servidor (con reintentos). Devuelve la respuesta, o nil si no se pudo.
+function Match:reportResult(winner)
+	if self.demo or not Net.robloxUserId then
+		return nil
+	end
+
+	local roundId = HttpService:GenerateGUID(false)
+	for attempt = 1, 3 do
+		local ok, data = Net.reportRound(winner, roundId)
+		if ok and type(data) == "table" then
+			return data
+		end
+		task.wait(0.6 * attempt)
+	end
+	return nil
+end
+
+-- Suma la victoria al marcador. Devuelve el lado campeon (o nil).
+function Match:applyResult(winner, response)
+	local score = self.score
+
+	if response then
+		score.leftWins = tonumber(response.leftWins) or score.leftWins
+		score.rightWins = tonumber(response.rightWins) or score.rightWins
+		score.winGoal = tonumber(response.winGoal) or score.winGoal
+		score.championsLeft = tonumber(response.championsLeft) or score.championsLeft
+		score.championsRight = tonumber(response.championsRight) or score.championsRight
+		return response.champion
+	end
+
+	if winner == "left" then
+		score.leftWins += 1
+	elseif winner == "right" then
+		score.rightWins += 1
+	end
+
+	local champion = nil
+	if score.leftWins >= score.winGoal then
+		champion = "left"
+		score.championsLeft += 1
+	elseif score.rightWins >= score.winGoal then
+		champion = "right"
+		score.championsRight += 1
+	end
+	return champion
+end
+
+function Match:finishRound()
+	local result = self.result or { winner = "draw", reason = "time" }
+	local left, right = self.fighters.left, self.fighters.right
+
+	Combat.clear()
+	self.phase = "roundEnd"
+	self.deferred = {}
+
+	local winnerFighter = result.winner ~= "draw" and self.fighters[result.winner] or nil
+	local loserFighter = winnerFighter and winnerFighter.enemy or nil
+	if loserFighter and loserFighter.alive then
+		loserFighter.alive = false
+		loserFighter:setState("ko", math.huge)
+		loserFighter:setAction("ko", 0.8)
+	end
+
+	task.wait(0.7)
+
+	if winnerFighter then
+		winnerFighter:victory()
+		local winnerName = self.settings[result.winner].name
+		self:banner(result.reason == "ko" and "K.O." or "¡TIEMPO!", winnerName .. " gana el round")
+	else
+		left:victory()
+		right:victory()
+		self:banner("¡EMPATE!", "Nadie gana este round")
+	end
+
+	-- el aviso al servidor corre aparte para que el banner no espere a la red
+	local response, answered = nil, false
+	task.spawn(function()
+		response = self:reportResult(result.winner)
+		answered = true
+	end)
+
+	task.wait(Config.RoundEndSec - 0.7)
+	local waited = 0
+	while not answered and waited < 5 do
+		task.wait(0.2)
+		waited += 0.2
+	end
+
+	local champion = self:applyResult(result.winner, response)
+	self:publish()
+
+	if champion then
+		self:celebrateChampion(champion)
+	end
+end
+
+function Match:celebrateChampion(side)
+	self.phase = "champion"
+	local name = self.settings[side].name
+	self:banner("¡" .. string.upper(name) .. " ES CAMPEÓN!", "Campeonatos: " .. self.score.championsLeft .. " - " .. self.score.championsRight)
+
+	local winner = self.fighters[side]
+	if winner.root then
+		Effects.confetti(winner.root.Position)
+		Effects.screen("flash", self.settings[side].color, 0.6)
+	end
+	self:feed("¡" .. name .. " ganó el campeonato!", side, "champion")
+
+	task.wait(Config.ChampionSec * 0.5)
+	if winner.root then
+		Effects.confetti(winner.root.Position)
+	end
+	task.wait(Config.ChampionSec * 0.5)
+
+	-- empieza un campeonato nuevo
+	self.score.leftWins = 0
+	self.score.rightWins = 0
+end
+
+-- ---------- ciclo de vida ----------
+
+function Match:start()
+	if self.running then
+		return
+	end
+	self.running = true
+
+	self.stepConnection = RunService.Heartbeat:Connect(function(dt)
+		Util.safe("paso de la partida", self.step, self, dt)
+	end)
+
+	task.spawn(function()
+		self:applyPendingSettings()
+		while self.running do
+			local ok, err = pcall(function()
+				self:playRound()
+			end)
+			if not ok then
+				warn("[PeleaCallejera] Error en un round: " .. tostring(err))
+				self.phase = "waiting"
+				task.wait(1.5)
+			end
+		end
+	end)
+end
+
+function Match:stop()
+	self.running = false
+	if self.stepConnection then
+		self.stepConnection:Disconnect()
+		self.stepConnection = nil
+	end
+	Combat.clear()
+	for _, fighter in pairs(self.fighters) do
+		fighter:destroy()
+	end
+end
+
+return Match
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX5B631937AB224C7D9E31E1C60CC3F08A">
+<Properties>
+<string name="Name">Net</string>
+
+<ProtectedString name="Source"><![CDATA[-- Comunicacion con el servidor de Interaktik (regalos, comentarios, ajustes y marcador).
+-- El juego se identifica con el ID de la cuenta de Roblox del jugador, que el streamer vinculo en la pagina del juego.
+
+local HttpService = game:GetService("HttpService")
+
+local Config = require(script.Parent.Config)
+
+local Net = {}
+
+Net.robloxUserId = nil
+
+function Net.httpEnabled()
+	local ok, enabled = pcall(function()
+		return HttpService.HttpEnabled
+	end)
+	return ok and enabled == true
+end
+
+-- Devuelve: ok, datos (o texto del error), codigo HTTP, cuerpo del error
+function Net.request(method, path, body)
+	if not Net.robloxUserId then
+		return false, "Todavia no hay una cuenta de Roblox", nil
+	end
+
+	local request = {
+		Url = Config.BaseUrl .. Config.ApiPath .. path .. "?robloxUserId=" .. tostring(Net.robloxUserId),
+		Method = method,
+		Headers = { ["Content-Type"] = "application/json" },
+	}
+	if body ~= nil then
+		request.Body = HttpService:JSONEncode(body)
+	end
+
+	local ok, response = pcall(function()
+		return HttpService:RequestAsync(request)
+	end)
+	if not ok then
+		return false, tostring(response), nil
+	end
+
+	local data = nil
+	if response.Body and #response.Body > 0 then
+		local decodedOk, decoded = pcall(function()
+			return HttpService:JSONDecode(response.Body)
+		end)
+		if decodedOk then
+			data = decoded
+		end
+	end
+
+	if not response.Success then
+		local message = (type(data) == "table" and data.error) or ("HTTP " .. tostring(response.StatusCode))
+		return false, message, response.StatusCode, data
+	end
+
+	return true, data, response.StatusCode
+end
+
+-- Ajustes de la pagina, marcador y cuantos apoyan a cada lado. Responde { ready = true/false, ... }
+function Net.getSession()
+	return Net.request("GET", "/session")
+end
+
+-- Regalos y espectadores nuevos. Hay que confirmarlos con ack() o el servidor los vuelve a mandar.
+function Net.pollQueue()
+	return Net.request("GET", "/queue")
+end
+
+function Net.ack(ids)
+	return Net.request("POST", "/ack", { ids = ids })
+end
+
+-- winner: "left" | "right" | "draw". roundId evita contar dos veces el mismo round si el aviso se repite.
+function Net.reportRound(winner, roundId)
+	return Net.request("POST", "/round-result", { winner = winner, roundId = roundId })
+end
+
+function Net.reset()
+	return Net.request("POST", "/reset", {})
+end
+
+return Net
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX38D75520C66744A8AD80EFFFDBF22812">
+<Properties>
+<string name="Name">Powers</string>
+
+<ProtectedString name="Source"><![CDATA[-- Poderes que activan los regalos. Cada uno se aplica al luchador del lado indicado (o al rival, en el caso de "congelar").
+
+local Combat = require(script.Parent.Combat)
+local Util = require(script.Parent.Util)
+
+local Powers = {}
+
+local METEOR_DAMAGE = 40 -- por meteoro, para 1000 de vida
+
+-- Texto del aviso que ven los espectadores. {who} = quien mando el regalo, {side} = nombre del lado que recibe el poder
+local MESSAGES = {
+	golpe = "{who} mandó un GOLPE FUERTE para {side}",
+	hadouken = "{who} lanzó una BOLA DE ENERGÍA para {side}",
+	super = "{who} activó el SÚPER ATAQUE de {side}",
+	meteoros = "{who} llamó una LLUVIA DE METEOROS para {side}",
+	curar = "{who} curó a {side}",
+	escudo = "{who} le puso un ESCUDO a {side}",
+	furia = "{who} le dio FURIA a {side}",
+	velocidad = "{who} aceleró a {side}",
+	congelar = "{who} CONGELÓ al rival de {side}",
+	estilo = "{who} cambió el estilo de {side}",
+}
+
+function Powers.message(power, who, sideName)
+	local text = MESSAGES[power] or "{who} activó un poder para {side}"
+	text = text:gsub("{who}", function()
+		return who
+	end)
+	text = text:gsub("{side}", function()
+		return sideName
+	end)
+	return text
+end
+
+-- Devuelve true si el poder se aplico. item = { side, power, amount, duration, param, nickname }
+function Powers.apply(match, item)
+	local fighter = match.fighters[item.side]
+	local enemy = match.fighters[Util.otherSide(item.side)]
+	if not fighter or not enemy or not fighter.model or not enemy.model then
+		return false
+	end
+
+	local power = item.power
+	local amount = tonumber(item.amount) or 0
+	local duration = tonumber(item.duration) or 0
+
+	if power == "golpe" or power == "hadouken" or power == "super" then
+		fighter:queueGift({ kind = power == "golpe" and "strike" or power, amount = math.max(1, amount) })
+	elseif power == "meteoros" then
+		Combat.meteorShower(fighter, math.max(1, math.min(60, math.floor(amount))), METEOR_DAMAGE * fighter:damageScale())
+	elseif power == "curar" then
+		fighter:heal(amount)
+	elseif power == "escudo" then
+		fighter:addShield(amount)
+	elseif power == "furia" then
+		fighter:addFury(math.max(1, duration))
+	elseif power == "velocidad" then
+		fighter:addHaste(math.max(1, duration))
+	elseif power == "congelar" then
+		enemy:freeze(math.max(1, duration))
+	elseif power == "estilo" then
+		task.spawn(function()
+			fighter:setStyle(item.param)
+			match:refreshAppearance()
+		end)
+	else
+		return false
+	end
+
+	match:announcePower(item)
+	return true
+end
+
+return Powers
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX676D3D82ACFD48D2B7C26C08CA1B3298">
+<Properties>
+<string name="Name">Styles</string>
+
+<ProtectedString name="Source"><![CDATA[-- Estilos de pelea. Cada estilo tiene su velocidad, su defensa, sus golpes y cuales usa segun la distancia.
+--
+-- Campos de un golpe (en segundos y studs; el dano es para 1000 de vida, se escala si la vida es distinta):
+--   anim       nombre de la animacion que dibuja el cliente (ver client/Poses.lua)
+--   startup    tiempo antes de que pegue; active = tiempo en que puede pegar; recovery = tiempo para recuperarse
+--   dmg        dano; hits = cuantos golpes da durante "active"
+--   hitstun    cuanto aturde al rival; kb = empuje horizontal; launch = lo manda por el aire (lo tira al suelo)
+--   range      alcance hacia adelante; win = {min, max} diferencia de altura en la que alcanza al rival
+--   lunge      velocidad con la que se lanza hacia adelante; approach = corre hasta quedar cerca antes de pegar
+--   jumpFirst  salta antes de pegar; selfLaunch = salto vertical propio (uppercut)
+--   cooldown   tiempo antes de volver a usarlo; unblockable = no se puede bloquear
+--   kind       "light" | "heavy" | "launcher" | "projectile"
+--   projectile { speed, dmg, size, life } para las bolas de energia y shurikens
+
+local Styles = {}
+
+Styles.order = { "boxeador", "karateka", "luchador", "ninja", "taekwondo" }
+
+Styles.list = {
+	karateka = {
+		label = "Karateka",
+		walkSpeed = 14,
+		jumpPower = 52,
+		healthMul = 1,
+		blockReduction = 0.8,
+		idealRange = 6,
+		skin = Color3.fromRGB(240, 190, 150),
+		pants = Color3.fromRGB(240, 240, 240),
+		accessory = "headband",
+		strike = "dashpunch",
+		moves = {
+			jab = { anim = "jab", startup = 0.09, active = 0.06, recovery = 0.15, dmg = 20, hitstun = 0.26, kb = 6, range = 5.4 },
+			cross = { anim = "cross", startup = 0.13, active = 0.07, recovery = 0.22, dmg = 30, hitstun = 0.32, kb = 10, range = 5.8 },
+			kick = { anim = "kick", startup = 0.17, active = 0.08, recovery = 0.27, dmg = 38, hitstun = 0.36, kb = 14, range = 6.6 },
+			uppercut = { anim = "uppercut", startup = 0.14, active = 0.16, recovery = 0.45, dmg = 64, hitstun = 0.5, kb = 8, launch = 34, selfLaunch = 32, range = 4.8, win = { -3, 8 }, kind = "launcher", cooldown = 3 },
+			dashpunch = { anim = "dashpunch", startup = 0.18, active = 0.09, recovery = 0.34, dmg = 46, hitstun = 0.4, kb = 16, range = 6.5, lunge = 40, kind = "heavy", cooldown = 2.5 },
+			fireball = { anim = "palm", startup = 0.34, active = 0, recovery = 0.42, kind = "projectile", projectile = { speed = 50, dmg = 52, size = 2.4, life = 2.4 }, cooldown = 3.6 },
+		},
+		ai = {
+			close = { jab = 3, cross = 2.2, kick = 1.4, uppercut = 1.1 },
+			mid = { kick = 2, dashpunch = 1.6, fireball = 1.2 },
+			far = { fireball = 3, dashpunch = 0.6 },
+		},
+	},
+
+	boxeador = {
+		label = "Boxeador",
+		walkSpeed = 15,
+		jumpPower = 48,
+		healthMul = 1,
+		blockReduction = 0.9,
+		idealRange = 4.6,
+		skin = Color3.fromRGB(176, 118, 86),
+		pants = Color3.fromRGB(30, 30, 40),
+		accessory = "gloves",
+		strike = "overhand",
+		moves = {
+			jab = { anim = "jab", startup = 0.07, active = 0.05, recovery = 0.12, dmg = 14, hitstun = 0.22, kb = 4, range = 5.2 },
+			cross = { anim = "cross", startup = 0.1, active = 0.06, recovery = 0.18, dmg = 26, hitstun = 0.3, kb = 9, range = 5.6 },
+			hook = { anim = "hook", startup = 0.14, active = 0.07, recovery = 0.24, dmg = 34, hitstun = 0.36, kb = 13, range = 5.4 },
+			uppercut = { anim = "uppercut", startup = 0.15, active = 0.1, recovery = 0.34, dmg = 46, hitstun = 0.46, kb = 6, launch = 26, selfLaunch = 18, range = 4.6, win = { -3, 7 }, kind = "launcher", cooldown = 3 },
+			flurry = { anim = "flurry", startup = 0.12, active = 0.42, hits = 4, recovery = 0.3, dmg = 11, hitstun = 0.2, kb = 3, range = 5.2, kind = "heavy", cooldown = 4 },
+			overhand = { anim = "haymaker", startup = 0.32, active = 0.08, recovery = 0.4, dmg = 72, hitstun = 0.5, kb = 22, range = 5.4, kind = "heavy", cooldown = 5 },
+		},
+		ai = {
+			close = { jab = 3, cross = 2.5, hook = 1.6, uppercut = 0.8, flurry = 0.8, overhand = 0.6 },
+			mid = { jab = 1.2, cross = 1, overhand = 0.5 },
+			far = {},
+		},
+	},
+
+	luchador = {
+		label = "Luchador",
+		walkSpeed = 11.5,
+		jumpPower = 44,
+		healthMul = 1.15,
+		blockReduction = 0.75,
+		idealRange = 4.6,
+		skin = Color3.fromRGB(210, 160, 120),
+		pants = Color3.fromRGB(70, 20, 90),
+		accessory = "mask",
+		strike = "tackle",
+		moves = {
+			chop = { anim = "hook", startup = 0.16, active = 0.08, recovery = 0.26, dmg = 30, hitstun = 0.34, kb = 10, range = 5.2 },
+			stomp = { anim = "kick", startup = 0.2, active = 0.08, recovery = 0.3, dmg = 36, hitstun = 0.38, kb = 12, range = 5.6 },
+			clothesline = { anim = "clothesline", startup = 0.2, active = 0.14, recovery = 0.4, dmg = 56, hitstun = 0.5, kb = 22, range = 6.6, win = { -3, 4 }, kind = "heavy", cooldown = 3 },
+			tackle = { anim = "tackle", startup = 0.18, active = 0.14, recovery = 0.4, dmg = 52, hitstun = 0.46, kb = 26, range = 5.6, lunge = 52, kind = "heavy", cooldown = 3.2 },
+			slam = { anim = "slam", startup = 0.34, active = 0.1, recovery = 0.55, dmg = 105, hitstun = 0.7, kb = 4, launch = 22, range = 3.8, unblockable = true, kind = "heavy", cooldown = 7 },
+		},
+		ai = {
+			close = { chop = 2.4, clothesline = 1.4, stomp = 1.2, slam = 1.1, tackle = 0.8 },
+			mid = { tackle = 1.8, clothesline = 0.8 },
+			far = { tackle = 1.6 },
+		},
+	},
+
+	ninja = {
+		label = "Ninja",
+		walkSpeed = 17.5,
+		jumpPower = 58,
+		healthMul = 0.92,
+		blockReduction = 0.7,
+		idealRange = 5,
+		skin = Color3.fromRGB(235, 200, 170),
+		pants = Color3.fromRGB(25, 25, 32),
+		accessory = "ninja",
+		strike = "dashstrike",
+		moves = {
+			slash = { anim = "jab", startup = 0.07, active = 0.05, recovery = 0.12, dmg = 15, hitstun = 0.2, kb = 5, range = 5.4 },
+			combo = { anim = "flurry", startup = 0.1, active = 0.36, hits = 3, recovery = 0.28, dmg = 14, hitstun = 0.2, kb = 4, range = 5.4, kind = "heavy", cooldown = 3.5 },
+			dashstrike = { anim = "dashpunch", startup = 0.1, active = 0.1, recovery = 0.32, dmg = 42, hitstun = 0.4, kb = 16, range = 6.4, lunge = 64, kind = "heavy", cooldown = 2.6 },
+			shuriken = { anim = "throw", startup = 0.2, active = 0, recovery = 0.3, kind = "projectile", projectile = { speed = 70, dmg = 24, size = 1.2, life = 1.6 }, cooldown = 1.6 },
+			flipkick = { anim = "aerialkick", jumpFirst = true, startup = 0.2, active = 0.2, recovery = 0.3, dmg = 40, hitstun = 0.4, kb = 14, range = 6.2, win = { -8, 6 }, kind = "heavy", cooldown = 3.2 },
+			sweep = { anim = "sweep", startup = 0.16, active = 0.1, recovery = 0.34, dmg = 30, hitstun = 0.34, kb = 6, launch = 18, range = 6, win = { -3.2, 1.5 }, cooldown = 2.6 },
+		},
+		ai = {
+			close = { slash = 3, combo = 1.4, sweep = 1, flipkick = 0.6 },
+			mid = { dashstrike = 2, shuriken = 2, flipkick = 1 },
+			far = { shuriken = 3, dashstrike = 1 },
+		},
+	},
+
+	taekwondo = {
+		label = "Taekwondista",
+		walkSpeed = 14.5,
+		jumpPower = 54,
+		healthMul = 1,
+		blockReduction = 0.75,
+		idealRange = 7,
+		skin = Color3.fromRGB(225, 170, 130),
+		pants = Color3.fromRGB(245, 245, 245),
+		accessory = "chest",
+		strike = "axekick",
+		moves = {
+			frontkick = { anim = "kick", startup = 0.14, active = 0.08, recovery = 0.24, dmg = 30, hitstun = 0.3, kb = 12, range = 7.2 },
+			roundhouse = { anim = "highkick", startup = 0.2, active = 0.09, recovery = 0.3, dmg = 46, hitstun = 0.4, kb = 18, range = 6.9, kind = "heavy", cooldown = 2 },
+			spinkick = { anim = "spinkick", startup = 0.22, active = 0.3, hits = 2, recovery = 0.4, dmg = 30, hitstun = 0.34, kb = 12, range = 6.4, kind = "heavy", cooldown = 4 },
+			jumpkick = { anim = "aerialkick", jumpFirst = true, startup = 0.2, active = 0.2, recovery = 0.3, dmg = 50, hitstun = 0.44, kb = 16, range = 6.4, win = { -8, 6 }, kind = "heavy", cooldown = 3.5 },
+			sweep = { anim = "sweep", startup = 0.17, active = 0.1, recovery = 0.34, dmg = 32, hitstun = 0.34, kb = 6, launch = 18, range = 6.4, win = { -3.2, 1.5 }, cooldown = 2.6 },
+			axekick = { anim = "axekick", startup = 0.28, active = 0.1, recovery = 0.42, dmg = 58, hitstun = 0.5, kb = 10, range = 6, kind = "heavy", cooldown = 4 },
+		},
+		ai = {
+			close = { frontkick = 3, roundhouse = 1.6, sweep = 1.2, axekick = 0.9, spinkick = 0.8 },
+			mid = { frontkick = 2, jumpkick = 1.4, roundhouse = 1.2, spinkick = 0.8 },
+			far = { jumpkick = 1.5 },
+		},
+	},
+}
+
+-- Movimientos que no dependen del estilo (los activan los regalos)
+Styles.common = {
+	-- bola de energia (regalo "Bola de energia")
+	hadouken = { anim = "palm", startup = 0.32, active = 0, recovery = 0.4, kind = "projectile", projectile = { speed = 56, dmg = 80, size = 2.8, life = 2.6 } },
+	-- carga del super ataque: el rival queda inmovil mientras tanto
+	super = { anim = "charge", startup = 0.95, active = 0, recovery = 0.7, kind = "super" },
+}
+
+local GOLDEN = { kind = "light", hits = 1, hitstun = 0.3, kb = 8, launch = 0, range = 5.5, win = { -3.2, 3.5 }, cooldown = 0 }
+
+-- Rellena lo que cada golpe no define para no repetirlo en las tablas de arriba
+local function finalize(move)
+	for key, value in pairs(GOLDEN) do
+		if move[key] == nil then
+			move[key] = value
+		end
+	end
+	move.active = move.active or 0
+	return move
+end
+
+for _, style in pairs(Styles.list) do
+	for _, move in pairs(style.moves) do
+		finalize(move)
+	end
+end
+for _, move in pairs(Styles.common) do
+	finalize(move)
+end
+
+function Styles.get(id)
+	return Styles.list[id] or Styles.list.karateka
+end
+
+function Styles.isValid(id)
+	return Styles.list[id] ~= nil
+end
+
+function Styles.randomOther(currentId)
+	local options = {}
+	for _, id in ipairs(Styles.order) do
+		if id ~= currentId then
+			table.insert(options, id)
+		end
+	end
+	return options[math.random(1, #options)]
+end
+
+return Styles
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBXA7BD5D2110B8496FB6A04B6855D51262">
+<Properties>
+<string name="Name">Util</string>
+
+<ProtectedString name="Source"><![CDATA[-- Herramientas pequeñas que usan todos los modulos del servidor.
+
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+
+local Util = {}
+
+function Util.clamp(value, minValue, maxValue)
+	return math.max(minValue, math.min(maxValue, value))
+end
+
+function Util.lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+function Util.sign(value)
+	if value < 0 then
+		return -1
+	elseif value > 0 then
+		return 1
+	end
+	return 0
+end
+
+-- Hora del servidor (la misma que ven los clientes: sirve para sincronizar animaciones)
+function Util.now()
+	return workspace:GetServerTimeNow()
+end
+
+function Util.randomRange(minValue, maxValue)
+	return minValue + math.random() * (maxValue - minValue)
+end
+
+-- Elige una clave de una tabla { clave = peso }
+function Util.weightedPick(weights)
+	local total = 0
+	for _, weight in pairs(weights) do
+		total += math.max(0, weight)
+	end
+	if total <= 0 then
+		return nil
+	end
+
+	local roll = math.random() * total
+	for key, weight in pairs(weights) do
+		roll -= math.max(0, weight)
+		if roll <= 0 then
+			return key
+		end
+	end
+	return next(weights)
+end
+
+-- Ejecuta algo sin que un error detenga el juego: se avisa en la consola y se sigue
+function Util.safe(label, callback, ...)
+	local ok, result = pcall(callback, ...)
+	if not ok then
+		warn(("[PeleaCallejera] Error en %s: %s"):format(label, tostring(result)))
+		return nil
+	end
+	return result
+end
+
+-- Crea una pieza decorativa (sin colision ni consultas, anclada por defecto)
+function Util.part(props, parent)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Material = Enum.Material.SmoothPlastic
+	for key, value in pairs(props) do
+		part[key] = value
+	end
+	part.Parent = parent
+	return part
+end
+
+function Util.tween(instance, duration, goal, style, direction)
+	local info = TweenInfo.new(duration, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+	local tween = TweenService:Create(instance, info, goal)
+	tween:Play()
+	return tween
+end
+
+function Util.debris(instance, seconds)
+	Debris:AddItem(instance, seconds)
+end
+
+-- Mezcla un color con blanco (amount 0..1) o con negro (amount negativo)
+function Util.tint(color, amount)
+	if amount >= 0 then
+		return color:Lerp(Color3.new(1, 1, 1), amount)
+	end
+	return color:Lerp(Color3.new(0, 0, 0), -amount)
+end
+
+function Util.otherSide(side)
+	return side == "left" and "right" or "left"
+end
+
+function Util.hexToColor3(hex, fallback)
+	if type(hex) ~= "string" then
+		return fallback
+	end
+	local r, g, b = hex:match("^#?(%x%x)(%x%x)(%x%x)$")
+	if not r then
+		return fallback
+	end
+	return Color3.fromRGB(tonumber(r, 16), tonumber(g, 16), tonumber(b, 16))
+end
+
+return Util
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="LocalScript" referent="RBX9418BCDD03FF4DBA8F207DF4B36CB16D">
+<Properties>
+<string name="Name">Client</string>
+<token name="RunContext">0</token>
+<ProtectedString name="Source"><![CDATA[-- Pelea Callejera (cliente): camara fija de lado, interfaz y animacion de los luchadores.
+-- No decide nada de la pelea: solo dibuja lo que el servidor va publicando.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Animator = require(script.Animator)
+local CameraRig = require(script.CameraRig)
+local Fx = require(script.Fx)
+local Hud = require(script.Hud)
+
+local state = ReplicatedStorage:WaitForChild("PeleaState")
+local remotes = ReplicatedStorage:WaitForChild("PeleaRemotes")
+
+local fxRemote = remotes:WaitForChild("Fx")
+fxRemote.OnClientEvent:Connect(Fx.handle)
+
+Hud.start(state, {
+	Feed = remotes:WaitForChild("Feed"),
+}, Fx)
+CameraRig.start()
+Animator.start()
+]]></ProtectedString>
+</Properties>
+<Item class="ModuleScript" referent="RBXD27F9BFCE66B4A24ADB4BFF5D7C37121">
+<Properties>
+<string name="Name">Animator</string>
+
+<ProtectedString name="Source"><![CDATA[-- Dibuja la pose de cada luchador en cada cuadro, moviendo las articulaciones del personaje (Motor6D.Transform).
+-- Lee los atributos que pone el servidor en el modelo: Action, ActionT, ActionDur, ActionHit, Facing, HitT, Fury, Frozen...
+
+local RunService = game:GetService("RunService")
+
+local Poses = require(script.Parent.Poses)
+
+local Animator = {}
+
+local states = {}
+
+-- Articulaciones del personaje R15: nombre -> { pieza que la contiene, nombre de la articulacion }
+local JOINT_PATHS = {
+	Root = { "LowerTorso", "Root" },
+	Waist = { "UpperTorso", "Waist" },
+	Neck = { "Head", "Neck" },
+	RightShoulder = { "RightUpperArm", "RightShoulder" },
+	RightElbow = { "RightLowerArm", "RightElbow" },
+	LeftShoulder = { "LeftUpperArm", "LeftShoulder" },
+	LeftElbow = { "LeftLowerArm", "LeftElbow" },
+	RightHip = { "RightUpperLeg", "RightHip" },
+	RightKnee = { "RightLowerLeg", "RightKnee" },
+	LeftHip = { "LeftUpperLeg", "LeftHip" },
+	LeftKnee = { "LeftLowerLeg", "LeftKnee" },
+}
+
+local function findJoints(model)
+	local joints = {}
+	for name, path in pairs(JOINT_PATHS) do
+		local part = model:FindFirstChild(path[1])
+		local joint = part and part:FindFirstChild(path[2])
+		if not joint then
+			return nil
+		end
+		joints[name] = joint
+	end
+	return joints
+end
+
+local function copyPose(pose)
+	local result = {}
+	for _, key in ipairs(Poses.KEYS) do
+		result[key] = pose[key]
+	end
+	return result
+end
+
+local function newHighlight(model)
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "FighterHighlight"
+	highlight.FillTransparency = 1
+	highlight.OutlineTransparency = 1
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Parent = model
+	return highlight
+end
+
+local function rotation(vector, mirror)
+	return CFrame.Angles(math.rad(vector.X), math.rad(vector.Y * mirror), math.rad(vector.Z * mirror))
+end
+
+-- Colores y destellos: golpe recibido, congelado, furia
+local function updateHighlight(model, data, now)
+	local highlight = data.highlight
+	if not highlight or not highlight.Parent then
+		data.highlight = newHighlight(model)
+		return
+	end
+
+	local hitAt = model:GetAttribute("HitT") or 0
+	if hitAt ~= data.lastHit then
+		data.lastHit = hitAt
+		data.flashUntil = now + 0.16
+	end
+
+	if now < (data.flashUntil or 0) then
+		local k = (data.flashUntil - now) / 0.16
+		highlight.FillColor = Color3.new(1, 1, 1)
+		highlight.FillTransparency = 1 - 0.7 * k
+		highlight.OutlineTransparency = 1
+	elseif model:GetAttribute("Frozen") then
+		highlight.FillColor = Color3.fromRGB(150, 220, 255)
+		highlight.FillTransparency = 0.55
+		highlight.OutlineColor = Color3.fromRGB(220, 245, 255)
+		highlight.OutlineTransparency = 0.2
+	elseif model:GetAttribute("Fury") then
+		local pulse = 0.35 + 0.2 * math.sin(now * 12)
+		highlight.FillColor = Color3.fromRGB(255, 60, 30)
+		highlight.FillTransparency = 0.82
+		highlight.OutlineColor = Color3.fromRGB(255, 90, 40)
+		highlight.OutlineTransparency = pulse
+	else
+		highlight.FillTransparency = 1
+		highlight.OutlineTransparency = 1
+	end
+end
+
+local function animateModel(model, data, dt, now)
+	local root = model:FindFirstChild("HumanoidRootPart")
+	local action = model:GetAttribute("Action") or "idle"
+	local startedAt = model:GetAttribute("ActionT") or now
+	local duration = model:GetAttribute("ActionDur") or 0
+	local hitFraction = model:GetAttribute("ActionHit") or 0.4
+	local facing = model:GetAttribute("Facing") or 1
+
+	local velocity = root and (root.AssemblyLinearVelocity.X * facing) or 0
+	data.walkPhase += dt * (5 + math.abs(velocity) * 0.5)
+
+	local target = Poses.sample(action, {
+		time = math.max(0, now - startedAt),
+		duration = duration,
+		hit = hitFraction,
+		walk = data.walkPhase,
+		speed = math.clamp(velocity / 16, -1.5, 1.5),
+	})
+
+	-- suavizado: los golpes casi no se suavizan para que lleguen en su momento
+	local rate = Poses.isSnappy(action) and 40 or 16
+	local alpha = 1 - math.exp(-rate * dt)
+	local pose = data.pose
+	for _, key in ipairs(Poses.KEYS) do
+		pose[key] = pose[key]:Lerp(target[key], alpha)
+	end
+
+	local nearIsRight = facing >= 0
+	local mirror = nearIsRight and 1 or -1
+	local joints = data.joints
+
+	joints.Root.Transform = CFrame.new(pose.RootPos) * rotation(pose.RootRot, mirror)
+	joints.Waist.Transform = rotation(pose.Waist, mirror)
+	joints.Neck.Transform = rotation(pose.Neck, mirror)
+
+	joints.RightShoulder.Transform = rotation(nearIsRight and pose.NS or pose.FS, 1)
+	joints.RightElbow.Transform = rotation(nearIsRight and pose.NE or pose.FE, 1)
+	joints.LeftShoulder.Transform = rotation(nearIsRight and pose.FS or pose.NS, -1)
+	joints.LeftElbow.Transform = rotation(nearIsRight and pose.FE or pose.NE, -1)
+
+	joints.RightHip.Transform = rotation(nearIsRight and pose.NH or pose.FH, 1)
+	joints.RightKnee.Transform = rotation(nearIsRight and pose.NK or pose.FK, 1)
+	joints.LeftHip.Transform = rotation(nearIsRight and pose.FH or pose.NH, -1)
+	joints.LeftKnee.Transform = rotation(nearIsRight and pose.FK or pose.NK, -1)
+end
+
+local function step(dt)
+	local folder = workspace:FindFirstChild("Fighters")
+	if not folder then
+		return
+	end
+
+	local now = workspace:GetServerTimeNow()
+	for _, model in ipairs(folder:GetChildren()) do
+		if model:IsA("Model") then
+			local data = states[model]
+			if not data then
+				data = { joints = nil, pose = copyPose(Poses.STANCE), walkPhase = 0, highlight = nil }
+				states[model] = data
+			end
+
+			if not data.joints then
+				data.joints = findJoints(model)
+			end
+
+			if data.joints then
+				animateModel(model, data, dt, now)
+				updateHighlight(model, data, now)
+			end
+		end
+	end
+
+	for model in pairs(states) do
+		if not model.Parent then
+			states[model] = nil
+		end
+	end
+end
+
+function Animator.start()
+	-- despues de las animaciones normales del motor y antes de dibujar, para que la pose de aqui sea la que se ve
+	RunService:BindToRenderStep("PeleaAnimator", Enum.RenderPriority.Character.Value + 5, step)
+end
+
+return Animator
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX0C134F50EEF5451DAC9EA9ED2F259648">
+<Properties>
+<string name="Name">CameraRig</string>
+
+<ProtectedString name="Source"><![CDATA[-- Camara fija de lado, como en los juegos de peleas: sigue el punto medio entre los dos luchadores y se aleja o acerca
+-- para que siempre se vean los dos (tambien en pantallas verticales de celular).
+
+local RunService = game:GetService("RunService")
+
+local Fx = require(script.Parent.Fx)
+
+local CameraRig = {}
+
+local FLOOR_Y = 0
+local LANE_Z = 0
+local FIELD_OF_VIEW = 52
+local MARGIN = 20 -- studs de aire a cada lado de los luchadores
+local MIN_DISTANCE = 22
+local MAX_DISTANCE = 110
+
+local currentX = 0
+local currentDistance = 46
+
+local function fighterRoot(name)
+	local folder = workspace:FindFirstChild("Fighters")
+	local model = folder and folder:FindFirstChild(name)
+	return model and model:FindFirstChild("HumanoidRootPart")
+end
+
+local function step(dt)
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.FieldOfView = FIELD_OF_VIEW
+
+	local left, right = fighterRoot("FighterLeft"), fighterRoot("FighterRight")
+	local x1 = left and left.Position.X or -11
+	local x2 = right and right.Position.X or 11
+
+	local middle = (x1 + x2) / 2
+	local span = math.abs(x1 - x2)
+
+	-- distancia necesaria para que quepan los dos, segun la forma de la pantalla
+	local viewport = camera.ViewportSize
+	local aspect = viewport.X / math.max(1, viewport.Y)
+	local verticalFov = math.rad(FIELD_OF_VIEW)
+	local horizontalFov = 2 * math.atan(math.tan(verticalFov / 2) * aspect)
+	local wanted = math.clamp(((span + MARGIN) / 2) / math.tan(horizontalFov / 2), MIN_DISTANCE, MAX_DISTANCE)
+	wanted *= 1 - 0.3 * Fx.zoomAmount()
+
+	currentX += (middle - currentX) * (1 - math.exp(-7 * dt))
+	currentDistance += (wanted - currentDistance) * (1 - math.exp(-4 * dt))
+
+	local shake = Fx.shakeOffset()
+	local position = Vector3.new(currentX, FLOOR_Y + 5.2 + currentDistance * 0.07, LANE_Z + currentDistance) + shake
+	local target = Vector3.new(currentX, FLOOR_Y + 4.4, LANE_Z) + shake * 0.3
+	camera.CFrame = CFrame.lookAt(position, target)
+end
+
+function CameraRig.start()
+	-- justo despues de la camara normal del motor, para que mande la nuestra
+	RunService:BindToRenderStep("PeleaCamera", Enum.RenderPriority.Camera.Value + 1, step)
+end
+
+return CameraRig
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX333C17A9270F47EC823B3A9BF1E104DC">
+<Properties>
+<string name="Name">Fx</string>
+
+<ProtectedString name="Source"><![CDATA[-- Efectos de pantalla que pide el servidor: temblor de camara, destello y acercamiento en un K.O.
+
+local Fx = {}
+
+local shake = { intensity = 0, startedAt = 0, duration = 0 }
+local zoom = { startedAt = -10, duration = 0 }
+local flashHandler = nil
+
+local function now()
+	return os.clock()
+end
+
+function Fx.setFlashHandler(callback)
+	flashHandler = callback
+end
+
+function Fx.shake(intensity, duration)
+	-- si ya hay un temblor mas fuerte, no se pisa
+	local remaining = shake.intensity * math.max(0, 1 - (now() - shake.startedAt) / math.max(0.01, shake.duration))
+	if intensity >= remaining then
+		shake.intensity = intensity
+		shake.startedAt = now()
+		shake.duration = duration
+	end
+end
+
+-- Cuanto se desplaza la camara por el temblor en este momento
+function Fx.shakeOffset()
+	local elapsed = now() - shake.startedAt
+	if elapsed >= shake.duration then
+		return Vector3.zero
+	end
+
+	local strength = shake.intensity * (1 - elapsed / shake.duration)
+	return Vector3.new(
+		(math.random() - 0.5) * 2 * strength,
+		(math.random() - 0.5) * 2 * strength,
+		0
+	)
+end
+
+-- 0..1: cuanto se acerca la camara (K.O.)
+function Fx.zoomAmount()
+	local elapsed = now() - zoom.startedAt
+	if elapsed >= zoom.duration then
+		return 0
+	end
+
+	local k = elapsed / zoom.duration
+	-- sube rapido y se relaja despacio
+	if k < 0.15 then
+		return k / 0.15
+	end
+	return 1 - (k - 0.15) / 0.85
+end
+
+function Fx.handle(name, a, b)
+	if name == "shake" then
+		Fx.shake(tonumber(a) or 0.5, tonumber(b) or 0.25)
+	elseif name == "flash" then
+		if flashHandler then
+			flashHandler(typeof(a) == "Color3" and a or Color3.new(1, 1, 1), tonumber(b) or 0.3)
+		end
+	elseif name == "ko" then
+		Fx.shake(1.6, 0.6)
+		zoom.startedAt = now()
+		zoom.duration = 1.6
+		if flashHandler then
+			flashHandler(Color3.new(1, 1, 1), 0.28)
+		end
+	end
+end
+
+return Fx
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX629A9C3CFAE145E28EBBB3F90FE8D43B">
+<Properties>
+<string name="Name">Hud</string>
+
+<ProtectedString name="Source"><![CDATA[-- Lo que se ve en pantalla: barras de vida, tiempo, marcador de victorias, avisos grandes ("ROUND 1", "¡PELEA!", "K.O."),
+-- la lista de lo que hacen los espectadores y los mensajes de estado. Todo sale de los atributos de PeleaState.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+
+local Hud = {}
+
+local FONT_BLACK = Enum.Font.GothamBlack
+local FONT_BOLD = Enum.Font.GothamBold
+local WHITE = Color3.new(1, 1, 1)
+local MAX_FEED = 7
+local FEED_SECONDS = 7
+
+local function new(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function corner(parent, radius)
+	return new("UICorner", { CornerRadius = UDim.new(0, radius) }, parent)
+end
+
+local function stroke(parent, color, thickness, transparency)
+	return new("UIStroke", { Color = color, Thickness = thickness, Transparency = transparency or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, parent)
+end
+
+local function textStroke(parent, thickness)
+	return new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = thickness, Transparency = 0.15, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, parent)
+end
+
+-- Una de las dos barras de arriba (izquierda o derecha)
+local function buildSide(top, side)
+	local isRight = side == "right"
+	local anchorX = isRight and 1 or 0
+	local align = isRight and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
+
+	local block = new("Frame", {
+		Name = side .. "Block",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(anchorX, 0),
+		Position = UDim2.new(anchorX, 0, 0, 0),
+		Size = UDim2.new(0.5, -66, 1, 0),
+	}, top)
+
+	local nameLabel = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 28),
+		Font = FONT_BLACK,
+		TextSize = 24,
+		TextColor3 = WHITE,
+		TextXAlignment = align,
+		Text = "",
+	}, block)
+	textStroke(nameLabel, 2)
+
+	local infoLabel = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 28),
+		Size = UDim2.new(1, 0, 0, 18),
+		Font = FONT_BOLD,
+		TextSize = 14,
+		TextColor3 = WHITE,
+		TextXAlignment = align,
+		Text = "",
+	}, block)
+	textStroke(infoLabel, 1.5)
+
+	local bar = new("Frame", {
+		Position = UDim2.new(0, 0, 0, 50),
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(18, 16, 30),
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+	}, block)
+	corner(bar, 8)
+	stroke(bar, WHITE, 2, 0.2)
+
+	local function barPiece(color, zIndex)
+		return new("Frame", {
+			AnchorPoint = Vector2.new(anchorX, 0),
+			Position = UDim2.new(anchorX, 0, 0, 0),
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+			ZIndex = zIndex,
+		}, bar)
+	end
+
+	local ghost = barPiece(Color3.fromRGB(255, 196, 64), 1)
+	local fill = barPiece(WHITE, 2)
+	new("UIGradient", { Color = ColorSequence.new(WHITE, Color3.fromRGB(175, 175, 175)), Rotation = 90 }, fill)
+
+	local healthText = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Font = FONT_BOLD,
+		TextSize = 14,
+		TextColor3 = WHITE,
+		ZIndex = 3,
+		Text = "",
+	}, bar)
+	textStroke(healthText, 1.5)
+
+	local shieldBar = new("Frame", {
+		AnchorPoint = Vector2.new(anchorX, 0),
+		Position = UDim2.new(anchorX, 0, 0, 80),
+		Size = UDim2.new(0, 0, 0, 5),
+		BackgroundColor3 = Color3.fromRGB(110, 200, 255),
+		BorderSizePixel = 0,
+	}, block)
+	corner(shieldBar, 3)
+
+	local pips = new("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 90),
+		Size = UDim2.new(1, 0, 0, 14),
+	}, block)
+	new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = isRight and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left,
+		Padding = UDim.new(0, 5),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, pips)
+
+	return {
+		name = nameLabel,
+		info = infoLabel,
+		fill = fill,
+		ghost = ghost,
+		healthText = healthText,
+		shield = shieldBar,
+		pips = pips,
+		winsText = nil,
+		displayRatio = 1,
+		ghostRatio = 1,
+		builtGoal = -1,
+		builtColor = nil,
+	}
+end
+
+-- Circulos de victorias (o un texto si la meta es muy grande)
+local function refreshPips(side, goal, wins, color)
+	local pips = side.pips
+	if goal > 10 then
+		if side.builtGoal ~= goal then
+			for _, child in ipairs(pips:GetChildren()) do
+				if not child:IsA("UIListLayout") then
+					child:Destroy()
+				end
+			end
+			side.winsText = new("TextLabel", {
+				BackgroundTransparency = 1,
+				Size = UDim2.new(0, 120, 1, 0),
+				Font = FONT_BOLD,
+				TextSize = 14,
+				TextColor3 = WHITE,
+				Text = "",
+			}, pips)
+			textStroke(side.winsText, 1.5)
+			side.builtGoal = goal
+		end
+		side.winsText.Text = ("VICTORIAS %d / %d"):format(wins, goal)
+		return
+	end
+
+	if side.builtGoal ~= goal or side.builtColor ~= color then
+		for _, child in ipairs(pips:GetChildren()) do
+			if not child:IsA("UIListLayout") then
+				child:Destroy()
+			end
+		end
+		for index = 1, goal do
+			local pip = new("Frame", {
+				Name = "Pip" .. index,
+				LayoutOrder = index,
+				Size = UDim2.fromOffset(13, 13),
+				BackgroundColor3 = color,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+			}, pips)
+			corner(pip, 7)
+			stroke(pip, WHITE, 2, 0.15)
+		end
+		side.builtGoal = goal
+		side.builtColor = color
+	end
+
+	for index, pip in ipairs(pips:GetChildren()) do
+		if pip:IsA("Frame") then
+			local number = tonumber(pip.Name:match("%d+")) or index
+			pip.BackgroundTransparency = number <= wins and 0 or 1
+		end
+	end
+end
+
+function Hud.start(state, remotes, Fx)
+	local player = Players.LocalPlayer
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- sin la interfaz normal de Roblox (chat, lista de jugadores, mochila...)
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+	end)
+
+	local old = playerGui:FindFirstChild("PeleaHud")
+	if old then
+		old:Destroy()
+	end
+
+	local gui = new("ScreenGui", {
+		Name = "PeleaHud",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		DisplayOrder = 20,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	}, playerGui)
+
+	-- ---------- barra de arriba ----------
+	local top = new("Frame", {
+		Name = "Top",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 14),
+		Size = UDim2.new(0.96, 0, 0, 108),
+	}, gui)
+
+	local sides = { left = buildSide(top, "left"), right = buildSide(top, "right") }
+
+	local timerBox = new("Frame", {
+		Name = "Timer",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 4),
+		Size = UDim2.fromOffset(84, 84),
+		BackgroundColor3 = Color3.fromRGB(16, 14, 28),
+		BorderSizePixel = 0,
+	}, top)
+	corner(timerBox, 42)
+	stroke(timerBox, Color3.fromRGB(255, 214, 102), 3, 0)
+	local timerLabel = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Font = FONT_BLACK,
+		TextSize = 42,
+		TextColor3 = WHITE,
+		Text = "90",
+	}, timerBox)
+	local roundLabel = new("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 90),
+		Size = UDim2.fromOffset(140, 18),
+		Font = FONT_BOLD,
+		TextSize = 14,
+		TextColor3 = Color3.fromRGB(255, 214, 102),
+		Text = "",
+	}, top)
+	textStroke(roundLabel, 1.5)
+
+	-- ---------- aviso grande en el centro ----------
+	local banner = new("TextLabel", {
+		Name = "Banner",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.36, 0),
+		Size = UDim2.new(0.9, 0, 0, 110),
+		Font = FONT_BLACK,
+		TextSize = 88,
+		TextColor3 = WHITE,
+		Text = "",
+		Visible = false,
+		TextWrapped = true,
+	}, gui)
+	local bannerStroke = new("UIStroke", { Color = Color3.fromRGB(20, 8, 30), Thickness = 6, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, banner)
+	local bannerScale = new("UIScale", { Scale = 1 }, banner)
+	local bannerSub = new("TextLabel", {
+		Name = "BannerSub",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.36, 62),
+		Size = UDim2.new(0.9, 0, 0, 40),
+		Font = FONT_BOLD,
+		TextSize = 30,
+		TextColor3 = Color3.fromRGB(255, 214, 102),
+		Text = "",
+		Visible = false,
+	}, gui)
+	textStroke(bannerSub, 3)
+
+	local bannerToken = 0
+	local function showBanner(text, sub)
+		bannerToken += 1
+		local token = bannerToken
+
+		if not text or text == "" then
+			banner.Visible = false
+			bannerSub.Visible = false
+			return
+		end
+
+		banner.Text = text
+		bannerSub.Text = sub or ""
+		banner.Visible = true
+		bannerSub.Visible = (sub or "") ~= ""
+		banner.TextTransparency = 0
+		bannerStroke.Transparency = 0
+		bannerSub.TextTransparency = 0
+		bannerScale.Scale = 1.8
+		TweenService:Create(bannerScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+		local hold = (text:find("PELEA") and 0.9) or (text:find("CAMPE") and 6) or 1.9
+		task.delay(hold, function()
+			if token ~= bannerToken then
+				return
+			end
+			TweenService:Create(banner, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+			TweenService:Create(bannerStroke, TweenInfo.new(0.35), { Transparency = 1 }):Play()
+			TweenService:Create(bannerSub, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+			task.delay(0.4, function()
+				if token == bannerToken then
+					banner.Visible = false
+					bannerSub.Visible = false
+				end
+			end)
+		end)
+	end
+
+	-- ---------- lista de lo que hacen los espectadores ----------
+	local feed = new("Frame", {
+		Name = "Feed",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -16),
+		Size = UDim2.new(0.38, 0, 0.42, 0),
+	}, gui)
+	new("UIListLayout", {
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		Padding = UDim.new(0, 5),
+	}, feed)
+
+	local feedCounter = 0
+	local function addFeed(text, side, kind)
+		feedCounter += 1
+		local color = WHITE
+		if side == "left" then
+			color = state:GetAttribute("LeftColor") or WHITE
+		elseif side == "right" then
+			color = state:GetAttribute("RightColor") or WHITE
+		end
+
+		local entry = new("Frame", {
+			LayoutOrder = feedCounter,
+			Size = UDim2.new(1, 0, 0, 28),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.45,
+			BorderSizePixel = 0,
+		}, feed)
+		corner(entry, 6)
+		new("Frame", { Size = UDim2.new(0, 5, 1, 0), BackgroundColor3 = color, BorderSizePixel = 0 }, entry)
+		local label = new("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 12, 0, 0),
+			Size = UDim2.new(1, -16, 1, 0),
+			Font = kind == "champion" and FONT_BLACK or FONT_BOLD,
+			TextSize = 15,
+			TextColor3 = kind == "join" and Color3.fromRGB(215, 215, 235) or WHITE,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Text = text,
+		}, entry)
+
+		-- si hay demasiados, se va el mas viejo
+		local entries = {}
+		for _, child in ipairs(feed:GetChildren()) do
+			if child:IsA("Frame") then
+				table.insert(entries, child)
+			end
+		end
+		table.sort(entries, function(a, b)
+			return a.LayoutOrder < b.LayoutOrder
+		end)
+		while #entries > MAX_FEED do
+			table.remove(entries, 1):Destroy()
+		end
+
+		task.delay(FEED_SECONDS - 0.6, function()
+			if entry.Parent then
+				TweenService:Create(entry, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+				TweenService:Create(label, TweenInfo.new(0.5), { TextTransparency = 1 }):Play()
+				task.delay(0.55, function()
+					if entry.Parent then
+						entry:Destroy()
+					end
+				end)
+			end
+		end)
+	end
+
+	if remotes.Feed then
+		remotes.Feed.OnClientEvent:Connect(addFeed)
+	end
+
+	-- ---------- mensajes de estado y modo demostracion ----------
+	local status = new("TextLabel", {
+		Name = "Status",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.new(0.62, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Color3.fromRGB(20, 18, 34),
+		BackgroundTransparency = 0.15,
+		Font = FONT_BOLD,
+		TextSize = 16,
+		TextColor3 = WHITE,
+		TextWrapped = true,
+		Text = "",
+		Visible = false,
+	}, gui)
+	corner(status, 10)
+	new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) }, status)
+	local statusStroke = stroke(status, Color3.fromRGB(110, 150, 255), 2, 0.1)
+
+	local demoBadge = new("TextLabel", {
+		Name = "DemoBadge",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 130),
+		Size = UDim2.fromOffset(190, 24),
+		BackgroundColor3 = Color3.fromRGB(255, 160, 40),
+		Font = FONT_BLACK,
+		TextSize = 12,
+		TextColor3 = Color3.fromRGB(30, 18, 4),
+		Text = "MODO DEMOSTRACIÓN",
+		Visible = false,
+	}, gui)
+	corner(demoBadge, 12)
+
+	-- ---------- destello de pantalla ----------
+	local flash = new("Frame", {
+		Name = "Flash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 50,
+		Active = false,
+	}, gui)
+	Fx.setFlashHandler(function(color, duration)
+		flash.BackgroundColor3 = color
+		flash.BackgroundTransparency = 0.45
+		TweenService:Create(flash, TweenInfo.new(duration), { BackgroundTransparency = 1 }):Play()
+	end)
+
+	-- ---------- actualizacion cada cuadro ----------
+	local lastBannerId = state:GetAttribute("BannerId") or 0
+
+	local function update(dt)
+		local now = workspace:GetServerTimeNow()
+		local phase = state:GetAttribute("Phase") or "waiting"
+		local goal = state:GetAttribute("WinGoal") or 5
+
+		for _, key in ipairs({ "left", "right" }) do
+			local prefix = key == "left" and "Left" or "Right"
+			local side = sides[key]
+			local color = state:GetAttribute(prefix .. "Color") or WHITE
+			local health = state:GetAttribute(prefix .. "Health") or 0
+			local maxHealth = math.max(1, state:GetAttribute(prefix .. "Max") or 1)
+			local shield = state:GetAttribute(prefix .. "Shield") or 0
+			local ratio = math.clamp(health / maxHealth, 0, 1)
+
+			side.name.Text = string.upper(state:GetAttribute(prefix .. "Name") or "")
+			side.name.TextColor3 = color:Lerp(WHITE, 0.35)
+			side.info.Text = ("%s  ·  %d seguidores"):format(state:GetAttribute(prefix .. "Style") or "", state:GetAttribute(prefix .. "Supporters") or 0)
+			side.info.TextColor3 = color:Lerp(WHITE, 0.55)
+			side.fill.BackgroundColor3 = color
+
+			-- la barra se mueve suave y una sombra amarilla marca lo que se acaba de perder
+			side.displayRatio += (ratio - side.displayRatio) * (1 - math.exp(-14 * dt))
+			side.ghostRatio = math.max(side.displayRatio, side.ghostRatio - dt * 0.22)
+			if ratio > side.ghostRatio then
+				side.ghostRatio = ratio
+			end
+			side.fill.Size = UDim2.new(side.displayRatio, 0, 1, 0)
+			side.ghost.Size = UDim2.new(side.ghostRatio, 0, 1, 0)
+			side.healthText.Text = ("%d / %d"):format(health, maxHealth)
+			side.shield.Size = UDim2.new(math.clamp(shield / maxHealth, 0, 1), 0, 0, 5)
+
+			refreshPips(side, goal, state:GetAttribute(prefix .. "Wins") or 0, color)
+		end
+
+		if phase == "fight" then
+			local remaining = math.max(0, (state:GetAttribute("RoundEndsAt") or 0) - now)
+			timerLabel.Text = tostring(math.ceil(remaining))
+			timerLabel.TextColor3 = remaining <= 10 and Color3.fromRGB(255, 90, 90) or WHITE
+		elseif phase == "intro" then
+			timerLabel.Text = tostring(state:GetAttribute("RoundSeconds") or 90)
+			timerLabel.TextColor3 = WHITE
+		end
+		local round = state:GetAttribute("Round") or 0
+		roundLabel.Text = round > 0 and ("ROUND " .. round) or ""
+
+		local bannerId = state:GetAttribute("BannerId") or 0
+		if bannerId ~= lastBannerId then
+			lastBannerId = bannerId
+			showBanner(state:GetAttribute("Banner") or "", state:GetAttribute("BannerSub") or "")
+		end
+
+		local statusText = state:GetAttribute("Status") or ""
+		status.Visible = statusText ~= ""
+		if statusText ~= "" then
+			status.Text = statusText
+			local tone = state:GetAttribute("StatusTone") or "info"
+			statusStroke.Color = tone == "warn" and Color3.fromRGB(255, 170, 60) or (tone == "ok" and Color3.fromRGB(90, 220, 140) or Color3.fromRGB(110, 150, 255))
+		end
+		demoBadge.Visible = state:GetAttribute("Demo") == true
+	end
+
+	RunService.RenderStepped:Connect(update)
+end
+
+return Hud
+]]></ProtectedString>
+</Properties>
+</Item>
+<Item class="ModuleScript" referent="RBXD81BD8FEB6D440C6B903A8D4F04E0DA9">
+<Properties>
+<string name="Name">Poses</string>
+
+<ProtectedString name="Source"><![CDATA[-- Poses de los luchadores. No usa animaciones de Roblox (no hacen falta imagenes ni IDs): cada cuadro se calcula con angulos.
+--
+-- Una pose es una tabla con estos valores (angulos en grados, desplazamientos en studs):
+--   RootPos / RootRot   la cadera completa (agacharse, caer, girar)
+--   Waist / Neck        cintura y cuello  (X: inclinarse, Y: girar, Z: ladearse)
+--   NS NE / FS FE       hombro y codo del brazo CERCANO a la camara / LEJANO
+--   NH NK / FH FK       cadera y rodilla de la pierna CERCANA / LEJANA
+-- Convenciones (el personaje mira hacia -Z): X positivo en el hombro/cadera = adelante; en el codo = doblar; en la rodilla
+-- doblar es X negativo; en la cintura inclinarse hacia adelante es X negativo. Z = separar el miembro del cuerpo.
+-- "Cercano" es el lado que ve la camara; el Animator lo asigna a la derecha o a la izquierda segun hacia donde mire.
+
+local V = Vector3.new
+
+local Poses = {}
+
+local STANCE = {
+	RootPos = V(0, -0.38, 0),
+	RootRot = V(0, 0, 0),
+	Waist = V(-6, 0, 0),
+	Neck = V(4, 0, 0),
+	NS = V(68, 0, 10),
+	NE = V(108, 0, 0),
+	FS = V(54, 0, -8),
+	FE = V(118, 0, 0),
+	NH = V(18, 0, 6),
+	NK = V(-34, 0, 0),
+	FH = V(-14, 0, -6),
+	FK = V(-30, 0, 0),
+}
+
+local KEYS = { "RootPos", "RootRot", "Waist", "Neck", "NS", "NE", "FS", "FE", "NH", "NK", "FH", "FK" }
+
+Poses.STANCE = STANCE
+Poses.KEYS = KEYS
+
+local function copy(pose)
+	local result = {}
+	for _, key in ipairs(KEYS) do
+		result[key] = pose[key]
+	end
+	return result
+end
+
+-- Pose completa: lo que no se indica queda como en la guardia
+local function make(overrides)
+	local pose = copy(STANCE)
+	if overrides then
+		for key, value in pairs(overrides) do
+			pose[key] = value
+		end
+	end
+	return pose
+end
+
+local function mix(a, b, alpha)
+	local result = {}
+	for _, key in ipairs(KEYS) do
+		result[key] = a[key]:Lerp(b[key], alpha)
+	end
+	return result
+end
+
+local function smooth(alpha)
+	return alpha * alpha * (3 - 2 * alpha)
+end
+
+-- ---------- golpes con cuadros clave ----------
+-- u va de 0 a 2: 0 = empieza, 1 = el momento del golpe, 2 = termina (el servidor manda cuando cae el golpe: ActionHit)
+
+local attacks = {
+	jab = {
+		{ 0, make() },
+		{ 0.6, make({ NS = V(62, 0, 4), NE = V(142, 0, 0), Waist = V(-6, 8, 0) }) },
+		{ 1, make({ NS = V(93, 0, 0), NE = V(6, 0, 0), Waist = V(-10, 20, 0), RootPos = V(0, -0.5, 0) }) },
+		{ 1.4, make({ NS = V(93, 0, 0), NE = V(6, 0, 0), Waist = V(-10, 20, 0), RootPos = V(0, -0.5, 0) }) },
+		{ 2, make() },
+	},
+	cross = {
+		{ 0, make() },
+		{ 0.6, make({ NS = V(52, 0, 4), NE = V(150, 0, 0), Waist = V(-4, -14, 0), NH = V(8, 0, 6) }) },
+		{ 1, make({ NS = V(94, 0, 0), NE = V(4, 0, 0), Waist = V(-12, 34, 0), NH = V(30, 0, 6), NK = V(-24, 0, 0), RootPos = V(0, -0.55, 0) }) },
+		{ 1.4, make({ NS = V(94, 0, 0), NE = V(4, 0, 0), Waist = V(-12, 34, 0), NH = V(30, 0, 6), NK = V(-24, 0, 0), RootPos = V(0, -0.55, 0) }) },
+		{ 2, make() },
+	},
+	hook = {
+		{ 0, make() },
+		{ 0.6, make({ NS = V(40, 0, 100), NE = V(100, 0, 0), Waist = V(-6, -30, 0) }) },
+		{ 1, make({ NS = V(82, 0, -4), NE = V(95, 0, 0), Waist = V(-8, 42, 0), RootPos = V(0, -0.5, 0) }) },
+		{ 1.4, make({ NS = V(82, 0, -4), NE = V(95, 0, 0), Waist = V(-8, 42, 0), RootPos = V(0, -0.5, 0) }) },
+		{ 2, make() },
+	},
+	uppercut = {
+		{ 0, make() },
+		{ 0.6, make({ NS = V(8, 0, 6), NE = V(70, 0, 0), Waist = V(-16, 0, 0), RootPos = V(0, -1.0, 0), NH = V(40, 0, 6), NK = V(-70, 0, 0) }) },
+		{ 1, make({ NS = V(158, 0, 0), NE = V(40, 0, 0), Waist = V(8, 10, 0), RootPos = V(0, 0.1, 0), NH = V(5, 0, 6), NK = V(-5, 0, 0), FH = V(0, 0, -6), FK = V(-10, 0, 0) }) },
+		{ 1.5, make({ NS = V(158, 0, 0), NE = V(40, 0, 0), Waist = V(8, 10, 0), RootPos = V(0, 0.1, 0), NH = V(40, 0, 6), NK = V(-60, 0, 0), FH = V(20, 0, -6), FK = V(-50, 0, 0) }) },
+		{ 2, make() },
+	},
+	kick = {
+		{ 0, make() },
+		{ 0.6, make({ NH = V(62, 0, 0), NK = V(-95, 0, 0), Waist = V(2, 0, 0), FK = V(-22, 0, 0) }) },
+		{ 1, make({ NH = V(88, 0, 4), NK = V(-6, 0, 0), Waist = V(10, 0, 0), RootPos = V(0, -0.55, 0), FH = V(-6, 0, -6), FK = V(-28, 0, 0), NS = V(40, 0, 20), FS = V(60, 0, -20) }) },
+		{ 1.4, make({ NH = V(88, 0, 4), NK = V(-6, 0, 0), Waist = V(10, 0, 0), RootPos = V(0, -0.55, 0), FK = V(-28, 0, 0) }) },
+		{ 2, make() },
+	},
+	highkick = {
+		{ 0, make() },
+		{ 0.6, make({ NH = V(70, 0, 25), NK = V(-100, 0, 0), Waist = V(0, 0, 8) }) },
+		{ 1, make({ NH = V(100, 0, 42), NK = V(-8, 0, 0), Waist = V(4, 0, 18), RootPos = V(0, -0.45, 0), NS = V(30, 0, 40), FS = V(60, 0, -40) }) },
+		{ 1.4, make({ NH = V(100, 0, 42), NK = V(-8, 0, 0), Waist = V(4, 0, 18), RootPos = V(0, -0.45, 0) }) },
+		{ 2, make() },
+	},
+	axekick = {
+		{ 0, make() },
+		{ 0.7, make({ NH = V(160, 0, 8), NK = V(-6, 0, 0), Waist = V(14, 0, 0), RootPos = V(0, -0.2, 0), NS = V(30, 0, 30), FS = V(60, 0, -30) }) },
+		{ 1, make({ NH = V(55, 0, 4), NK = V(-4, 0, 0), Waist = V(-12, 0, 0), RootPos = V(0, -0.8, 0) }) },
+		{ 1.4, make({ NH = V(55, 0, 4), NK = V(-4, 0, 0), Waist = V(-12, 0, 0), RootPos = V(0, -0.8, 0) }) },
+		{ 2, make() },
+	},
+	spinkick = {
+		{ 0, make() },
+		{ 0.7, make({ Waist = V(-8, -25, 0), NH = V(40, 0, 10), NK = V(-60, 0, 0) }) },
+		{ 1, make({ RootRot = V(0, 180, 0), NH = V(90, 0, 0), NK = V(-4, 0, 0), Waist = V(0, 0, 14), NS = V(60, 0, 70), FS = V(60, 0, -70) }) },
+		{ 1.5, make({ RootRot = V(0, 360, 0), NH = V(90, 0, 0), NK = V(-4, 0, 0), Waist = V(0, 0, 14), NS = V(60, 0, 70), FS = V(60, 0, -70) }) },
+		{ 2, make({ RootRot = V(0, 360, 0) }) },
+	},
+	aerialkick = {
+		{ 0, make() },
+		{ 0.6, make({ NH = V(60, 0, 0), NK = V(-70, 0, 0), FH = V(30, 0, 0), FK = V(-60, 0, 0), RootPos = V(0, 0, 0), NS = V(70, 0, 40), FS = V(70, 0, -40) }) },
+		{ 1, make({ NH = V(88, 0, 0), NK = V(-6, 0, 0), FH = V(20, 0, 0), FK = V(-80, 0, 0), Waist = V(12, 0, 0), RootPos = V(0, 0, 0), NS = V(60, 0, 50), FS = V(40, 0, -50) }) },
+		{ 1.5, make({ NH = V(88, 0, 0), NK = V(-6, 0, 0), FH = V(20, 0, 0), FK = V(-80, 0, 0), Waist = V(12, 0, 0), RootPos = V(0, 0, 0) }) },
+		{ 2, make() },
+	},
+	sweep = {
+		{ 0, make() },
+		{ 0.6, make({ RootPos = V(0, -1.3, 0), Waist = V(-20, -20, 0), NH = V(30, 0, 0), NK = V(-90, 0, 0), FH = V(30, 0, -6), FK = V(-110, 0, 0) }) },
+		{ 1, make({ RootPos = V(0, -1.5, 0), Waist = V(-22, 26, 0), NH = V(84, 0, 0), NK = V(0, 0, 0), FH = V(24, 0, -6), FK = V(-118, 0, 0), NS = V(30, 0, 60), FS = V(30, 0, -60) }) },
+		{ 1.5, make({ RootPos = V(0, -1.5, 0), Waist = V(-22, 26, 0), NH = V(84, 0, 0), NK = V(0, 0, 0), FH = V(24, 0, -6), FK = V(-118, 0, 0) }) },
+		{ 2, make() },
+	},
+	haymaker = {
+		{ 0, make() },
+		{ 0.7, make({ NS = V(-35, 0, 45), NE = V(70, 0, 0), Waist = V(8, -34, 0), RootPos = V(0, -0.9, 0), NH = V(8, 0, 6) }) },
+		{ 1, make({ NS = V(96, 0, -6), NE = V(8, 0, 0), Waist = V(-24, 48, 0), RootPos = V(0, -0.7, 0), NH = V(34, 0, 6), NK = V(-30, 0, 0) }) },
+		{ 1.4, make({ NS = V(96, 0, -6), NE = V(8, 0, 0), Waist = V(-24, 48, 0), RootPos = V(0, -0.7, 0), NH = V(34, 0, 6), NK = V(-30, 0, 0) }) },
+		{ 2, make() },
+	},
+	dashpunch = {
+		{ 0, make() },
+		{ 0.6, make({ Waist = V(-20, -10, 0), NS = V(50, 0, 6), NE = V(140, 0, 0), NH = V(40, 0, 6), NK = V(-60, 0, 0), FH = V(-30, 0, -6) }) },
+		{ 1, make({ Waist = V(-28, 24, 0), NS = V(94, 0, 0), NE = V(4, 0, 0), NH = V(64, 0, 6), NK = V(-50, 0, 0), FH = V(-38, 0, -6), FK = V(-8, 0, 0), RootPos = V(0, -0.7, 0) }) },
+		{ 1.4, make({ Waist = V(-28, 24, 0), NS = V(94, 0, 0), NE = V(4, 0, 0), NH = V(64, 0, 6), NK = V(-50, 0, 0), FH = V(-38, 0, -6), FK = V(-8, 0, 0), RootPos = V(0, -0.7, 0) }) },
+		{ 2, make() },
+	},
+	clothesline = {
+		{ 0, make() },
+		{ 0.6, make({ NS = V(40, 0, 100), NE = V(20, 0, 0), FS = V(40, 0, -30), Waist = V(-6, -40, 0) }) },
+		{ 1, make({ NS = V(86, 0, 52), NE = V(0, 0, 0), Waist = V(-14, 50, 0), RootPos = V(0, -0.6, 0), NH = V(30, 0, 6), NK = V(-26, 0, 0) }) },
+		{ 1.4, make({ NS = V(86, 0, 52), NE = V(0, 0, 0), Waist = V(-14, 50, 0), RootPos = V(0, -0.6, 0), NH = V(30, 0, 6), NK = V(-26, 0, 0) }) },
+		{ 2, make() },
+	},
+	tackle = {
+		{ 0, make() },
+		{ 0.6, make({ Waist = V(-14, 0, 0), NS = V(40, 0, 10), FS = V(40, 0, -10), NE = V(110, 0, 0), FE = V(110, 0, 0), RootPos = V(0, -0.9, 0) }) },
+		{ 1, make({ Waist = V(-46, 0, 0), Neck = V(30, 0, 0), NS = V(70, 0, 20), FS = V(70, 0, -20), NE = V(50, 0, 0), FE = V(50, 0, 0), NH = V(58, 0, 6), NK = V(-54, 0, 0), FH = V(-40, 0, -6), RootPos = V(0, -1.0, 0) }) },
+		{ 1.4, make({ Waist = V(-46, 0, 0), Neck = V(30, 0, 0), NS = V(70, 0, 20), FS = V(70, 0, -20), NE = V(50, 0, 0), FE = V(50, 0, 0), NH = V(58, 0, 6), NK = V(-54, 0, 0), FH = V(-40, 0, -6), RootPos = V(0, -1.0, 0) }) },
+		{ 2, make() },
+	},
+	slam = {
+		{ 0, make() },
+		{ 0.7, make({ NS = V(168, 0, 14), FS = V(168, 0, -14), NE = V(20, 0, 0), FE = V(20, 0, 0), Waist = V(14, 0, 0), RootPos = V(0, 0, 0), NH = V(8, 0, 6), NK = V(-8, 0, 0), FH = V(-8, 0, -6), FK = V(-8, 0, 0) }) },
+		{ 1, make({ NS = V(50, 0, 6), FS = V(50, 0, -6), NE = V(30, 0, 0), FE = V(30, 0, 0), Waist = V(-36, 0, 0), RootPos = V(0, -0.9, 0), NH = V(30, 0, 6), NK = V(-50, 0, 0) }) },
+		{ 1.4, make({ NS = V(50, 0, 6), FS = V(50, 0, -6), NE = V(30, 0, 0), FE = V(30, 0, 0), Waist = V(-36, 0, 0), RootPos = V(0, -0.9, 0), NH = V(30, 0, 6), NK = V(-50, 0, 0) }) },
+		{ 2, make() },
+	},
+	palm = {
+		{ 0, make() },
+		{ 0.7, make({ NS = V(30, 0, 12), FS = V(30, 0, -12), NE = V(140, 0, 0), FE = V(140, 0, 0), Waist = V(-2, 0, 0), RootPos = V(0, -0.8, 0) }) },
+		{ 1, make({ NS = V(92, 0, 6), FS = V(92, 0, -6), NE = V(4, 0, 0), FE = V(4, 0, 0), Waist = V(-16, 0, 0), RootPos = V(0, -0.7, 0), NH = V(30, 0, 6), NK = V(-30, 0, 0) }) },
+		{ 1.4, make({ NS = V(92, 0, 6), FS = V(92, 0, -6), NE = V(4, 0, 0), FE = V(4, 0, 0), Waist = V(-16, 0, 0), RootPos = V(0, -0.7, 0), NH = V(30, 0, 6), NK = V(-30, 0, 0) }) },
+		{ 2, make() },
+	},
+	throw = {
+		{ 0, make() },
+		{ 0.7, make({ NS = V(170, 0, 14), NE = V(60, 0, 0), Waist = V(10, -16, 0), RootPos = V(0, -0.5, 0) }) },
+		{ 1, make({ NS = V(84, 0, 0), NE = V(6, 0, 0), Waist = V(-14, 24, 0), RootPos = V(0, -0.6, 0), NH = V(30, 0, 6), NK = V(-26, 0, 0) }) },
+		{ 1.4, make({ NS = V(84, 0, 0), NE = V(6, 0, 0), Waist = V(-14, 24, 0), RootPos = V(0, -0.6, 0), NH = V(30, 0, 6), NK = V(-26, 0, 0) }) },
+		{ 2, make() },
+	},
+	-- carga del super ataque: se agacha y junta energia (temblando), y suelta un empujon con las dos manos
+	charge = {
+		{ 0, make() },
+		{ 0.5, make({ NS = V(-30, 0, 40), FS = V(-30, 0, -40), NE = V(30, 0, 0), FE = V(30, 0, 0), Waist = V(-16, 0, 0), RootPos = V(0, -1.0, 0), NH = V(40, 0, 10), NK = V(-70, 0, 0), FH = V(-10, 0, -10), FK = V(-60, 0, 0) }) },
+		{ 1, make({ NS = V(-52, 0, 34), FS = V(-52, 0, -34), NE = V(20, 0, 0), FE = V(20, 0, 0), Waist = V(-22, 0, 0), RootPos = V(0, -1.2, 0), NH = V(44, 0, 10), NK = V(-78, 0, 0), FH = V(-12, 0, -10), FK = V(-66, 0, 0) }) },
+		{ 1.25, make({ NS = V(94, 0, 5), FS = V(94, 0, -5), NE = V(3, 0, 0), FE = V(3, 0, 0), Waist = V(-18, 0, 0), RootPos = V(0, -0.8, 0), NH = V(38, 0, 6), NK = V(-34, 0, 0) }) },
+		{ 2, make({ NS = V(94, 0, 5), FS = V(94, 0, -5), NE = V(3, 0, 0), FE = V(3, 0, 0), Waist = V(-18, 0, 0), RootPos = V(0, -0.8, 0), NH = V(38, 0, 6), NK = V(-34, 0, 0) }) },
+	},
+}
+
+-- ---------- poses que dependen del tiempo en segundos ----------
+
+local function idle(ctx)
+	local t = ctx.time
+	local pose = copy(STANCE)
+	local breath = math.sin(t * 3.2)
+	pose.RootPos = V(0, STANCE.RootPos.Y + breath * 0.05, 0)
+	pose.Waist = V(STANCE.Waist.X + breath * 1.6, 0, 0)
+	pose.NS = V(STANCE.NS.X + math.sin(t * 2.4) * 3, 0, STANCE.NS.Z)
+	pose.FS = V(STANCE.FS.X + math.sin(t * 2.4 + 1) * 3, 0, STANCE.FS.Z)
+	return pose
+end
+
+local function walk(ctx)
+	local swing = math.sin(ctx.walk)
+	local pose = copy(STANCE)
+	local direction = ctx.speed >= 0 and 1 or -1
+	pose.NH = V(18 + swing * 30 * direction, 0, 6)
+	pose.FH = V(-14 - swing * 30 * direction, 0, -6)
+	pose.NK = V(-34 - math.max(0, -swing) * 40, 0, 0)
+	pose.FK = V(-30 - math.max(0, swing) * 40, 0, 0)
+	pose.RootPos = V(0, STANCE.RootPos.Y + math.abs(math.cos(ctx.walk)) * 0.08, 0)
+	pose.Waist = V(STANCE.Waist.X - 2 * direction, math.sin(ctx.walk) * 4, 0)
+	return pose
+end
+
+local function dash(ctx)
+	local swing = math.sin(ctx.time * 30)
+	local pose = copy(STANCE)
+	pose.Waist = V(-26, 0, 0)
+	pose.Neck = V(14, 0, 0)
+	pose.NS = V(-20, 0, 10)
+	pose.FS = V(-30, 0, -10)
+	pose.NE = V(70, 0, 0)
+	pose.FE = V(70, 0, 0)
+	pose.NH = V(40 + swing * 45, 0, 6)
+	pose.FH = V(40 - swing * 45, 0, -6)
+	pose.NK = V(-60 - math.max(0, -swing) * 30, 0, 0)
+	pose.FK = V(-60 - math.max(0, swing) * 30, 0, 0)
+	pose.RootPos = V(0, -0.5, 0)
+	return pose
+end
+
+local function jump(ctx)
+	local pose = copy(STANCE)
+	pose.NH = V(52, 0, 8)
+	pose.NK = V(-72, 0, 0)
+	pose.FH = V(28, 0, -8)
+	pose.FK = V(-64, 0, 0)
+	pose.NS = V(70, 0, 30)
+	pose.FS = V(60, 0, -30)
+	pose.RootPos = V(0, 0, 0)
+	return pose
+end
+
+local function block(ctx)
+	local pose = copy(STANCE)
+	local shake = math.sin(ctx.time * 40) * 0.6
+	pose.NS = V(92, 0, -24)
+	pose.NE = V(122, 0, 0)
+	pose.FS = V(96, 0, 24)
+	pose.FE = V(122, 0, 0)
+	pose.Waist = V(-16 + shake, 0, 0)
+	pose.Neck = V(14, 0, 0)
+	pose.RootPos = V(0, -0.7, 0)
+	pose.NH = V(24, 0, 8)
+	pose.NK = V(-48, 0, 0)
+	pose.FH = V(-10, 0, -8)
+	pose.FK = V(-44, 0, 0)
+	return pose
+end
+
+local function hit(ctx)
+	-- tirón hacia atras y vuelve a la guardia
+	local duration = math.max(0.1, ctx.duration)
+	local n = math.clamp(ctx.time / duration, 0, 1)
+	local k = n < 0.25 and (n / 0.25) or (1 - (n - 0.25) / 0.75)
+	k = smooth(math.clamp(k, 0, 1))
+	local pose = copy(STANCE)
+	pose.Waist = V(STANCE.Waist.X + 24 * k, 0, 0)
+	pose.Neck = V(STANCE.Neck.X + 18 * k, 0, 0)
+	pose.NS = V(STANCE.NS.X - 30 * k, 0, STANCE.NS.Z + 20 * k)
+	pose.FS = V(STANCE.FS.X - 30 * k, 0, STANCE.FS.Z - 20 * k)
+	pose.RootPos = V(0, STANCE.RootPos.Y + 0.1 * k, 0)
+	return pose
+end
+
+local function lying(spread)
+	local pose = copy(STANCE)
+	pose.RootRot = V(90, 0, 0)
+	pose.RootPos = V(0, -2.55, 0)
+	pose.Waist = V(0, 0, 0)
+	pose.Neck = V(0, 0, 0)
+	pose.NS = V(15, 0, 28 * spread)
+	pose.FS = V(15, 0, -28 * spread)
+	pose.NE = V(10, 0, 0)
+	pose.FE = V(10, 0, 0)
+	pose.NH = V(0, 0, 8 * spread)
+	pose.FH = V(0, 0, -8 * spread)
+	pose.NK = V(-6, 0, 0)
+	pose.FK = V(-6, 0, 0)
+	return pose
+end
+
+local function knockdown(ctx)
+	-- vuela hacia atras girando, cae de espaldas y se queda tirado
+	local t = ctx.time
+	local pose = lying(1)
+	local fall = math.clamp(t / 0.5, 0, 1)
+	pose.RootRot = V(90 * smooth(fall), 0, 0)
+	local y = -2.55 * smooth(fall)
+	pose.RootPos = V(0, y, 0)
+	if fall < 1 then
+		pose.NS = V(-30 + 45 * fall, 0, 50)
+		pose.FS = V(-30 + 45 * fall, 0, -50)
+		pose.NH = V(30 * (1 - fall), 0, 10)
+		pose.FH = V(10 * (1 - fall), 0, -10)
+	end
+	return pose
+end
+
+local function ko(ctx)
+	local fall = math.clamp(ctx.time / 0.55, 0, 1)
+	local pose = lying(1.4)
+	pose.RootRot = V(90 * smooth(fall), 0, 0)
+	pose.RootPos = V(0, -2.55 * smooth(fall), 0)
+	return pose
+end
+
+local function getup(ctx)
+	local duration = math.max(0.1, ctx.duration)
+	local n = math.clamp(ctx.time / duration, 0, 1)
+	local rise = smooth(n)
+	local down = lying(0.6)
+	return mix(down, make({ RootPos = V(0, -0.9, 0), Waist = V(-18, 0, 0) }), rise)
+end
+
+local function victory(ctx)
+	local t = ctx.time
+	local pose = copy(STANCE)
+	local hop = math.abs(math.sin(t * 5.5))
+	pose.NS = V(165, 0, 30 + math.sin(t * 8) * 8)
+	pose.FS = V(165, 0, -30 - math.sin(t * 8) * 8)
+	pose.NE = V(10, 0, 0)
+	pose.FE = V(10, 0, 0)
+	pose.Waist = V(8, 0, math.sin(t * 5.5) * 5)
+	pose.RootPos = V(0, -0.1 + hop * 0.7, 0)
+	pose.NH = V(8 + hop * 20, 0, 6)
+	pose.NK = V(-10 - hop * 30, 0, 0)
+	pose.FH = V(8, 0, -6)
+	pose.FK = V(-10 - hop * 30, 0, 0)
+	return pose
+end
+
+local function flurry(ctx)
+	-- lluvia de golpes: los dos brazos alternan rapido
+	local t = ctx.time
+	local pose = copy(STANCE)
+	local a = math.sin(t * 30)
+	local b = math.sin(t * 30 + math.pi)
+	pose.NS = V(78 + a * 18, 0, 4)
+	pose.NE = V(70 - a * 62, 0, 0)
+	pose.FS = V(78 + b * 18, 0, -4)
+	pose.FE = V(70 - b * 62, 0, 0)
+	pose.Waist = V(-12, a * 16, 0)
+	pose.RootPos = V(0, -0.55, 0)
+	pose.NH = V(30, 0, 6)
+	pose.NK = V(-34, 0, 0)
+	return pose
+end
+
+local timed = {
+	idle = idle,
+	walk = walk,
+	dash = dash,
+	jump = jump,
+	block = block,
+	hit = hit,
+	knockdown = knockdown,
+	ko = ko,
+	getup = getup,
+	victory = victory,
+	flurry = flurry,
+	frozen = function()
+		return copy(STANCE)
+	end,
+}
+
+-- ctx = { time = segundos desde que empezo la accion, duration = duracion (0 si no tiene), hit = momento del golpe 0..1,
+--         walk = fase del paso, speed = velocidad hacia adelante (negativa si retrocede) }
+function Poses.sample(action, ctx)
+	local timedPose = timed[action]
+	if timedPose then
+		return timedPose(ctx)
+	end
+
+	local frames = attacks[action]
+	if not frames then
+		return idle(ctx)
+	end
+
+	local duration = ctx.duration
+	local n = duration > 0 and math.clamp(ctx.time / duration, 0, 1) or 0
+	local hitAt = math.clamp(ctx.hit or 0.4, 0.1, 0.9)
+	local u = n < hitAt and (n / hitAt) or (1 + (n - hitAt) / (1 - hitAt))
+
+	for index = 1, #frames - 1 do
+		local current, following = frames[index], frames[index + 1]
+		if u <= following[1] or index == #frames - 1 then
+			local span = following[1] - current[1]
+			local alpha = span > 0 and math.clamp((u - current[1]) / span, 0, 1) or 1
+			return mix(current[2], following[2], smooth(alpha))
+		end
+	end
+	return frames[#frames][2]
+end
+
+-- Acciones donde el cuerpo debe seguir la pose casi sin suavizado (para que el golpe caiga en su momento)
+function Poses.isSnappy(action)
+	return attacks[action] ~= nil or action == "hit" or action == "knockdown"
+end
+
+return Poses
+]]></ProtectedString>
+</Properties>
+</Item>
+</Item>
+</Item>
+</roblox>

@@ -72,8 +72,11 @@ async function hasActiveAccess(userId) {
 // Si al usuario todavia le quedaba tiempo activo, la nueva compra se suma
 // a partir de ese vencimiento; si ya estaba vencido (o nunca tuvo acceso),
 // arranca desde ahora. Una compra real siempre reemplaza el estado de prueba.
-async function extendAccess(userId, durationDays) {
-  const result = await pool.query(
+//
+// `db` es opcional: pasa un cliente de transaccion para que la extension se confirme o se deshaga junto con el resto
+// de la operacion (por ejemplo, un canje de monedas de referidos).
+async function extendAccess(userId, durationDays, db = pool) {
+  const result = await db.query(
     `INSERT INTO user_access (user_id, access_expires_at, is_trial, updated_at)
      VALUES ($1, NOW() + ($2 || ' days')::interval, false, NOW())
      ON CONFLICT (user_id) DO UPDATE SET

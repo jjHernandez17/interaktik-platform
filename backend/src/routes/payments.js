@@ -9,6 +9,7 @@ const mercadopagoClient = require('../payments/mercadopagoClient');
 const wompiClient = require('../payments/wompiClient');
 const currencyService = require('../services/currencyService');
 const emailService = require('../services/emailService');
+const referralService = require('../services/referralService');
 const pool = require('../database/pool');
 const { normalizeError, sanitizeHostHeader } = require('../utils/normalize');
 const env = require('../config/env');
@@ -342,6 +343,24 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
       `UPDATE payments SET status = 'paid', gateway_payment_id = $1, paid_at = NOW() WHERE id = $2`,
       [gatewayPaymentId, paymentId],
     );
+
+    // Programa de referidos: si quien pago llego por un codigo, su invitador gana monedas. Va dentro de esta misma
+    // transaccion (el pago y la recompensa se confirman juntos o ninguno), pero en un SAVEPOINT: un fallo aqui nunca
+    // puede tumbar la confirmacion del pago (el usuario ya pago). Si falla, el referido queda 'pending' y se corrige
+    // solo luego (referralService.reconcilePendingRewards).
+    try {
+      await client.query('SAVEPOINT referral_reward');
+      await referralService.grantRewardForPayment(client, {
+        id: payment.id,
+        user_id: payment.user_id,
+        plan_id: payment.plan_id,
+        amount_cents: payment.amount_cents,
+      });
+      await client.query('RELEASE SAVEPOINT referral_reward');
+    } catch (referralError) {
+      await client.query('ROLLBACK TO SAVEPOINT referral_reward').catch(() => {});
+      logger.error(`[payments] No se pudo dar la recompensa de referidos del pago ${paymentId} (el pago si se confirmo)`, referralError);
+    }
 
     await client.query('COMMIT');
 

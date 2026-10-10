@@ -37,7 +37,9 @@ router.post('/auth/register', registerLimiter, async (req, res, next) => {
     // del formulario): sin acceptTerms === true no se crea la cuenta.
     const acceptedTerms = req.body?.acceptTerms === true;
 
-    const user = await authService.register(name, email, password, getOwnBaseUrl(req), acceptedTerms);
+    const referralCode = typeof req.body?.referralCode === 'string' ? req.body.referralCode : null;
+
+    const user = await authService.register(name, email, password, getOwnBaseUrl(req), acceptedTerms, referralCode);
 
     // No se crea sesion: la cuenta no puede usarse hasta verificar el correo.
     logger.success(`Usuario registrado (pendiente de verificacion): ${user.email}`);

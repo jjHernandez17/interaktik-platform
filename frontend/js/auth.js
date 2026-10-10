@@ -145,7 +145,29 @@ function setupPasswordRules() {
   return update;
 }
 
+// Si llegaste con un enlace de invitacion (register.html?ref=IK-XXXXXXXX), el codigo ya aparece escrito. Es solo una
+// comodidad: el servidor valida el codigo al crear la cuenta.
+function prefillReferralCode() {
+  const input = document.getElementById("referralCodeInput");
+  if (!input) return;
+
+  const fromUrl = String(new URLSearchParams(window.location.search).get("ref") || "").trim().slice(0, 40);
+  let value = fromUrl;
+  try {
+    if (fromUrl) {
+      window.sessionStorage.setItem("interaktik.ref", fromUrl);
+    } else {
+      value = window.sessionStorage.getItem("interaktik.ref") || "";
+    }
+  } catch (_error) {
+    // sin sessionStorage solo se pierde el recuerdo al recargar
+  }
+
+  if (value && !input.value) input.value = value;
+}
+
 if (form) {
+  prefillReferralCode();
   showVerifyQueryMessage();
   showResetQueryMessage();
   const refreshPasswordRules = setupPasswordRules();
@@ -165,6 +187,8 @@ if (form) {
     if (mode === "register") {
       payload.name = String(form.name.value || "").trim();
       payload.acceptTerms = Boolean(form.acceptTerms && form.acceptTerms.checked);
+      const referralCode = String(form.referralCode?.value || "").trim();
+      if (referralCode) payload.referralCode = referralCode;
     }
 
     setButtonLoading(submitBtn, true);

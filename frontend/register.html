@@ -96,6 +96,10 @@
             Confirmar contrasena
             <input name="passwordConfirm" id="passwordConfirmInput" type="password" minlength="6" required />
           </label>
+          <label>
+            Código de referido <span class="muted">(opcional)</span>
+            <input name="referralCode" id="referralCodeInput" type="text" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="IK-XXXXXXXX" />
+          </label>
           <ul id="passwordRules" class="password-rules">
             <li data-rule="length">Minimo 6 caracteres</li>
             <li data-rule="lower">Una minuscula</li>
@@ -118,7 +122,7 @@
     <script src="js/runtime.js"></script>
     <script src="js/dialog.js"></script>
     <script src="js/bg-effects.js"></script>
-    <script src="js/auth.js?v=20261002a"></script>
+    <script src="js/auth.js?v=20261020a"></script>
     <script>window.addEventListener('DOMContentLoaded', () => initBackgroundEffects('.auth-card'));</script>
   </body>
 </html>

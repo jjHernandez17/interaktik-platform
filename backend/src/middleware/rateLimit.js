@@ -53,9 +53,38 @@ const passwordChangeLimiter = buildLimiter({
   message: 'Demasiados intentos. Intenta de nuevo en unos minutos.',
 });
 
+// Canjear monedas por un plan: limite por CUENTA (no por IP), asi que cambiar de IP no sirve para martillar el endpoint.
+// Aun con esto cada canje exige saldo real, esto solo frena scripts que intenten carreras o reintentos masivos.
+const redeemLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `redeem-user-${req.session?.userId || req.session?.user?.id || 'anon'}`,
+  message: { error: 'Demasiados intentos de canje. Intenta de nuevo en unos minutos.' },
+  handler: (req, res, _next, options) => {
+    res.status(options.statusCode).json(options.message);
+  },
+});
+
+// Consulta del panel de referidos: hace unas pocas consultas a la base, se limita por cuenta para que no se abuse.
+const referralReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `referral-read-user-${req.session?.userId || req.session?.user?.id || 'anon'}`,
+  message: { error: 'Demasiadas consultas. Espera un momento.' },
+  handler: (req, res, _next, options) => {
+    res.status(options.statusCode).json(options.message);
+  },
+});
+
 module.exports = {
   loginLimiter,
   registerLimiter,
   emailActionLimiter,
   passwordChangeLimiter,
+  redeemLimiter,
+  referralReadLimiter,
 };

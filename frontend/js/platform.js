@@ -1028,6 +1028,10 @@ function showSection(sectionId) {
     loadStreamStats();
   }
 
+  if (sectionId === 'referralsSection' && typeof window.loadReferrals === 'function') {
+    window.loadReferrals();
+  }
+
   if (sectionId === 'overlaysSection') {
     restoreOverlayTiktokConnection();
     if (!overlayKeyLoaded) {

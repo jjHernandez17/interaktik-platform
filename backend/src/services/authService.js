@@ -14,6 +14,7 @@ const accessService = require('./accessService');
 const verificationService = require('./verificationService');
 const passwordResetService = require('./passwordResetService');
 const emailService = require('./emailService');
+const referralService = require('./referralService');
 
 function buildVerifyUrl(baseUrl, token) {
   return `${baseUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
@@ -44,7 +45,10 @@ function validatePasswordStrength(password) {
 // numero de version y la fecha que muestra esa pagina.
 const TERMS_VERSION = '1.0';
 
-async function register(name, email, password, baseUrl, acceptedTerms = false) {
+// referralCode (opcional): codigo de quien lo invito. Es la UNICA oportunidad de enlazar un referido: se valida antes de
+// crear la cuenta (un codigo mal escrito se rechaza en vez de perderse en silencio) y el enlace se guarda en la misma
+// transaccion que la cuenta, asi que o se crean los dos o ninguno.
+async function register(name, email, password, baseUrl, acceptedTerms = false, referralCode = null) {
   const normalizedEmail = normalizeEmail(email);
 
   if (acceptedTerms !== true) {
@@ -57,28 +61,64 @@ async function register(name, email, password, baseUrl, acceptedTerms = false) {
 
   validatePasswordStrength(password);
 
-  try {
-    const existingUser = await pool.query('SELECT id FROM app_users WHERE email = $1', [normalizedEmail]);
-    if (existingUser.rowCount > 0) {
-      throw new Error('Ese correo ya esta registrado.');
+  let referral = null;
+  const hasReferralCode = referralCode !== null && referralCode !== undefined && String(referralCode).trim() !== '';
+  if (hasReferralCode) {
+    const code = referralService.normalizeCode(referralCode);
+    const referrerUserId = code ? await referralService.findReferrerId(pool, code) : null;
+    if (!referrerUserId) {
+      throw new Error('El codigo de referido no es valido. Revisalo o dejalo en blanco.');
     }
+    referral = { code, referrerUserId };
+  }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
+  const existingUser = await pool.query('SELECT id FROM app_users WHERE email = $1', [normalizedEmail]);
+  if (existingUser.rowCount > 0) {
+    throw new Error('Ese correo ya esta registrado.');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const client = await pool.connect();
+  let user;
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
       `INSERT INTO app_users (name, email, password_hash, email_verified, terms_accepted_at, terms_version)
        VALUES ($1, $2, $3, false, NOW(), $4) RETURNING id, name, email`,
       [name, normalizedEmail, passwordHash, TERMS_VERSION],
     );
+    user = result.rows[0];
 
-    const user = result.rows[0];
+    if (referral) {
+      await referralService.linkReferral(client, {
+        referrerUserId: referral.referrerUserId,
+        referredUserId: user.id,
+        code: referral.code,
+      });
+    }
 
-    await accessService.grantTrial(user.id);
-    await sendVerificationEmailFor(user, baseUrl);
-
-    return { ...attachAuthFlags(user), requiresVerification: true };
+    await client.query('COMMIT');
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    // Dos registros con el mismo correo a la vez: el indice unico decide, igual que la comprobacion de arriba.
+    if (error && error.code === '23505' && String(error.constraint || '').includes('email')) {
+      throw new Error('Ese correo ya esta registrado.');
+    }
     throw error;
+  } finally {
+    client.release();
   }
+
+  await accessService.grantTrial(user.id);
+
+  // Su propio codigo para invitar a otros. Si falla no pasa nada: se crea la primera vez que abra la seccion Referidos.
+  referralService.ensureCode(user.id).catch(() => {});
+
+  await sendVerificationEmailFor(user, baseUrl);
+
+  return { ...attachAuthFlags(user), requiresVerification: true };
 }
 
 async function login(email, password) {

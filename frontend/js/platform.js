@@ -215,6 +215,11 @@ const overlayConnectionDetails = document.getElementById('overlayConnectionDetai
 const overlayTiktokUsernameInput = document.getElementById('overlayTiktokUsernameInput');
 const overlayConnectTiktokBtn = document.getElementById('overlayConnectTiktokBtn');
 const overlayDisconnectTiktokBtn = document.getElementById('overlayDisconnectTiktokBtn');
+const overlayAutoConnectToggle = document.getElementById('overlayAutoConnectToggle');
+const overlayAutoConnectHint = document.getElementById('overlayAutoConnectHint');
+
+// Interruptor "conectar overlays automaticamente". Encendido por defecto (asi funcionaba antes del interruptor).
+let overlayAutoConnectEnabled = true;
 
 const gamesConnectionForm = document.getElementById('gamesConnectionForm');
 const gamesConnectionStatusBadge = document.getElementById('gamesConnectionStatusBadge');
@@ -1033,7 +1038,7 @@ function showSection(sectionId) {
   }
 
   if (sectionId === 'overlaysSection') {
-    restoreOverlayTiktokConnection();
+    loadOverlayAutoConnect().then(restoreOverlayTiktokConnection);
     if (!overlayKeyLoaded) {
       overlayKeyLoaded = true;
       loadOverlayConfig();
@@ -1193,6 +1198,56 @@ function setOverlayConnectionStatus(status, details = '') {
   overlayConnectionDetails.textContent = details || 'Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.';
 }
 
+function paintOverlayAutoConnect() {
+  if (overlayAutoConnectToggle) overlayAutoConnectToggle.checked = overlayAutoConnectEnabled;
+  if (overlayAutoConnectHint) {
+    overlayAutoConnectHint.textContent = overlayAutoConnectEnabled
+      ? 'Encendido: tus overlays se conectan solos en cuanto sales en vivo.'
+      : 'Apagado: cuando estés en vivo, conéctalos tú con el botón Conectar.';
+  }
+}
+
+async function loadOverlayAutoConnect() {
+  try {
+    const response = await fetch('/api/overlay/auto-connect');
+    if (!response.ok) return;
+    const data = await response.json();
+    overlayAutoConnectEnabled = data.enabled !== false;
+    paintOverlayAutoConnect();
+  } catch (_error) {
+    // Sin respuesta se queda como esta (encendido por defecto).
+  }
+}
+
+async function saveOverlayAutoConnect() {
+  const wanted = overlayAutoConnectToggle.checked;
+  overlayAutoConnectToggle.disabled = true;
+
+  try {
+    const response = await fetch('/api/overlay/auto-connect', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: wanted }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'No se pudo guardar el cambio.');
+
+    overlayAutoConnectEnabled = data.enabled === true;
+    paintOverlayAutoConnect();
+    restoreOverlayTiktokConnection();
+  } catch (error) {
+    // Si no se guardo, el interruptor vuelve a como estaba para no mostrar algo que no es verdad.
+    paintOverlayAutoConnect();
+    showAppAlert(error.message, 'Conexión automática');
+  } finally {
+    overlayAutoConnectToggle.disabled = false;
+  }
+}
+
+if (overlayAutoConnectToggle) {
+  overlayAutoConnectToggle.addEventListener('change', saveOverlayAutoConnect);
+}
+
 async function restoreOverlayTiktokConnection() {
   try {
     const [connectionRes, statusRes] = await Promise.all([
@@ -1209,7 +1264,9 @@ async function restoreOverlayTiktokConnection() {
     if (statusData?.status === 'connected') {
       setOverlayConnectionStatus('connected', `Conectado a @${statusData.uniqueId}.`);
     } else if (connectionData?.tiktok_username) {
-      setOverlayConnectionStatus('disconnected', `Cuenta vinculada a @${connectionData.tiktok_username}. Te conectaremos automáticamente en cuanto salgas en vivo.`);
+      setOverlayConnectionStatus('disconnected', overlayAutoConnectEnabled
+        ? `Cuenta vinculada a @${connectionData.tiktok_username}. Te conectaremos automáticamente en cuanto salgas en vivo.`
+        : `Cuenta vinculada a @${connectionData.tiktok_username}. La conexión automática está apagada: pulsa Conectar cuando estés en vivo.`);
     } else {
       setOverlayConnectionStatus('disconnected');
     }
@@ -1242,7 +1299,9 @@ async function connectOverlayTiktok() {
     if (payload.status === 'connected') {
       setOverlayConnectionStatus('connected', payload.message || `Conectado a @${uniqueId}.`);
     } else if (payload.status === 'live_off') {
-      setOverlayConnectionStatus('live_off', 'live apagado — te conectaremos automáticamente en cuanto salgas en vivo.');
+      setOverlayConnectionStatus('live_off', overlayAutoConnectEnabled
+        ? 'live apagado — te conectaremos automáticamente en cuanto salgas en vivo.'
+        : 'live apagado — cuando salgas en vivo, pulsa Conectar de nuevo.');
     } else {
       setOverlayConnectionStatus('error', payload.message || payload.error || 'No se pudo conectar.');
     }

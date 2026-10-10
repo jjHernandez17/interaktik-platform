@@ -6,7 +6,7 @@
 // connectGame, getConnectionState), igual que overlayAccumulator.js es un
 // suscriptor mas del sistema de eventos.
 
-const tiktokService = require('./tiktokService');
+const overlayService = require('./overlayService');
 const tiktokLiveManager = require('./tiktokLiveManager');
 const accessService = require('./accessService');
 const logger = require('../config/logger');
@@ -37,7 +37,8 @@ async function checkAndConnect({ user_id: userId, tiktok_username: uniqueId }) {
 }
 
 async function sweepOnce() {
-  const candidates = await tiktokService.getLinkedConnectionsByGameType(WATCHED_GAME_TYPE);
+  // Solo las cuentas con el interruptor "conectar overlays automaticamente" encendido; el resto conecta a mano.
+  const candidates = await overlayService.listAutoConnectCandidates();
   await Promise.all(candidates.map((candidate) => checkAndConnect(candidate)));
 }
 

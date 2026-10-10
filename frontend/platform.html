@@ -7,8 +7,9 @@
     <link rel="icon" type="image/png" href="assets/images/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="assets/css/design-system.css" />
-    <link rel="stylesheet" href="assets/css/platform.css?v=20261019a" />
+    <link rel="stylesheet" href="assets/css/platform.css?v=20261021a" />
     <link rel="stylesheet" href="assets/css/referrals.css?v=20261020a" />
+    <link rel="stylesheet" href="assets/css/tools.css?v=20261025a" />
     <link rel="stylesheet" href="assets/css/roulette-config.css?v=20261003b" />
     <link rel="stylesheet" href="assets/css/battle-config.css?v=20261004b" />
   </head>
@@ -42,6 +43,10 @@
           <button class="nav-item" type="button" data-section="overlaysSection" title="Overlays">
             <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 2.5l7.2 3.6L10 9.7l-7.2-3.6L10 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.8 10.1L10 13.7l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 13.9L10 17.5l7.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span class="nav-label">Overlays</span>
+          </button>
+          <button class="nav-item" type="button" data-section="toolsSection" title="Herramientas">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.6 3.2a3.6 3.6 0 00-3.3 4.9L3.4 14a1.7 1.7 0 002.4 2.4l5.9-5.9a3.6 3.6 0 004.9-3.3l-2.3 2.3-2.1-.5-.5-2.1 2.3-2.3a3.6 3.6 0 00-1.4-.4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            <span class="nav-label">Herramientas</span>
           </button>
           <button class="nav-item" type="button" data-section="plansSection" title="Planes">
             <svg class="nav-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="4.5" width="15.6" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M2.2 8.2h15.6" stroke="currentColor" stroke-width="1.6"/><path d="M5 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -396,6 +401,17 @@
             <p id="overlayConnectionDetails" class="hint">
               Ingresa el nombre de usuario de TikTok que está transmitiendo en vivo.
             </p>
+
+            <label class="switch-row overlay-autoconnect-row" for="overlayAutoConnectToggle">
+              <span class="overlay-autoconnect-text">
+                <strong>Conectar overlays automáticamente</strong>
+                <small id="overlayAutoConnectHint">Encendido: tus overlays se conectan solos en cuanto sales en vivo.</small>
+              </span>
+              <span class="switch">
+                <input id="overlayAutoConnectToggle" type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
           </section>
 
           <div class="overlay-category">
@@ -534,6 +550,182 @@
             </article>
             </div>
           </div>
+        </section>
+
+        <section id="toolsSection" class="content-card hidden">
+          <div class="card-header">
+            <h2>Herramientas</h2>
+          </div>
+          <p class="muted">Utilidades para tus lives que no son juegos ni overlays.</p>
+
+          <article id="commentReaderCard" class="tool-card">
+            <header class="tool-head">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none"><path d="M3 8.2v3.6h2.8L10 15.4V4.6L5.8 8.2H3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13 7.2a3.9 3.9 0 010 5.6M15.3 5a7 7 0 010 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </span>
+              <div class="tool-title">
+                <h3>Lector de comentarios</h3>
+                <p>Lee en voz alta los comentarios que llegan a tu live.</p>
+              </div>
+              <label class="switch-row tool-master" for="readerToggle">
+                <span id="readerToggleLabel">Apagado</span>
+                <span class="switch">
+                  <input id="readerToggle" type="checkbox" />
+                  <span class="switch-slider"></span>
+                </span>
+              </label>
+            </header>
+
+            <div id="readerStatus" class="tool-status" role="status" aria-live="polite">
+              <span id="readerStatusText">Apagado. Enciéndelo cuando estés por empezar tu live.</span>
+              <button id="readerGoOverlaysBtn" class="btn ghost small hidden" type="button">Conectar en Overlays</button>
+            </div>
+
+            <div class="tool-body">
+              <div class="tool-settings">
+                <section class="tool-group" aria-labelledby="readerVoiceTitle">
+                  <header class="tool-group-head">
+                    <h4 id="readerVoiceTitle">Voz</h4>
+                    <p>Cómo suena el lector. Usa las voces de tu navegador.</p>
+                  </header>
+
+                  <div class="tool-voice-row">
+                    <label class="field-label tool-voice-field" for="readerVoiceSelect">
+                      <span>Voz</span>
+                      <select id="readerVoiceSelect"></select>
+                    </label>
+                    <button id="readerTestBtn" class="btn primary small tool-test-btn" type="button">
+                      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6.5 4.5v11l9-5.5-9-5.5z" fill="currentColor"/></svg>
+                      Probar voz
+                    </button>
+                  </div>
+
+                  <div class="tool-sliders">
+                    <label class="field-label tool-slider" for="readerRateInput">
+                      <span class="tool-slider-head"><span>Velocidad</span><span id="readerRateValue" class="field-label-value">1.0x</span></span>
+                      <input id="readerRateInput" type="range" min="0.6" max="1.6" step="0.1" value="1" />
+                    </label>
+                    <label class="field-label tool-slider" for="readerPitchInput">
+                      <span class="tool-slider-head"><span>Tono</span><span id="readerPitchValue" class="field-label-value">1.0</span></span>
+                      <input id="readerPitchInput" type="range" min="0.5" max="1.5" step="0.1" value="1" />
+                    </label>
+                    <label class="field-label tool-slider" for="readerVolumeInput">
+                      <span class="tool-slider-head"><span>Volumen</span><span id="readerVolumeValue" class="field-label-value">100%</span></span>
+                      <input id="readerVolumeInput" type="range" min="0" max="100" step="5" value="100" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="tool-group" aria-labelledby="readerWhatTitle">
+                  <header class="tool-group-head">
+                    <h4 id="readerWhatTitle">Qué se lee</h4>
+                    <p>Decide cómo se leen los comentarios que llegan.</p>
+                  </header>
+
+                  <label class="tool-toggle" for="readerNameToggle">
+                    <span class="tool-toggle-text"><strong>Decir quién comenta</strong><small>Lee "Ana dice: …" antes del comentario.</small></span>
+                    <span class="switch"><input id="readerNameToggle" type="checkbox" checked /><span class="switch-slider"></span></span>
+                  </label>
+                  <label class="tool-toggle" for="readerCommandsToggle">
+                    <span class="tool-toggle-text"><strong>Ignorar comandos</strong><small>Salta los mensajes que empiezan con ! o /.</small></span>
+                    <span class="switch"><input id="readerCommandsToggle" type="checkbox" checked /><span class="switch-slider"></span></span>
+                  </label>
+                  <label class="tool-toggle" for="readerLinksToggle">
+                    <span class="tool-toggle-text"><strong>Cambiar enlaces por "enlace"</strong><small>Así no se leen direcciones largas en voz alta.</small></span>
+                    <span class="switch"><input id="readerLinksToggle" type="checkbox" checked /><span class="switch-slider"></span></span>
+                  </label>
+                  <label class="tool-toggle" for="readerMaxCharsInput">
+                    <span class="tool-toggle-text"><strong>Largo máximo</strong><small>Los comentarios más largos se cortan (caracteres).</small></span>
+                    <input id="readerMaxCharsInput" class="tool-number" type="number" min="20" max="300" step="10" value="150" />
+                  </label>
+                </section>
+              </div>
+
+              <div class="tool-side">
+                    <section class="tool-group" aria-labelledby="readerModTitle">
+                      <header class="tool-group-head">
+                        <h4 id="readerModTitle">Moderación</h4>
+                        <p>Lo que nunca se debe leer en voz alta en tu live.</p>
+                      </header>
+
+                      <label class="field-label" for="readerBlockedWordsInput">
+                        <span>Palabras bloqueadas <small>(separadas por coma)</small></span>
+                        <textarea id="readerBlockedWordsInput" rows="3" maxlength="1000" placeholder="palabra1, palabra2"></textarea>
+                      </label>
+                      <label class="field-label" for="readerMutedUsersInput">
+                        <span>Usuarios silenciados <small>(@usuario, separados por coma)</small></span>
+                        <textarea id="readerMutedUsersInput" rows="2" maxlength="1000" placeholder="@usuario1, @usuario2"></textarea>
+                      </label>
+                    </section>
+
+
+                    <section class="tool-group tool-group--scroll" aria-labelledby="readerWhoTitle">
+                      <header class="tool-group-head">
+                        <h4 id="readerWhoTitle">Condiciones para leer</h4>
+                        <p>A quién se le lee el comentario.</p>
+                      </header>
+                      <div class="tool-scroll">
+
+                      <div class="tool-audience" role="radiogroup" aria-labelledby="readerWhoTitle">
+                        <label class="tool-radio">
+                          <input type="radio" name="readerAudience" value="all" checked />
+                          <span class="tool-radio-text"><strong>A todos</strong><small>Se lee cualquier comentario que llegue.</small></span>
+                        </label>
+                        <label class="tool-radio">
+                          <input type="radio" name="readerAudience" value="conditions" />
+                          <span class="tool-radio-text"><strong>Solo a quienes cumplan una condición</strong><small>Basta con que cumplan una de las que marques abajo.</small></span>
+                        </label>
+                      </div>
+
+                      <div id="readerConditions" class="tool-conditions">
+                        <div class="tool-cond">
+                          <label class="tool-cond-head" for="readerCondCommunity">
+                            <span class="tool-cond-text"><strong>Comunidad</strong><small>Espectadores que se unieron a tu comunidad con el regalo <em>Quiéreme</em>.</small></span>
+                            <span class="switch"><input id="readerCondCommunity" type="checkbox" /><span class="switch-slider"></span></span>
+                          </label>
+                        </div>
+
+                        <div class="tool-cond">
+                          <label class="tool-cond-head" for="readerCondFollowers">
+                            <span class="tool-cond-text"><strong>Solo los que me siguen</strong><small>Espectadores que te siguen en TikTok.</small></span>
+                            <span class="switch"><input id="readerCondFollowers" type="checkbox" /><span class="switch-slider"></span></span>
+                          </label>
+                        </div>
+
+                        <div class="tool-cond">
+                          <label class="tool-cond-head" for="readerCondCommand">
+                            <span class="tool-cond-text"><strong>Comando personalizado</strong><small>Se lee lo que escriban después del comando. Ej: <em>!lee hola bro como estas?</em></small></span>
+                            <span class="switch"><input id="readerCondCommand" type="checkbox" /><span class="switch-slider"></span></span>
+                          </label>
+                          <input id="readerCommandText" class="tool-text" type="text" maxlength="30" placeholder="!lee" aria-label="Comando para que lean su comentario" />
+                        </div>
+
+                        <div class="tool-cond">
+                          <label class="tool-cond-head" for="readerCondGift">
+                            <span class="tool-cond-text"><strong>Regalo de más de X monedas</strong><small>Quienes mandaron un regalo que valga más que esto:</small></span>
+                            <span class="switch"><input id="readerCondGift" type="checkbox" /><span class="switch-slider"></span></span>
+                          </label>
+                          <input id="readerGiftMinCoins" class="tool-text tool-number" type="number" min="0" max="1000000" step="1" value="100" aria-label="Monedas mínimas del regalo" />
+                        </div>
+                      </div>
+
+                      <p id="readerConditionsWarning" class="tool-hint tool-hint--warn hidden">Marca al menos una condición: si no, no se leerá a nadie.</p>
+                      <p class="tool-hint">
+                        Los regalos se recuerdan desde que conectas tus overlays: quien mandó un regalo antes de eso no aparecerá.
+                        Para saber si te siguen, el lector usa lo que TikTok informa de cada comentario.
+                      </p>
+                      </div>
+                    </section>
+
+              </div>
+            </div>
+
+            <p class="tool-note">
+              Usa la misma conexión de TikTok Live que tus overlays. La voz sale por este navegador: deja esta pestaña
+              abierta mientras transmites y captura su audio en OBS o TikTok LIVE Studio para que tu audiencia lo escuche.
+              Las voces disponibles dependen de tu navegador y de tu sistema.
+            </p>
+          </article>
         </section>
 
         <section id="plansSection" class="content-card hidden">
@@ -1251,8 +1443,9 @@
     <script src="js/dialog.js"></script>
     <script src="js/plans-shared.js"></script>
     <script src="js/overlay-sounds.js"></script>
-    <script src="js/platform.js?v=20261020a"></script>
+    <script src="js/platform.js?v=20261021a"></script>
     <script src="js/referrals.js?v=20261020a"></script>
+    <script src="js/tools.js?v=20261025a"></script>
     <script src="js/platform-roulette.js?v=20261003a"></script>
     <script src="js/platform-battle.js?v=20261004a"></script>
   </body>

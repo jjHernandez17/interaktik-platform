@@ -7,6 +7,7 @@ const { createGiftPipeline } = require('./giftPipeline');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
 const robloxFightersService = require('./robloxFightersService');
+const viewerTracker = require('./viewerTracker');
 const minecraftService = require('./minecraftService');
 const minecraftCubeService = require('./minecraftCubeService');
 const gtaService = require('./gtaService');
@@ -449,6 +450,18 @@ function simplifyGiftEvent(data) {
   };
 }
 
+// Lo que TikTok informa de quien comenta respecto al streamer (si lo sigue, si es suscriptor/moderador...). Solo
+// verdadero/falso: no se manda nada mas del perfil.
+function simplifyChatIdentity(data) {
+  const identity = data?.userIdentity || {};
+  return {
+    follower: Boolean(identity.isFollowerOfAnchor || identity.isMutualFollowingWithAnchor || data?.user?.isFollower),
+    subscriber: Boolean(identity.isSubscriberOfAnchor),
+    moderator: Boolean(identity.isModeratorOfAnchor),
+    gifter: Boolean(identity.isGiftGiverOfAnchor),
+  };
+}
+
 function simplifyChatEvent(data) {
   return {
     comment: data?.comment || data?.content || '',
@@ -459,6 +472,7 @@ function simplifyChatEvent(data) {
 
       avatar: resolveAvatarUrl(data?.user),
     },
+    identity: simplifyChatIdentity(data),
     timestamp: new Date().toISOString(),
   };
 }
@@ -694,7 +708,7 @@ connection.on(WebcastEvent.GIFT, (data) => {
   //   publish(normalizedGameType, 'gift', { ownerKey, ...payload });
   // });
 
-connection.on(WebcastEvent.CHAT, (data) => {
+connection.on(WebcastEvent.CHAT, async (data) => {
   console.log('[BACKEND CHAT RAW]', {
     uniqueId: data?.user?.uniqueId,
     nickname: data?.user?.nickname,
@@ -716,6 +730,11 @@ connection.on(WebcastEvent.CHAT, (data) => {
   }
 
   const chatPayload = simplifyChatEvent(data);
+
+  // El lector de comentarios (conexion de overlays) necesita saber que regalos ha mandado quien comenta
+  if (normalizedGameType === 'overlay' && userId) {
+    chatPayload.viewer = await viewerTracker.getViewerInfo(userId, chatPayload.user.uniqueId);
+  }
 
   publish(normalizedGameType, 'comment', {
     ownerKey,

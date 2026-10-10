@@ -279,6 +279,7 @@
     app: 'Torres', race: 'Carrera', snake: 'Snake vs Snake', dominance: 'Dominance', shellgame: 'Dónde está la bola',
     boyvsgirl: 'Chicos vs Chicas', kingdoms: 'Battle of Kingdoms', gta: 'GTA V', gtarampa: 'Montaña Imposible',
     minecraft: 'Minecraft', minecraftcubo: 'Cubecraft', roblox: 'Roblox', robloxparkour: 'Roblox Parkour', robloxfighters: 'Pelea Callejera',
+    overlay: 'Overlays',
   };
   const LIVE_GONE_STATES = ['disconnected', 'error', 'live_off'];
   const wasConnected = {};

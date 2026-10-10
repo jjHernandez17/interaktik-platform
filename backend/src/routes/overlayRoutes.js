@@ -46,6 +46,32 @@ router.post('/overlay/config', requireAuth, requireActiveAccess, async (req, res
   }
 });
 
+// Interruptor "conectar overlays automaticamente"
+router.get('/overlay/auto-connect', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const enabled = await overlayService.getAutoConnect(getSessionUserId(req));
+    return res.json({ enabled });
+  } catch (error) {
+    logger.error('Error leyendo la conexion automatica de overlays', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.put('/overlay/auto-connect', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    // Solo true o false de verdad: cualquier otra cosa (texto, numero, nada) se rechaza en vez de adivinar.
+    if (typeof req.body?.enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Indica si la conexion automatica va encendida o apagada.' });
+    }
+
+    const enabled = await overlayService.setAutoConnect(getSessionUserId(req), req.body.enabled);
+    return res.json({ enabled });
+  } catch (error) {
+    logger.error('Error guardando la conexion automatica de overlays', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
 const VALID_OVERLAY_WIDGETS = ['giftAlert', 'goalBar', 'topGifters', 'likeCounter', 'topLikers', 'followAlert', 'roulette', 'battle'];
 
 router.post('/overlay/regenerate-key', requireAuth, requireActiveAccess, async (req, res) => {

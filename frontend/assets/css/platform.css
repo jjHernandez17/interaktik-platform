@@ -2571,3 +2571,23 @@ a {
     border-radius: 999px;
   }
 }
+
+/* Interruptor "conectar overlays automaticamente" dentro de la tarjeta de conexion */
+.overlay-autoconnect-row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.overlay-autoconnect-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overlay-autoconnect-text small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}

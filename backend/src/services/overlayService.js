@@ -168,6 +168,34 @@ async function getOrCreateOverlayConfig(userId) {
   };
 }
 
+// Interruptor "conectar overlays automaticamente" (columna aparte: guardar la configuracion visual nunca lo toca).
+// Una cuenta sin fila todavia cuenta como encendido, que es como funcionaba antes de existir el interruptor.
+async function getAutoConnect(userId) {
+  const result = await pool.query('SELECT auto_connect FROM overlay_config WHERE user_id = $1', [userId]);
+  return result.rowCount === 0 ? true : result.rows[0].auto_connect !== false;
+}
+
+async function setAutoConnect(userId, enabled) {
+  await getOrCreateOverlayConfig(userId);
+  const result = await pool.query(
+    'UPDATE overlay_config SET auto_connect = $2 WHERE user_id = $1 RETURNING auto_connect',
+    [userId, enabled === true],
+  );
+  return result.rows[0].auto_connect === true;
+}
+
+// Cuentas de TikTok vinculadas a los overlays cuyo dueno tiene el interruptor encendido (las que no, las conecta el
+// usuario a mano con el boton Conectar).
+async function listAutoConnectCandidates() {
+  const result = await pool.query(
+    `SELECT c.user_id, c.tiktok_username
+     FROM user_tiktok_connections c
+     LEFT JOIN overlay_config o ON o.user_id = c.user_id
+     WHERE c.game_type = 'overlay' AND c.is_linked = true AND COALESCE(o.auto_connect, true) = true`,
+  );
+  return result.rows;
+}
+
 async function saveOverlayState(userId, nextState) {
   const normalized = sanitizeOverlayState(nextState);
 
@@ -623,6 +651,9 @@ async function resolveByOverlayKey(key) {
 }
 
 module.exports = {
+  getAutoConnect,
+  setAutoConnect,
+  listAutoConnectCandidates,
   getOrCreateOverlayConfig,
   saveOverlayState,
   regenerateOverlayKey,

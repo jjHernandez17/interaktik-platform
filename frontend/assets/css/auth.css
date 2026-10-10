@@ -301,7 +301,11 @@ button[type="submit"]:disabled {
 .password-rules {
   list-style: none;
   display: grid;
-  gap: 6px;
+  /* Dos columnas que se llenan hacia abajo: 3 requisitos a la izquierda y 3 a la derecha */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  gap: 6px 14px;
   margin: -6px 0 2px;
   padding: 0;
   font-size: 0.8rem;

@@ -42,6 +42,7 @@ const overlayService = require('./src/services/overlayService');
 const overlayAccumulator = require('./src/services/overlayAccumulator');
 const overlayAutoConnect = require('./src/services/overlayAutoConnect');
 const streamStatsTracker = require('./src/services/streamStatsTracker');
+const viewerTracker = require('./src/services/viewerTracker');
 const streamStatsRouter = require('./src/routes/streamStatsRoutes');
 const { hub, getReplayEvents } = require('./src/services/liveHub');
 const { getConnectionState, inferGameTypeFromRequest, getOwnerKeyFromRequest, resolveEventsOwnerKey, getConnectionStateByOwnerKey } = require('./src/services/tiktokLiveManager');
@@ -133,6 +134,7 @@ app.use('/api', streamStatsRouter);
 overlayAccumulator.start();
 overlayAutoConnect.start();
 streamStatsTracker.start();
+viewerTracker.start();
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {

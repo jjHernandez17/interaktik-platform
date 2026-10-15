@@ -667,6 +667,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
     mode: GIFT_MODE_BY_GAME[normalizedGameType] || 'final',
     log: (kind, info) => {
       if (kind === 'drop') logger.info(`[GIFT-DROP] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user}`);
+      if (kind === 'noop') logger.info(`[GIFT-NOOP] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user} count=${info.count} ya-entregado=${info.delivered}`);
     },
     emit: (chunk, rawData) => deliverGift({ gameType: normalizedGameType, ownerKey, userId, chunk, data: rawData }),
   });

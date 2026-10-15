@@ -7,6 +7,12 @@
 //  - Regalo con racha (combo): un mensaje por cada toque (repeatCount sube 1, 2, 3...) y uno de cierre (repeatEnd = 1)
 //    con el total. Cada mensaje suele llegar duplicado.
 //
+// Un SEGUNDO regalo del mismo espectador y el mismo tipo, mandado justo despues del primero, llega con una racha propia:
+// un mensaje nuevo (msgId distinto) cuyo conteo vuelve a empezar en 1 (o un cierre que llega cuando la racha anterior ya
+// cerro). Antes eso se confundia con "nada nuevo" (conteo <= lo ya entregado) y se descartaba en silencio. Ahora, si el
+// mensaje es nuevo (msgId que esa racha no habia visto) y no puede ser la continuacion de la racha actual, abre una racha
+// aparte. Los reenvios reales llevan el MISMO msgId, asi que siguen sin contarse dos veces.
+//
 // Este modulo garantiza tres cosas que antes se perdian:
 //  1. Un regalo SIN racha se entrega siempre, aunque su repeatEnd nunca sea 1 (antes lo esperaban y no llegaba nunca).
 //  2. Un regalo CON racha se entrega siempre, incluso si TikTok no manda el mensaje de cierre (se entrega por inactividad).
@@ -115,7 +121,7 @@ function createGiftPipeline({
     }
   }
 
-  function startStreak(key, raw, data, t) {
+  function startStreak(key, raw, data, t, older = []) {
     const streak = {
       key,
       giftId: raw.giftId,
@@ -127,6 +133,8 @@ function createGiftPipeline({
       lastAt: t,
       lastData: data,
       timer: null,
+      msgIds: new Set(), // mensajes de esta racha ya vistos: un msgId nuevo = mensaje nuevo (no un reenvio)
+      older, // rachas anteriores de este mismo espectador y regalo que ya se entregaron pero cuyo cierre aun no llega
     };
     streaks.set(key, streak);
     return streak;
@@ -159,26 +167,61 @@ function createGiftPipeline({
 
     const key = [raw.userKey, raw.giftId, raw.groupId].join('|');
     let streak = streaks.get(key);
+    let carriedOlder = [];
 
     // Una racha nueva con la misma clave: la anterior ya cerro, o la cuenta volvio a empezar sin groupId
     if (streak) {
+      const isNewMessage = Boolean(raw.msgId) && !streak.msgIds.has(raw.msgId);
+
       const closedAndRestarted = streak.ended && !raw.ended;
       const countRestarted = !raw.groupId && !raw.ended && raw.count < streak.lastCount;
-      if (closedAndRestarted || countRestarted) {
+      // Segundo regalo mandado al instante: llega ya cerrado ({1, cierre}) cuando la racha anterior ya habia cerrado...
+      const closedAfterClosed = streak.ended && raw.ended && streak.older.length === 0 && isNewMessage;
+      // ...o llega abierto con el mismo conteo mientras la anterior todavia no cierra ({1} y otra vez {1}, sin groupId)
+      const sameCountAgain = !raw.groupId && !raw.ended && !streak.ended && raw.count === streak.lastCount && isNewMessage;
+
+      if (closedAndRestarted || countRestarted || closedAfterClosed || sameCountAgain) {
+        // La racha que se reemplaza sigue esperando su cierre si todavia no lo recibio: ese cierre le toca a ella
+        carriedOlder = streak.ended ? streak.older : streak.older.concat(streak);
         flush(streak, 'restart');
         streak = null;
       }
     }
-    if (!streak) streak = startStreak(key, raw, data, t);
+    if (!streak) streak = startStreak(key, raw, data, t, carriedOlder);
+
+    // Un cierre que llega mientras hay rachas anteriores esperando el suyo: se le asigna a la racha cuyo conteo coincide
+    // (la actual, si coincide; si no, la anterior que coincida). Si ninguna coincide y la actual ya cerro, le toca a la
+    // anterior mas antigua. Asi un cierre perdido de una racha nunca hace que el cierre de otra se cuente de mas.
+    if (raw.ended && streak.older.length > 0) {
+      const currentMatches = !streak.ended && streak.lastCount === raw.count;
+      if (!currentMatches) {
+        let index = streak.older.findIndex((waiting) => waiting.emitted === raw.count);
+        if (index === -1 && streak.ended) index = 0;
+        if (index !== -1) {
+          const waiting = streak.older.splice(index, 1)[0];
+          const before = waiting.emitted;
+          deliver(waiting, raw.count - waiting.emitted, 'end');
+          waiting.ended = true;
+          streak.lastAt = t;
+          if (raw.msgId) streak.msgIds.add(raw.msgId);
+          return { action: waiting.emitted > before ? 'emit' : 'noop', reason: 'end-previous' };
+        }
+      }
+    }
 
     streak.lastAt = t;
     streak.lastData = data;
     streak.lastCount = Math.max(streak.lastCount, raw.count);
+    if (raw.msgId) {
+      streak.msgIds.add(raw.msgId);
+      if (streak.msgIds.size > 200) streak.msgIds.delete(streak.msgIds.values().next().value);
+    }
 
     if (mode === 'delta') {
       const before = streak.emitted;
       deliver(streak, streak.lastCount - streak.emitted, raw.ended ? 'end' : 'tap');
       if (raw.ended) streak.ended = true;
+      if (streak.emitted === before) log('noop', { reason: raw.ended ? 'end-sin-unidades-nuevas' : 'tap-sin-unidades-nuevas', giftId: raw.giftId, user: raw.userKey, count: raw.count, delivered: streak.emitted });
       return { action: streak.emitted > before ? 'emit' : 'noop', reason: raw.ended ? 'end' : 'tap' };
     }
 
@@ -187,6 +230,7 @@ function createGiftPipeline({
       const before = streak.emitted;
       flush(streak, 'end');
       streak.ended = true;
+      if (streak.emitted === before) log('noop', { reason: 'end-sin-unidades-nuevas', giftId: raw.giftId, user: raw.userKey, count: raw.count, delivered: streak.emitted });
       return { action: streak.emitted > before ? 'emit' : 'noop', reason: 'end' };
     }
 

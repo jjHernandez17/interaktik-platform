@@ -179,3 +179,135 @@ test('cada evento entregado trae unidades nuevas y la cuenta acumulada', () => {
   pipeline.handle(gift({ count: 5, end: 0, msgId: 'b' }));
   assert.deepEqual(out.map((e) => [e.repeatCount, e.streakTotal]), [[2, 2], [3, 5]]);
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Dos regalos del mismo espectador mandados uno tras otro: ninguno se puede omitir
+// ---------------------------------------------------------------------------------------------------------------------
+
+for (const mode of ['final', 'delta']) {
+  test(`[${mode}] segundo regalo que llega ya cerrado, cuando el primero ya cerro (sin groupId), cuenta`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'a1' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'a2' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'b' }));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 2);
+  });
+
+  test(`[${mode}] segundo regalo que llega antes de que cierre el primero (mismo conteo, sin groupId), cuenta`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'a1' }));
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'b1' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'a2' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'b2' }));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 2);
+  });
+
+  test(`[${mode}] tres regalos entrelazados: los tres cuentan, ni uno menos ni uno mas`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    ['a', 'b', 'c'].forEach((id) => pipeline.handle(gift({ count: 1, end: 0, msgId: `${id}1` })));
+    ['a', 'b', 'c'].forEach((id) => pipeline.handle(gift({ count: 1, end: 1, msgId: `${id}2` })));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 3);
+  });
+
+  test(`[${mode}] con el mismo groupId, un segundo cierre nuevo despues de cerrar tambien cuenta`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'a1', groupId: 'G' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'a2', groupId: 'G' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'b', groupId: 'G' }));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 2);
+  });
+
+  test(`[${mode}] los reenvios exactos (mismo msgId) siguen sin contarse dos veces aunque haya mas regalos`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'a1' }));
+    pipeline.handle(gift({ count: 1, end: 0, msgId: 'a1' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'a2' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'a2' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'b' }));
+    pipeline.handle(gift({ count: 1, end: 1, msgId: 'b' }));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 2);
+  });
+}
+
+test('un regalo grande SIN racha, dos seguidos al instante, cuentan los dos (y tres, y diez)', () => {
+  for (const n of [2, 3, 10]) {
+    const { pipeline, out } = setup('delta');
+    for (let i = 0; i < n; i += 1) pipeline.handle(gift({ combo: false, type: 2, count: 1, end: 0, msgId: `big${i}` }));
+    assert.equal(total(out), n);
+  }
+});
+
+test('un mensaje sin msgId se comporta como antes (no hay como distinguir un reenvio de un regalo nuevo)', () => {
+  const { pipeline, out } = setup('final');
+  pipeline.handle(gift({ count: 1, end: 1 }));
+  pipeline.handle(gift({ count: 1, end: 1 }));
+  assert.equal(total(out), 1);
+});
+
+// Prueba aleatoria: sin importar el orden en que se entrelacen los mensajes ni cuantos reenvios haya, el total entregado
+// siempre es exactamente el de regalos enviados.
+test('aleatorio: N regalos entrelazados con reenvios entregan siempre exactamente N', () => {
+  let seed = 987654;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const ri = (n) => Math.floor(rnd() * n);
+
+  for (let iter = 0; iter < 3000; iter += 1) {
+    const mode = iter % 2 ? 'delta' : 'final';
+    const n = 1 + ri(6);
+    const seq = [];
+    const pending = [];
+    let started = 0;
+    while (started < n || pending.length) {
+      const canStart = started < n;
+      const canClose = pending.length > 0;
+      if (canStart && (!canClose || rnd() < 0.5)) {
+        seq.push({ count: 1, end: 0, msgId: `T${started}` });
+        pending.push(started);
+        started += 1;
+      } else {
+        const index = pending.splice(ri(pending.length), 1)[0];
+        seq.push({ count: 1, end: 1, msgId: `C${index}` });
+      }
+    }
+
+    const { pipeline, out, clock } = setup(mode);
+    seq.forEach((message) => {
+      pipeline.handle(gift(message));
+      if (rnd() < 0.3) pipeline.handle(gift(message)); // reenvio exacto
+    });
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), n, `${mode} iteracion ${iter}: ${JSON.stringify(seq)}`);
+  }
+});
+
+test('aleatorio: rachas con varios toques, una tras otra, con reenvios, entregan siempre el total exacto', () => {
+  let seed = 424242;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const ri = (n) => Math.floor(rnd() * n);
+
+  for (let iter = 0; iter < 3000; iter += 1) {
+    const mode = iter % 2 ? 'delta' : 'final';
+    const streaks = 1 + ri(4);
+    let expected = 0;
+    const seq = [];
+    for (let s = 0; s < streaks; s += 1) {
+      const taps = 1 + ri(5);
+      expected += taps;
+      for (let t = 1; t <= taps; t += 1) seq.push({ count: t, end: 0, msgId: `S${s}t${t}` });
+      if (rnd() < 0.8) seq.push({ count: taps, end: 1, msgId: `S${s}end` }); // a veces el cierre nunca llega
+    }
+
+    const { pipeline, out, clock } = setup(mode);
+    seq.forEach((message) => {
+      pipeline.handle(gift(message));
+      if (rnd() < 0.3) pipeline.handle(gift(message));
+    });
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), expected, `${mode} iteracion ${iter}: ${JSON.stringify(seq)}`);
+  }
+});

@@ -42,6 +42,9 @@
     condGift: $('readerCondGift'),
     giftMinCoins: $('readerGiftMinCoins'),
     conditionsWarning: $('readerConditionsWarning'),
+    live: $('liveConnection'),
+    liveName: $('liveConnectionName'),
+    liveBadge: $('liveConnectionBadge'),
   };
 
   const STORAGE_KEY = 'ik:tools:comment-reader';
@@ -410,6 +413,59 @@
     speakNext();
   }
 
+  // ---------- a que TikTok Live esta conectado (se ve aunque el lector este apagado) ----------
+
+  const LIVE_BADGES = {
+    connected: 'Conectado',
+    connecting: 'Conectando…',
+    live_off: 'Live apagado',
+    error: 'Error',
+    disconnected: 'Desconectado',
+  };
+  let linkedUsername = ''; // cuenta vinculada a los overlays (aunque no este conectada ahora)
+  let liveStatus = 'disconnected';
+  let liveUsername = '';
+
+  function paintLive() {
+    const state = LIVE_BADGES[liveStatus] ? liveStatus : 'disconnected';
+    const account = liveUsername || linkedUsername;
+
+    els.live.dataset.state = state;
+    els.liveBadge.className = `status-badge ${state}`;
+    els.liveBadge.textContent = LIVE_BADGES[state];
+
+    if (state === 'connected' && account) {
+      els.liveName.textContent = `@${account}`;
+    } else if (account) {
+      els.liveName.textContent = `@${account} (vinculada)`;
+    } else {
+      els.liveName.textContent = 'Sin cuenta vinculada';
+    }
+  }
+
+  function setLive(status, username) {
+    liveStatus = status || 'disconnected';
+    liveUsername = status === 'connected' ? String(username || '').replace(/^@/, '') : '';
+    paintLive();
+  }
+
+  // Pregunta al servidor a quien esta conectado ahora (misma conexion que los overlays) y que cuenta tienes vinculada
+  async function refreshLive() {
+    try {
+      const [connectionRes, statusRes] = await Promise.all([
+        fetch('/api/tiktok-connection/overlay'),
+        fetch(`/api/status?gameType=${GAME_TYPE}`),
+      ]);
+      const connection = connectionRes.ok ? await connectionRes.json() : null;
+      const status = statusRes.ok ? await statusRes.json() : null;
+
+      linkedUsername = String(connection?.tiktok_username || '').replace(/^@/, '');
+      setLive(status?.status || 'disconnected', status?.uniqueId);
+    } catch (_error) {
+      // Sin respuesta se deja lo que ya se veia
+    }
+  }
+
   // ---------- conexion con los comentarios del live ----------
 
   function setStatus(text, tone = 'info', showGoOverlays = false) {
@@ -449,6 +505,7 @@
         const payload = JSON.parse(event.data);
         connectionState = payload.status === 'connected' ? 'connected' : 'waiting';
         connectedAs = payload.uniqueId || '';
+        setLive(payload.status, payload.uniqueId);
         paintConnectionStatus();
       } catch (_error) { /* mensaje raro: se ignora */ }
     });
@@ -493,6 +550,14 @@
   }
 
   // ---------- arranque ----------
+
+  // Estos dos funcionan aunque el navegador no sepa leer en voz alta
+  window.refreshToolsConnection = refreshLive;
+  setInterval(() => {
+    if (!section.classList.contains('hidden') && !document.hidden) refreshLive();
+  }, 15000);
+  if (!section.classList.contains('hidden')) refreshLive();
+  paintLive();
 
   if (!supported) {
     els.toggle.disabled = true;

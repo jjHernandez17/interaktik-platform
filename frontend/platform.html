@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="assets/css/design-system.css" />
     <link rel="stylesheet" href="assets/css/platform.css?v=20261021a" />
     <link rel="stylesheet" href="assets/css/referrals.css?v=20261020a" />
-    <link rel="stylesheet" href="assets/css/tools.css?v=20261025a" />
+    <link rel="stylesheet" href="assets/css/tools.css?v=20261026a" />
     <link rel="stylesheet" href="assets/css/roulette-config.css?v=20261003b" />
     <link rel="stylesheet" href="assets/css/battle-config.css?v=20261004b" />
   </head>
@@ -575,6 +575,17 @@
                 </span>
               </label>
             </header>
+
+            <div id="liveConnection" class="tool-live" data-state="disconnected" role="status" aria-live="polite">
+              <span class="tool-live-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.2" fill="currentColor"/><path d="M5.6 5.6a6.2 6.2 0 000 8.8M14.4 5.6a6.2 6.2 0 010 8.8M3 3a9.9 9.9 0 000 14M17 3a9.9 9.9 0 010 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </span>
+              <span class="tool-live-text">
+                <small>TikTok Live conectado</small>
+                <strong id="liveConnectionName">Sin conectar</strong>
+              </span>
+              <span id="liveConnectionBadge" class="status-badge disconnected">Desconectado</span>
+            </div>
 
             <div id="readerStatus" class="tool-status" role="status" aria-live="polite">
               <span id="readerStatusText">Apagado. Enciéndelo cuando estés por empezar tu live.</span>
@@ -1445,7 +1456,7 @@
     <script src="js/overlay-sounds.js"></script>
     <script src="js/platform.js?v=20261021a"></script>
     <script src="js/referrals.js?v=20261020a"></script>
-    <script src="js/tools.js?v=20261025a"></script>
+    <script src="js/tools.js?v=20261026a"></script>
     <script src="js/platform-roulette.js?v=20261003a"></script>
     <script src="js/platform-battle.js?v=20261004a"></script>
   </body>

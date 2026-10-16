@@ -1033,6 +1033,10 @@ function showSection(sectionId) {
     loadStreamStats();
   }
 
+  if (sectionId === 'toolsSection' && typeof window.refreshToolsConnection === 'function') {
+    window.refreshToolsConnection();
+  }
+
   if (sectionId === 'referralsSection' && typeof window.loadReferrals === 'function') {
     window.loadReferrals();
   }

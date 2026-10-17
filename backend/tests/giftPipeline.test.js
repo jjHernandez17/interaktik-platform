@@ -311,3 +311,196 @@ test('aleatorio: rachas con varios toques, una tras otra, con reenvios, entregan
     assert.equal(total(out), expected, `${mode} iteracion ${iter}: ${JSON.stringify(seq)}`);
   }
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Refuerzos: identidad real del mensaje (no solo msgId) y entregas que fallan
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Mensaje crudo con hora de creacion y pedido, como los trae TikTok
+function stamped({ msgId = 'M', createTime, orderId, user = 'u1', id = 7, count = 1, end = 1, combo = false, type = 2, groupId } = {}) {
+  return {
+    giftId: id,
+    repeatCount: count,
+    repeatEnd: end,
+    groupId,
+    orderId,
+    common: { msgId, createTime },
+    user: { userId: user, uniqueId: user },
+    giftDetails: { combo, giftType: type, giftName: 'Leon', diamondCount: 29999 },
+  };
+}
+
+test('dos regalos grandes distintos que comparten msgId pero tienen otra hora, cuentan los dos', () => {
+  const { pipeline, out } = setup('delta');
+  pipeline.handle(stamped({ msgId: 'SAME', createTime: '1000' }));
+  pipeline.handle(stamped({ msgId: 'SAME', createTime: '1450' }));
+  assert.equal(total(out), 2);
+});
+
+test('dos regalos grandes con el mismo msgId y la misma hora pero distinto pedido, cuentan los dos', () => {
+  const { pipeline, out } = setup('delta');
+  pipeline.handle(stamped({ msgId: 'SAME', createTime: '1000', orderId: 'A' }));
+  pipeline.handle(stamped({ msgId: 'SAME', createTime: '1000', orderId: 'B' }));
+  assert.equal(total(out), 2);
+});
+
+test('el mismo mensaje reenviado (mismo msgId, hora y pedido) sigue contando una sola vez', () => {
+  const { pipeline, out } = setup('delta');
+  pipeline.handle(stamped({ msgId: 'X', createTime: '1000', orderId: 'A' }));
+  pipeline.handle(stamped({ msgId: 'X', createTime: '1000', orderId: 'A' }));
+  pipeline.handle(stamped({ msgId: 'X', createTime: '1000', orderId: 'A' }));
+  assert.equal(total(out), 1);
+});
+
+test('rachas: dos regalos con el mismo msgId y otra hora tampoco se confunden con un reenvio', () => {
+  const { pipeline, out, clock } = setup('delta');
+  pipeline.handle(stamped({ msgId: 'S', createTime: '1000', combo: true, type: 1, end: 1 }));
+  pipeline.handle(stamped({ msgId: 'S', createTime: '2000', combo: true, type: 1, end: 1 }));
+  clock.advance(IDLE_FLUSH_MS + 10);
+  assert.equal(total(out), 2);
+});
+
+test('si la entrega de un regalo sin racha falla una vez, se reintenta al instante y llega', () => {
+  let attempts = 0;
+  const out = [];
+  const clock = makeClock();
+  const pipeline = createGiftPipeline({
+    mode: 'delta',
+    emit: (chunk) => { attempts += 1; if (attempts === 1) throw new Error('fallo momentaneo'); out.push({ repeatCount: chunk.repeatCount }); },
+    ...clock,
+  });
+  pipeline.handle(stamped({ msgId: 'F1', createTime: '1' }));
+  assert.equal(out.length, 1);
+  assert.equal(attempts, 2);
+});
+
+test('si la entrega falla las dos veces, el mismo mensaje reenviado despues todavia puede entrar', () => {
+  let failing = true;
+  const out = [];
+  const pipeline = createGiftPipeline({
+    mode: 'delta',
+    emit: (chunk) => { if (failing) throw new Error('caido'); out.push({ repeatCount: chunk.repeatCount }); },
+    ...makeClock(),
+  });
+  const result = pipeline.handle(stamped({ msgId: 'F2', createTime: '1' }));
+  assert.equal(result.action, 'error');
+  failing = false;
+  pipeline.handle(stamped({ msgId: 'F2', createTime: '1' })); // el reenvio de TikTok
+  assert.equal(out.length, 1);
+});
+
+test('racha: si la entrega falla, las unidades no se dan por entregadas y se reintentan solas', () => {
+  const out = [];
+  let failing = true;
+  const clock = makeClock();
+  const pipeline = createGiftPipeline({
+    mode: 'delta',
+    emit: (chunk) => { if (failing) throw new Error('caido'); out.push({ repeatCount: chunk.repeatCount }); },
+    ...clock,
+  });
+  pipeline.handle(gift({ count: 3, end: 0, msgId: 'r1' }));
+  assert.equal(total(out), 0);
+  failing = false;
+  clock.advance(1100);
+  assert.equal(total(out), 3, 'las 3 unidades llegaron en el reintento');
+  clock.advance(IDLE_FLUSH_MS + 10);
+  assert.equal(total(out), 3, 'sin contar de mas');
+});
+
+test('racha: un fallo de entrega no hace que el cierre cuente de mas', () => {
+  const out = [];
+  let failing = true;
+  const clock = makeClock();
+  const pipeline = createGiftPipeline({
+    mode: 'delta',
+    emit: (chunk) => { if (failing) throw new Error('caido'); out.push({ repeatCount: chunk.repeatCount }); },
+    ...clock,
+  });
+  pipeline.handle(gift({ count: 2, end: 0, msgId: 'q1' }));
+  failing = false;
+  pipeline.handle(gift({ count: 2, end: 1, msgId: 'q2' }));
+  clock.advance(IDLE_FLUSH_MS + 10);
+  assert.equal(total(out), 2);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Datos REALES de los logs de Railway (2026-10-16): regalos con combo=true pero type=2 ("discretos")
+// ---------------------------------------------------------------------------------------------------------------------
+
+function real({ user, id, name, count = 1, end = 0, combo = true, type = 2, group, msg }) {
+  return {
+    giftId: id,
+    repeatCount: count,
+    repeatEnd: end,
+    groupId: group,
+    common: { msgId: msg },
+    user: { userId: user, uniqueId: user },
+    giftDetails: { combo, giftType: type, giftName: name, diamondCount: 100 },
+  };
+}
+
+for (const mode of ['delta', 'final']) {
+  test(`[${mode}] LOG REAL: Mishka Bear x2 de @b4zugg (mismo grupo, count=1 los dos, msgId distinto) cuentan los dos al instante`, () => {
+    const { pipeline, out } = setup(mode);
+    pipeline.handle(real({ user: 'b4zugg', id: 5582, name: 'Mishka Bear', group: '1792188666144', msg: '7697391705763334930' }));
+    pipeline.handle(real({ user: 'b4zugg', id: 5582, name: 'Mishka Bear', group: '1792188666144', msg: '7697391706963905286' }));
+    assert.equal(total(out), 2, 'sin esperar ningun cierre ni inactividad');
+    assert.deepEqual(out.map((e) => e.repeatCount), [1, 1]);
+  });
+
+  test(`[${mode}] LOG REAL: Confetti x2 de @gonzales6723 cuentan los dos`, () => {
+    const { pipeline, out } = setup(mode);
+    pipeline.handle(real({ user: 'gonzales6723', id: 5585, name: 'Confetti', group: '1792188666797', msg: '7697391708757543688' }));
+    pipeline.handle(real({ user: 'gonzales6723', id: 5585, name: 'Confetti', group: '1792188666797', msg: '7697391722954869512' }));
+    assert.equal(total(out), 2);
+  });
+
+  test(`[${mode}] LOG REAL: Finger Heart (tipo 1) = un toque y su cierre cuentan UN solo regalo, como siempre`, () => {
+    const { pipeline, out, clock } = setup(mode);
+    pipeline.handle(real({ user: 'jostin', id: 5487, name: 'Finger Heart', type: 1, group: '1792188972241', msg: '7697393020661058312' }));
+    pipeline.handle(real({ user: 'jostin', id: 5487, name: 'Finger Heart', type: 1, end: 1, group: '1792188972241', msg: '7697392795007830804' }));
+    clock.advance(IDLE_FLUSH_MS + 10);
+    assert.equal(total(out), 1);
+  });
+
+  test(`[${mode}] regalo discreto: cuatro seguidos en el mismo grupo cuentan cuatro, y el reenvio exacto no cuenta`, () => {
+    const { pipeline, out } = setup(mode);
+    ['m1', 'm2', 'm3', 'm4'].forEach((msg) => pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', msg })));
+    pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', msg: 'm3' }));
+    assert.equal(total(out), 4);
+  });
+
+  test(`[${mode}] regalo discreto: si TikTok mandara un cierre con el total, solo suma lo que falte`, () => {
+    const { pipeline, out } = setup(mode);
+    pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', msg: 'a' }));
+    pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', msg: 'b' }));
+    pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', count: 2, end: 1, msg: 'cierre' }));
+    assert.equal(total(out), 2, 'el cierre con total 2 no suma otra vez');
+    pipeline.handle(real({ user: 'x', id: 1, name: 'Leon', group: 'G', count: 3, end: 1, msg: 'cierre2' }));
+    assert.equal(total(out), 3, 'un cierre mayor suma solo la diferencia');
+  });
+
+  test(`[${mode}] regalo discreto: grupos distintos, regalos distintos y espectadores distintos no se mezclan`, () => {
+    const { pipeline, out } = setup(mode);
+    pipeline.handle(real({ user: 'a', id: 1, name: 'Leon', group: 'G1', msg: '1' }));
+    pipeline.handle(real({ user: 'a', id: 1, name: 'Leon', group: 'G2', msg: '2' }));
+    pipeline.handle(real({ user: 'a', id: 2, name: 'Rosa', group: 'G1', msg: '3' }));
+    pipeline.handle(real({ user: 'b', id: 1, name: 'Leon', group: 'G1', msg: '4' }));
+    assert.equal(total(out), 4);
+  });
+
+  test(`[${mode}] regalo discreto sin groupId: dos seguidos tambien cuentan los dos`, () => {
+    const { pipeline, out } = setup(mode);
+    pipeline.handle(real({ user: 'a', id: 1, name: 'Leon', msg: '1' }));
+    pipeline.handle(real({ user: 'a', id: 1, name: 'Leon', msg: '2' }));
+    assert.equal(total(out), 2);
+  });
+}
+
+test('un regalo con combo marcado y tipo desconocido se sigue tratando como racha (comportamiento de siempre)', () => {
+  const { pipeline, out, clock } = setup('final');
+  pipeline.handle({ giftId: 9, repeatCount: 1, repeatEnd: 0, common: { msgId: 'u1' }, user: { userId: 'u', uniqueId: 'u' }, giftDetails: { combo: true, giftName: 'X', diamondCount: 1 } });
+  assert.equal(total(out), 0, 'espera su cierre');
+  clock.advance(IDLE_FLUSH_MS + 10);
+  assert.equal(total(out), 1);
+});

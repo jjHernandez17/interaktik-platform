@@ -60,10 +60,16 @@ function emitLiveEvent(eventName, payload) {
       timestamp: payload?.timestamp,
     });
   }
-  hub.emit('live-event', {
-    eventName,
-    payload,
-  });
+  // Cada oyente se llama por separado: si uno falla (un error en un acumulador, un navegador que se cerro...) los demas,
+  // incluida la pagina del juego, igual reciben el evento. Con hub.emit() directo, un fallo cortaba el envio al resto.
+  const event = { eventName, payload };
+  for (const listener of hub.listeners('live-event')) {
+    try {
+      listener(event);
+    } catch (error) {
+      logger.error(`[LIVEHUB] Un oyente de "${eventName}" fallo; el evento sigue para los demas`, error);
+    }
+  }
 }
 
 module.exports = {

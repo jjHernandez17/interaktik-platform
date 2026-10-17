@@ -273,8 +273,25 @@ function scheduleReconnect({ gameType, uniqueId, userId, sessionId, ownerKey }, 
 
 // Entrega un regalo ya normalizado (ver giftPipeline.js) a la pagina del juego y a los servicios del servidor
 function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
+  // Si por algun dato raro no se puede armar el regalo completo, igual se entrega con lo basico: nunca se pierde por eso
+  let baseGift;
+  try {
+    baseGift = simplifyGiftEvent(data);
+  } catch (error) {
+    logger.error('[GIFT] No se pudo leer todo el mensaje del regalo; se entrega con los datos basicos', error);
+    baseGift = {
+      giftId: data?.giftId || null,
+      giftName: String(data?.giftDetails?.giftName || data?.giftName || 'Regalo'),
+      giftType: data?.giftDetails?.giftType ?? null,
+      user: { uniqueId: String(data?.user?.uniqueId || ''), nickname: String(data?.user?.nickname || ''), userId: data?.user?.userId || null, avatar: null },
+      diamondCount: data?.giftDetails?.diamondCount ?? null,
+      extendedGiftInfo: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   const giftPayload = {
-    ...simplifyGiftEvent(data),
+    ...baseGift,
     // repeatCount = unidades NUEVAS de este evento; repeatEnd siempre true para que ningun juego espere un cierre
     repeatCount: chunk.repeatCount,
     repeatEnd: true,
@@ -497,9 +514,14 @@ function publish(gameType, eventName, payload) {
 
   emitLiveEvent(eventName, eventPayload);
 
-  if (global.io) {
-    global.io.emit(`live:${gameType}:${eventName}`, eventPayload);
-    global.io.emit('live-event', eventPayload);
+  // Socket.IO es un canal aparte: si falla no puede afectar a lo ya entregado por el canal principal
+  try {
+    if (global.io) {
+      global.io.emit(`live:${gameType}:${eventName}`, eventPayload);
+      global.io.emit('live-event', eventPayload);
+    }
+  } catch (error) {
+    logger.warn(`No se pudo emitir ${eventName} por Socket.IO`, error);
   }
 }
 
@@ -667,6 +689,7 @@ async function connectGame({ gameType = 'app', uniqueId, userId = null, sessionI
     mode: GIFT_MODE_BY_GAME[normalizedGameType] || 'final',
     log: (kind, info) => {
       if (kind === 'drop') logger.info(`[GIFT-DROP] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user}`);
+      if (kind === 'error') logger.error(`[GIFT-ERROR] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user} unidades=${info.units} intento=${info.attempt} ${info.message || ''}`);
       if (kind === 'noop') logger.info(`[GIFT-NOOP] ${normalizedGameType} ${info.reason} gift#${info.giftId} user=${info.user} count=${info.count} ya-entregado=${info.delivered}`);
     },
     emit: (chunk, rawData) => deliverGift({ gameType: normalizedGameType, ownerKey, userId, chunk, data: rawData }),
@@ -686,8 +709,18 @@ connection.on(WebcastEvent.GIFT, (data) => {
   logger.info(
     `[GIFT-RAW] ${normalizedGameType} @${data?.user?.uniqueId || '?'} ${data?.giftDetails?.giftName || '?'}#${data?.giftId} `
     + `count=${data?.repeatCount} end=${data?.repeatEnd} combo=${data?.giftDetails?.combo} type=${data?.giftDetails?.giftType} `
-    + `group=${data?.groupId || '-'} msg=${data?.common?.msgId || data?.msgId || '-'}`,
+    + `group=${data?.groupId || '-'} msg=${data?.common?.msgId || data?.msgId || '-'} `
+    + `groupCount=${data?.groupCount ?? '-'} comboCount=${data?.comboCount ?? '-'} create=${data?.common?.createTime || '-'} `
+    + `order=${data?.orderId || '-'} log=${data?.logId || '-'} first=${data?.isFirstSent ?? '-'} send=${data?.sendType || '-'}`,
   );
+
+  // Si TikTok trae un conteo distinto en otro campo (varios regalos enviados de una vez), queda a la vista para revisarlo
+  if ((Number(data?.groupCount) > 1) || (Number(data?.comboCount) > 0 && Number(data?.comboCount) !== Number(data?.repeatCount))) {
+    logger.warn(
+      `[GIFT-COUNT?] ${normalizedGameType} @${data?.user?.uniqueId || '?'} #${data?.giftId}: repeatCount=${data?.repeatCount} `
+      + `groupCount=${data?.groupCount} comboCount=${data?.comboCount}. Si el regalo contó de menos, pega esta línea.`,
+    );
+  }
 
   try {
     // El pipeline decide cuando se entrega cada regalo (ver giftPipeline.js): nunca depende de que llegue un cierre de racha

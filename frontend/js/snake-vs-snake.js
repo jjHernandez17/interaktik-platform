@@ -1900,6 +1900,19 @@ function restartGame(options = {}) {
   const leftWinsValue = resetWins ? 0 : (state.snakes.left.wins || 0);
   const rightWinsValue = resetWins ? 0 : (state.snakes.right.wins || 0);
 
+  // Manzanas que sobraron: las que mandaron los espectadores y la serpiente todavia no se comio cuando termino la ronda
+  // (las de la serpiente que perdio, y las que llegaron mientras se mostraba el ganador). En una ronda nueva automatica
+  // pasan a la siguiente, y asi ronda tras ronda hasta que la serpiente se las coma todas. Un reinicio manual empieza de cero.
+  const leftoverApples = { left: 0, right: 0 };
+  if (!resetWins) {
+    ['left', 'right'].forEach((side) => {
+      leftoverApples[side] = (state.snakes[side].apples || []).reduce(
+        (sum, apple) => sum + Math.max(1, Math.round(Number(apple?.value || 1)) || 1),
+        0,
+      );
+    });
+  }
+
   state.snakes.left = createDefaultSnake('left', 'right', leftColor, leftName);
   state.snakes.right = createDefaultSnake('right', 'right', rightColor, rightName);
   state.snakes.left.wins = leftWinsValue;
@@ -1914,6 +1927,21 @@ function restartGame(options = {}) {
   normalizeAllSnakeStates();
   if (!resetWins) {
     applyCarryOverApplesToNewRound();
+
+    // Se colocan en el tablero nuevo (si no caben todas, se juntan en manzanas que valen mas, igual que con un regalo grande);
+    // quedan guardadas en la cola, asi que tampoco se pierden si la pagina se recarga justo ahora.
+    ['left', 'right'].forEach((side) => {
+      const leftover = leftoverApples[side];
+      if (leftover <= 0) return;
+
+      queuePendingGiftSpawns(side, leftover, { giftId: null, giftName: 'Sobraron de la ronda anterior' });
+      pushGiftActionToHistory(
+        `${state.snakes[side].label}: ${leftover} manzana(s) que sobraron pasan a esta ronda`,
+        side,
+        leftover,
+        'carryover',
+      );
+    });
   }
   hideWinnerOverlay();
   renderBoards();

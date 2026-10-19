@@ -116,6 +116,24 @@ test('regalos de punta a punta', async (t) => {
     });
   }
 
+  // ---- likes: cada mensaje vale los likes de ESE mensaje; el total de la sala nunca se le suma a un espectador ----
+  await t.test('[overlay] un mensaje de likes trae los likes de ese mensaje', async () => {
+    const c = await openConnection('overlay');
+    const likes = [];
+    const listener = ({ eventName, payload }) => { if (eventName === 'like' && payload.ownerKey === `user:${c.userId}:overlay`) likes.push(payload.likeCount); };
+    hub.on('live-event', listener);
+    try {
+      connections[connections.length - 1].emit('LIKE', { likeCount: 7, totalLikeCount: 98765, user: { uniqueId: 'ana', nickname: 'Ana' } });
+      connections[connections.length - 1].emit('LIKE', { likeCount: 0, totalLikeCount: 98765, user: { uniqueId: 'ana', nickname: 'Ana' } });
+      connections[connections.length - 1].emit('LIKE', { totalLikeCount: 98765, user: { uniqueId: 'ana', nickname: 'Ana' } });
+      connections[connections.length - 1].emit('LIKE', { likeCount: 'abc', totalLikeCount: 98765, user: { uniqueId: 'ana', nickname: 'Ana' } });
+      assert.deepEqual(likes, [7, 1, 1, 1], 'nunca se usa el total de la sala (98765)');
+    } finally {
+      hub.off('live-event', listener);
+      c.close();
+    }
+  });
+
   await t.test('[snake] dos regalos que comparten msgId pero tienen otra hora llegan los dos', async () => {
     const c = await openConnection('snake');
     c.send(raw({ msgId: 'IGUAL', createTime: '5000' }));

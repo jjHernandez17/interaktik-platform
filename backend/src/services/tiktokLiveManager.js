@@ -793,9 +793,13 @@ connection.on(WebcastEvent.CHAT, async (data) => {
   });
 
   connection.on(WebcastEvent.LIKE, (data) => {
+    // likeCount = los likes de ESTE mensaje. totalLikeCount es el total de TODA la sala: nunca se le suma a un espectador
+    // (antes, si likeCount llegaba en 0 o vacio, se le acreditaban todos los likes del live de golpe). Un mensaje de likes
+    // siempre vale al menos 1.
+    const likesInMessage = Math.round(Number(data?.likeCount));
     publish(normalizedGameType, 'like', {
       ownerKey,
-      likeCount: data?.likeCount || data?.totalLikeCount || 1,
+      likeCount: Number.isFinite(likesInMessage) && likesInMessage > 0 ? likesInMessage : 1,
       user: {
         uniqueId: data?.user?.uniqueId || '',
         nickname: data?.user?.nickname || '',

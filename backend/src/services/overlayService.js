@@ -97,6 +97,60 @@ function computeRankedEntries(entries, maxEntries, user, amount, amountField) {
   return nextEntries.slice(0, maxEntries);
 }
 
+// ---------- acumulado completo por espectador (Top Likes / Top Regaladores) ----------
+//
+// El top NUNCA se arma sumando sobre la propia tabla visible: cada espectador acumula su total real en overlay_viewer_totals
+// (sin limite de cuantos) y la tabla es solo "los N con mas". Asi alguien que llega despues, aunque empiece mas tarde, sube y
+// desplaza a quien se quedo quieto en cuanto lo supera.
+const RANKINGS = {
+  topLikers: { kind: 'likes', field: 'likes' },
+  topGifters: { kind: 'coins', field: 'coins' },
+};
+
+function viewerKeyOf(user) {
+  return (String(user?.uniqueId || user?.nickname || '').trim() || 'anonimo').slice(0, 60);
+}
+
+async function addViewerTotal(db, userId, kind, user, amount) {
+  await db.query(
+    `INSERT INTO overlay_viewer_totals (user_id, kind, viewer_key, nickname, avatar, total, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (user_id, kind, viewer_key) DO UPDATE SET
+       total = overlay_viewer_totals.total + EXCLUDED.total,
+       nickname = COALESCE(NULLIF(EXCLUDED.nickname, ''), overlay_viewer_totals.nickname),
+       avatar = COALESCE(EXCLUDED.avatar, overlay_viewer_totals.avatar),
+       updated_at = NOW()`,
+    [
+      userId,
+      kind,
+      viewerKeyOf(user),
+      String(user?.nickname || '').trim().slice(0, 120),
+      user?.avatar ? String(user.avatar).slice(0, 500) : null,
+      amount,
+    ],
+  );
+}
+
+// Los N con mas del acumulado (en empate, queda arriba quien llego primero a ese total)
+async function readRanking(db, userId, stateKey, limit) {
+  const { kind, field } = RANKINGS[stateKey];
+  const result = await db.query(
+    `SELECT viewer_key, nickname, avatar, total
+     FROM overlay_viewer_totals
+     WHERE user_id = $1 AND kind = $2
+     ORDER BY total DESC, updated_at ASC, viewer_key ASC
+     LIMIT $3`,
+    [userId, kind, Math.max(1, Number(limit) || 5)],
+  );
+
+  return result.rows.map((row) => ({
+    uniqueId: row.viewer_key,
+    nickname: row.nickname || row.viewer_key,
+    avatar: row.avatar || null,
+    [field]: Number(row.total) || 0,
+  }));
+}
+
 async function getOrCreateOverlayConfig(userId) {
   const existing = await pool.query(
     `SELECT ${KEY_COLUMNS_SQL}, state, updated_at FROM overlay_config WHERE user_id = $1`,
@@ -208,6 +262,11 @@ async function saveOverlayState(userId, nextState) {
   const currentBattle = current.rows[0]?.state?.battle;
   normalized.battle.scoreA = Math.max(0, Math.round(Number(currentBattle?.scoreA)) || 0);
   normalized.battle.scoreB = Math.max(0, Math.round(Number(currentBattle?.scoreB)) || 0);
+
+  // Las tablas de Top Likes / Top Regaladores salen del acumulado real, no de lo que traiga la pagina (que puede llevar un
+  // rato abierta con datos viejos). Asi tambien se ven mas o menos puestos si el streamer cambia cuantos mostrar.
+  normalized.topLikers.entries = await readRanking(pool, userId, 'topLikers', normalized.topLikers.maxEntries);
+  normalized.topGifters.entries = await readRanking(pool, userId, 'topGifters', normalized.topGifters.maxEntries);
 
   const result = await pool.query(
     `UPDATE overlay_config SET state = $2::jsonb, updated_at = NOW()
@@ -334,31 +393,13 @@ async function incrementTopGifter(userId, user, coins) {
     }
 
     const state = sanitizeOverlayState(existing.rows[0].state || {});
-    const entryKey = String(user?.uniqueId || user?.nickname || '').trim() || 'anonimo';
-    const entries = state.topGifters.entries.slice();
-    const existingIndex = entries.findIndex((entry) => entry.uniqueId === entryKey);
 
-    if (existingIndex >= 0) {
-      entries[existingIndex] = {
-        ...entries[existingIndex],
-        nickname: user?.nickname || entries[existingIndex].nickname,
-        avatar: user?.avatar || entries[existingIndex].avatar,
-        coins: entries[existingIndex].coins + cleanCoins,
-      };
-    } else {
-      entries.push({
-        uniqueId: entryKey,
-        nickname: user?.nickname || entryKey,
-        avatar: user?.avatar || null,
-        coins: cleanCoins,
-      });
-    }
-
-    entries.sort((a, b) => b.coins - a.coins);
+    await addViewerTotal(client, userId, RANKINGS.topGifters.kind, user, cleanCoins);
+    const entries = await readRanking(client, userId, 'topGifters', state.topGifters.maxEntries);
 
     const nextState = {
       ...state,
-      topGifters: { ...state.topGifters, entries: entries.slice(0, state.topGifters.maxEntries) },
+      topGifters: { ...state.topGifters, entries },
     };
 
     const updated = await client.query(
@@ -386,6 +427,7 @@ async function incrementTopGifter(userId, user, coins) {
 
 async function resetTopGifters(userId) {
   await getOrCreateOverlayConfig(userId);
+  await pool.query('DELETE FROM overlay_viewer_totals WHERE user_id = $1 AND kind = $2', [userId, RANKINGS.topGifters.kind]);
 
   const result = await pool.query(
     `UPDATE overlay_config
@@ -486,31 +528,13 @@ async function incrementTopLiker(userId, user, likes) {
     }
 
     const state = sanitizeOverlayState(existing.rows[0].state || {});
-    const entryKey = String(user?.uniqueId || user?.nickname || '').trim() || 'anonimo';
-    const entries = state.topLikers.entries.slice();
-    const existingIndex = entries.findIndex((entry) => entry.uniqueId === entryKey);
 
-    if (existingIndex >= 0) {
-      entries[existingIndex] = {
-        ...entries[existingIndex],
-        nickname: user?.nickname || entries[existingIndex].nickname,
-        avatar: user?.avatar || entries[existingIndex].avatar,
-        likes: entries[existingIndex].likes + cleanLikes,
-      };
-    } else {
-      entries.push({
-        uniqueId: entryKey,
-        nickname: user?.nickname || entryKey,
-        avatar: user?.avatar || null,
-        likes: cleanLikes,
-      });
-    }
-
-    entries.sort((a, b) => b.likes - a.likes);
+    await addViewerTotal(client, userId, RANKINGS.topLikers.kind, user, cleanLikes);
+    const entries = await readRanking(client, userId, 'topLikers', state.topLikers.maxEntries);
 
     const nextState = {
       ...state,
-      topLikers: { ...state.topLikers, entries: entries.slice(0, state.topLikers.maxEntries) },
+      topLikers: { ...state.topLikers, entries },
     };
 
     const updated = await client.query(
@@ -538,6 +562,7 @@ async function incrementTopLiker(userId, user, likes) {
 
 async function resetTopLikers(userId) {
   await getOrCreateOverlayConfig(userId);
+  await pool.query('DELETE FROM overlay_viewer_totals WHERE user_id = $1 AND kind = $2', [userId, RANKINGS.topLikers.kind]);
 
   const result = await pool.query(
     `UPDATE overlay_config

@@ -7,6 +7,7 @@
     "start": "node backend/server.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "connect-pg-simple": "^10.0.0",

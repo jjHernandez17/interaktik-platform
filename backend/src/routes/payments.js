@@ -10,6 +10,7 @@ const wompiClient = require('../payments/wompiClient');
 const currencyService = require('../services/currencyService');
 const emailService = require('../services/emailService');
 const referralService = require('../services/referralService');
+const aiHostCredit = require('../services/aiHostCredit');
 const pool = require('../database/pool');
 const { normalizeError, sanitizeHostHeader } = require('../utils/normalize');
 const env = require('../config/env');
@@ -76,7 +77,9 @@ router.get('/account/access', requireAuth, async (req, res) => {
   try {
     const userId = getSessionUserId(req);
     const access = await accessService.getUserAccess(userId);
-    return res.json(access);
+    // Que tanto puede usar el Co-anfitrion IA (la plataforma muestra el candado y los tokens que le quedan)
+    const aiHost = await aiHostCredit.getEntitlement(userId).catch(() => null);
+    return res.json({ ...access, aiHost });
   } catch (error) {
     logger.error('Error consultando acceso', error);
     return res.status(500).json({ error: normalizeError(error) });
@@ -205,7 +208,7 @@ router.get('/payments/:id/status', requireAuth, async (req, res) => {
     const paymentId = Number(req.params.id);
 
     const result = await pool.query(
-      'SELECT id, status, gateway, plan_id FROM payments WHERE id = $1 AND user_id = $2',
+      'SELECT id, status, gateway, plan_id, kind, topup_tokens FROM payments WHERE id = $1 AND user_id = $2',
       [paymentId, userId],
     );
 
@@ -216,6 +219,132 @@ router.get('/payments/:id/status', requireAuth, async (req, res) => {
     return res.json(result.rows[0]);
   } catch (error) {
     logger.error('Error consultando estado de pago', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// ---- Recarga de creditos (tokens) del Co-anfitrion IA ----
+// Solo Wompi y MercadoPago. El usuario elige un presupuesto en USD; los tokens que recibe los calcula SIEMPRE el servidor
+// (aiHostCredit.quoteTopup) y quedan guardados en el pago, asi que el navegador no puede inflarlos.
+const TOPUP_GATEWAYS = ['wompi', 'mercadopago'];
+const TOPUP_ITEM = { id: 'ai_topup', name: 'Recarga de créditos IA', description: 'Tokens para el Co-anfitrión IA de Interaktik' };
+
+async function topupCharge(gateway, usdCents) {
+  if (gateway === 'wompi') {
+    return currencyService.convertUsdCentsToDisplay(usdCents, 'COP');
+  }
+  const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
+  let charge = mpCurrency === 'USD'
+    ? { currency: 'USD', amount: usdCents / 100 }
+    : await currencyService.convertUsdCentsToDisplay(usdCents, mpCurrency);
+  if (ZERO_DECIMAL_CURRENCIES.has(charge.currency)) charge = { ...charge, amount: Math.round(charge.amount) };
+  return charge;
+}
+
+// GET /api/ai-host/topup/options - pasarelas disponibles y tarifa (para pintar el modal y convertir al instante mientras se escribe)
+router.get('/ai-host/topup/options', requireAuth, (req, res) => {
+  return res.json({
+    gateways: {
+      wompi: wompiClient.isConfigured(),
+      mercadopago: mercadopagoClient.isConfigured(),
+    },
+    tokensPerUsd: aiHostCredit.TOPUP_TOKENS_PER_USD,
+    minUsd: aiHostCredit.TOPUP_MIN_USD,
+    maxUsd: aiHostCredit.TOPUP_MAX_USD,
+    tokensPerResponse: aiHostCredit.AVG_TOKENS_PER_RESPONSE,
+  });
+});
+
+// GET /api/ai-host/topup/quote?budget=5&gateway=wompi - lo que recibiria y lo que se cobraria en la moneda de la pasarela
+router.get('/ai-host/topup/quote', requireAuth, async (req, res) => {
+  try {
+    const gateway = String(req.query.gateway || '');
+    const quote = aiHostCredit.quoteTopup(req.query.budget);
+    if (!quote) {
+      return res.status(400).json({ error: `El presupuesto debe estar entre ${aiHostCredit.TOPUP_MIN_USD} y ${aiHostCredit.TOPUP_MAX_USD} USD.` });
+    }
+    let charge = null;
+    if (TOPUP_GATEWAYS.includes(gateway)) {
+      charge = await topupCharge(gateway, quote.usdCents).catch(() => null);
+    }
+    return res.json({ usd: quote.usdCents / 100, tokens: quote.tokens, approx: quote.approx, charge });
+  } catch (error) {
+    logger.error('Error cotizando recarga de IA', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+// POST /api/ai-host/topup/checkout { gateway, budgetUsd } - crea el pago de la recarga y devuelve la URL de la pasarela
+router.post('/ai-host/topup/checkout', requireAuth, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    const gateway = String(req.body?.gateway || '');
+    if (!TOPUP_GATEWAYS.includes(gateway)) {
+      return res.status(400).json({ error: 'Elige Wompi o MercadoPago.' });
+    }
+
+    const quote = aiHostCredit.quoteTopup(req.body?.budgetUsd);
+    if (!quote) {
+      return res.status(400).json({ error: `El presupuesto debe estar entre ${aiHostCredit.TOPUP_MIN_USD} y ${aiHostCredit.TOPUP_MAX_USD} USD.` });
+    }
+
+    const gatewayClient = gateway === 'wompi' ? wompiClient : mercadopagoClient;
+    if (!gatewayClient.isConfigured()) {
+      return res.status(503).json({ error: `${gateway === 'wompi' ? 'Wompi' : 'MercadoPago'} todavia no esta configurado en el servidor.` });
+    }
+
+    // Solo recarga quien compro un plan con tokens (Mensual o Anual): el pase de 2 dias y la prueba no se desbloquean pagando tokens sueltos.
+    const access = await accessService.getUserAccess(userId);
+    const bought = await pool.query(
+      "SELECT 1 FROM ai_host_credit_ledger WHERE user_id = $1 AND reason = 'plan' LIMIT 1",
+      [userId],
+    );
+    if (!access.hasAccess || access.isTrial || bought.rowCount === 0) {
+      return res.status(403).json({ error: 'Las recargas son para quienes tienen un plan Mensual o Anual. Compra uno desde Planes.' });
+    }
+
+    const charge = await topupCharge(gateway, quote.usdCents);
+    const amountForRecord = Math.round(charge.amount * 100);
+
+    const paymentInsert = await pool.query(
+      `INSERT INTO payments (user_id, plan_id, kind, topup_usd_cents, topup_tokens, gateway, amount_cents, currency, status)
+       VALUES ($1, NULL, 'topup', $2, $3, $4, $5, $6, 'pending') RETURNING id`,
+      [userId, quote.usdCents, quote.tokens, gateway, amountForRecord, charge.currency],
+    );
+    const paymentId = paymentInsert.rows[0].id;
+
+    const baseUrl = getFrontendBaseUrl(req);
+    const successUrl = `${baseUrl}/ai-host.html?topup=success&paymentId=${paymentId}`;
+    const cancelUrl = `${baseUrl}/ai-host.html?topup=cancel&paymentId=${paymentId}`;
+
+    let checkoutUrl;
+    let gatewaySessionId;
+    if (gateway === 'mercadopago') {
+      const preference = await mercadopagoClient.createPreference({
+        plan: TOPUP_ITEM,
+        paymentId,
+        successUrl,
+        cancelUrl,
+        amount: charge.amount,
+        currency: charge.currency,
+      });
+      checkoutUrl = preference.url;
+      gatewaySessionId = preference.preferenceId;
+    } else {
+      const checkout = wompiClient.buildCheckoutUrl({
+        paymentId,
+        amountInCents: amountForRecord,
+        currency: charge.currency,
+        redirectUrl: successUrl,
+      });
+      checkoutUrl = checkout.url;
+      gatewaySessionId = checkout.reference;
+    }
+
+    await pool.query('UPDATE payments SET gateway_session_id = $1 WHERE id = $2', [gatewaySessionId, paymentId]);
+    return res.json({ url: checkoutUrl, paymentId, tokens: quote.tokens });
+  } catch (error) {
+    logger.error('Error creando checkout de recarga de IA', error);
     return res.status(500).json({ error: normalizeError(error) });
   }
 });
@@ -304,6 +433,36 @@ router.post('/payments/webhook/wompi', async (req, res) => {
   }
 });
 
+// Recarga de IA confirmada: marca el pago y entrega los tokens en la MISMA transaccion (o se confirman los dos o ninguno, y el aviso
+// repetido de la pasarela no duplica nada: el libro tiene un solo renglon por pago). No toca el acceso ni los referidos.
+// Recibe la conexion de confirmPayment con la transaccion abierta; el release lo hace el finally de confirmPayment.
+async function confirmTopup(client, payment, gatewayPaymentId) {
+  const userResult = await client.query('SELECT email, name FROM app_users WHERE id = $1', [payment.user_id]);
+  await client.query(
+    `UPDATE payments SET status = 'paid', gateway_payment_id = $1, paid_at = NOW() WHERE id = $2`,
+    [gatewayPaymentId, payment.id],
+  );
+  const grant = await aiHostCredit.grantTopup(client, payment);
+  await client.query('COMMIT');
+  logger.success(`[payments] Recarga de IA ${payment.id} confirmada: +${grant.granted} tokens al usuario ${payment.user_id}`);
+
+  const user = userResult.rows[0];
+  if (user?.email) {
+    await emailService.sendPaymentReceiptEmail({
+      to: user.email,
+      name: user.name,
+      planName: `Recarga de créditos IA (${Number(payment.topup_tokens).toLocaleString('es')} tokens)`,
+      amountCents: payment.amount_cents,
+      currency: payment.currency,
+      gateway: payment.gateway,
+      paymentId: payment.id,
+      gatewayPaymentId,
+      paidAt: new Date(),
+      accessExpiresAt: null,
+    }).catch((error) => logger.error('[payments] No se pudo enviar el recibo de la recarga', error));
+  }
+}
+
 // Idempotente: si el pago ya estaba 'paid', no vuelve a extender el acceso.
 async function confirmPayment(paymentId, gatewayPaymentId) {
   const client = await pool.connect();
@@ -311,7 +470,7 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     await client.query('BEGIN');
 
     const paymentResult = await client.query(
-      `SELECT id, user_id, plan_id, status, gateway, currency, amount_cents FROM payments WHERE id = $1 FOR UPDATE`,
+      `SELECT id, user_id, plan_id, kind, topup_tokens, status, gateway, currency, amount_cents FROM payments WHERE id = $1 FOR UPDATE`,
       [paymentId],
     );
 
@@ -324,6 +483,11 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     const payment = paymentResult.rows[0];
     if (payment.status === 'paid') {
       await client.query('ROLLBACK');
+      return;
+    }
+
+    if (payment.kind === 'topup') {
+      await confirmTopup(client, payment, gatewayPaymentId);
       return;
     }
 
@@ -360,6 +524,18 @@ async function confirmPayment(paymentId, gatewayPaymentId) {
     } catch (referralError) {
       await client.query('ROLLBACK TO SAVEPOINT referral_reward').catch(() => {});
       logger.error(`[payments] No se pudo dar la recompensa de referidos del pago ${paymentId} (el pago si se confirmo)`, referralError);
+    }
+
+    // Co-anfitrion IA: los planes que lo incluyen (Mensual y Anual) entregan sus tokens con la compra. Igual que lo de referidos,
+    // va en un SAVEPOINT: si falla no tumba el pago (la reconciliacion de aiHostCredit entrega los tokens despues). El tiempo de
+    // prueba, el que asigna el superusuario y el pase de 2 dias no pasan por aqui, asi que nunca dan tokens.
+    try {
+      await client.query('SAVEPOINT ai_host_tokens');
+      await aiHostCredit.grantForPayment(client, { id: payment.id, user_id: payment.user_id, plan_id: payment.plan_id });
+      await client.query('RELEASE SAVEPOINT ai_host_tokens');
+    } catch (aiError) {
+      await client.query('ROLLBACK TO SAVEPOINT ai_host_tokens').catch(() => {});
+      logger.error(`[payments] No se pudieron entregar los tokens de IA del pago ${paymentId} (el pago si se confirmo)`, aiError);
     }
 
     await client.query('COMMIT');
@@ -433,3 +609,4 @@ async function stripeWebhookHandler(req, res) {
 
 module.exports = router;
 module.exports.stripeWebhookHandler = stripeWebhookHandler;
+module.exports.confirmPayment = confirmPayment;

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carrera de Fórmula 1 | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/roblox-fighters.css?v=20261010a" />
+  <link rel="stylesheet" href="assets/css/roblox-f1.css?v=20261031a" />
+</head>
+
+<body>
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- Iconos (trazo único de 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></symbol>
+      <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-1.5 4L16 12H5" /></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></symbol>
+    </defs>
+  </svg>
+
+  <a class="back-menu-btn" href="platform.html">← Volver</a>
+
+  <main class="pk-shell pf-shell">
+
+    <!-- Encabezado -->
+    <header class="pk-hero">
+      <div class="pk-hero-copy">
+        <h1>Carrera de Fórmula 1</h1>
+        <p>
+          Hasta 20 espectadores corren a la vez en una pista de 4 carriles. Se unen comentando en tu live (con su skin de Roblox o con una skin aleatoria) y sus
+          regalos les dan turbo, un escudo o frenan a los demás con aceite. Aquí decides qué hace cada regalo.
+        </p>
+        <ul class="pk-hero-status" aria-label="Estado de las conexiones">
+          <li id="f1HeroTiktok" data-state="off"><span class="pk-dot"></span>TikTok Live</li>
+          <li id="f1HeroRoblox" data-state="off"><span class="pk-dot"></span>Cuenta de Roblox</li>
+        </ul>
+      </div>
+      <figure class="pk-hero-art f1-hero-art" aria-hidden="true">
+        <span class="f1-hero-flag"><svg width="64" height="64"><use href="#i-flag" /></svg></span>
+        <strong>20</strong>
+        <span>pilotos · 4 carriles</span>
+      </figure>
+    </header>
+
+    <!-- Conexiones -->
+    <section class="pk-panel pk-connections" aria-label="Conexiones">
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-live" /></svg></span>
+          <div>
+            <h2>TikTok Live</h2>
+            <p id="f1ConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+          </div>
+          <span id="f1ConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        </div>
+        <form id="f1ConnectionForm" class="pk-inline-form">
+          <input id="f1UsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="f1ConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="f1DisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+      </div>
+
+      <div class="pk-conn">
+        <div class="pk-conn-head">
+          <span class="pk-icon"><svg><use href="#i-cube" /></svg></span>
+          <div>
+            <h2>Cuenta de Roblox</h2>
+            <p id="f1LinkStatus" class="pk-hint">
+              Aún no has vinculado ninguna cuenta. Tu ID numérico está en roblox.com/users/<strong>TU_ID</strong>/profile.
+            </p>
+          </div>
+        </div>
+        <form id="f1LinkForm" class="pk-inline-form">
+          <input id="f1UserIdInput" type="text" inputmode="numeric" placeholder="ID numérico de Roblox" required />
+          <button id="f1LinkAccountBtn" class="btn primary" type="submit">Vincular ID</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Cómo se juega -->
+    <section class="pk-panel pf-steps" aria-labelledby="f1StepsTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="f1StepsTitle">Cómo se juega</h2>
+          <p class="pk-hint">Tú solo transmites: la carrera se corre sola y tus espectadores deciden quién gana.</p>
+        </div>
+      </div>
+      <ol class="pf-steps-list">
+        <li><span class="pf-step-n">1</span><div><strong>Vincula tus cuentas</strong><span>Tu usuario de TikTok (en "Juegos") y tu ID de Roblox (aquí arriba).</span></div></li>
+        <li><span class="pf-step-n">2</span><div><strong>Abre el juego en Roblox</strong><span>Entra a la Carrera de Fórmula 1 con la cuenta que vinculaste. <a id="f1OpenRoblox" class="pf-open-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir en Roblox</a></span></div></li>
+        <li><span class="pf-step-n">3</span><div><strong>Conecta tu live</strong><span>Pulsa "Conectar" cuando ya estés transmitiendo.</span></div></li>
+        <li><span class="pf-step-n">4</span><div><strong>Que tus espectadores se unan</strong><span>Quien tiene cuenta de Roblox comenta "<b id="f1StepWord">!unirme</b> + su ID de Roblox" y corre sentado en su carro con su skin; quien no tiene solo comenta "<b>1</b>" y le toca una skin aleatoria. En los dos casos su nombre de TikTok aparece sobre el carro. Máximo 20 por carrera; quien llega con la carrera empezada espera a la siguiente.</span></div></li>
+      </ol>
+    </section>
+
+    <!-- Carrera y ranking -->
+    <section class="pk-panel pf-match" aria-labelledby="f1MatchTitle">
+      <div class="pk-panel-head">
+        <div>
+          <h2 id="f1MatchTitle">La carrera</h2>
+          <p class="pk-hint">Cada carrera es de varias vueltas. Gana quien cruce la meta primero; el ranking cuenta las victorias de cada espectador.</p>
+        </div>
+        <button id="f1TestJoinBtn" class="pk-link-btn" type="button"><svg><use href="#i-users" /></svg>Probar unión</button>
+      </div>
+
+      <div class="pf-match-grid">
+        <form id="f1SettingsForm" class="pf-settings">
+          <label class="pk-field">
+            <span class="pk-label">Palabra del comando (con ID de Roblox)</span>
+            <input id="f1Keyword" type="text" maxlength="20" autocomplete="off" placeholder="unirme" />
+          </label>
+          <p id="f1KeywordHint" class="pk-hint"></p>
+          <label class="pk-field">
+            <span class="pk-label">Vueltas por carrera</span>
+            <input id="f1Laps" type="number" min="1" max="10" value="3" />
+          </label>
+          <label class="pk-field">
+            <span class="pk-label">Segundos para unirse antes de cada carrera</span>
+            <input id="f1LobbySeconds" type="number" min="10" max="120" value="30" />
+          </label>
+          <div class="pf-save-row">
+            <button id="f1SettingsSaveBtn" class="btn primary" type="submit">Guardar cambios</button>
+            <span id="f1SaveState" class="pf-save-state" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <div class="pf-scoreboard" aria-label="Ranking de ganadores">
+          <div class="pf-score-head">
+            <span class="pk-label">Ranking de ganadores</span>
+            <button id="f1ResetScoreBtn" class="pk-link-btn" type="button"><svg><use href="#i-refresh" /></svg>Reiniciar ranking</button>
+          </div>
+          <ol id="f1Leaderboard" class="f1-leaderboard">
+            <li class="f1-leaderboard-empty">Todavía no hay carreras terminadas.</li>
+          </ol>
+          <p class="pf-score-champs">Carreras jugadas: <b id="f1RacesPlayed">0</b></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reglas -->
+    <div class="pk-workspace">
+
+      <section class="pk-panel pk-rules" aria-labelledby="f1RulesTitle">
+        <div class="pk-panel-head">
+          <div>
+            <h2 id="f1RulesTitle">Reglas de regalos</h2>
+            <p class="pk-hint">Cada regalo activa un poder en la carrera. Un combo suma tiempo. Quien manda un regalo entra solo a la carrera si todavía no estaba.</p>
+          </div>
+          <span id="f1RuleCount" class="pk-count">0</span>
+        </div>
+
+        <div id="f1RulesList" class="pk-rules-list">
+          <div class="pk-empty">
+            <svg><use href="#i-bolt" /></svg>
+            <strong>Aún no hay reglas</strong>
+            <span>Crea la primera con el formulario: elige un regalo y el poder que activa.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="pk-side">
+        <section class="pk-panel pk-form-panel" aria-labelledby="f1FormTitle">
+          <div class="pk-panel-head">
+            <h2 id="f1FormTitle">Nueva regla</h2>
+            <button id="f1LoadGiftsBtn" class="pk-link-btn" type="button">
+              <svg><use href="#i-refresh" /></svg>Actualizar regalos
+            </button>
+          </div>
+
+          <form id="f1RuleForm" class="pk-form">
+            <div class="pk-field">
+              <span class="pk-label">Regalo</span>
+              <div id="f1GiftPicker" class="gift-picker">
+                <button id="f1GiftPickerToggle" class="gift-picker-toggle" type="button">
+                  <span id="f1GiftPickerSelected" class="gift-picker-selected placeholder">Carga el catálogo primero</span>
+                  <svg class="gift-picker-chevron"><use href="#i-chevron" /></svg>
+                </button>
+
+                <div id="f1GiftPickerPanel" class="gift-picker-panel hidden">
+                  <div class="gift-picker-filters">
+                    <input id="f1GiftFilterName" type="text" placeholder="Buscar por nombre..." autocomplete="off" />
+                    <div class="gift-picker-coins-filter">
+                      <input id="f1GiftFilterCoinsMin" type="number" min="0" placeholder="Monedas mín." />
+                      <input id="f1GiftFilterCoinsMax" type="number" min="0" placeholder="Monedas máx." />
+                    </div>
+                  </div>
+                  <div id="f1GiftPickerList" class="gift-picker-list">
+                    <p class="muted">Carga el catálogo primero.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label class="pk-field">
+              <span class="pk-label">Poder</span>
+              <select id="f1RulePowerSelect"></select>
+            </label>
+            <p id="f1PowerHelp" class="pk-hint pf-power-help"></p>
+
+            <label class="pk-field">
+              <span class="pk-label">¿A quién le pega?</span>
+              <select id="f1RuleTargetSelect"></select>
+            </label>
+
+            <label class="pk-field">
+              <span class="pk-label">Duración (segundos)</span>
+              <input id="f1RuleSecondsInput" type="number" min="1" max="60" value="8" />
+            </label>
+
+            <button id="f1RuleSaveBtn" class="btn primary pk-submit" type="submit">
+              <svg><use href="#i-plus" /></svg>Agregar regla
+            </button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js?v=20261009g"></script>
+  <script src="js/narrator.js?v=20261030a"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/roblox-f1.js?v=20261031a"></script>
+</body>
+
+</html>

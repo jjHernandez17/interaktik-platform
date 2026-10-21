@@ -310,6 +310,8 @@ const GAME_LABELS = {
   roblox: 'Roblox Dance',
   robloxparkour: 'Roblox Parkour',
   robloxfighters: 'Pelea Callejera',
+  robloxf1: 'Carrera de Fórmula 1',
+  aihost: 'Co-anfitrión IA',
   minecraft: 'Survivaltik',
   minecraftcubo: 'Cubecraft',
   gta: 'Modo historia',
@@ -366,6 +368,8 @@ function gameTypeFromHref(href = '') {
   if (href.includes('roblox-dance')) return 'roblox';
   if (href.includes('roblox-parkour')) return 'robloxparkour';
   if (href.includes('roblox-fighters')) return 'robloxfighters';
+  if (href.includes('roblox-f1')) return 'robloxf1';
+  if (href.includes('ai-host')) return 'aihost';
   if (href.includes('minecraft-cubo')) return 'minecraftcubo';
   if (href.includes('minecraft')) return 'minecraft';
   if (href.includes('gta-rampa')) return 'gtarampa';
@@ -454,6 +458,67 @@ function applyPlanLockToCards() {
   });
 }
 
+// Co-anfitrion IA: solo los planes Mensual y Anual (con tokens). En prueba gratuita, con el pase de 2 dias o sin tokens la tarjeta queda
+// bloqueada con el motivo; con acceso muestra cuantos tokens le quedan.
+function formatTokens(value) {
+  const n = Number(value) || 0;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '')} millones`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)} mil`;
+  return String(n);
+}
+
+function applyAiHostLockToCard() {
+  const link = document.querySelector('.game-card a.start-btn[href="ai-host.html"]');
+  const card = link?.closest('.game-card');
+  if (!card) return;
+
+  const ai = accessStatus?.aiHost;
+  let message = card.querySelector('.game-ai-message');
+  const clear = () => {
+    message?.remove();
+    if (!card.classList.contains('game-disabled-by-admin') && accessStatus?.hasAccess !== false) {
+      card.classList.remove('game-locked-by-plan');
+      link.removeAttribute('aria-disabled');
+      link.tabIndex = 0;
+    }
+  };
+
+  // sin datos, superusuario o ya bloqueada por el admin / por plan vencido (esas tarjetas ya muestran su propio mensaje)
+  if (!ai || currentUser?.isSuperUser || card.classList.contains('game-disabled-by-admin') || accessStatus.hasAccess === false) {
+    if (message) clear();
+    return;
+  }
+
+  if (!message) {
+    message = document.createElement('p');
+    message.className = 'game-ai-message';
+    card.appendChild(message);
+  }
+
+  if (ai.allowed) {
+    card.classList.remove('game-locked-by-plan');
+    link.removeAttribute('aria-disabled');
+    link.tabIndex = 0;
+    message.style.color = '#7dd3fc';
+    message.textContent = `🪙 Te quedan ${formatTokens(ai.tokensRemaining)} de tokens de IA (≈ ${(ai.approx?.haiku || 0).toLocaleString('es')} respuestas con Haiku)`;
+    return;
+  }
+
+  card.classList.add('game-locked-by-plan');
+  link.setAttribute('aria-disabled', 'true');
+  link.tabIndex = -1;
+  message.style.color = '#fbbf24';
+  message.innerHTML = `🔒 ${escapeHtmlText(ai.message)} <a href="#" data-go-to-plans>Ver planes</a>`;
+  message.querySelector('[data-go-to-plans]')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    showSection('plansSection');
+  });
+}
+
+function escapeHtmlText(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
 // Igual que applyPlanLockToCards() pero para los ejemplos de overlay: la
 // tarjeta se sigue viendo (para que el usuario sepa que el overlay existe),
 // pero no abre su modal de configuracion mientras no tenga plan/prueba
@@ -521,6 +586,9 @@ function renderAccountProfile() {
       tone = 'ok';
       label = accessStatus.planLabel || (accessStatus.isTrial ? 'Prueba gratuita' : 'Plan activo');
       note = `Te ${days === 1 ? 'queda 1 día' : `quedan ${days} días`}`;
+      if (accessStatus.aiHost?.allowed && accessStatus.aiHost.tokensRemaining > 0) {
+        note += ` · ${formatTokens(accessStatus.aiHost.tokensRemaining)} de tokens de IA`;
+      }
     } else {
       tone = 'warn';
       label = 'Sin plan activo';
@@ -582,6 +650,7 @@ async function loadAccessStatus() {
     accessStatus = data;
     renderAccessBanners();
     applyPlanLockToCards();
+    applyAiHostLockToCard();
     applyOverlayPlanLockToCards();
   } catch (error) {
     console.warn('[PLATFORM] Access status unavailable:', error.message);
@@ -860,6 +929,7 @@ async function handlePaymentRedirectParams() {
   const paymentStatus = params.get('payment');
   const paymentId = params.get('paymentId');
   const locked = params.get('locked');
+  const aiLocked = params.get('aiLocked');
 
   if (paymentStatus === 'success' && paymentId) {
     const realStatus = await pollPaymentStatus(paymentId);
@@ -877,6 +947,14 @@ async function handlePaymentRedirectParams() {
     showSection('plansSection');
   } else if (locked === '1') {
     showSection('gamesSection');
+  } else if (aiLocked) {
+    const messages = {
+      trial: 'El Co-anfitrión IA no está disponible en la prueba gratuita. Se incluye con los planes Mensual y Anual.',
+      plan: 'Tu plan no incluye el Co-anfitrión IA. Se incluye con los planes Mensual y Anual.',
+      tokens: 'Se acabaron tus tokens de IA. Renueva tu plan Mensual o Anual para recibir más.',
+    };
+    await showAlert(messages[aiLocked] || 'El Co-anfitrión IA no está disponible con tu plan actual.', 'Co-anfitrión IA');
+    showSection('plansSection');
   }
 
   if (paymentStatus || locked) {
@@ -1348,7 +1426,7 @@ if (overlayConnectionForm) {
 // backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
 // en la conexion de cada uno, para que "un solo usuario de TikTok para toda
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
-const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl'];
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'robloxf1', 'aihost', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl'];
 
 // Una vez vinculado, el usuario de TikTok no se puede cambiar desde aqui:
 // el campo y el boton "Vincular" quedan bloqueados.

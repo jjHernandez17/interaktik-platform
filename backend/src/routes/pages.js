@@ -804,6 +804,57 @@ router.get('/roblox-fighters.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-fighters.js'));
 });
 
+// Carrera de Formula 1 (Roblox)
+router.get(['/roblox-f1', '/roblox-f1.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'robloxf1'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/roblox-f1.html', 'Carrera de F1 page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/roblox-f1.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/roblox-f1.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/roblox-f1.js'));
+});
+
+// Co-anfitrion IA
+router.get(['/ai-host', '/ai-host.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'aihost'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+
+    // Solo los planes con tokens (Mensual y Anual) entran: prueba gratuita, pase de 2 dias y tiempo asignado a mano quedan afuera,
+    // igual que quien ya gasto todos sus tokens.
+    const entitlement = await require('../services/aiHostCredit').getEntitlement(req.session?.userId || req.session?.user?.id);
+    if (!entitlement.allowed && entitlement.reason !== 'tokens') {
+      return res.redirect(`/platform.html?aiLocked=${encodeURIComponent(entitlement.reason)}`);
+    }
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/ai-host.html', 'Co-anfitrion IA page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/ai-host.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/ai-host.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/ai-host.js'));
+});
+
 // Minecraft interactivo
 router.get(['/minecraft', '/minecraft.html'], requireAuthPage, async (req, res) => {
   try {

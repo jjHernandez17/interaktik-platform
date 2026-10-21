@@ -91,11 +91,18 @@ test('guarda el regalo de mayor valor y actualiza el cache sin volver a consulta
 test('los regalos de prueba, de otros juegos o sin dueno se ignoran', async () => {
   const before = rows.size;
   tracker.handleLiveEvent(gift({ gameType: 'overlay-test', user: { uniqueId: 'falso1' } }));
-  tracker.handleLiveEvent(gift({ gameType: 'snake', user: { uniqueId: 'falso2' } }));
+  tracker.handleLiveEvent(gift({ gameType: '', user: { uniqueId: 'falso2' } }));
   tracker.handleLiveEvent(gift({ ownerKey: 'sin-formato', user: { uniqueId: 'falso3' } }));
   tracker.handleLiveEvent(gift({ giftName: '', user: { uniqueId: 'falso4' } }));
   await flush();
   assert.equal(rows.size, before);
+});
+
+test('los regalos de una conexion de juego (por ejemplo Snake) tambien se recuerdan', async () => {
+  tracker.handleLiveEvent(gift({ gameType: 'snake', ownerKey: 'user:5:snake', giftName: 'Quiéreme', user: { uniqueId: 'desde_snake' } }));
+  await flush();
+  const info = await tracker.getViewerInfo(5, 'desde_snake');
+  assert.deepEqual(info.gifts.map((g) => g.name), ['Quiéreme']);
 });
 
 test('cada streamer tiene su propio historial', async () => {

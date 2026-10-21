@@ -28,6 +28,9 @@ const paymentsRouter = require('./src/routes/payments');
 const robloxDanceRouter = require('./src/routes/robloxDanceRoutes');
 const robloxParkourRouter = require('./src/routes/robloxParkourRoutes');
 const robloxFightersRouter = require('./src/routes/robloxFightersRoutes');
+const robloxF1Router = require('./src/routes/robloxF1Routes');
+const aiHostRouter = require('./src/routes/aiHostRoutes');
+const aiHostService = require('./src/services/aiHostService');
 const referralRouter = require('./src/routes/referralRoutes');
 const minecraftRouter = require('./src/routes/minecraftRoutes');
 const minecraftCubeRouter = require('./src/routes/minecraftCubeRoutes');
@@ -123,6 +126,8 @@ app.use('/api', paymentsRouter);
 app.use('/api', robloxDanceRouter);
 app.use('/api', robloxParkourRouter);
 app.use('/api', robloxFightersRouter);
+app.use('/api', robloxF1Router);
+app.use('/api', aiHostRouter);
 app.use('/api', referralRouter);
 app.use('/api', minecraftRouter);
 app.use('/api', minecraftCubeRouter);
@@ -135,6 +140,7 @@ overlayAccumulator.start();
 overlayAutoConnect.start();
 streamStatsTracker.start();
 viewerTracker.start();
+aiHostService.start();
 
 // Server-Sent Events endpoint (para compatibilidad con EventSource del frontend)
 app.get('/events', (req, res) => {

@@ -192,7 +192,7 @@ async function reconcilePendingRewards({ referrerUserId = null, limit = 200 } = 
      FROM referrals r
      JOIN LATERAL (
        SELECT id, user_id, plan_id, amount_cents FROM payments
-       WHERE user_id = r.referred_user_id AND status = 'paid'
+       WHERE user_id = r.referred_user_id AND status = 'paid' AND kind = 'plan'
        ORDER BY paid_at ASC NULLS LAST, id ASC
        LIMIT 1
      ) pay ON true

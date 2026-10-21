@@ -7,6 +7,7 @@ const { createGiftPipeline } = require('./giftPipeline');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
 const robloxFightersService = require('./robloxFightersService');
+const robloxF1Service = require('./robloxF1Service');
 const viewerTracker = require('./viewerTracker');
 const minecraftService = require('./minecraftService');
 const minecraftCubeService = require('./minecraftCubeService');
@@ -324,6 +325,12 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
     });
   }
 
+  if (gameType === 'robloxf1' && userId) {
+    robloxF1Service.handleGift(userId, giftPayload).catch((error) => {
+      logger.error('No se pudo procesar regalo para la Carrera de F1 (Roblox)', error);
+    });
+  }
+
   if (gameType === 'minecraft' && userId) {
     minecraftService.handleGift(userId, giftPayload).catch((error) => {
       logger.warn('No se pudo procesar regalo para Minecraft', error);
@@ -352,11 +359,13 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'robloxfighters', 'roblox-fighters', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'robloxfighters', 'roblox-fighters', 'robloxf1', 'roblox-f1', 'aihost', 'ai-host', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     if (gameType === 'roblox-parkour') return 'robloxparkour';
     if (gameType === 'roblox-fighters') return 'robloxfighters';
+    if (gameType === 'roblox-f1') return 'robloxf1';
+    if (gameType === 'ai-host') return 'aihost';
     return gameType;
   }
 
@@ -384,6 +393,8 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('roblox-dance')) return 'roblox';
   if (referer.includes('roblox-parkour')) return 'robloxparkour';
   if (referer.includes('roblox-fighters')) return 'robloxfighters';
+  if (referer.includes('roblox-f1')) return 'robloxf1';
+  if (referer.includes('ai-host')) return 'aihost';
   if (referer.includes('minecraft-cubo')) return 'minecraftcubo';
   if (referer.includes('minecraft')) return 'minecraft';
   if (referer.includes('gta-rampa')) return 'gtarampa';
@@ -765,8 +776,8 @@ connection.on(WebcastEvent.CHAT, async (data) => {
 
   const chatPayload = simplifyChatEvent(data);
 
-  // El lector de comentarios (conexion de overlays) necesita saber que regalos ha mandado quien comenta
-  if (normalizedGameType === 'overlay' && userId) {
+  // El narrador de comentarios (funciona en el panel y en cualquier juego) necesita saber que regalos ha mandado quien comenta
+  if (userId) {
     chatPayload.viewer = await viewerTracker.getViewerInfo(userId, chatPayload.user.uniqueId);
   }
 
@@ -778,6 +789,12 @@ connection.on(WebcastEvent.CHAT, async (data) => {
   if (normalizedGameType === 'roblox' && userId) {
     robloxDanceService.handleChatComment(userId, chatPayload).catch((error) => {
       logger.warn('No se pudo procesar comentario para Roblox Dance', error);
+    });
+  }
+
+  if (normalizedGameType === 'robloxf1' && userId) {
+    robloxF1Service.handleChatComment(userId, chatPayload).catch((error) => {
+      logger.warn('No se pudo procesar comentario para la Carrera de F1 (Roblox)', error);
     });
   }
 

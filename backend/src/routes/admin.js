@@ -8,7 +8,7 @@ const env = require('../config/env');
 const logger = require('../config/logger');
 
 const router = express.Router();
-const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl'];
+const EDITABLE_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'robloxf1', 'aihost', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl'];
 
 function buildConnectionsMap(rows = []) {
   return rows.reduce((accumulator, row) => {
@@ -53,7 +53,7 @@ async function loadAdminUsers() {
   const paymentCountsResult = await pool.query(`
     SELECT user_id, COUNT(*)::int AS paid_count
     FROM payments
-    WHERE status = 'paid'
+    WHERE status = 'paid' AND kind = 'plan'
     GROUP BY user_id
   `);
 

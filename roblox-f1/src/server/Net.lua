@@ -1,0 +1,114 @@
+-- Comunicacion con el servidor de Interaktik (espectadores que se unen y regalos).
+-- El juego se identifica con el ID de la cuenta de Roblox del jugador, que el streamer vinculo en la pagina del juego.
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("F1Shared").Config)
+
+local Net = {}
+
+Net.robloxUserId = nil
+
+function Net.httpEnabled()
+	local ok, enabled = pcall(function()
+		return HttpService.HttpEnabled
+	end)
+	return ok and enabled == true
+end
+
+-- En Studio se prueba primero contra el backend local; fuera de Studio siempre el de produccion.
+local isStudio = RunService:IsStudio()
+local usingLocal = false
+local lastProbe = -math.huge
+
+local function baseUrl()
+	if not isStudio then
+		return Config.BaseUrl
+	end
+	if os.clock() - lastProbe >= Config.LocalProbeSec then
+		lastProbe = os.clock()
+		local ok = pcall(function()
+			return HttpService:RequestAsync({ Url = Config.LocalUrl .. Config.ApiPath .. "/session?robloxUserId=0", Method = "GET" })
+		end)
+		if ok ~= usingLocal then
+			print("[F1] Backend: " .. (ok and ("local (" .. Config.LocalUrl .. ")") or "produccion"))
+		end
+		usingLocal = ok
+	end
+	return usingLocal and Config.LocalUrl or Config.BaseUrl
+end
+
+-- Devuelve: ok, datos (o texto del error), codigo HTTP
+function Net.request(method, path, body)
+	if not Net.robloxUserId then
+		return false, "Todavia no hay una cuenta de Roblox", nil
+	end
+
+	local request = {
+		Url = baseUrl() .. Config.ApiPath .. path .. "?robloxUserId=" .. tostring(Net.robloxUserId),
+		Method = method,
+		Headers = { ["Content-Type"] = "application/json" },
+	}
+	if body ~= nil then
+		request.Body = HttpService:JSONEncode(body)
+	end
+
+	local ok, response = pcall(function()
+		return HttpService:RequestAsync(request)
+	end)
+	if not ok then
+		return false, tostring(response), nil
+	end
+
+	local data = nil
+	if response.Body and #response.Body > 0 then
+		local decodedOk, decoded = pcall(function()
+			return HttpService:JSONDecode(response.Body)
+		end)
+		if decodedOk then
+			data = decoded
+		end
+	end
+
+	if not response.Success then
+		local message = (type(data) == "table" and data.error) or ("HTTP " .. tostring(response.StatusCode))
+		return false, message, response.StatusCode
+	end
+	return true, data, response.StatusCode
+end
+
+function Net.getSession()
+	return Net.request("GET", "/session")
+end
+
+-- Espectadores nuevos y regalos. Hay que confirmarlos con ack() o el servidor los vuelve a mandar.
+function Net.pollQueue()
+	return Net.request("GET", "/queue")
+end
+
+function Net.ack(ids)
+	return (Net.request("POST", "/ack", { ids = ids }))
+end
+
+-- Resultado de una carrera (para el marcador). raceId evita contarla dos veces si el aviso se repite.
+function Net.reportResult(raceId, results)
+	if not Net.robloxUserId or not Net.httpEnabled() then
+		return
+	end
+	local top = {}
+	for i = 1, math.min(10, #results) do
+		local r = results[i]
+		table.insert(top, { uniqueId = r.id, name = r.name, place = r.place, time = r.time })
+	end
+	for _ = 1, 3 do
+		local ok = Net.request("POST", "/race-result", { raceId = raceId, results = top })
+		if ok then
+			return
+		end
+		task.wait(1)
+	end
+end
+
+return Net

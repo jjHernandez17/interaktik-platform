@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Co-anfitrión IA | Interaktik</title>
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="assets/css/design-system.css" />
+  <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
+  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261102a" />
+</head>
+
+<body class="ah-body">
+  <div id="pageLoader" class="page-loader">
+    <span class="pt-orbit pt-orbit--lg"><i><b></b></i><i><b></b></i></span>
+    <span class="ds-eyebrow">Cargando</span>
+  </div>
+
+  <!-- ===================== ESCENARIO (lo que se transmite) ===================== -->
+  <main id="stage" class="ah-stage" data-bg="studio" aria-label="Escenario del Co-anfitrión IA">
+    <div class="ah-bg" aria-hidden="true"><i class="ah-bg-a"></i><i class="ah-bg-b"></i><i class="ah-bg-floor"></i></div>
+    <div class="ah-spot" aria-hidden="true"></div>
+
+    <div id="characterWrap" class="ah-character">
+      <div id="character"></div>
+    </div>
+    <div id="fx" class="ah-fx" aria-hidden="true"></div>
+
+    <!-- estado (solo se ve con el panel abierto) -->
+    <div class="ah-status ah-ui" role="status">
+      <span id="ahChipTiktok" class="ah-chip" data-state="off"><i></i>TikTok</span>
+      <span id="ahChipAI" class="ah-chip" data-state="off"><i></i>IA</span>
+      <span id="ahChipVoice" class="ah-chip" data-state="off"><i></i>Voz</span>
+    </div>
+
+    <div class="ah-toolbar ah-ui">
+      <button id="ahTogglePanel" class="ah-icon-btn" type="button" title="Mostrar u ocultar el panel (tecla H)" aria-label="Panel de ajustes">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+      </button>
+      <button id="ahClean" class="ah-icon-btn" type="button" title="Modo transmisión: oculta todo menos el escenario (tecla H)" aria-label="Modo transmisión">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" /></svg>
+      </button>
+      <button id="ahFullscreen" class="ah-icon-btn" type="button" title="Pantalla completa (tecla F)" aria-label="Pantalla completa">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>
+      </button>
+    </div>
+
+    <div id="alerts" class="ah-alerts" aria-live="polite"></div>
+    <div id="chat" class="ah-chat" aria-hidden="true"></div>
+
+    <div id="subtitle" class="ah-subtitle" aria-live="polite">
+      <span id="subName" class="ah-sub-name">Nova</span>
+      <p id="subText"></p>
+    </div>
+
+    <button id="ahVoiceVeil" class="ah-veil ah-ui" type="button">🔊 Toca aquí para activar la voz</button>
+  </main>
+
+  <!-- ===================== PANEL DE AJUSTES ===================== -->
+  <aside id="drawer" class="ah-drawer" aria-label="Ajustes del Co-anfitrión IA">
+    <header class="ah-drawer-head">
+      <a class="ah-back" href="platform.html">← Volver</a>
+      <h1>Co-anfitrión IA</h1>
+      <p class="pk-hint">Un personaje de caricatura con IA que es el centro de tu live: lee el chat, responde, agradece regalos, gesticula y baila.</p>
+      <label class="ah-switch">
+        <input id="ahEnabled" type="checkbox" />
+        <span class="ah-switch-track"><span class="ah-switch-thumb"></span></span>
+        <span id="ahEnabledLabel" class="ah-switch-label">Agente apagado</span>
+      </label>
+    </header>
+
+    <div class="ah-drawer-body">
+
+      <details class="ah-sec" open>
+        <summary>Conexión con TikTok</summary>
+        <p id="ahConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
+        <span id="ahConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
+        <form id="ahConnectionForm" class="pk-inline-form">
+          <input id="ahUsernameInput" type="text" placeholder="Vincula tu cuenta desde Juegos" readonly disabled />
+          <button id="ahConnectLiveBtn" class="btn primary" type="button">Conectar</button>
+          <button id="ahDisconnectBtn" class="btn ghost" type="button">Desconectar</button>
+        </form>
+        <p class="pk-hint">Para transmitir: captura esta ventana en TikTok LIVE Studio y pulsa el botón de <b>modo transmisión</b> (o la tecla H) para ocultar el panel.</p>
+      </details>
+
+      <form id="ahForm" autocomplete="off">
+
+        <details class="ah-sec" open>
+          <summary>Personaje y escenario</summary>
+          <div class="ah-grid">
+            <label class="pk-field">
+              <span class="pk-label">Personaje</span>
+              <select id="ahCharacter"></select>
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Color principal</span>
+              <input id="ahAccent" type="color" />
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Escenario</span>
+              <select id="ahBackground"></select>
+            </label>
+            <label class="ah-check ah-span2"><input id="ahShowChat" type="checkbox" /><span>Mostrar los comentarios del chat en pantalla</span></label>
+          </div>
+        </details>
+
+        <details class="ah-sec">
+          <summary>Quién es tu agente</summary>
+          <div class="ah-grid">
+            <label class="pk-field">
+              <span class="pk-label">Nombre</span>
+              <input id="ahAgentName" type="text" maxlength="30" />
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Idioma</span>
+              <select id="ahLanguage"></select>
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Personalidad</span>
+              <select id="ahTone"></select>
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Detalles extra de su personalidad (opcional)</span>
+              <textarea id="ahPersona" rows="2" maxlength="1200" placeholder="Ej.: Siempre termina con una pregunta al chat. Le encanta el café."></textarea>
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Sobre ti y tu canal</span>
+              <textarea id="ahAbout" rows="4" maxlength="1500" placeholder="Ej.: Soy Juan, hago live de Minecraft todos los días a las 8 p. m. Mi meta es llegar a 10 mil seguidores."></textarea>
+              <span class="pk-hint">Lo usa para contestar preguntas sobre ti. No escribas datos privados.</span>
+            </label>
+          </div>
+        </details>
+
+        <details class="ah-sec">
+          <summary>Cómo se comporta</summary>
+          <div class="ah-grid">
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Qué comentarios contesta</span>
+              <select id="ahReplyMode">
+                <option value="all">Todos los que valgan la pena</option>
+                <option value="questions">Solo preguntas y cuando lo mencionan</option>
+                <option value="mentions">Solo cuando dicen su nombre</option>
+              </select>
+            </label>
+            <div class="ah-toggle-row ah-span2">
+              <label class="ah-check"><input id="ahThankGifts" type="checkbox" /><span>Agradecer regalos</span></label>
+              <label class="ah-inline">desde <input id="ahMinGift" type="number" min="1" max="100000" /> monedas</label>
+            </div>
+            <label class="ah-check ah-span2"><input id="ahGreetFollowers" type="checkbox" /><span>Dar la bienvenida a nuevos seguidores y agradecer los compartidos</span></label>
+            <label class="ah-check ah-span2"><input id="ahGreetViewers" type="checkbox" /><span>Saludar a quienes entran al live (mucho en lives grandes)</span></label>
+            <div class="ah-toggle-row ah-span2">
+              <label class="ah-check"><input id="ahProactive" type="checkbox" /><span>Animar el chat y dar consejos en los silencios</span></label>
+              <label class="ah-inline">cada <input id="ahProactiveMinutes" type="number" min="1" max="30" /> min</label>
+            </div>
+            <label class="pk-field">
+              <span class="pk-label">Pausa entre respuestas (s)</span>
+              <input id="ahCadence" type="number" min="4" max="60" />
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Largo máximo</span>
+              <input id="ahMaxChars" type="number" min="80" max="400" step="10" />
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Palabras que nunca debe decir (separadas por coma)</span>
+              <input id="ahBanned" type="text" maxlength="600" placeholder="palabra1, palabra2" />
+            </label>
+          </div>
+        </details>
+
+        <details class="ah-sec">
+          <summary>Voz</summary>
+          <div class="ah-grid">
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Voz (usa las de tu navegador)</span>
+              <select id="ahVoice"></select>
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Velocidad <b id="ahRateOut">1.0</b></span>
+              <input id="ahRate" type="range" min="0.6" max="1.6" step="0.05" />
+            </label>
+            <label class="pk-field">
+              <span class="pk-label">Tono <b id="ahPitchOut">1.0</b></span>
+              <input id="ahPitch" type="range" min="0.5" max="1.8" step="0.05" />
+            </label>
+            <label class="pk-field ah-span2">
+              <span class="pk-label">Volumen <b id="ahVolumeOut">100%</b></span>
+              <input id="ahVolume" type="range" min="0" max="1" step="0.05" />
+            </label>
+            <label class="ah-check ah-span2"><input id="ahSpeakHere" type="checkbox" checked /><span>Hablar en voz alta desde esta pestaña</span></label>
+            <div class="ah-span2 ah-row">
+              <button id="ahTestVoiceBtn" class="btn ghost" type="button">Probar la voz</button>
+              <span id="ahVoiceNote" class="pk-hint"></span>
+            </div>
+          </div>
+        </details>
+
+        <details class="ah-sec">
+          <summary>Inteligencia</summary>
+          <label class="pk-field">
+            <span class="pk-label">Modelo</span>
+            <select id="ahModel"></select>
+          </label>
+          <p class="pk-hint" id="ahModelHint"></p>
+        </details>
+
+        <div class="ah-save-row">
+          <button id="ahSaveBtn" class="btn primary" type="submit">Guardar cambios</button>
+          <span id="ahSaveState" class="ah-save-state" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <details class="ah-sec" open>
+        <summary>En vivo y pruebas</summary>
+        <div class="ah-stats">
+          <div><span class="pk-label">Respuestas hoy</span><strong id="ahStatCalls">0</strong><small id="ahStatCap">de 2000</small></div>
+          <div><span class="pk-label">En cola</span><strong id="ahStatQueue">0</strong><small>por leer</small></div>
+          <div><span class="pk-label">Gasto hoy</span><strong id="ahStatCost">$0.00</strong><small>de IA</small></div>
+          <div class="ah-stat-wide"><span class="pk-label">Tokens de tu plan</span><strong id="ahStatTokens">—</strong><small id="ahStatTokensNote">se descuentan al responder</small><button id="ahTopupOpen" class="btn primary ah-topup-btn" type="button">🪙 Recargar créditos</button></div>
+        </div>
+        <p id="ahStatusNote" class="ah-notice" hidden></p>
+
+        <div class="ah-test">
+          <div class="pk-inline-form">
+            <input id="ahTestText" type="text" maxlength="200" placeholder="Escribe un comentario de prueba..." />
+            <button id="ahTestCommentBtn" class="btn primary" type="button">Enviar</button>
+          </div>
+          <div class="ah-row">
+            <button id="ahTestGiftBtn" class="btn ghost" type="button">Regalo de prueba</button>
+            <button id="ahTestFollowBtn" class="btn ghost" type="button">Seguidor de prueba</button>
+            <button id="ahResetBtn" class="btn ghost" type="button" title="El agente olvida lo que ya dijo">Borrar memoria</button>
+          </div>
+        </div>
+
+        <ol id="ahFeed" class="ah-feed" aria-live="polite">
+          <li class="ah-feed-empty">Todavía no ha dicho nada. Envía una prueba.</li>
+        </ol>
+      </details>
+
+      <details class="ah-sec">
+        <summary>Estudio de animación (sin IA)</summary>
+        <p class="pk-hint">Mira cómo se mueve tu personaje sin gastar nada.</p>
+        <span class="pk-label">Acciones</span>
+        <div id="ahActionBtns" class="ah-chips"></div>
+        <span class="pk-label">Emociones</span>
+        <div id="ahEmotionBtns" class="ah-chips"></div>
+        <button id="ahDemoBtn" class="btn ghost" type="button">Demostración con frases de ejemplo</button>
+      </details>
+    </div>
+  </aside>
+
+  <script src="js/config.js?v=20260606c"></script>
+  <script src="js/runtime.js?v=20261009g"></script>
+  <script src="js/dialog.js"></script>
+  <script src="js/ai-character.js?v=20261102a"></script>
+  <div id="ahTopup" class="ah-modal" data-step="gateway" hidden role="dialog" aria-modal="true" aria-labelledby="ahTopupTitle">
+    <div class="ah-modal-card">
+      <header class="ah-modal-head">
+        <button id="ahTopupBack" class="ah-icon-btn" type="button" aria-label="Volver" hidden>←</button>
+        <h2 id="ahTopupTitle">Recargar créditos</h2>
+        <button id="ahTopupClose" class="ah-icon-btn" type="button" aria-label="Cerrar">✕</button>
+      </header>
+
+      <section class="ah-modal-step" data-show="gateway">
+        <p class="pk-hint">Elige cómo quieres pagar.</p>
+        <div class="ah-gateways">
+          <button type="button" class="ah-gateway" data-gateway="wompi"><strong>Wompi</strong><small>—</small></button>
+          <button type="button" class="ah-gateway" data-gateway="mercadopago"><strong>Mercado Pago</strong><small>—</small></button>
+        </div>
+      </section>
+
+      <section class="ah-modal-step" data-show="budget">
+        <label class="ah-field">
+          <span class="pk-label">¿Cuál es tu presupuesto? (USD) · pagas con <b id="ahTopupGatewayName">—</b></span>
+          <div class="ah-money"><span>$</span><input id="ahTopupBudget" type="number" inputmode="decimal" step="1" placeholder="10" /><em>USD</em></div>
+        </label>
+        <div class="ah-chips">
+          <button type="button" class="ah-chip-btn" data-amount="5">$5</button>
+          <button type="button" class="ah-chip-btn" data-amount="10">$10</button>
+          <button type="button" class="ah-chip-btn" data-amount="20">$20</button>
+          <button type="button" class="ah-chip-btn" data-amount="50">$50</button>
+          <small id="ahTopupRange" class="pk-hint"></small>
+        </div>
+
+        <div class="ah-quote" aria-live="polite">
+          <div class="ah-quote-main"><span class="pk-label">Tu presupuesto da</span><strong id="ahTopupTokens">—</strong><small>tokens</small></div>
+          <div class="ah-quote-rows">
+            <div><span>Agente Haiku 5.5 <small>rápido y económico</small></span><b><span id="ahTopupHaiku">—</span> respuestas</b></div>
+            <div><span>Agente Sonnet 5.5 <small>más listo, gasta 20× más</small></span><b><span id="ahTopupSonnet">—</span> respuestas</b></div>
+          </div>
+          <p class="pk-hint">Cada respuesta del agente puede atender varios comentarios del chat a la vez. Valores aproximados: dependen de qué tan largas sean las respuestas.</p>
+          <p id="ahTopupCharge" class="pk-hint ah-quote-charge"></p>
+        </div>
+        <button id="ahTopupPay" class="btn primary ah-pay" type="button" disabled>Pagar</button>
+      </section>
+      <p id="ahTopupError" class="ah-modal-error" role="alert"></p>
+    </div>
+  </div>
+  <script src="js/ai-host.js?v=20261102a"></script>
+  <script src="js/ai-host-topup.js?v=20261102a"></script>
+</body>
+
+</html>

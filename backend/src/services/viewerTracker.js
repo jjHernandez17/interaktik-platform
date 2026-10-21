@@ -2,8 +2,8 @@
 // "Lector de comentarios" pueda decidir a quien leer. Es un suscriptor pasivo del mismo hub de eventos que usa
 // overlayAccumulator: no toca liveHub.js ni el flujo de regalos de los juegos.
 //
-// Solo mira la conexion de overlays (gameType 'overlay'); los regalos de prueba ('overlay-test') se ignoran para que
-// "Enviar regalo de prueba" no deje espectadores falsos en el historial.
+// Mira la conexion de CUALQUIER juego u overlay (el narrador de comentarios funciona en todos); los regalos de prueba
+// ('overlay-test') se ignoran para que "Enviar regalo de prueba" no deje espectadores falsos en el historial.
 
 'use strict';
 
@@ -11,7 +11,7 @@ const { hub } = require('./liveHub');
 const pool = require('../database/pool');
 const logger = require('../config/logger');
 
-const WATCHED_GAME_TYPE = 'overlay';
+const IGNORED_GAME_TYPE = 'overlay-test';
 const OWNER_KEY_PATTERN = /^user:(\d+):/;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 20000;
@@ -137,7 +137,7 @@ function rememberFollow(userId, user) {
 }
 
 function handleLiveEvent({ eventName, payload }) {
-  if (!payload || payload.gameType !== WATCHED_GAME_TYPE) return;
+  if (!payload || !payload.gameType || payload.gameType === IGNORED_GAME_TYPE) return;
 
   const userId = extractUserId(payload.ownerKey);
   if (!userId) return;

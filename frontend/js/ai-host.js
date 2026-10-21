@@ -58,6 +58,9 @@ const el = {
   volumeOut: $('ahVolumeOut'),
   speakHere: $('ahSpeakHere'),
   testVoice: $('ahTestVoiceBtn'),
+  voiceMode: $('ahVoiceMode'),
+  voiceModeHint: $('ahVoiceModeHint'),
+  voiceBrowserField: $('ahVoiceBrowserField'),
   voiceNote: $('ahVoiceNote'),
   model: $('ahModel'),
   modelHint: $('ahModelHint'),
@@ -251,8 +254,87 @@ function pickVoice() {
   return candidates.find((voice) => /natural|online|neural|google/i.test(voice.name)) || candidates[0] || null;
 }
 
+// ---- Voz realista con IA (gasta tokens) ----
+// Pide el audio al servidor y lo reproduce moviendo la boca al ritmo del sonido. Si falla (sin clave, sin tokens, red), devuelve false y
+// se usa la "voz sin costo" del navegador.
+let aiVoiceBlocked = false; // true cuando el servidor dijo que no hay voz IA disponible: no se vuelve a intentar hasta recargar
+let voiceAudio = null;
+
+function voiceMode() {
+  return el.voiceMode?.value === 'ai' ? 'ai' : 'free';
+}
+
+// El tipo de voz se guarda en este navegador (no en el servidor). Por defecto es la voz sin costo, para no gastar tokens sin que lo elijas.
+function paintVoiceMode() {
+  const ai = voiceMode() === 'ai';
+  el.voiceBrowserField.hidden = ai;
+  el.voiceModeHint.textContent = ai
+    ? 'Suena natural y con el carácter de tu personaje. Cada frase gasta tokens de tu plan (si no hay, usa la voz sin costo).'
+    : 'Gratis: usa la voz de tu navegador. Suena más robótica.';
+}
+
+function initVoiceMode() {
+  try { el.voiceMode.value = localStorage.getItem('ah.voiceMode') === 'ai' ? 'ai' : 'free'; } catch (error) { /* sin almacenamiento */ }
+  paintVoiceMode();
+  el.voiceMode.addEventListener('change', () => {
+    aiVoiceBlocked = false;
+    try { localStorage.setItem('ah.voiceMode', el.voiceMode.value); } catch (error) { /* sin almacenamiento */ }
+    paintVoiceMode();
+  });
+}
+
+async function sayWithAiVoice(text) {
+  if (aiVoiceBlocked || !userGesture || el.volume.value === '0') return false;
+  let blobUrl = null;
+  try {
+    const response = await fetch('/api/ai-host/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, speed: Number(el.rate.value) || 1 }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (['NO_VOICE_KEY', 'NO_TOKENS'].includes(data.code)) {
+        aiVoiceBlocked = true;
+        showNotice(data.code === 'NO_TOKENS' ? 'Ya no te quedan tokens para la voz con IA: se usa la voz sin costo.' : 'La voz con IA todavía no está disponible: se usa la voz sin costo.', 'warn');
+      }
+      return false;
+    }
+    const left = response.headers.get('X-Voice-Tokens-Left');
+    const blob = await response.blob();
+    blobUrl = URL.createObjectURL(blob);
+
+    await new Promise((resolve, reject) => {
+      const audio = new Audio(blobUrl);
+      voiceAudio = audio;
+      audio.volume = Number(el.volume.value);
+      let timer = null;
+      const done = () => { clearInterval(timer); resolve(); };
+      audio.onended = done;
+      audio.onpause = done;
+      audio.onerror = () => { clearInterval(timer); reject(new Error('audio')); };
+      // la boca late mientras suena (no hay "limites de palabra" como en la voz del navegador)
+      audio.onplaying = () => { timer = setInterval(() => rig?.pulseWord(0.7 + Math.random() * 0.6), 180); };
+      audio.play().catch(reject);
+    });
+    if (left !== null && left !== '') paintTokens({ tokensRemaining: Number(left), approxResponses: { haiku: Math.floor(Number(left) / 1500), sonnet: Math.floor(Number(left) / 30000) } });
+    return true;
+  } catch (error) {
+    return false;
+  } finally {
+    voiceAudio = null;
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+  }
+}
+
 // Dice el texto; devuelve una promesa que termina cuando acaba la voz (o el tiempo estimado si no hay voz)
-function say(text, estimatedMs) {
+async function say(text, estimatedMs) {
+  if (voiceMode() === 'ai' && el.speakHere.checked && (await sayWithAiVoice(text))) return;
+  return sayFree(text, estimatedMs);
+}
+
+// "Voz sin costo": la voz del navegador (Web Speech)
+function sayFree(text, estimatedMs) {
   const fallbackMs = Math.max(1500, Number(estimatedMs) || text.length * 62 + 700);
   if (!window.speechSynthesis || !el.speakHere.checked || !userGesture || el.volume.value === '0') return wait(fallbackMs);
 
@@ -802,6 +884,7 @@ function typing(target) {
 function testVoice() {
   unlockSpeech();
   window.speechSynthesis?.cancel();
+  voiceAudio?.pause();
   const name = el.agentName.value.trim() || 'Nova';
   const text = el.language.value === 'en' ? `Hi everyone! I'm ${name}, and I'll be reading your chat today.` : el.language.value === 'pt' ? `Oi pessoal! Eu sou ${name} e vou ler o chat de vocês hoje.` : `¡Hola a todos! Soy ${name} y hoy voy a leer el chat con ustedes.`;
   enqueueTalk({ text, emotion: 'feliz', action: 'saludar', agentName: name });
@@ -822,6 +905,7 @@ function bindEvents() {
     input.addEventListener('change', () => { ensureRig(); paintStage(); });
   }
   el.speakHere.addEventListener('change', paintChips);
+  initVoiceMode();
   el.testVoice.addEventListener('click', testVoice);
 
   el.testComment.addEventListener('click', () => {

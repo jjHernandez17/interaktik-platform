@@ -213,7 +213,15 @@
           <summary><span class="ah-sec-ico" aria-hidden="true">🎙️</span><span class="ah-sec-title">Voz</span></summary>
           <div class="ah-grid">
             <label class="pk-field ah-span2">
-              <span class="pk-label">Voz (usa las de tu navegador)</span>
+              <span class="pk-label">Tipo de voz</span>
+              <select id="ahVoiceMode">
+                <option value="free">Voz sin costo (la de tu navegador)</option>
+                <option value="ai">Voz realista con IA (gasta tokens)</option>
+              </select>
+              <span id="ahVoiceModeHint" class="pk-hint"></span>
+            </label>
+            <label id="ahVoiceBrowserField" class="pk-field ah-span2">
+              <span class="pk-label">Voz del navegador</span>
               <select id="ahVoice"></select>
             </label>
             <label class="pk-field">
@@ -317,7 +325,7 @@
       <p id="ahTopupError" class="ah-modal-error" role="alert"></p>
     </div>
   </div>
-  <script src="js/ai-host.js?v=20261102a"></script>
+  <script src="js/ai-host.js?v=20261104a"></script>
   <script src="js/ai-host-topup.js?v=20261104a"></script>
 </body>
 

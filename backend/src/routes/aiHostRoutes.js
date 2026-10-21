@@ -8,6 +8,7 @@ const { requireAuth, requireActiveAccess, getSessionUserId } = require('../middl
 const aiHostService = require('../services/aiHostService');
 const aiHostPrompt = require('../services/aiHostPrompt');
 const aiHostCredit = require('../services/aiHostCredit');
+const aiHostVoice = require('../services/aiHostVoice');
 const { normalizeError } = require('../utils/normalize');
 const logger = require('../config/logger');
 
@@ -47,6 +48,45 @@ function catalogs() {
 }
 
 // Para la plataforma y la pagina: si puede entrar, cuantos tokens le quedan y por que no (si esta bloqueado)
+// Voz realista (IA). Cuesta tokens del usuario (estimados por caracteres); si no hay clave, tokens o falla el servicio, la pagina
+// usa la "voz sin costo" del navegador. El personaje sale de la configuracion guardada, no de lo que mande el navegador.
+router.post('/ai-host/speak', requireAuth, requireActiveAccess, requireAiAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!aiHostVoice.isConfigured()) {
+      return res.status(503).json({ error: 'La voz con IA todavía no está configurada en el servidor.', code: 'NO_VOICE_KEY' });
+    }
+    if (!aiHostVoice.allowRequest(userId)) {
+      return res.status(429).json({ error: 'Demasiadas frases seguidas. Espera un momento.', code: 'VOICE_RATE' });
+    }
+
+    const text = aiHostVoice.cleanText(req.body?.text);
+    if (!text) return res.status(400).json({ error: 'No hay nada que decir.' });
+
+    const entitlement = await aiHostCredit.getEntitlement(userId);
+    const cost = aiHostVoice.estimateTokens(text, aiHostCredit.TOKENS_PER_USD);
+    if (!entitlement.unlimited && entitlement.tokensRemaining < cost) {
+      return res.status(402).json({ error: 'No te quedan tokens para la voz con IA.', code: 'NO_TOKENS' });
+    }
+
+    const config = await aiHostService.getOrCreateConfig(userId);
+    const { audio, cached } = await aiHostVoice.synthesize({ text, characterId: config.character, speed: req.body?.speed });
+
+    let tokensLeft = entitlement.tokensRemaining;
+    if (!cached && !entitlement.unlimited) tokensLeft = await aiHostCredit.consume(userId, cost);
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Cache-Control': 'no-store',
+      'X-Voice-Tokens-Left': String(tokensLeft ?? ''),
+    });
+    return res.send(audio);
+  } catch (error) {
+    if (error.detail) logger.error(`Voz IA: ${error.message} ${error.detail}`);
+    return sendError(res, error, 'Error generando la voz con IA');
+  }
+});
+
 router.get('/ai-host/entitlement', requireAuth, async (req, res) => {
   try {
     return res.json(await aiHostCredit.getEntitlement(getSessionUserId(req)));

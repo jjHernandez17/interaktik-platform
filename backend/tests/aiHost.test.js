@@ -491,3 +491,34 @@ test('la recarga suma el costo de transaccion al presupuesto y los tokens salen 
   assert.equal(quote.totalCents, quote.usdCents + quote.feeCents);
   assert.equal(quote.tokens, 10 * credit.TOPUP_TOKENS_PER_USD);
 });
+
+test('la voz con IA: pide el audio con la voz del personaje, usa cache y falla limpio sin clave', async () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  voice._cache.clear();
+  const calls = [];
+  const fakeFetch = async (url, options) => {
+    calls.push(JSON.parse(options.body));
+    return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+  };
+
+  delete process.env.OPENAI_API_KEY;
+  await assert.rejects(() => voice.synthesize({ text: 'hola', characterId: 'mochi', fetchImpl: fakeFetch }), (error) => error.code === 'NO_VOICE_KEY' && error.status === 503);
+
+  process.env.OPENAI_API_KEY = 'sk-test';
+  const first = await voice.synthesize({ text: '  ¡Hola   chat!  ', characterId: 'mochi', speed: 5, fetchImpl: fakeFetch });
+  assert.equal(first.cached, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].voice, voice.VOICE_PROFILES.mochi.voice);
+  assert.match(calls[0].instructions, /gatito/);
+  assert.equal(calls[0].input, '¡Hola chat!');
+  assert.equal(calls[0].speed, 1.3); // la velocidad se limita
+
+  const again = await voice.synthesize({ text: '¡Hola chat!', characterId: 'mochi', speed: 1.3, fetchImpl: fakeFetch });
+  assert.equal(again.cached, true);
+  assert.equal(calls.length, 1, 'la misma frase no vuelve a costar');
+  delete process.env.OPENAI_API_KEY;
+
+  assert.ok(voice.estimateTokens('a'.repeat(100), 10000000) > voice.estimateTokens('a'.repeat(10), 10000000));
+  for (let i = 0; i < 24; i += 1) assert.equal(voice.allowRequest(999), true);
+  assert.equal(voice.allowRequest(999), false, 'tope por minuto');
+});

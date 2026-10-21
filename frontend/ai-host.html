@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
-  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261102a" />
+  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261103a" />
 </head>
 
 <body class="ah-body">
@@ -73,8 +73,20 @@
 
     <div class="ah-drawer-body">
 
-      <details class="ah-sec" open>
-        <summary>Conexión con TikTok</summary>
+      <section class="ah-credit" aria-label="Tus créditos de IA">
+        <div class="ah-credit-top">
+          <span class="ah-credit-coin" aria-hidden="true">🪙</span>
+          <div class="ah-credit-text">
+            <span class="ah-credit-label">Tokens de tu plan</span>
+            <strong id="ahStatTokens">—</strong>
+          </div>
+          <button id="ahTopupOpen" class="ah-topup-btn" type="button">Recargar</button>
+        </div>
+        <small id="ahStatTokensNote">se descuentan al responder</small>
+      </section>
+
+      <details class="ah-sec" data-tone="cyan" open>
+        <summary><span class="ah-sec-ico" aria-hidden="true">🔗</span><span class="ah-sec-title">Conexión con TikTok</span></summary>
         <p id="ahConnectionDetails" class="pk-hint">Vincula tu usuario de TikTok desde la sección "Juegos" del panel.</p>
         <span id="ahConnectionStatusBadge" class="status-badge disconnected">Desvinculado</span>
         <form id="ahConnectionForm" class="pk-inline-form">
@@ -85,10 +97,38 @@
         <p class="pk-hint">Para transmitir: captura esta ventana en TikTok LIVE Studio y pulsa el botón de <b>modo transmisión</b> (o la tecla H) para ocultar el panel.</p>
       </details>
 
+      <details class="ah-sec" data-tone="green" open>
+        <summary><span class="ah-sec-ico" aria-hidden="true">📡</span><span class="ah-sec-title">En vivo y pruebas</span></summary>
+        <div class="ah-stats">
+          <div><span class="pk-label">Respuestas hoy</span><strong id="ahStatCalls">0</strong><small id="ahStatCap">de 2000</small></div>
+          <div><span class="pk-label">En cola</span><strong id="ahStatQueue">0</strong><small>por leer</small></div>
+          <div><span class="pk-label">Gasto hoy</span><strong id="ahStatCost">$0.00</strong><small>de IA</small></div>
+                  </div>
+        <p id="ahStatusNote" class="ah-notice" hidden></p>
+
+        <div class="ah-test">
+          <div class="pk-inline-form">
+            <input id="ahTestText" type="text" maxlength="200" placeholder="Escribe un comentario de prueba..." />
+            <button id="ahTestCommentBtn" class="btn primary" type="button">Enviar</button>
+          </div>
+          <div class="ah-row">
+            <button id="ahTestGiftBtn" class="btn ghost" type="button">Regalo de prueba</button>
+            <button id="ahTestFollowBtn" class="btn ghost" type="button">Seguidor de prueba</button>
+            <button id="ahResetBtn" class="btn ghost" type="button" title="El agente olvida lo que ya dijo">Borrar memoria</button>
+          </div>
+        </div>
+
+        <ol id="ahFeed" class="ah-feed" aria-live="polite">
+          <li class="ah-feed-empty">Todavía no ha dicho nada. Envía una prueba.</li>
+        </ol>
+      </details>
+
+      <p class="ah-group-title">Ajustes del agente</p>
+
       <form id="ahForm" autocomplete="off">
 
-        <details class="ah-sec" open>
-          <summary>Personaje y escenario</summary>
+        <details class="ah-sec" data-tone="violet" open>
+          <summary><span class="ah-sec-ico" aria-hidden="true">🎭</span><span class="ah-sec-title">Personaje y escenario</span></summary>
           <div class="ah-grid">
             <label class="pk-field">
               <span class="pk-label">Personaje</span>
@@ -106,8 +146,8 @@
           </div>
         </details>
 
-        <details class="ah-sec">
-          <summary>Quién es tu agente</summary>
+        <details class="ah-sec" data-tone="pink">
+          <summary><span class="ah-sec-ico" aria-hidden="true">🪪</span><span class="ah-sec-title">Quién es tu agente</span></summary>
           <div class="ah-grid">
             <label class="pk-field">
               <span class="pk-label">Nombre</span>
@@ -133,8 +173,8 @@
           </div>
         </details>
 
-        <details class="ah-sec">
-          <summary>Cómo se comporta</summary>
+        <details class="ah-sec" data-tone="amber">
+          <summary><span class="ah-sec-ico" aria-hidden="true">⚙️</span><span class="ah-sec-title">Cómo se comporta</span></summary>
           <div class="ah-grid">
             <label class="pk-field ah-span2">
               <span class="pk-label">Qué comentarios contesta</span>
@@ -169,8 +209,8 @@
           </div>
         </details>
 
-        <details class="ah-sec">
-          <summary>Voz</summary>
+        <details class="ah-sec" data-tone="blue">
+          <summary><span class="ah-sec-ico" aria-hidden="true">🎙️</span><span class="ah-sec-title">Voz</span></summary>
           <div class="ah-grid">
             <label class="pk-field ah-span2">
               <span class="pk-label">Voz (usa las de tu navegador)</span>
@@ -196,8 +236,8 @@
           </div>
         </details>
 
-        <details class="ah-sec">
-          <summary>Inteligencia</summary>
+        <details class="ah-sec" data-tone="violet">
+          <summary><span class="ah-sec-ico" aria-hidden="true">🧠</span><span class="ah-sec-title">Inteligencia</span></summary>
           <label class="pk-field">
             <span class="pk-label">Modelo</span>
             <select id="ahModel"></select>
@@ -211,35 +251,9 @@
         </div>
       </form>
 
-      <details class="ah-sec" open>
-        <summary>En vivo y pruebas</summary>
-        <div class="ah-stats">
-          <div><span class="pk-label">Respuestas hoy</span><strong id="ahStatCalls">0</strong><small id="ahStatCap">de 2000</small></div>
-          <div><span class="pk-label">En cola</span><strong id="ahStatQueue">0</strong><small>por leer</small></div>
-          <div><span class="pk-label">Gasto hoy</span><strong id="ahStatCost">$0.00</strong><small>de IA</small></div>
-          <div class="ah-stat-wide"><span class="pk-label">Tokens de tu plan</span><strong id="ahStatTokens">—</strong><small id="ahStatTokensNote">se descuentan al responder</small><button id="ahTopupOpen" class="btn primary ah-topup-btn" type="button">🪙 Recargar créditos</button></div>
-        </div>
-        <p id="ahStatusNote" class="ah-notice" hidden></p>
 
-        <div class="ah-test">
-          <div class="pk-inline-form">
-            <input id="ahTestText" type="text" maxlength="200" placeholder="Escribe un comentario de prueba..." />
-            <button id="ahTestCommentBtn" class="btn primary" type="button">Enviar</button>
-          </div>
-          <div class="ah-row">
-            <button id="ahTestGiftBtn" class="btn ghost" type="button">Regalo de prueba</button>
-            <button id="ahTestFollowBtn" class="btn ghost" type="button">Seguidor de prueba</button>
-            <button id="ahResetBtn" class="btn ghost" type="button" title="El agente olvida lo que ya dijo">Borrar memoria</button>
-          </div>
-        </div>
-
-        <ol id="ahFeed" class="ah-feed" aria-live="polite">
-          <li class="ah-feed-empty">Todavía no ha dicho nada. Envía una prueba.</li>
-        </ol>
-      </details>
-
-      <details class="ah-sec">
-        <summary>Estudio de animación (sin IA)</summary>
+      <details class="ah-sec" data-tone="pink">
+        <summary><span class="ah-sec-ico" aria-hidden="true">🎬</span><span class="ah-sec-title">Estudio de animación (sin IA)</span></summary>
         <p class="pk-hint">Mira cómo se mueve tu personaje sin gastar nada.</p>
         <span class="pk-label">Acciones</span>
         <div id="ahActionBtns" class="ah-chips"></div>

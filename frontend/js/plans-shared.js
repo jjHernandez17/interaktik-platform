@@ -56,14 +56,14 @@ const PLAN_BENEFITS = {
   monthly: [
     'Acceso completo a todos los juegos por 30 dias',
     'Overlays personalizables para OBS incluidos',
-    'Co-anfitrión IA incluido: 30 millones de tokens',
+    'Co-anfitrión IA incluido: 10 millones de tokens',
     'Soporte prioritario por Discord',
     'Cancela cuando quieras',
   ],
   yearly: [
     'Acceso completo a todos los juegos por 1 año',
     'Overlays personalizables para OBS incluidos',
-    'Co-anfitrión IA incluido: 120 millones de tokens',
+    'Co-anfitrión IA incluido: 110 millones de tokens',
     'El precio mas bajo por mes de todos los planes',
     'Soporte prioritario por Discord',
   ],

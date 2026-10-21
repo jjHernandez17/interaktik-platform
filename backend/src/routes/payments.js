@@ -249,6 +249,7 @@ router.get('/ai-host/topup/options', requireAuth, (req, res) => {
       mercadopago: mercadopagoClient.isConfigured(),
     },
     tokensPerUsd: aiHostCredit.TOPUP_TOKENS_PER_USD,
+    feePercent: aiHostCredit.TOPUP_FEE_PERCENT,
     minUsd: aiHostCredit.TOPUP_MIN_USD,
     maxUsd: aiHostCredit.TOPUP_MAX_USD,
     tokensPerResponse: aiHostCredit.AVG_TOKENS_PER_RESPONSE,
@@ -265,9 +266,16 @@ router.get('/ai-host/topup/quote', requireAuth, async (req, res) => {
     }
     let charge = null;
     if (TOPUP_GATEWAYS.includes(gateway)) {
-      charge = await topupCharge(gateway, quote.usdCents).catch(() => null);
+      charge = await topupCharge(gateway, quote.totalCents).catch(() => null);
     }
-    return res.json({ usd: quote.usdCents / 100, tokens: quote.tokens, approx: quote.approx, charge });
+    return res.json({
+      usd: quote.usdCents / 100,
+      feeUsd: quote.feeCents / 100,
+      totalUsd: quote.totalCents / 100,
+      tokens: quote.tokens,
+      approx: quote.approx,
+      charge,
+    });
   } catch (error) {
     logger.error('Error cotizando recarga de IA', error);
     return res.status(500).json({ error: normalizeError(error) });
@@ -303,7 +311,8 @@ router.post('/ai-host/topup/checkout', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Las recargas son para quienes tienen un plan Mensual o Anual. Compra uno desde Planes.' });
     }
 
-    const charge = await topupCharge(gateway, quote.usdCents);
+    // Se cobra el presupuesto + el costo de transaccion; los tokens son los del presupuesto.
+    const charge = await topupCharge(gateway, quote.totalCents);
     const amountForRecord = Math.round(charge.amount * 100);
 
     const paymentInsert = await pool.query(

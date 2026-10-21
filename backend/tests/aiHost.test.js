@@ -483,3 +483,11 @@ test('la cotizacion de una recarga: tokens por dolar, tope minimo y maximo, y re
   assert.equal(credit.quoteTopup(credit.TOPUP_MAX_USD + 1), null);
   for (const bad of ['abc', '', null, undefined, -5, NaN, Infinity]) assert.equal(credit.quoteTopup(bad), null, String(bad));
 });
+
+test('la recarga suma el costo de transaccion al presupuesto y los tokens salen solo del presupuesto', () => {
+  const credit = require(path.join(root, 'services', 'aiHostCredit.js'));
+  const quote = credit.quoteTopup(10);
+  assert.equal(quote.feeCents, Math.round(1000 * credit.TOPUP_FEE_PERCENT / 100));
+  assert.equal(quote.totalCents, quote.usdCents + quote.feeCents);
+  assert.equal(quote.tokens, 10 * credit.TOPUP_TOKENS_PER_USD);
+});

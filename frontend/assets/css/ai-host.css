@@ -470,6 +470,11 @@ body.ah-modal-open { overflow: hidden; }
 .ah-quote-rows small { display: block; color: var(--ds-text-faint, #7d8aa5); font-size: 0.7rem; }
 .ah-quote-rows b { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ah-quote .pk-hint { margin: 0; }
+.ah-bill { display: grid; gap: 6px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--ds-border, rgba(148, 163, 184, 0.2)); font-size: 0.88rem; }
+.ah-bill > div { display: flex; justify-content: space-between; gap: 10px; }
+.ah-bill b { font-variant-numeric: tabular-nums; }
+.ah-bill-total { padding-top: 8px; border-top: 1px dashed var(--ds-border, rgba(148, 163, 184, 0.3)); font-size: 1rem; font-weight: 800; }
+.ah-bill .pk-hint { margin: 0; }
 .ah-pay { width: 100%; }
 .ah-modal-error { margin: 0; color: #fca5a5; font-size: 0.84rem; }
 .ah-modal-error:empty { display: none; }

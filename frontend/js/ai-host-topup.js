@@ -65,6 +65,12 @@
     $('ahTopupTokens').textContent = valid ? fmtTokens(tokens) : '—';
     $('ahTopupHaiku').textContent = valid ? fmt(Math.floor(tokens / opts.tokensPerResponse.haiku)) : '—';
     $('ahTopupSonnet').textContent = valid ? fmt(Math.floor(tokens / opts.tokensPerResponse.sonnet)) : '—';
+    const fee = valid ? Math.round(budget * 100 * opts.feePercent / 100) / 100 : 0;
+    const usd = (value) => `$${value.toFixed(2)} USD`;
+    $('ahTopupFeePct').textContent = String(opts.feePercent);
+    $('ahTopupBase').textContent = valid ? usd(budget) : '—';
+    $('ahTopupFee').textContent = valid ? usd(fee) : '—';
+    $('ahTopupTotal').textContent = valid ? usd(budget + fee) : '—';
     $('ahTopupPay').disabled = !valid;
     $('ahTopupCharge').textContent = '';
     $('ahTopupError').textContent = $('ahTopupBudget').value && !valid ? `El presupuesto debe estar entre $${opts.minUsd} y $${opts.maxUsd} USD.` : '';
@@ -79,7 +85,7 @@
         const data = await response.json();
         if (seq !== state.quoteSeq || !response.ok || !data.charge) return;
         const money = new Intl.NumberFormat('es', { style: 'currency', currency: data.charge.currency, maximumFractionDigits: data.charge.currency === 'COP' ? 0 : 2 }).format(data.charge.amount);
-        $('ahTopupCharge').textContent = `Se cobrarán ≈ ${money} (${data.charge.currency}) según el cambio de hoy`;
+        $('ahTopupCharge').textContent = `En ${data.charge.currency} serán ≈ ${money} según el cambio de hoy.`;
       } catch (error) { /* es solo informativo */ }
     }, 350);
   }

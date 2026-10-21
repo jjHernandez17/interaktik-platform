@@ -23,9 +23,11 @@ const TOKENS_PER_USD = 10000000;
 const MIN_TOKENS_TO_RUN = { 'claude-haiku-5-5': 4000, 'claude-sonnet-5-5': 80000 };
 const AVG_TOKENS_PER_RESPONSE = { haiku: 1500, sonnet: 30000 };
 
-// Recargas: cuantos tokens da cada dolar de presupuesto. Es un poco menos que lo que rinde un plan (2 M por dolar) porque aqui se paga
-// sin suscripcion: 1.5 M tokens cuestan 0.15 USD de IA real, es decir ~15 % de lo cobrado. Se puede ajustar con AI_HOST_TOPUP_TOKENS_PER_USD.
-const TOPUP_TOKENS_PER_USD = Math.max(100000, Number(process.env.AI_HOST_TOPUP_TOKENS_PER_USD) || 1500000);
+// Recargas: cada dolar de presupuesto da 6 M de tokens = $0.60 de IA real; el resto ($0.40 por dolar) es de la plataforma. Aparte del
+// presupuesto se cobra un costo de transaccion (11 %) que cubre la pasarela. Se pueden ajustar con AI_HOST_TOPUP_TOKENS_PER_USD y
+// AI_HOST_TOPUP_FEE_PERCENT.
+const TOPUP_TOKENS_PER_USD = Math.max(100000, Number(process.env.AI_HOST_TOPUP_TOKENS_PER_USD) || 6000000);
+const TOPUP_FEE_PERCENT = Math.min(50, Math.max(0, Number(process.env.AI_HOST_TOPUP_FEE_PERCENT ?? 11)));
 const TOPUP_MIN_USD = 2;
 const TOPUP_MAX_USD = 100;
 const LOW_TOKENS_WARNING = 0.1; // avisa cuando queda el 10 % de lo que se le dio
@@ -51,7 +53,9 @@ function quoteTopup(budgetUsd) {
   const usdCents = Math.round(Number(budgetUsd) * 100);
   if (!Number.isFinite(usdCents) || usdCents < TOPUP_MIN_USD * 100 || usdCents > TOPUP_MAX_USD * 100) return null;
   const tokens = Math.floor((usdCents * TOPUP_TOKENS_PER_USD) / 100);
-  return { usdCents, tokens, approx: approxResponses(tokens) };
+  // costo de transaccion: se suma al presupuesto (los tokens se calculan solo sobre el presupuesto)
+  const feeCents = Math.round((usdCents * TOPUP_FEE_PERCENT) / 100);
+  return { usdCents, feeCents, totalCents: usdCents + feeCents, tokens, approx: approxResponses(tokens) };
 }
 
 async function getCredit(db, userId) {
@@ -217,6 +221,7 @@ module.exports = {
   LOW_TOKENS_WARNING,
   LOCK_MESSAGES,
   TOPUP_TOKENS_PER_USD,
+  TOPUP_FEE_PERCENT,
   TOPUP_MIN_USD,
   TOPUP_MAX_USD,
   quoteTopup,

@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
-  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261103a" />
+  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261104a" />
 </head>
 
 <body class="ah-body">
@@ -304,6 +304,12 @@
             <div><span>Agente Sonnet 5.5 <small>más listo, gasta 20× más</small></span><b><span id="ahTopupSonnet">—</span> respuestas</b></div>
           </div>
           <p class="pk-hint">Cada respuesta del agente puede atender varios comentarios del chat a la vez. Valores aproximados: dependen de qué tan largas sean las respuestas.</p>
+        </div>
+
+        <div class="ah-bill" aria-live="polite">
+          <div><span>Presupuesto</span><b id="ahTopupBase">—</b></div>
+          <div><span>Costo de transacción (<span id="ahTopupFeePct">11</span> %)</span><b id="ahTopupFee">—</b></div>
+          <div class="ah-bill-total"><span>Total a pagar</span><b id="ahTopupTotal">—</b></div>
           <p id="ahTopupCharge" class="pk-hint ah-quote-charge"></p>
         </div>
         <button id="ahTopupPay" class="btn primary ah-pay" type="button" disabled>Pagar</button>
@@ -312,7 +318,7 @@
     </div>
   </div>
   <script src="js/ai-host.js?v=20261102a"></script>
-  <script src="js/ai-host-topup.js?v=20261102a"></script>
+  <script src="js/ai-host-topup.js?v=20261104a"></script>
 </body>
 
 </html>

@@ -307,6 +307,19 @@
           <path d="M16 52 C24 62 22 82 6 88 C-8 92 -22 82 -20 64 C-19 56 -14 52 -12 52 Z" fill="url(#cjSkinArm)" class="o"/>
           <path d="M9 78 L9 88 M0 80 L0 90 M-9 78 L-9 88" stroke="#5e3720" stroke-width="2.5" class="fx" opacity=".7"/>
           <path d="M17 62 C27 66 24 78 16 78" fill="none" class="o2"/>
+          <!-- arma de CJ (se ve solo al disparar; sale de frente, apuntando a la camara) -->
+          <g id="cjGun" class="hidden" transform="translate(-14 62)">
+            <rect x="-9" y="2" width="18" height="24" rx="5" fill="#23252b" class="o2"/>
+            <rect x="-16" y="-20" width="32" height="26" rx="6" fill="#3a3d46" class="o2"/>
+            <rect x="-13" y="-18" width="26" height="6" rx="3" fill="#7a8090"/>
+            <circle cx="0" cy="-7" r="8.5" fill="#101114" class="o2"/><circle cx="0" cy="-7" r="4.5" fill="#000"/>
+            <rect x="-2.5" y="-25" width="5" height="6" rx="1.5" fill="#2a2c33" class="o2"/>
+            <g id="cjFlash" opacity="0" transform="translate(0 -7) scale(0)">
+              <path d="M0 -44 L9 -14 L40 -22 L16 -2 L44 16 L12 10 L16 42 L0 20 L-16 42 L-12 10 L-44 16 L-16 -2 L-40 -22 L-9 -14 Z" fill="#ff9a1f"/>
+              <path d="M0 -28 L6 -9 L26 -14 L10 -1 L28 10 L8 6 L10 26 L0 12 L-10 26 L-8 6 L-28 10 L-10 -1 L-26 -14 L-6 -9 Z" fill="#ffe14d"/>
+              <circle r="9" fill="#fff"/>
+            </g>
+          </g>
         </g>
       </g>
     </g>
@@ -410,7 +423,7 @@
     bind(root) {
       const parts = {};
       for (const id of ['cjRoot', 'cjBody', 'cjHead', 'cjArmL', 'cjForeL', 'cjArmR', 'cjForeR', 'cjPupilL', 'cjPupilR', 'cjHeartL', 'cjHeartR',
-        'cjLidTopL', 'cjLidTopR', 'cjLidBotL', 'cjLidBotR', 'cjBrowL', 'cjBrowR', 'cjBlushL', 'cjBlushR', 'cjMouth', 'cjTears', 'cjSparkle']) {
+        'cjLidTopL', 'cjLidTopR', 'cjLidBotL', 'cjLidBotR', 'cjBrowL', 'cjBrowR', 'cjBlushL', 'cjBlushR', 'cjMouth', 'cjTears', 'cjSparkle', 'cjGun', 'cjFlash']) {
         parts[id] = q(root, id);
       }
       parts.mouths = Object.fromEntries(MOUTHS.map((id) => [id, q(root, id)]));
@@ -453,6 +466,16 @@
 
       p.cjBrowL.setAttribute('transform', `translate(168 ${(186 + pose.browLy).toFixed(1)}) rotate(${pose.browLr.toFixed(1)})`);
       p.cjBrowR.setAttribute('transform', `translate(232 ${(186 + pose.browRy).toFixed(1)}) rotate(${pose.browRr.toFixed(1)})`);
+
+      // arma: aparece al disparar y siempre se ve derecha (se compensa lo que gira el brazo); el destello sale del cañon
+      const gunOn = pose.gun > 0.25;
+      p.cjGun.classList.toggle('hidden', !gunOn);
+      if (gunOn) {
+        p.cjGun.setAttribute('transform', `translate(-14 62) rotate(${(pose.armRsh - pose.armRel).toFixed(1)}) scale(${Math.min(1, pose.gun).toFixed(2)})`);
+        const flash = Math.max(0, Math.min(1, pose.flash));
+        p.cjFlash.setAttribute('opacity', flash.toFixed(2));
+        p.cjFlash.setAttribute('transform', `translate(0 -7) scale(${(0.25 + flash * 0.95).toFixed(2)})`);
+      }
 
       p.cjBlushL.setAttribute('opacity', (pose.blush * 0.8).toFixed(2));
       p.cjBlushR.setAttribute('opacity', (pose.blush * 0.8).toFixed(2));
@@ -568,6 +591,24 @@
       fn: (t) => ({ abs: { armRsh: 55, armRel: -125 + 15 * Math.sin(t * 12) }, add: { headRot: 11 * Math.sin(t * 10.5) * Math.exp(-t * 0.5), headX: 3 * Math.sin(t * 10.5) } }),
     },
 
+    // Solo CJ: saca el arma con las dos manos y dispara tres veces a la camara (el efecto de pantalla lo hace la pagina)
+    disparar: {
+      dur: 2.8,
+      fn: (t) => {
+        const shots = [0.75, 1.0, 1.25];
+        let flash = 0;
+        for (const at of shots) {
+          const d = t - at;
+          if (d >= 0 && d < 0.14) flash = Math.max(flash, 1 - d / 0.14);
+        }
+        return {
+          abs: { armRsh: -22, armRel: 96, armLsh: -18, armLel: 88, gun: 1 },
+          add: { flash, rootY: -5 * flash, headY: -3 * flash, bodyRot: -2.2 * flash, headRot: -2 * flash },
+          effect: t >= shots[0] ? 'shoot' : null,
+        };
+      },
+    },
+
     corazon: {
       dur: 2.8,
       fn: (t) => ({ abs: { armLsh: -38, armRsh: -38, armLel: 112, armRel: 112 }, add: { headRot: 4 * Math.sin(t * 3), rootY: -4 * Math.abs(Math.sin(t * 6)), bodyRot: 2 * Math.sin(t * 3), tail: 14 * Math.sin(t * 6) }, effect: t < 0.05 ? 'hearts' : null }),
@@ -589,6 +630,7 @@
       armLsh: 6, armLel: 4, armRsh: 6, armRel: 4, tail: 0, pupilX: 0, pupilY: 0,
       lidTop: 0, lidBot: 0, browLy: 0, browRy: 0, browLr: 0, browRr: 0,
       blush: 0.2, heartEyes: 0, tears: 0, sparkle: 0, mouth: 'm-closed',
+      gun: 0, flash: 0,
     };
   }
 

@@ -234,7 +234,80 @@ function thought() {
   spawn('ah-thought', { left: `${head.x + head.w * 0.22}px`, top: `${head.y - head.h * 0.2}px` }, '¿?…', 2600);
 }
 
+// ---- disparo de CJ: destello, agujero de bala en la "pantalla", sacudida y sonido (todo falso, de caricatura) ----
+let shotAudio = null;
+
+function gunshotSound() {
+  if (!userGesture || el.volume.value === '0') return;
+  try {
+    shotAudio = shotAudio || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = shotAudio;
+    if (ctx.state === 'suspended') ctx.resume();
+    const volume = Math.min(1, Number(el.volume.value) || 0) * 0.55;
+    const now = ctx.currentTime;
+
+    const length = Math.floor(ctx.sampleRate * 0.22);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i += 1) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(5200, now);
+    filter.frequency.exponentialRampToValueAtTime(500, now + 0.2);
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(volume, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    noise.connect(filter).connect(noiseGain).connect(ctx.destination);
+    noise.start(now);
+
+    const thump = ctx.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(130, now);
+    thump.frequency.exponentialRampToValueAtTime(38, now + 0.16);
+    const thumpGain = ctx.createGain();
+    thumpGain.gain.setValueAtTime(volume * 1.1, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    thump.connect(thumpGain).connect(ctx.destination);
+    thump.start(now);
+    thump.stop(now + 0.2);
+  } catch (error) {
+    // sin audio no pasa nada: el efecto visual sigue
+  }
+}
+
+const BULLET_HOLE_SVG = '<svg viewBox="-50 -50 100 100" aria-hidden="true"><g stroke="rgba(255,255,255,0.85)" stroke-width="1.6" fill="none" stroke-linecap="round"><path d="M0 0 L-44 -18 M0 0 L38 -30 M0 0 L46 14 M0 0 L10 46 M0 0 L-30 38 M0 0 L-6 -48 M-22 -9 L-30 -26 M20 -15 L34 -8 M5 23 L24 34"/><circle r="22" opacity="0.5"/><circle r="12" opacity="0.7"/></g><circle r="5.5" fill="#0b0b0f"/></svg>';
+
+function shootFx() {
+  for (const delay of [0, 250, 500]) {
+    setTimeout(() => {
+      gunshotSound();
+
+      const flash = document.createElement('div');
+      flash.className = 'ah-shot-flash';
+      el.stage.appendChild(flash);
+      setTimeout(() => flash.remove(), 260);
+
+      const hole = document.createElement('div');
+      hole.className = 'ah-bullet-hole';
+      hole.style.left = `${34 + Math.random() * 32}%`;
+      hole.style.top = `${26 + Math.random() * 34}%`;
+      hole.style.setProperty('--tilt', `${Math.round(Math.random() * 90 - 45)}deg`);
+      hole.innerHTML = BULLET_HOLE_SVG;
+      el.stage.appendChild(hole);
+      setTimeout(() => hole.remove(), 6500);
+
+      el.stage.classList.remove('ah-shake');
+      void el.stage.offsetWidth; // reinicia la animacion si disparan seguido
+      el.stage.classList.add('ah-shake');
+      setTimeout(() => el.stage.classList.remove('ah-shake'), 260);
+    }, delay);
+  }
+}
+
 function handleEffect(name) {
+  if (name === 'shoot') shootFx();
   if (name === 'confetti') confetti(80);
   else if (name === 'hearts') hearts(16);
   else if (name === 'sparkles') sparkles(8);
@@ -942,7 +1015,7 @@ function writeCharFields(fields) {
   el.accent.value = fields.accentColor;
   el.background.value = fields.background;
   el.showChat.checked = fields.showChat;
-  window.AiHostGiftRules?.set(fields.giftRules);
+  window.AiHostGiftRules?.set(fields.giftRules, activeCharacter);
   el.rate.value = fields.voiceRate;
   el.pitch.value = fields.voicePitch;
   el.volume.value = fields.voiceVolume;
@@ -993,7 +1066,7 @@ function applyConfig(config) {
   currentConfig = config;
   charSettings = JSON.parse(JSON.stringify(config.characterSettings || {}));
   activeCharacter = config.character;
-  window.AiHostGiftRules?.set(config.giftRules);
+  window.AiHostGiftRules?.set(config.giftRules, config.character);
   el.enabled.checked = config.enabled;
   paintEnabled(config.enabled);
   el.character_.value = config.character;

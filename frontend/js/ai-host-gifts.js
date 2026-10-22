@@ -7,13 +7,17 @@
     { key: 'advice', icon: '💡', title: 'Mencionarlo y darle un consejo', help: 'El agente dice su nombre y le da un consejo breve y positivo.' },
     { key: 'joke', icon: '😂', title: 'Contarle un chiste', help: 'El agente cuenta un chiste corto y sano.' },
     { key: 'flatter', icon: '💖', title: 'Mencionarlo y halagarlo', help: 'El agente dice su nombre y le dedica un halago creativo, distinto cada vez.' },
+    { key: 'shoot', icon: '🔫', title: 'Sacar el arma y disparar a la cámara', help: 'Solo CJ: lo agradece, saca el arma y le dispara a la cámara (animación de videojuego, con destello, agujeros de bala y sonido).', only: 'cj' },
   ];
+  const emptyRules = () => ({ priority: [], advice: [], joke: [], flatter: [], shoot: [] });
+  let character = 'mochi'; // la regla de disparo solo se muestra con el personaje CJ
+  const visibleRules = () => RULES.filter((rule) => !rule.only || rule.only === character);
   const MAX_PER_RULE = 8;
 
   const root = document.getElementById('ahGiftRules');
   if (!root) return;
 
-  let state = { priority: [], advice: [], joke: [], flatter: [] };
+  let state = emptyRules();
   let catalog = [];
   let catalogState = 'idle'; // idle | loading | ready | error
 
@@ -119,7 +123,7 @@
       root.querySelectorAll('.ah-gift-rule').forEach((box) => refreshPicker(box));
       return;
     }
-    root.innerHTML = RULES.map((rule) => `
+    root.innerHTML = visibleRules().map((rule) => `
       <div class="ah-gift-rule" data-rule="${rule.key}">
         <div class="ah-gift-head">
           <span class="ah-gift-ico" aria-hidden="true">${rule.icon}</span>
@@ -212,16 +216,21 @@
   });
 
   window.AiHostGiftRules = {
-    get: () => JSON.parse(JSON.stringify(state)),
-    set(rules) {
-      state = { priority: [], advice: [], joke: [], flatter: [] };
+    get: () => {
+      const copy = JSON.parse(JSON.stringify(state));
+      if (character !== 'cj') copy.shoot = []; // el disparo no existe en otros personajes
+      return copy;
+    },
+    set(rules, characterId) {
+      if (characterId) character = characterId;
+      state = emptyRules();
       for (const rule of RULES) if (Array.isArray(rules?.[rule.key])) state[rule.key] = rules[rule.key].slice(0, MAX_PER_RULE);
       closeAll();
       render();
       loadCatalog(); // para mostrar la imagen y las monedas de los regalos ya elegidos
     },
     // el primer regalo configurado (para el boton "Regalo de prueba")
-    firstGift: () => RULES.map((rule) => state[rule.key][0]).find(Boolean) || '',
+    firstGift: () => visibleRules().map((rule) => state[rule.key][0]).find(Boolean) || '',
     // para la imagen descargable de las reglas
     findGift,
     async ensureCatalog() {

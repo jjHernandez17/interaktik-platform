@@ -1002,14 +1002,14 @@ test('los ajustes por personaje se limpian: personajes que no existen y valores 
   assert.equal(next.characterSettings.cj.accentColor, service.characterDefaultsMap().cj.accentColor, 'color invalido: queda el de fabrica del personaje');
   assert.equal(next.characterSettings.cj.background, 'studio');
   assert.equal(next.characterSettings.cj.voiceRate, 1.6, 'la velocidad se limita');
-  assert.deepEqual(next.characterSettings.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [] });
+  assert.deepEqual(next.characterSettings.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [] });
 });
 
 test('un personaje que nunca se configuro arranca con sus ajustes de fabrica, distintos a los de otro', () => {
   const defaults = service.characterDefaultsMap();
   assert.ok(defaults.mochi && defaults.cj);
   assert.notEqual(defaults.cj.accentColor, defaults.mochi.accentColor);
-  assert.deepEqual(defaults.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [] });
+  assert.deepEqual(defaults.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [] });
 });
 
 test('al cargar la configuracion guardada, el personaje activo siempre trae sus ajustes actuales', async () => {
@@ -1071,4 +1071,72 @@ test('los personajes nuevos arrancan con su nombre propio y sus valores de fabri
     assert.equal(defaults[id].cadenceSeconds, 8);
     assert.equal(defaults[id].maxChars, 220);
   }
+});
+
+// ---------- CJ: forma de ser y regla de disparo ----------
+
+test('CJ trae su propio contexto (pandilla, calle, sin censura) y sus limites; Mochi no', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj' }));
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás?', 'ana'));
+  await service.tick();
+  const system = calls[0].system;
+  assert.match(system, /Tu personaje es CJ/);
+  assert.match(system, /SIN CENSURA/);
+  assert.match(system, /groserías/);
+  assert.match(system, /NUNCA uses insultos racistas/, 'mantiene sus limites');
+  assert.match(system, /Puedes usar groserías y bromas pesadas de barrio/, 'la regla de seguridad se ajusta al personaje');
+  assert.doesNotMatch(system, /No insultes ni humilles a nadie/);
+
+  reset();
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás?', 'ana'));
+  await service.tick();
+  assert.doesNotMatch(calls[0].system, /Tu personaje es CJ/);
+  assert.match(calls[0].system, /No insultes ni humilles a nadie/);
+});
+
+test('la accion disparar solo se le ofrece a CJ', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj' }));
+  await service.handleLiveEvent(comment('hola', 'ana'));
+  await service.tick();
+  assert.match(calls[0].system, /Acciones: .*disparar/);
+  reset();
+  await service.handleLiveEvent(comment('hola', 'ana'));
+  await service.tick();
+  assert.doesNotMatch(calls[0].system, /Acciones: .*disparar/);
+});
+
+test('la regla de "sacar el arma y disparar a la camara" solo existe en CJ', () => {
+  const rules = { priority: [], advice: [], joke: [], flatter: [], shoot: ['Rose'] };
+  const cj = service.normalizeConfigInput({ character: 'cj', giftRules: rules }, { ...service.DEFAULTS });
+  assert.deepEqual(cj.giftRules.shoot, ['Rose']);
+  assert.deepEqual(cj.characterSettings.cj.giftRules.shoot, ['Rose']);
+  const mochi = service.normalizeConfigInput({ character: 'mochi', giftRules: rules, characterSettings: { cj: { giftRules: rules } } }, { ...service.DEFAULTS });
+  assert.deepEqual(mochi.giftRules.shoot, [], 'Mochi no puede tener la regla de disparo');
+  assert.deepEqual(mochi.characterSettings.mochi.giftRules.shoot, []);
+  assert.deepEqual(mochi.characterSettings.cj.giftRules.shoot, ['Rose'], 'la de CJ se conserva aunque el activo sea otro');
+});
+
+test('un regalo con la regla de disparo: la animacion es sacar el arma y disparar, y el prompt lo pide (agradecimiento primero)', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: ['Rose'] } }));
+  nextReply = { text: '[feliz, saludar] Toma esa, parce, gracias por la rosa. ¡Bang bang!', usage: { input_tokens: 900, output_tokens: 30 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(giftEvent('Rose', 'Pablo'));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+
+  assert.match(calls[0].user, /accion_especial="disparo"/);
+  assert.match(calls[0].system, /accion_especial con disparo/);
+  assert.equal(said.length, 1);
+  assert.equal(said[0].action, 'disparar', 'siempre dispara, aunque el modelo eligiera otra accion');
+  assert.equal(said[0].emotion, 'picaro');
+  assert.match(said[0].text, /gracias/i);
+});
+
+test('el respaldo de un regalo con disparo tambien dispara y agradece', () => {
+  const reply = prompt.giftFallbackReply([{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', special: ['shoot'] }], { language: 'es', maxChars: 220 }, 1);
+  assert.equal(reply.action, 'disparar');
+  assert.match(reply.text, /Pablo/);
+  assert.match(reply.text, /gracias|Gracias/);
 });

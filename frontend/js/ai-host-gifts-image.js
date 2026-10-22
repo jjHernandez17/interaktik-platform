@@ -6,13 +6,14 @@
   const button = document.getElementById('ahGiftDownload');
   if (!button || !window.AiHostGiftRules) return;
 
-  const RULE_ORDER = ['priority', 'advice', 'joke', 'flatter'];
+  const RULE_ORDER = ['priority', 'advice', 'joke', 'flatter', 'shoot'];
   // Lo que hace cada regla, dicho para los espectadores
   const ACTION_TEXT = {
     priority: 'Tu mensaje se responde primero',
     advice: 'Te da un consejo',
     joke: 'Te cuenta un chiste',
     flatter: 'Te dedica un halago',
+    shoot: 'Saca el arma y dispara a la cámara',
   };
 
   const SCALE = 2; // resolucion de la imagen (nitida en pantallas grandes)

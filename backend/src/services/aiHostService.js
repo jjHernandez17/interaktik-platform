@@ -64,7 +64,7 @@ const DEFAULTS = {
   proactiveMinutes: 4,
   cadenceSeconds: 8,
   maxChars: 220,
-  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
+  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [] },
   characterSettings: {},
   model: DEFAULT_MODEL,
   bannedWords: '',
@@ -120,7 +120,7 @@ function rowToConfig(row) {
     proactiveMinutes: row.proactive_minutes,
     cadenceSeconds: row.cadence_seconds,
     maxChars: row.max_chars,
-    giftRules: normalizeGiftRules(row.gift_rules),
+    giftRules: restrictGiftRules(normalizeGiftRules(row.gift_rules), row.character),
     characterSettings: withActiveCharacter(normalizeCharacterSettings(row.character_settings), row),
     model: row.model,
     bannedWords: row.banned_words,
@@ -133,6 +133,11 @@ function rowToConfig(row) {
     background: row.background,
     showChat: Boolean(row.show_chat),
   };
+}
+
+// La regla de "sacar el arma y disparar a la camara" es solo de CJ: en cualquier otro personaje se ignora
+function restrictGiftRules(rules, characterId) {
+  return characterId === 'cj' ? rules : { ...rules, shoot: [] };
 }
 
 // Reglas de regalos: hasta 8 nombres por regla, sin repetidos (aunque cambien mayusculas o tildes)
@@ -169,7 +174,7 @@ const BASE_CHARACTER_SETTINGS = {
   voicePitch: 1,
   voiceVolume: 1,
   // reglas de regalos
-  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
+  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [] },
   // nombre
   agentName: 'Nova',
   // como se comporta
@@ -197,7 +202,7 @@ function characterDefaultsMap() {
   return Object.fromEntries(Object.keys(CHARACTERS).map((id) => [id, characterDefaults(id)]));
 }
 
-function normalizeCharacterFields(entry, base) {
+function normalizeCharacterFields(entry, base, characterId) {
   const source = entry && typeof entry === 'object' ? entry : {};
   const has = (key) => source[key] !== undefined;
   const accent = /^#[0-9a-fA-F]{6}$/.test(String(source.accentColor)) ? String(source.accentColor).toLowerCase() : base.accentColor;
@@ -209,7 +214,7 @@ function normalizeCharacterFields(entry, base) {
     voiceRate: clampNumber(source.voiceRate, 0.6, 1.6, base.voiceRate),
     voicePitch: clampNumber(source.voicePitch, 0.5, 1.8, base.voicePitch),
     voiceVolume: clampNumber(source.voiceVolume, 0, 1, base.voiceVolume),
-    giftRules: has('giftRules') ? normalizeGiftRules(source.giftRules) : base.giftRules,
+    giftRules: restrictGiftRules(has('giftRules') ? normalizeGiftRules(source.giftRules) : base.giftRules, characterId),
     agentName: (has('agentName') ? cleanText(source.agentName, 30).replace(/[<>"]/g, '') : '') || base.agentName,
     replyMode: prompt.REPLY_MODES.includes(source.replyMode) ? source.replyMode : base.replyMode,
     thankGifts: has('thankGifts') ? Boolean(source.thankGifts) : base.thankGifts,
@@ -228,7 +233,7 @@ function normalizeCharacterSettings(value) {
   const result = {};
   const source = value && typeof value === 'object' ? value : {};
   for (const id of Object.keys(CHARACTERS)) {
-    if (source[id] && typeof source[id] === 'object') result[id] = normalizeCharacterFields(source[id], characterDefaults(id));
+    if (source[id] && typeof source[id] === 'object') result[id] = normalizeCharacterFields(source[id], characterDefaults(id), id);
   }
   return result;
 }
@@ -267,6 +272,7 @@ function withActiveCharacter(settings, row) {
         bannedWords: row.banned_words,
       },
       characterDefaults(active),
+      active,
     ),
   };
 }
@@ -314,8 +320,9 @@ function normalizeConfigInput(input = {}, current = DEFAULTS) {
   // ajustes de cada personaje; el del personaje activo siempre es lo que viene arriba
   result.characterSettings = {
     ...normalizeCharacterSettings(input.characterSettings === undefined ? current.characterSettings : input.characterSettings),
-    [result.character]: normalizeCharacterFields(activeCharacterFields(result), characterDefaults(result.character)),
+    [result.character]: normalizeCharacterFields(activeCharacterFields(result), characterDefaults(result.character), result.character),
   };
+  result.giftRules = restrictGiftRules(result.giftRules, result.character);
   return result;
 }
 
@@ -812,6 +819,10 @@ async function runTurn(session, config, { idle = false } = {}) {
       // todo regalo se agradece (aunque el modelo solo haya hecho la accion especial) y se nombra a quien lo envio
       const thanked = prompt.ensureGiftsThanked(spokenReply.text, batch, config);
       spokenReply = { ...spokenReply, text: prompt.ensureGiftersNamed(thanked, batch) };
+    }
+    // regalo con la regla de disparo (solo CJ): la animacion siempre es sacar el arma y disparar a la camara
+    if (spokenReply && config.character === 'cj' && batch.some((item) => item.kind === 'gift' && item.special && item.special.includes('shoot'))) {
+      spokenReply = { ...spokenReply, action: 'disparar', emotion: 'picaro' };
     }
     const text = spokenReply ? spokenReply.text : null;
     const cost = estimateCostUsd(model, result.usage);

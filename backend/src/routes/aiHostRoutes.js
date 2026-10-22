@@ -44,6 +44,7 @@ function catalogs() {
     models: Object.fromEntries(Object.entries(aiHostService.ALLOWED_MODELS).map(([id, info]) => [id, info.label])),
     characters: aiHostService.CHARACTERS,
     backgrounds: aiHostService.BACKGROUNDS,
+    characterDefaults: aiHostService.characterDefaultsMap(),
     emotions: aiHostPrompt.EMOTIONS,
     actions: aiHostPrompt.ACTIONS,
   };

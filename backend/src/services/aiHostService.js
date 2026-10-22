@@ -65,6 +65,7 @@ const DEFAULTS = {
   cadenceSeconds: 8,
   maxChars: 220,
   giftRules: { priority: [], advice: [], joke: [], flatter: [] },
+  characterSettings: {},
   model: DEFAULT_MODEL,
   bannedWords: '',
   voiceName: '',
@@ -120,6 +121,7 @@ function rowToConfig(row) {
     cadenceSeconds: row.cadence_seconds,
     maxChars: row.max_chars,
     giftRules: normalizeGiftRules(row.gift_rules),
+    characterSettings: withActiveCharacter(normalizeCharacterSettings(row.character_settings), row),
     model: row.model,
     bannedWords: row.banned_words,
     voiceName: row.voice_name,
@@ -152,6 +154,91 @@ function normalizeGiftRules(value) {
   return result;
 }
 
+// ---------- ajustes propios de cada personaje ----------
+// Cada personaje tiene sus propios colores, escenario, reglas de regalos y voz. Lo que es del agente de IA (nombre, idioma,
+// personalidad, palabras, modelo...) es comun a todos. Las columnas de arriba siempre guardan los ajustes del personaje ACTIVO.
+
+const BASE_CHARACTER_SETTINGS = {
+  accentColor: '#7c5cff',
+  background: 'studio',
+  showChat: true,
+  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
+  voiceName: '',
+  voiceRate: 1,
+  voicePitch: 1,
+  voiceVolume: 1,
+};
+const CHARACTER_SETTINGS_DEFAULTS = {
+  mochi: {},
+  cj: { accentColor: '#2fa24d', voicePitch: 0.85 },
+};
+
+function characterDefaults(characterId) {
+  return { ...BASE_CHARACTER_SETTINGS, giftRules: normalizeGiftRules(null), ...(CHARACTER_SETTINGS_DEFAULTS[characterId] || {}) };
+}
+
+function characterDefaultsMap() {
+  return Object.fromEntries(Object.keys(CHARACTERS).map((id) => [id, characterDefaults(id)]));
+}
+
+function normalizeCharacterFields(entry, base) {
+  const source = entry && typeof entry === 'object' ? entry : {};
+  const accent = /^#[0-9a-fA-F]{6}$/.test(String(source.accentColor)) ? String(source.accentColor).toLowerCase() : base.accentColor;
+  return {
+    accentColor: accent,
+    background: BACKGROUNDS[source.background] ? source.background : base.background,
+    showChat: source.showChat === undefined ? base.showChat : Boolean(source.showChat),
+    giftRules: source.giftRules === undefined ? base.giftRules : normalizeGiftRules(source.giftRules),
+    voiceName: source.voiceName === undefined ? base.voiceName : cleanText(source.voiceName, 120),
+    voiceRate: clampNumber(source.voiceRate, 0.6, 1.6, base.voiceRate),
+    voicePitch: clampNumber(source.voicePitch, 0.5, 1.8, base.voicePitch),
+    voiceVolume: clampNumber(source.voiceVolume, 0, 1, base.voiceVolume),
+  };
+}
+
+function normalizeCharacterSettings(value) {
+  const result = {};
+  const source = value && typeof value === 'object' ? value : {};
+  for (const id of Object.keys(CHARACTERS)) {
+    if (source[id] && typeof source[id] === 'object') result[id] = normalizeCharacterFields(source[id], characterDefaults(id));
+  }
+  return result;
+}
+
+// Los ajustes del personaje activo (los de las columnas de arriba) son los que valen
+function activeCharacterFields(config) {
+  return {
+    accentColor: config.accentColor,
+    background: config.background,
+    showChat: config.showChat,
+    giftRules: config.giftRules,
+    voiceName: config.voiceName,
+    voiceRate: config.voiceRate,
+    voicePitch: config.voicePitch,
+    voiceVolume: config.voiceVolume,
+  };
+}
+
+function withActiveCharacter(settings, row) {
+  const active = row.character || 'mochi';
+  return {
+    ...settings,
+    [active]: normalizeCharacterFields(
+      {
+        accentColor: row.accent_color,
+        background: row.background,
+        showChat: Boolean(row.show_chat),
+        giftRules: normalizeGiftRules(row.gift_rules),
+        voiceName: row.voice_name,
+        voiceRate: Number(row.voice_rate),
+        voicePitch: Number(row.voice_pitch),
+        voiceVolume: Number(row.voice_volume),
+      },
+      characterDefaults(active),
+    ),
+  };
+}
+
 // Valida y limpia lo que manda la pagina; lo que no viene se queda como estaba
 function normalizeConfigInput(input = {}, current = DEFAULTS) {
   const pick = (key) => (input[key] === undefined ? current[key] : input[key]);
@@ -163,7 +250,7 @@ function normalizeConfigInput(input = {}, current = DEFAULTS) {
   const model = ALLOWED_MODELS[pick('model')] ? pick('model') : current.model;
   const accent = /^#[0-9a-fA-F]{6}$/.test(String(pick('accentColor'))) ? String(pick('accentColor')).toLowerCase() : current.accentColor;
 
-  return {
+  const result = {
     enabled: Boolean(pick('enabled')),
     agentName,
     language,
@@ -191,6 +278,13 @@ function normalizeConfigInput(input = {}, current = DEFAULTS) {
     background: BACKGROUNDS[pick('background')] ? pick('background') : current.background,
     showChat: Boolean(pick('showChat')),
   };
+
+  // ajustes de cada personaje; el del personaje activo siempre es lo que viene arriba
+  result.characterSettings = {
+    ...normalizeCharacterSettings(input.characterSettings === undefined ? current.characterSettings : input.characterSettings),
+    [result.character]: normalizeCharacterFields(activeCharacterFields(result), characterDefaults(result.character)),
+  };
+  return result;
 }
 
 // ---------- base de datos ----------
@@ -213,14 +307,14 @@ async function updateConfig(userId, input) {
        thank_gifts = $9, min_gift_coins = $10, greet_followers = $11, greet_viewers = $12, proactive = $13,
        proactive_minutes = $14, cadence_seconds = $15, max_chars = $16, model = $17, banned_words = $18,
        voice_name = $19, voice_rate = $20, voice_pitch = $21, voice_volume = $22, accent_color = $23,
-       character = $24, background = $25, show_chat = $26, gift_rules = $27::jsonb, updated_at = NOW()
+       character = $24, background = $25, show_chat = $26, gift_rules = $27::jsonb, character_settings = $28::jsonb, updated_at = NOW()
      WHERE user_id = $1
      RETURNING *`,
     [userId, next.enabled, next.agentName, next.language, next.tone, next.persona, next.aboutStreamer, next.replyMode,
       next.thankGifts, next.minGiftCoins, next.greetFollowers, next.greetViewers, next.proactive,
       next.proactiveMinutes, next.cadenceSeconds, next.maxChars, next.model, next.bannedWords,
       next.voiceName, next.voiceRate, next.voicePitch, next.voiceVolume, next.accentColor,
-      next.character, next.background, next.showChat, JSON.stringify(next.giftRules)],
+      next.character, next.background, next.showChat, JSON.stringify(next.giftRules), JSON.stringify(next.characterSettings)],
   );
   configCache.delete(Number(userId));
   return rowToConfig(result.rows[0]);
@@ -1004,6 +1098,7 @@ module.exports = {
   setClientForTests,
   CHARACTERS,
   BACKGROUNDS,
+  characterDefaultsMap,
   _sessions: sessions,
   _configCache: configCache,
 };

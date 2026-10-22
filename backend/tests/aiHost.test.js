@@ -956,3 +956,73 @@ test('el personaje CJ (estilo San Andreas) se puede elegir y tiene su propia voz
   delete process.env.ELEVENLABS_VOICE_CJ;
   delete process.env.ELEVENLABS_VOICE_MOCHI;
 });
+
+// ---------- cada personaje tiene sus propios ajustes ----------
+
+test('cada personaje guarda sus propios ajustes (colores, escenario, reglas de regalos y voz); lo del agente es comun', () => {
+  const rulesMochi = { priority: ['Rose'], advice: [], joke: [], flatter: [] };
+  const rulesCj = { priority: [], advice: ['Heart Me'], joke: ['Galaxy'], flatter: [] };
+
+  // el usuario dejo configurado Mochi y ahora elige CJ con SUS ajustes en el formulario
+  const afterSwitch = service.normalizeConfigInput({
+    character: 'cj',
+    persona: 'Siempre alegre', bannedWords: 'tonto', model: 'claude-haiku-5-5', // del agente: comunes
+    accentColor: '#2fa24d', background: 'night', showChat: false, giftRules: rulesCj, voiceRate: 1.2, voicePitch: 0.8, voiceVolume: 0.5,
+    characterSettings: {
+      mochi: { accentColor: '#ff0000', background: 'neon', showChat: true, giftRules: rulesMochi, voiceRate: 0.9, voicePitch: 1.4, voiceVolume: 1 },
+    },
+  }, { ...service.DEFAULTS, character: 'mochi' });
+
+  assert.equal(afterSwitch.character, 'cj');
+  assert.equal(afterSwitch.accentColor, '#2fa24d');
+  assert.deepEqual(afterSwitch.giftRules.advice, ['Heart Me']);
+  assert.equal(afterSwitch.persona, 'Siempre alegre', 'el agente es el mismo para todos');
+  assert.equal(afterSwitch.bannedWords, 'tonto');
+
+  const { mochi, cj } = afterSwitch.characterSettings;
+  assert.equal(mochi.accentColor, '#ff0000');
+  assert.equal(mochi.background, 'neon');
+  assert.deepEqual(mochi.giftRules.priority, ['Rose']);
+  assert.equal(mochi.voicePitch, 1.4);
+  assert.equal(cj.background, 'night');
+  assert.equal(cj.showChat, false);
+  assert.deepEqual(cj.giftRules.joke, ['Galaxy']);
+  assert.equal(cj.voiceRate, 1.2);
+  assert.deepEqual(cj.giftRules.priority, [], 'las reglas de CJ no se mezclan con las de Mochi');
+});
+
+test('los ajustes por personaje se limpian: personajes que no existen y valores invalidos se ignoran', () => {
+  const next = service.normalizeConfigInput({
+    character: 'mochi',
+    characterSettings: {
+      inventado: { accentColor: '#123456' },
+      cj: { accentColor: 'rojo', background: 'no-existe', voiceRate: 99, giftRules: 'x' },
+    },
+  }, { ...service.DEFAULTS });
+  assert.equal(next.characterSettings.inventado, undefined);
+  assert.equal(next.characterSettings.cj.accentColor, service.characterDefaultsMap().cj.accentColor, 'color invalido: queda el de fabrica del personaje');
+  assert.equal(next.characterSettings.cj.background, 'studio');
+  assert.equal(next.characterSettings.cj.voiceRate, 1.6, 'la velocidad se limita');
+  assert.deepEqual(next.characterSettings.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [] });
+});
+
+test('un personaje que nunca se configuro arranca con sus ajustes de fabrica, distintos a los de otro', () => {
+  const defaults = service.characterDefaultsMap();
+  assert.ok(defaults.mochi && defaults.cj);
+  assert.notEqual(defaults.cj.accentColor, defaults.mochi.accentColor);
+  assert.deepEqual(defaults.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [] });
+});
+
+test('al cargar la configuracion guardada, el personaje activo siempre trae sus ajustes actuales', async () => {
+  reset();
+  db.config.set(5, configRow({
+    character: 'cj', accent_color: '#2fa24d', background: 'night', show_chat: false,
+    gift_rules: { priority: [], advice: ['Heart Me'], joke: [], flatter: [] },
+    character_settings: { mochi: { accentColor: '#ff0000', background: 'neon', giftRules: { priority: ['Rose'], advice: [], joke: [], flatter: [] } } },
+  }));
+  const config = await service.getOrCreateConfig(5);
+  assert.equal(config.characterSettings.cj.background, 'night');
+  assert.deepEqual(config.characterSettings.cj.giftRules.advice, ['Heart Me']);
+  assert.equal(config.characterSettings.mochi.accentColor, '#ff0000');
+  assert.deepEqual(config.characterSettings.mochi.giftRules.priority, ['Rose']);
+});

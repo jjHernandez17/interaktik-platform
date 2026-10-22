@@ -116,6 +116,10 @@ const EMOTION_LABELS = { neutral: 'Neutral', feliz: 'ğŸ˜Š Feliz', emocionado: 'ğ
 
 let liveEventsSource = null;
 let currentConfig = null;
+// Ajustes propios de cada personaje (colores, escenario, reglas de regalos y voz). Lo del agente (nombre, idioma, palabras...) es comun.
+let charSettings = {};
+let charDefaults = {};
+let activeCharacter = null;
 let statusTimer = null;
 let voices = [];
 let rig = null;
@@ -909,8 +913,45 @@ function ensureRig() {
   rig.characterId = characterId;
 }
 
+// Lo que es propio de cada personaje, tal como esta ahora en el formulario
+function readCharFields() {
+  return {
+    accentColor: el.accent.value,
+    background: el.background.value,
+    showChat: el.showChat.checked,
+    giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
+    voiceName: el.voice.value,
+    voiceRate: Number(el.rate.value),
+    voicePitch: Number(el.pitch.value),
+    voiceVolume: Number(el.volume.value),
+  };
+}
+
+function writeCharFields(fields) {
+  el.accent.value = fields.accentColor;
+  el.background.value = fields.background;
+  el.showChat.checked = fields.showChat;
+  window.AiHostGiftRules?.set(fields.giftRules);
+  el.rate.value = fields.voiceRate;
+  el.pitch.value = fields.voicePitch;
+  el.volume.value = fields.voiceVolume;
+  currentConfig = { ...currentConfig, voiceName: fields.voiceName };
+  paintSliders();
+  fillVoiceSelect();
+}
+
+// Al elegir otro personaje: se guardan los ajustes del anterior y se cargan los del nuevo (o los de fabrica si es la primera vez)
+function switchCharacter(next) {
+  if (!next || next === activeCharacter) return;
+  if (activeCharacter) charSettings[activeCharacter] = readCharFields();
+  activeCharacter = next;
+  writeCharFields(charSettings[next] || charDefaults[next] || charDefaults.mochi || readCharFields());
+}
+
 function applyConfig(config) {
   currentConfig = config;
+  charSettings = JSON.parse(JSON.stringify(config.characterSettings || {}));
+  activeCharacter = config.character;
   window.AiHostGiftRules?.set(config.giftRules);
   el.enabled.checked = config.enabled;
   paintEnabled(config.enabled);
@@ -943,6 +984,7 @@ function applyConfig(config) {
   fillVoiceSelect();
   ensureRig();
   paintStage();
+  charSettings[activeCharacter] = readCharFields();
 }
 
 function readForm() {
@@ -967,6 +1009,7 @@ function readForm() {
     cadenceSeconds: Number(el.cadence.value),
     maxChars: Number(el.maxChars.value),
     giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
+    characterSettings: { ...charSettings, [activeCharacter || el.character_.value]: readCharFields() },
     bannedWords: el.banned.value,
     voiceName: el.voice.value,
     voiceRate: Number(el.rate.value),
@@ -989,6 +1032,7 @@ async function loadConfig() {
   fillSelect(el.model, Object.entries(data.models));
   fillSelect(el.character_, Object.entries(data.characters));
   fillSelect(el.background, Object.entries(data.backgrounds));
+  charDefaults = data.characterDefaults || {};
   applyConfig(data.config);
   paintCost();
 }
@@ -1150,6 +1194,8 @@ function bindEvents() {
     .forEach((field) => field?.addEventListener(field.type === 'checkbox' || field.tagName === 'SELECT' ? 'change' : 'input', paintCost));
   el.speakHere.addEventListener('change', paintCost);
   for (const input of [el.rate, el.pitch, el.volume]) input.addEventListener('input', paintSliders);
+  // al elegir otro personaje, el formulario cambia a SUS ajustes (antes de repintar el escenario)
+  el.character_.addEventListener('change', () => switchCharacter(el.character_.value));
   for (const input of [el.character_, el.background, el.accent, el.showChat, el.agentName]) {
     input.addEventListener('input', () => { ensureRig(); paintStage(); });
     input.addEventListener('change', () => { ensureRig(); paintStage(); });

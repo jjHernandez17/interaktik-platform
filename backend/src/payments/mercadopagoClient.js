@@ -1,7 +1,7 @@
 // tiktokinteractive/backend/src/payments/mercadopagoClient.js
 //
 // Envuelve el SDK de MercadoPago con inicializacion perezosa (mismo criterio
-// que stripeClient.js): sin MERCADOPAGO_ACCESS_TOKEN el servidor arranca
+// que wompiClient.js): sin MERCADOPAGO_ACCESS_TOKEN el servidor arranca
 // normal y solo falla al intentar cobrar.
 //
 // Nota: MercadoPago opera principalmente en moneda local segun el pais de la

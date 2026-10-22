@@ -329,7 +329,7 @@ let adminEmailFilter = '';
 let gameAvailability = {};
 let accessStatus = null;
 let availablePlans = [];
-let availableGateways = { stripe: false, mercadopago: false, wompi: false };
+let availableGateways = { mercadopago: false, wompi: false };
 
 function validatePasswordStrength(password) {
   const value = String(password || '');
@@ -798,7 +798,7 @@ async function loadPlans() {
     if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los planes.');
 
     availablePlans = data.plans || [];
-    availableGateways = data.gateways || { stripe: false, mercadopago: false, wompi: false };
+    availableGateways = data.gateways || { mercadopago: false, wompi: false };
     renderPlanCards();
   } catch (error) {
     if (plansGrid) {
@@ -2361,7 +2361,7 @@ function formatAdminMoney(amountCents, currency) {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
 }
 
-const ADMIN_GATEWAY_LABELS = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
+const ADMIN_GATEWAY_LABELS = { mercadopago: 'MercadoPago', wompi: 'Wompi' };
 
 // Iconos inline (mismo lenguaje visual que .info-icon svg en la landing:
 // viewBox 24x24, stroke currentColor 1.7, sin relleno) — los botones de la

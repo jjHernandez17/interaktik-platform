@@ -89,6 +89,11 @@ async function loadAdminUsers() {
   });
 }
 
+// Avisos de proveedores de IA sin saldo / sin creditos / con clave invalida (solo superusuario)
+router.get('/admin/provider-alerts', requireAuth, requireSuperUser, (_req, res) => {
+  res.json({ alerts: require('../services/providerAlerts').list() });
+});
+
 router.get('/admin/users', requireAuth, requireSuperUser, async (_req, res) => {
   try {
     const users = await loadAdminUsers();

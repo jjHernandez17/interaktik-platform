@@ -57,6 +57,38 @@ body.panel-open .ah-stage { --ah-drawer-offset: var(--ah-drawer-w); }
   radial-gradient(14% 14% at 82% 18%, #fff7d6 0 40%, rgba(255, 247, 214, 0.25) 42%, transparent 70%); animation: ah-twinkle 5s ease-in-out infinite alternate; }
 .ah-stage[data-bg='night'] .ah-bg-floor { top: 72%; background: linear-gradient(180deg, #17306b, #0a1330); border-radius: 50% 50% 0 0 / 12% 12% 0 0; }
 
+/* Fondo propio de CJ: las calles (solo se usa con ese personaje).
+   El escenario toma la forma de la imagen (235 x 288) y se centra en la ventana, asi la imagen se ve completa, sin recortes.
+   Si cambias la imagen por otra de otro tamano, ajusta --img-w y --img-h. */
+.ah-stage[data-bg='calles'] {
+  --img-w: 1133;
+  --img-h: 1388;
+  --fit-h: min(100dvh, calc((100vw - var(--ah-drawer-offset, 0px)) * var(--img-h) / var(--img-w)));
+  inset: auto;
+  height: var(--fit-h);
+  width: calc(var(--fit-h) * var(--img-w) / var(--img-h));
+  top: calc((100dvh - var(--fit-h)) / 2);
+  left: calc((100vw - var(--ah-drawer-offset, 0px) - var(--fit-h) * var(--img-w) / var(--img-h)) / 2);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+/* a los lados del escenario: la misma imagen desenfocada y oscura, para que no queden bordes vacios */
+body.ah-cj-bg::before {
+  content: '';
+  position: fixed;
+  inset: -40px;
+  z-index: 0;
+  background: url('../images/fondo%20calles.png') center / cover no-repeat;
+  filter: blur(28px) brightness(0.45) saturate(1.1);
+}
+.ah-stage[data-bg='calles'] .ah-bg-a {
+  background:
+    linear-gradient(180deg, rgba(10, 8, 20, 0.1) 0%, rgba(10, 8, 20, 0) 40%, rgba(10, 8, 20, 0.22) 100%),
+    url('../images/fondo%20calles.png') center / 100% 100% no-repeat,
+    #3a2a22;
+}
+.ah-stage[data-bg='calles'] .ah-bg-b { background: radial-gradient(90% 80% at 50% 55%, transparent 55%, rgba(8, 6, 16, 0.45) 100%); }
+.ah-stage[data-bg='calles'] .ah-bg-floor { display: none; }
+
 @keyframes ah-twinkle { to { opacity: 0.7; } }
 
 .ah-spot {
@@ -139,6 +171,41 @@ body.panel-open .ah-stage { --ah-drawer-offset: var(--ah-drawer-w); }
 }
 
 .ah-subtitle.visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* tarjeta del espectador al que responde el agente (encima del personaje) */
+.ah-viewer {
+  position: absolute;
+  left: 50%;
+  top: 3.5cqh;
+  width: min(88cqw, 640px);
+  transform: translate(-50%, -14px);
+  display: flex;
+  align-items: center;
+  gap: 2.2cqh;
+  padding: 1.6cqh 2.4cqh;
+  border-radius: 2.6cqh;
+  background: rgba(8, 10, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 1.4cqh 4cqh rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 240ms ease, transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.ah-viewer.visible { opacity: 1; transform: translate(-50%, 0); }
+.ah-viewer-photo { position: relative; flex: none; width: 7.4cqh; height: 7.4cqh; min-width: 44px; min-height: 44px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--ah-accent) 55%, #1b1b3a); border: 2px solid color-mix(in srgb, var(--ah-accent) 70%, #fff); display: grid; place-items: center; }
+.ah-viewer-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ah-viewer-photo span { font-weight: 800; font-size: 3.2cqh; color: #fff; text-transform: uppercase; }
+.ah-viewer-main { min-width: 0; flex: 1; display: grid; gap: 0.6cqh; }
+.ah-viewer-head { display: flex; align-items: center; gap: 1.6cqh; min-width: 0; }
+.ah-viewer-name { color: var(--ah-accent); filter: brightness(1.5) saturate(1.1); font-size: clamp(14px, 2.7cqh, 22px); line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ah-viewer-gift { flex: none; display: inline-flex; align-items: center; gap: 0.8cqh; padding: 0.3cqh 1.2cqh 0.3cqh 0.5cqh; border-radius: 999px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); }
+.ah-viewer-gift[hidden] { display: none; }
+.ah-viewer-gift img { width: 3.6cqh; height: 3.6cqh; min-width: 24px; min-height: 24px; object-fit: contain; }
+.ah-viewer-gift b { color: #fcd34d; font-size: clamp(11px, 2cqh, 16px); }
+.ah-viewer-gift b::before { content: '🪙 '; font-size: 0.85em; }
+.ah-viewer-msg { margin: 0; color: #f1f5f9; font-size: clamp(13px, 2.5cqh, 20px); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 
 .ah-sub-name {
   padding: 3px 16px;
@@ -476,6 +543,30 @@ body.ah-modal-open { overflow: hidden; }
 .ah-bill-total { padding-top: 8px; border-top: 1px dashed var(--ds-border, rgba(148, 163, 184, 0.3)); font-size: 1rem; font-weight: 800; }
 .ah-bill .pk-hint { margin: 0; }
 .ah-pay { width: 100%; }
+.ah-gift-download { display: grid; gap: 6px; justify-items: start; padding-top: 4px; }
+.ah-gift-download .pk-hint { margin: 0; }
+.ah-gift-rules { display: grid; gap: 10px; }
+.ah-gift-rule { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(var(--tone), 0.25); }
+.ah-gift-head { display: flex; gap: 10px; align-items: flex-start; }
+.ah-gift-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; background: rgba(var(--tone), 0.2); font-size: 1rem; }
+.ah-gift-head strong { display: block; font-size: 0.9rem; }
+.ah-gift-head small { display: block; color: var(--ds-text-muted, #92a0b8); font-size: 0.76rem; line-height: 1.35; }
+.ah-gift-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ah-gift-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 4px; border-radius: 999px; background: rgba(var(--tone), 0.18); border: 1px solid rgba(var(--tone), 0.4); font-size: 0.8rem; }
+.ah-gift-chip-img { width: 24px; height: 24px; object-fit: contain; border-radius: 50%; background: rgba(255, 255, 255, 0.08); }
+.ah-gift-chip-name { padding-left: 4px; }
+.ah-gift-chip-coins { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; background: rgba(245, 158, 11, 0.2); color: #fcd34d; font-size: 0.72rem; font-weight: 700; }
+.ah-gift-chip-coins::before { content: '🪙'; margin-right: 3px; font-size: 0.7rem; }
+.ah-gift-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.7; padding: 0 4px; }
+.ah-gift-chip button:hover { opacity: 1; }
+.ah-costbox { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); }
+.ah-costbox-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #fcd34d; }
+.ah-cost-rows { display: grid; gap: 6px; font-size: 0.86rem; }
+.ah-cost-rows > div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ah-cost-rows b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ah-cost-total { padding-top: 6px; border-top: 1px dashed rgba(245, 158, 11, 0.4); font-weight: 800; }
+.ah-costbox .pk-hint { margin: 0; }
+#ahVoiceModeHint[data-tone='warn'] { color: #fbbf24; }
 .ah-modal-error { margin: 0; color: #fca5a5; font-size: 0.84rem; }
 .ah-modal-error:empty { display: none; }
 

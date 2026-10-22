@@ -20,7 +20,6 @@
     "mercadopago": "^2.13.0",
     "pg": "^8.20.0",
     "socket.io": "^4.8.3",
-    "stripe": "^17.7.0",
     "tiktok-live-connector": "2.1.1-beta1",
     "ws": "^8.22.0"
   },

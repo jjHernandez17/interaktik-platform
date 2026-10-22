@@ -8,6 +8,14 @@ const el = {
   characterWrap: $('characterWrap'),
   fx: $('fx'),
   subtitle: $('subtitle'),
+  viewerCard: $('viewerCard'),
+  viewerPhoto: $('viewerPhoto'),
+  viewerInitial: $('viewerInitial'),
+  viewerName: $('viewerName'),
+  viewerGift: $('viewerGift'),
+  viewerGiftImg: $('viewerGiftImg'),
+  viewerGiftCoins: $('viewerGiftCoins'),
+  viewerMsg: $('viewerMsg'),
   subName: $('subName'),
   subText: $('subText'),
   alerts: $('alerts'),
@@ -64,6 +72,16 @@ const el = {
   voiceNote: $('ahVoiceNote'),
   model: $('ahModel'),
   modelHint: $('ahModelHint'),
+  costInstr: $('ahCostInstr'),
+  costPersona: $('ahCostPersona'),
+  costChat: $('ahCostChat'),
+  costReply: $('ahCostReply'),
+  costReplyNote: $('ahCostReplyNote'),
+  costVoiceKind: $('ahCostVoiceKind'),
+  costVoice: $('ahCostVoice'),
+  costTotal: $('ahCostTotal'),
+  costHour: $('ahCostHour'),
+  costLeft: $('ahCostLeft'),
   saveBtn: $('ahSaveBtn'),
   saveState: $('ahSaveState'),
 
@@ -223,7 +241,7 @@ function handleEffect(name) {
 // Escenario: subtitulos, voz y habla del personaje
 // =============================================================================================================================
 
-const speech = { queue: [], active: false, hideTimer: null };
+const speech = { queue: [], active: false, hideTimer: null, startedAt: 0, turn: 0 };
 
 function loadVoices() {
   voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
@@ -257,7 +275,6 @@ function pickVoice() {
 // ---- Voz realista con IA (gasta tokens) ----
 // Pide el audio al servidor y lo reproduce moviendo la boca al ritmo del sonido. Si falla (sin clave, sin tokens, red), devuelve false y
 // se usa la "voz sin costo" del navegador.
-let aiVoiceBlocked = false; // true cuando el servidor dijo que no hay voz IA disponible: no se vuelve a intentar hasta recargar
 let voiceAudio = null;
 
 function voiceMode() {
@@ -265,71 +282,157 @@ function voiceMode() {
 }
 
 // El tipo de voz se guarda en este navegador (no en el servidor). Por defecto es la voz sin costo, para no gastar tokens sin que lo elijas.
+// El motivo por el que la voz IA no se usa queda escrito aqui (no en el aviso general, que se borra solo cada pocos segundos)
+let aiVoiceProblem = '';
+
 function paintVoiceMode() {
   const ai = voiceMode() === 'ai';
-  el.voiceBrowserField.hidden = ai;
+  // con la voz IA fallando, se sigue usando la del navegador, asi que su selector se muestra
+  el.voiceBrowserField.hidden = ai && !aiVoiceProblem;
+  el.voiceModeHint.dataset.tone = ai && aiVoiceProblem ? 'warn' : '';
   el.voiceModeHint.textContent = ai
-    ? 'Suena natural y con el carácter de tu personaje. Cada frase gasta tokens de tu plan (si no hay, usa la voz sin costo).'
+    ? (aiVoiceProblem || 'Suena natural y con el carácter de tu personaje. Cada frase gasta tokens de tu plan (si no hay, usa la voz sin costo).')
     : 'Gratis: usa la voz de tu navegador. Suena más robótica.';
+}
+
+async function checkAiVoice() {
+  try {
+    const response = await fetch('/api/ai-host/voice');
+    const data = await response.json();
+    aiVoiceBlockedUntil = data.available ? 0 : Date.now() + 60000;
+    aiVoiceProblem = data.available ? '' : 'La voz con IA no está disponible: al servidor le falta la clave de voz (ELEVENLABS_API_KEY). Mientras tanto suena la voz sin costo.';
+  } catch (error) {
+    aiVoiceProblem = '';
+  }
+  paintVoiceMode();
 }
 
 function initVoiceMode() {
   try { el.voiceMode.value = localStorage.getItem('ah.voiceMode') === 'ai' ? 'ai' : 'free'; } catch (error) { /* sin almacenamiento */ }
   paintVoiceMode();
   el.voiceMode.addEventListener('change', () => {
-    aiVoiceBlocked = false;
+    aiVoiceBlockedUntil = 0;
+    aiVoiceProblem = '';
     try { localStorage.setItem('ah.voiceMode', el.voiceMode.value); } catch (error) { /* sin almacenamiento */ }
     paintVoiceMode();
+    paintCost();
+    if (voiceMode() === 'ai') checkAiVoice();
   });
+  if (voiceMode() === 'ai') checkAiVoice();
 }
 
-async function sayWithAiVoice(text) {
-  if (aiVoiceBlocked || !userGesture || el.volume.value === '0') return false;
-  let blobUrl = null;
+// Pide el audio al servidor (con limite de tiempo: si la red o el servicio se cuelgan, se usa la voz sin costo y el agente NO se queda mudo).
+// Devuelve { blob, left } o null. Se lanza apenas llega la frase, asi el audio ya esta listo cuando le toca hablar.
+const AI_VOICE_FETCH_MS = 20000;
+let aiVoiceBlockedUntil = 0; // si el servidor dijo "sin clave" o "sin tokens", no se insiste durante 1 minuto
+
+async function fetchAiAudio(text, emotion) {
+  if (Date.now() < aiVoiceBlockedUntil || !userGesture || el.volume.value === '0' || !el.speakHere.checked) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_VOICE_FETCH_MS);
   try {
     const response = await fetch('/api/ai-host/speak', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, speed: Number(el.rate.value) || 1 }),
+      body: JSON.stringify({ text, speed: Number(el.rate.value) || 1, emotion }),
+      signal: controller.signal,
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       if (['NO_VOICE_KEY', 'NO_TOKENS'].includes(data.code)) {
-        aiVoiceBlocked = true;
-        showNotice(data.code === 'NO_TOKENS' ? 'Ya no te quedan tokens para la voz con IA: se usa la voz sin costo.' : 'La voz con IA todavía no está disponible: se usa la voz sin costo.', 'warn');
+        aiVoiceBlockedUntil = Date.now() + 60000;
+        aiVoiceProblem = data.code === 'NO_TOKENS'
+          ? 'Ya no te quedan tokens para la voz con IA: se usa la voz sin costo.'
+          : 'La voz con IA no está disponible: al servidor le falta la clave de voz (ELEVENLABS_API_KEY). Mientras tanto suena la voz sin costo.';
+      } else {
+        aiVoiceProblem = data.error ? `La voz con IA falló (${data.error}). Se usó la voz sin costo.` : '';
       }
-      return false;
+      paintVoiceMode();
+      return null;
     }
     const left = response.headers.get('X-Voice-Tokens-Left');
+    const receipt = response.headers.get('X-Voice-Receipt') || '';
     const blob = await response.blob();
-    blobUrl = URL.createObjectURL(blob);
-
-    await new Promise((resolve, reject) => {
-      const audio = new Audio(blobUrl);
-      voiceAudio = audio;
-      audio.volume = Number(el.volume.value);
-      let timer = null;
-      const done = () => { clearInterval(timer); resolve(); };
-      audio.onended = done;
-      audio.onpause = done;
-      audio.onerror = () => { clearInterval(timer); reject(new Error('audio')); };
-      // la boca late mientras suena (no hay "limites de palabra" como en la voz del navegador)
-      audio.onplaying = () => { timer = setInterval(() => rig?.pulseWord(0.7 + Math.random() * 0.6), 180); };
-      audio.play().catch(reject);
-    });
-    if (left !== null && left !== '') paintTokens({ tokensRemaining: Number(left), approxResponses: { haiku: Math.floor(Number(left) / 1500), sonnet: Math.floor(Number(left) / 30000) } });
-    return true;
+    return { blob, left, receipt };
   } catch (error) {
-    return false;
+    aiVoiceProblem = error.name === 'AbortError' ? 'La voz con IA tardó demasiado. Se usó la voz sin costo.' : '';
+    paintVoiceMode();
+    return null;
   } finally {
-    voiceAudio = null;
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    clearTimeout(timer);
   }
 }
 
-// Dice el texto; devuelve una promesa que termina cuando acaba la voz (o el tiempo estimado si no hay voz)
-async function say(text, estimatedMs) {
-  if (voiceMode() === 'ai' && el.speakHere.checked && (await sayWithAiVoice(text))) return;
+// Reproduce el audio moviendo la boca. Siempre termina: por fin del audio, por error o por un limite de seguridad.
+function playAiAudio(audioData, text) {
+  return new Promise((resolve) => {
+    const blobUrl = URL.createObjectURL(audioData.blob);
+    const audio = new Audio(blobUrl);
+    voiceAudio = audio;
+    audio.volume = Number(el.volume.value);
+    let mouth = null;
+    let safety = null;
+    let finished = false;
+    let started = false; // el audio llego a sonar de verdad: solo entonces se cobra
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(mouth);
+      clearTimeout(safety);
+      if (voiceAudio === audio) voiceAudio = null;
+      URL.revokeObjectURL(blobUrl);
+      resolve(started);
+    };
+    safety = setTimeout(() => { audio.pause(); done(); }, Math.max(10000, text.length * 150 + 8000));
+    audio.onended = done;
+    audio.onpause = () => { if (!audio.ended) done(); };
+    audio.onerror = done;
+    // la boca late mientras suena (no hay "limites de palabra" como en la voz del navegador)
+    audio.onplaying = () => {
+      started = true;
+      confirmAiVoice(audioData);
+      mouth = setInterval(() => rig?.pulseWord(0.7 + Math.random() * 0.6), 180);
+    };
+    audio.play().catch(done);
+  });
+}
+
+// Avisa al servidor que el audio sono para que descuente los tokens (si el audio no suena, nunca se llama y no se cobra nada)
+async function confirmAiVoice(audioData) {
+  if (!audioData.receipt) return;
+  try {
+    const response = await fetch('/api/ai-host/speak/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receipt: audioData.receipt }),
+    });
+    const data = await response.json();
+    if (typeof data.tokensLeft === 'number') {
+      paintTokens({ tokensRemaining: data.tokensLeft, approxResponses: { haiku: Math.floor(data.tokensLeft / 1500), sonnet: Math.floor(data.tokensLeft / 30000) } });
+    }
+  } catch (error) {
+    // el recibo vence solo; no se cobra
+  }
+}
+
+// Dice el texto; devuelve una promesa que SIEMPRE termina (cuando acaba la voz, o el tiempo estimado si no hay voz)
+async function say(text, estimatedMs, audioData) {
+  if (voiceMode() === 'ai' && el.speakHere.checked) {
+    try {
+      if (audioData) {
+        if (await playAiAudio(audioData, text)) {
+          if (aiVoiceProblem) { aiVoiceProblem = ''; paintVoiceMode(); }
+          return;
+        }
+        // el audio llego pero el navegador no pudo reproducirlo: se deja de pedir audios (cada uno cuesta) hasta que se arregle
+        aiVoiceBlockedUntil = Date.now() + 5 * 60 * 1000;
+        aiVoiceProblem = 'El navegador no pudo reproducir la voz con IA (no se cobró nada). Se usa la voz sin costo; revisa la consola (F12).';
+        paintVoiceMode();
+      }
+    } catch (error) {
+      // cae a la voz sin costo
+    }
+  }
   return sayFree(text, estimatedMs);
 }
 
@@ -367,31 +470,103 @@ function sayFree(text, estimatedMs) {
   });
 }
 
+// ---- tarjeta del espectador al que responde el agente ----
+const giftImages = new Map(); // nombre normalizado del regalo -> imagen
+let giftImagesLoading = false;
+const foldName = (value) => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function loadGiftImages() {
+  if (giftImagesLoading || giftImages.size > 0) return;
+  giftImagesLoading = true;
+  try {
+    const response = await fetch('/api/gifts?gameType=aihost');
+    if (!response.ok) return;
+    const data = await response.json();
+    const pick = (value) => (!value ? '' : typeof value === 'string' ? value : Array.isArray(value) ? pick(value[0]) : pick(value.url || value.urlList || value.url_list || value.uri));
+    for (const gift of data.gifts || []) {
+      const url = pick(gift.imageUrl) || pick(gift.giftImage) || pick(gift.previewImage) || pick(gift.icon) || pick(gift.image);
+      if (gift.name && url) giftImages.set(foldName(gift.name), url);
+    }
+  } catch (error) {
+    // sin imagen del regalo se muestra solo el nombre
+  } finally {
+    giftImagesLoading = false;
+  }
+}
+
+function showViewerCard(focus) {
+  if (!el.viewerCard) return;
+  if (!focus || !focus.nickname) { el.viewerCard.classList.remove('visible'); return; }
+  el.viewerName.textContent = focus.nickname;
+  el.viewerMsg.textContent = focus.message || '';
+  el.viewerInitial.textContent = (focus.nickname.replace(/[^\p{L}\p{N}]/gu, '')[0] || '?');
+  el.viewerPhoto.onerror = () => { el.viewerPhoto.removeAttribute('src'); el.viewerPhoto.style.display = 'none'; };
+  if (focus.avatar) {
+    el.viewerPhoto.style.display = '';
+    el.viewerPhoto.src = focus.avatar;
+  } else {
+    el.viewerPhoto.removeAttribute('src');
+    el.viewerPhoto.style.display = 'none';
+  }
+
+  const gift = focus.gift;
+  if (gift && gift.name) {
+    const image = giftImages.get(foldName(gift.name));
+    el.viewerGiftImg.style.display = image ? '' : 'none';
+    if (image) el.viewerGiftImg.src = image; else el.viewerGiftImg.removeAttribute('src');
+    el.viewerGiftCoins.textContent = `${gift.name}${gift.count > 1 ? ` x${gift.count}` : ''}${gift.coins ? ` · ${gift.coins}` : ''}`;
+    el.viewerGift.hidden = false;
+  } else {
+    el.viewerGift.hidden = true;
+  }
+  el.viewerCard.classList.add('visible');
+}
+
 function showSubtitle(item) {
   clearTimeout(speech.hideTimer);
   el.subName.textContent = item.agentName || currentConfig?.agentName || 'Nova';
   el.subText.textContent = item.text;
   el.subtitle.classList.add('visible');
+  showViewerCard(item.focus);
 }
 
 function hideSubtitle(delayMs = 2200) {
   clearTimeout(speech.hideTimer);
   speech.hideTimer = setTimeout(() => {
-    if (!speech.active) el.subtitle.classList.remove('visible');
+    if (!speech.active) {
+      el.subtitle.classList.remove('visible');
+      el.viewerCard?.classList.remove('visible');
+    }
   }, delayMs);
 }
 
 async function runTalk(item) {
   speech.active = true;
+  speech.startedAt = Date.now();
+  const turn = ++speech.turn;
   const estimated = Math.max(1500, Number(item.estimatedMs) || item.text.length * 62 + 700);
+
+  // Con la voz IA se espera a tener el audio ANTES de mostrar el subtitulo y mover la boca, para que todo arranque a la vez
+  let audioData = null;
+  if (voiceMode() === 'ai' && el.speakHere.checked) {
+    rig?.setExpression('pensando', 6000);
+    audioData = await (item.audio || fetchAiAudio(item.text, item.emotion)).catch(() => null);
+    if (turn !== speech.turn) return;
+  }
 
   showSubtitle(item);
   rig?.setExpression(item.emotion || 'feliz', estimated + 1600);
   if (item.action) rig?.play(item.action);
   rig?.startSpeaking(estimated * 2 + 2000);
 
-  await say(item.text, estimated);
+  try {
+    await say(item.text, estimated, audioData);
+  } catch (error) {
+    // un fallo de la voz nunca debe dejar al agente mudo
+  }
 
+  // si el vigilante ya reinicio este turno (se colgo), otro turno esta a cargo
+  if (turn !== speech.turn) return;
   rig?.stopSpeaking();
   speech.active = false;
   if (speech.queue.length > 0) {
@@ -407,8 +582,24 @@ async function runTalk(item) {
 function enqueueTalk(item) {
   if (!item || !item.text) return;
   // si el chat va muy rapido no se acumulan mensajes viejos
-  if (speech.queue.length >= 3) speech.queue.shift();
+  // si el chat va muy rapido se descartan primero las frases normales; una frase que agradece un regalo NUNCA se descarta
+  const isGift = (entry) => Array.isArray(entry.kinds) && entry.kinds.includes('gift');
+  if (speech.queue.length >= 3) {
+    const droppable = speech.queue.findIndex((entry) => !isGift(entry));
+    if (droppable !== -1) speech.queue.splice(droppable, 1);
+    else if (!isGift(item)) return; // la cola esta llena de regalos: esta frase normal espera su turno en el servidor, no se acumula
+  }
+  // con la voz IA se pide el audio de una vez, para que este listo cuando le toque hablar
+  if (voiceMode() === 'ai' && el.speakHere.checked) item.audio = fetchAiAudio(item.text, item.emotion);
   speech.queue.push(item);
+  // vigilante: si un turno lleva mucho mas de lo normal, se da por colgado y se libera para que el agente siga hablando
+  if (speech.active && Date.now() - speech.startedAt > 45000) {
+    speech.turn += 1;
+    voiceAudio?.pause();
+    window.speechSynthesis?.cancel();
+    rig?.stopSpeaking();
+    speech.active = false;
+  }
   if (!speech.active) runTalk(speech.queue.shift());
 }
 
@@ -613,8 +804,52 @@ async function refreshStatus() {
 }
 
 // Tokens del plan (el superusuario no tiene limite)
+let creditState = { unlimited: false, tokensRemaining: null };
+let costTimer = null;
+let costSeq = 0;
+let lastCost = null;
+
+// Aviso de gasto aproximado por respuesta. El calculo lo hace el servidor con la configuracion que hay ahora en pantalla (guardada o no):
+// modelo, largo maximo, personalidad, "sobre ti", comentarios que atiende, pausa entre respuestas y tipo de voz.
+function paintCost() {
+  if (!el.costTotal) return;
+  clearTimeout(costTimer);
+  costTimer = setTimeout(async () => {
+    const seq = ++costSeq;
+    try {
+      const data = await api('/estimate', { method: 'POST', body: JSON.stringify({ config: readForm(), voice: voiceMode() === 'ai' && el.speakHere.checked ? 'ai' : 'free' }) });
+      if (seq !== costSeq) return;
+      lastCost = data;
+      showCost(data);
+    } catch (error) {
+      // se vuelve a calcular en el siguiente cambio
+    }
+  }, 350);
+}
+
+function showCost(data) {
+  const fmt = (n) => Math.round(n).toLocaleString('es');
+  const tokens = (n) => (n > 0 ? `≈ ${fmt(n)}` : '0');
+  const r = data.rows;
+  el.costInstr.textContent = tokens(r.instructions);
+  el.costPersona.textContent = tokens(r.personality);
+  el.costChat.textContent = tokens(r.chat);
+  el.costReply.textContent = tokens(r.reply);
+  el.costReplyNote.textContent = `(~${data.typicalChars} caracteres)`;
+  el.costVoice.textContent = tokens(r.voice);
+  el.costVoiceKind.textContent = r.voice > 0 ? '(IA)' : '(sin costo)';
+  el.costTotal.textContent = `≈ ${fmt(data.total)} tokens`;
+  el.costHour.textContent = `En un live muy activo (una respuesta cada ${Math.round(3600 / data.responsesPerHour)} s) serían hasta ≈ ${fmt(data.perHourMax)} tokens por hora.`;
+
+  if (creditState.unlimited) el.costLeft.textContent = 'Eres superusuario: sin límite de tokens.';
+  else if (creditState.tokensRemaining === null) el.costLeft.textContent = '';
+  else el.costLeft.textContent = `Con tus ${fmt(creditState.tokensRemaining)} tokens te alcanzan unas ${fmt(Math.floor(creditState.tokensRemaining / Math.max(1, data.total)))} respuestas con esta configuración.`;
+}
+
 function paintTokens(credit) {
   if (!credit) return;
+  creditState = { unlimited: Boolean(credit.unlimited), tokensRemaining: credit.unlimited ? null : Number(credit.tokensRemaining) || 0 };
+  if (lastCost) showCost(lastCost);
   if (credit.unlimited) {
     el.statTokens.textContent = '∞';
     el.statTokensNote.textContent = 'sin límite';
@@ -655,7 +890,12 @@ function paintSliders() {
 function paintStage() {
   const accent = el.accent.value || '#7c5cff';
   document.documentElement.style.setProperty('--ah-accent', accent);
-  el.stage.dataset.bg = el.background.value || 'studio';
+  // CJ siempre va con su propio fondo (las calles); los demas personajes usan el escenario elegido
+  const ownBackground = el.character_.value === 'cj';
+  el.stage.dataset.bg = ownBackground ? 'calles' : (el.background.value || 'studio');
+  document.body.classList.toggle('ah-cj-bg', ownBackground);
+  el.background.disabled = ownBackground;
+  el.background.title = ownBackground ? 'CJ usa siempre su propio fondo (las calles)' : '';
   el.chat.hidden = !el.showChat.checked;
   el.subName.textContent = el.agentName.value.trim() || 'Nova';
   rig?.setAccent(accent);
@@ -671,6 +911,7 @@ function ensureRig() {
 
 function applyConfig(config) {
   currentConfig = config;
+  window.AiHostGiftRules?.set(config.giftRules);
   el.enabled.checked = config.enabled;
   paintEnabled(config.enabled);
   el.character_.value = config.character;
@@ -697,6 +938,7 @@ function applyConfig(config) {
   el.volume.value = config.voiceVolume;
   el.model.value = config.model;
   el.modelHint.textContent = MODEL_HINTS[config.model] || '';
+  paintCost();
   paintSliders();
   fillVoiceSelect();
   ensureRig();
@@ -724,6 +966,7 @@ function readForm() {
     proactiveMinutes: Number(el.proactiveMinutes.value),
     cadenceSeconds: Number(el.cadence.value),
     maxChars: Number(el.maxChars.value),
+    giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
     bannedWords: el.banned.value,
     voiceName: el.voice.value,
     voiceRate: Number(el.rate.value),
@@ -747,6 +990,7 @@ async function loadConfig() {
   fillSelect(el.character_, Object.entries(data.characters));
   fillSelect(el.background, Object.entries(data.backgrounds));
   applyConfig(data.config);
+  paintCost();
 }
 
 async function saveConfig(event) {
@@ -781,7 +1025,10 @@ async function toggleEnabled() {
 
 async function sendTest(payload) {
   try {
-    await api('/test', { method: 'POST', body: JSON.stringify(payload) });
+    const result = await api('/test', { method: 'POST', body: JSON.stringify(payload) });
+    if (result && result.waiting) {
+      showNotice('Regalo de prioridad recibido: el agente no lo agradece todavía, espera el mensaje de esa persona. Envía un comentario de prueba (o espera 2 minutos).', 'info');
+    }
   } catch (error) {
     await showAlert(error.message, 'No se pudo probar');
   }
@@ -898,7 +1145,10 @@ function bindEvents() {
   el.form.addEventListener('submit', saveConfig);
   el.enabled.addEventListener('change', toggleEnabled);
   el.language.addEventListener('change', fillVoiceSelect);
-  el.model.addEventListener('change', () => { el.modelHint.textContent = MODEL_HINTS[el.model.value] || ''; });
+  el.model.addEventListener('change', () => { el.modelHint.textContent = MODEL_HINTS[el.model.value] || ''; paintCost(); });
+  [el.maxChars, el.persona, el.about, el.cadence, el.agentName, el.replyMode, el.thankGifts, el.greetFollowers, el.greetViewers, el.tone, el.language, el.rate]
+    .forEach((field) => field?.addEventListener(field.type === 'checkbox' || field.tagName === 'SELECT' ? 'change' : 'input', paintCost));
+  el.speakHere.addEventListener('change', paintCost);
   for (const input of [el.rate, el.pitch, el.volume]) input.addEventListener('input', paintSliders);
   for (const input of [el.character_, el.background, el.accent, el.showChat, el.agentName]) {
     input.addEventListener('input', () => { ensureRig(); paintStage(); });
@@ -920,7 +1170,7 @@ function bindEvents() {
       el.testComment.click();
     }
   });
-  el.testGift.addEventListener('click', () => { unlockSpeech(); sendTest({ kind: 'gift', giftName: 'Rosa', coins: 5 }); });
+  el.testGift.addEventListener('click', () => { unlockSpeech(); sendTest({ kind: 'gift', giftName: window.AiHostGiftRules?.firstGift() || 'Rosa', coins: 5 }); });
   el.testFollow.addEventListener('click', () => { unlockSpeech(); sendTest({ kind: 'follow' }); });
   el.reset.addEventListener('click', resetMemory);
   el.demoBtn.addEventListener('click', toggleDemo);
@@ -955,6 +1205,7 @@ function bindEvents() {
 
   buildStudio();
   bindEvents();
+  loadGiftImages();
   try {
     await loadConfig();
   } catch (error) {

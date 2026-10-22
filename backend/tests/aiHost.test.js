@@ -492,33 +492,467 @@ test('la recarga suma el costo de transaccion al presupuesto y los tokens salen 
   assert.equal(quote.tokens, 10 * credit.TOPUP_TOKENS_PER_USD);
 });
 
-test('la voz con IA: pide el audio con la voz del personaje, usa cache y falla limpio sin clave', async () => {
+test('la voz con IA (ElevenLabs): usa la voz del personaje, cache y falla limpio sin clave', async () => {
   const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
   voice._cache.clear();
   const calls = [];
   const fakeFetch = async (url, options) => {
-    calls.push(JSON.parse(options.body));
+    calls.push({ url, headers: options.headers, body: JSON.parse(options.body) });
     return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
   };
+  for (const key of ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID', 'ELEVENLABS_VOICE_MOCHI']) delete process.env[key];
 
-  delete process.env.OPENAI_API_KEY;
   await assert.rejects(() => voice.synthesize({ text: 'hola', characterId: 'mochi', fetchImpl: fakeFetch }), (error) => error.code === 'NO_VOICE_KEY' && error.status === 503);
+  assert.equal(voice.isConfigured('mochi'), false);
 
-  process.env.OPENAI_API_KEY = 'sk-test';
-  const first = await voice.synthesize({ text: '  ¡Hola   chat!  ', characterId: 'mochi', speed: 5, fetchImpl: fakeFetch });
+  process.env.ELEVENLABS_API_KEY = 'el-test';
+  process.env.ELEVENLABS_VOICE_ID = 'comun';
+  process.env.ELEVENLABS_VOICE_MOCHI = 'vozmochi';
+  assert.equal(voice.voiceIdFor('mochi'), 'vozmochi', 'cada personaje usa su propia voz');
+  assert.equal(voice.voiceIdFor('otro'), 'comun', 'sin voz propia, la comun');
+
+  const first = await voice.synthesize({ text: '  ¡Hola   chat!  ', characterId: 'mochi', speed: 5, emotion: 'risa', fetchImpl: fakeFetch });
   assert.equal(first.cached, false);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].voice, voice.VOICE_PROFILES.mochi.voice);
-  assert.match(calls[0].instructions, /gatito/);
-  assert.equal(calls[0].input, '¡Hola chat!');
-  assert.equal(calls[0].speed, 1.3); // la velocidad se limita
+  assert.match(calls[0].url, /elevenlabs\.io\/v1\/text-to-speech\/vozmochi/);
+  assert.equal(calls[0].headers['xi-api-key'], 'el-test');
+  assert.equal(calls[0].body.text, '¡Hola chat!');
+  assert.equal(calls[0].body.voice_settings.speed, 1.2); // la velocidad se limita
+  assert.equal(calls[0].body.voice_settings.style, voice.EMOTION_STYLE.risa);
 
-  const again = await voice.synthesize({ text: '¡Hola chat!', characterId: 'mochi', speed: 1.3, fetchImpl: fakeFetch });
+  const again = await voice.synthesize({ text: '¡Hola chat!', characterId: 'mochi', speed: 1.2, emotion: 'risa', fetchImpl: fakeFetch });
   assert.equal(again.cached, true);
   assert.equal(calls.length, 1, 'la misma frase no vuelve a costar');
-  delete process.env.OPENAI_API_KEY;
 
   assert.ok(voice.estimateTokens('a'.repeat(100), 10000000) > voice.estimateTokens('a'.repeat(10), 10000000));
   for (let i = 0; i < 24; i += 1) assert.equal(voice.allowRequest(999), true);
   assert.equal(voice.allowRequest(999), false, 'tope por minuto');
+  for (const key of ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID', 'ELEVENLABS_VOICE_MOCHI']) delete process.env[key];
+});
+
+test('la voz con IA solo cobra cuando se confirma que sono: un recibo, un solo uso, solo de su dueno', () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  const id = voice.createReceipt(5, 1234);
+  assert.equal(voice.takeReceipt(6, id), null, 'otro usuario no puede cobrarlo');
+  assert.equal(voice.takeReceipt(5, id), null, 'ya se gasto al intentarlo');
+  const second = voice.createReceipt(5, 777);
+  assert.equal(voice.takeReceipt(5, second), 777);
+  assert.equal(voice.takeReceipt(5, second), null, 'un recibo solo se cobra una vez');
+  const old = voice.createReceipt(5, 10, Date.now() - 10 * 60 * 1000);
+  assert.equal(voice.takeReceipt(5, old), null, 'vencido');
+  assert.equal(voice.takeReceipt(5, 'inventado'), null);
+});
+
+test('los avisos al superusuario: sin saldo o clave invalida se detectan, otros errores no, y se limpian solos', () => {
+  const alerts = require(path.join(root, 'services', 'providerAlerts.js'));
+  alerts._alerts.clear();
+
+  const noCredit = new Error('400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}');
+  noCredit.status = 400;
+  assert.equal(alerts.classifyAnthropic(noCredit), 'credit');
+  assert.equal(alerts.classifyAnthropic(Object.assign(new Error('invalid x-api-key'), { status: 401 })), 'auth');
+  assert.equal(alerts.classifyAnthropic(Object.assign(new Error('overloaded'), { status: 529 })), null);
+  assert.equal(alerts.classifyAnthropic(new Error('socket hang up')), null);
+
+  assert.equal(alerts.classifyElevenLabs(401, '{"detail":{"status":"quota_exceeded","message":"This request exceeds your quota"}}'), 'credit');
+  assert.equal(alerts.classifyElevenLabs(402, '{"detail":{"code":"paid_plan_required"}}'), 'plan');
+  assert.equal(alerts.classifyElevenLabs(401, '{"detail":{"status":"invalid_api_key"}}'), 'auth');
+  assert.equal(alerts.classifyElevenLabs(500, 'boom'), null);
+
+  alerts.report('anthropic', 'credit');
+  alerts.report('anthropic', 'credit');
+  alerts.report('elevenlabs', 'plan');
+  const listed = alerts.list();
+  assert.equal(listed.length, 2);
+  assert.equal(listed.find((a) => a.provider === 'anthropic').count, 2);
+  alerts.clear('anthropic');
+  assert.deepEqual(alerts.list().map((a) => a.provider), ['elevenlabs']);
+  alerts._alerts.clear();
+});
+
+test('el gasto aproximado por respuesta sube con el largo maximo, la personalidad, Sonnet y la voz de IA', () => {
+  const estimate = require(path.join(root, 'services', 'aiHostEstimate.js'));
+  const base = { ...service.DEFAULTS };
+  const run = (config, voiceAi = false) => estimate.estimate({ ...base, ...config }, { models: service.ALLOWED_MODELS, voiceAi });
+
+  const normal = run({});
+  assert.ok(normal.total > 0);
+  assert.equal(normal.rows.voice, 0);
+  assert.ok(run({ maxChars: 400 }).total > normal.total, 'respuestas mas largas gastan mas');
+  assert.ok(run({ maxChars: 120 }).total < normal.total);
+  const withPersona = run({ persona: 'x'.repeat(1000), aboutStreamer: 'y'.repeat(1000) });
+  assert.ok(withPersona.rows.personality > 0 && withPersona.total > normal.total, 'tu texto se repite en cada respuesta');
+  assert.ok(run({ model: 'claude-sonnet-5-5' }).total > normal.total * 10, 'Sonnet es mucho mas caro');
+  const voice = run({}, true);
+  assert.ok(voice.rows.voice > 0 && voice.total > normal.total * 20, 'la voz de IA domina el gasto');
+  assert.equal(voice.total, voice.rows.instructions + voice.rows.personality + voice.rows.chat + voice.rows.reply + voice.rows.voice);
+  assert.ok(run({ cadenceSeconds: 60 }).responsesPerHour < run({ cadenceSeconds: 8 }).responsesPerHour);
+});
+
+// ---------- reglas de regalos ----------
+
+const giftRules = { priority: ['Rose'], advice: ['Heart Me'], joke: ['Rose'], flatter: ['Corazón  Rojo!'] };
+const giftEvent = (giftName, uniqueId = 'ronald') => live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName, user: { uniqueId, nickname: uniqueId } });
+
+test('las reglas de regalos se limpian: sin repetidos (tildes y mayusculas no cuentan), con tope y solo textos', () => {
+  const rules = service.normalizeConfigInput({ giftRules: { advice: ['Rose', ' rose ', 'ROSÉ!', null, '', 'Heart'], joke: 'no es lista', priority: new Array(20).fill(0).map((_, i) => `Regalo ${i}`) } }).giftRules;
+  assert.deepEqual(rules.advice, ['Rose', 'Heart'], 'rose, " rose " y ROSÉ! son el mismo regalo; lo vacio se descarta');
+  assert.deepEqual(rules.joke, []);
+  assert.equal(rules.priority.length, 8, 'maximo 8 por regla');
+  assert.deepEqual(rules.flatter, []);
+  const unchanged = service.normalizeConfigInput({}, { ...service.DEFAULTS, giftRules: { priority: ['Rose'], advice: [], joke: [], flatter: [] } }).giftRules;
+  assert.deepEqual(unchanged.priority, ['Rose'], 'si la pagina no manda reglas se queda lo guardado');
+});
+
+test('un regalo con regla activa las acciones, aunque sea de pocas monedas o no se agradezcan regalos', async () => {
+  reset();
+  db.config.set(5, configRow({ thank_gifts: false, min_gift_coins: 1000, gift_rules: giftRules }));
+  await service.handleLiveEvent(giftEvent('rose'));
+  await service.handleLiveEvent(giftEvent('Otro regalo', 'ana')); // sin regla: con min 1000 monedas no entra
+  await service.tick();
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /regalo="rose"[^>]*accion_especial="consejo, chiste"|regalo="rose"[^>]*accion_especial="chiste"/);
+  assert.doesNotMatch(calls[0].user, /Otro regalo/);
+  assert.match(calls[0].system, /Regalos especiales/);
+  assert.match(calls[0].system, /consejo/);
+  assert.match(calls[0].system, /chiste/);
+  assert.match(calls[0].system, /halago/);
+  assert.match(calls[0].system, /prioridad="si"/);
+  assert.match(calls[0].system, /hasta 300 caracteres/, 'consejo y chiste tienen mas espacio');
+  assert.ok(calls[0].maxTokens >= Math.round(300 / 2.2));
+});
+
+test('sin reglas el prompt no trae el bloque de regalos especiales', async () => {
+  reset();
+  await service.handleLiveEvent(giftEvent('Rosa'));
+  await service.tick();
+  assert.doesNotMatch(calls[0].system, /Regalos especiales/);
+  assert.doesNotMatch(calls[0].user, /accion_especial/);
+});
+
+test('regalo de prioridad: sus comentarios van primero, saltan el filtro de respuestas y se marcan en el prompt', async () => {
+  reset();
+  db.config.set(5, configRow({ reply_mode: 'mentions', gift_rules: { priority: ['Rose'], advice: [], joke: [], flatter: [] } }));
+  // antes del regalo, con el filtro "solo menciones", el comentario de Ronald no entra
+  await service.handleLiveEvent(comment('que bonito el live', 'ronald'));
+  assert.equal(service._sessions.get(5)?.queue.length || 0, 0);
+
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  await service.handleLiveEvent(comment('que bonito el live', 'ronald')); // ahora si: es de quien mando el regalo
+  await service.handleLiveEvent(comment('hola Nova, dime algo', 'pedro')); // una mencion de otra persona
+  await service.tick();
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /tipo="comentario" usuario="ronald" prioridad="si">que bonito el live/);
+  assert.doesNotMatch(calls[0].user, /usuario="pedro" prioridad/);
+});
+
+test('el regalo de prioridad tambien marca los comentarios del mismo usuario que ya estaban esperando', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: ['Rose'], advice: [], joke: [], flatter: [] } }));
+  await service.handleLiveEvent(comment('mira mi pregunta', 'ronald'));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  const queued = service._sessions.get(5).queue.find((item) => item.kind === 'comment');
+  assert.equal(queued.priority, true);
+});
+
+// ---------- ningun regalo se pasa por alto ----------
+
+const spokenFor = (name) => said.find((item) => item.kinds.includes('gift') && item.to.includes(name));
+
+test('el mismo regalo de la misma persona dos veces seguidas no se descarta como repetido: se suman', async () => {
+  reset();
+  await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
+  await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
+  const queued = service._sessions.get(5).queue.filter((item) => item.kind === 'gift');
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].count, 2, 'se agradecen juntos, no se pierde ninguno');
+  await service.tick();
+  assert.match(calls[0].user, /cantidad="2"/);
+});
+
+test('si la IA responde [SKIP] a un regalo, igual se agradece con una frase de respaldo (con el nombre)', async () => {
+  reset();
+  nextReply = { text: '[SKIP]', usage: { input_tokens: 800, output_tokens: 5 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(giftEvent('Rosa', 'Ronald'));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+  assert.equal(said.length, 1, 'el regalo se agradecio');
+  assert.match(said[0].text, /Ronald/);
+  assert.ok(said[0].kinds.includes('gift'));
+});
+
+test('un regalo de halago, chiste o consejo siempre nombra a quien lo envio (si el modelo no lo hizo, se antepone)', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
+  nextReply = { text: '[feliz, asentir] Un buen consejo es descansar bien.', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(giftEvent('Rosa', 'Samuel'));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /Samuel/);
+  assert.match(said[0].text, /gracias/i, 'el regalo tambien se agradece');
+});
+
+test('si la IA falla una y otra vez con un regalo, se reintenta y al final se agradece con la frase de respaldo', async () => {
+  reset();
+  await service.handleLiveEvent(giftEvent('Rosa', 'Lucia'));
+  failNext = 100;
+  const session = () => service._sessions.get(5);
+  for (let i = 0; i < 8 && said.length === 0; i += 1) {
+    session().pausedUntil = 0;
+    session().lastTurnAt = 0;
+    session().speakingUntil = 0;
+    await service.tick();
+  }
+  failNext = 0;
+  assert.equal(said.length, 1, 'el regalo se agradecio aunque la IA no respondio');
+  assert.match(said[0].text, /Lucia/);
+  assert.equal(said[0].model, 'respaldo');
+  assert.equal(session().queue.filter((item) => item.kind === 'gift').length, 0);
+});
+
+test('el tope diario de respuestas y la falta de tokens no borran los regalos de la cola', async () => {
+  reset();
+  // tope diario alcanzado: los comentarios se frenan, el regalo igual se agradece
+  db.usage.set(`5|${new Date().toISOString().slice(0, 10)}`, { calls: 2000, spoken: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cost_usd: 0 });
+  await service.handleLiveEvent(comment('hola Nova', 'pepe'));
+  await service.handleLiveEvent(giftEvent('Rosa', 'Marta'));
+  await service.tick();
+  assert.ok(spokenFor('Marta'), 'con el tope diario alcanzado el regalo se agradece igual');
+
+  // sin tokens: no se puede responder, pero el regalo espera en la cola (no se borra)
+  reset();
+  db.credit = { remaining: 100, granted: 20000000, used: 20000000 };
+  await service.handleLiveEvent(comment('hola Nova', 'pepe'));
+  await service.handleLiveEvent(giftEvent('Rosa', 'Marta'));
+  await service.tick();
+  const queue = service._sessions.get(5).queue;
+  assert.equal(queue.filter((item) => item.kind === 'gift').length, 1, 'el regalo sigue esperando');
+  assert.equal(queue.filter((item) => item.kind === 'comment').length, 0, 'los comentarios si se descartan');
+});
+
+test('cuando la cola esta llena se descartan comentarios, nunca regalos', async () => {
+  reset();
+  await service.handleLiveEvent(giftEvent('Rosa', 'Marta'));
+  for (let i = 0; i < 80; i += 1) await service.handleLiveEvent(comment(`comentario numero ${i} bonito`, `user${i}`));
+  const queue = service._sessions.get(5).queue;
+  assert.ok(queue.length <= 60);
+  assert.equal(queue.filter((item) => item.kind === 'gift').length, 1, 'el regalo sigue en la cola');
+});
+
+test('un regalo agotado por reintentos nunca ocurre en silencio: la frase de respaldo existe en los 3 idiomas y trae el nombre', () => {
+  for (const language of ['es', 'en', 'pt']) {
+    const reply = prompt.giftFallbackReply([{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', special: ['flatter', 'joke'] }], { language, maxChars: 220 }, 1);
+    assert.match(reply.text, /Pablo/, language);
+    assert.ok(reply.text.length > 20);
+  }
+  assert.equal(prompt.giftFallbackReply([{ kind: 'comment', nickname: 'x' }], {}), null);
+});
+
+// ---------- tarjeta del espectador ----------
+
+test('lo que dice el agente trae a quien le responde: foto, nombre, mensaje y ultimo regalo', async () => {
+  reset();
+  const avatar = 'https://p16.tiktokcdn.com/avatar/ana.jpg';
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 5, repeatCount: 2, giftName: 'Rosa', user: { uniqueId: 'ana', nickname: 'Ana', avatar } }));
+  await service.handleLiveEvent(live('comment', { comment: 'hola Nova, ¿cómo estás?', user: { uniqueId: 'ana', nickname: 'Ana', avatar }, identity: {} }));
+  await service.tick();
+
+  assert.equal(said.length, 1);
+  const focus = said[0].focus;
+  assert.equal(focus.nickname, 'Ana');
+  assert.equal(focus.avatar, avatar);
+  assert.equal(focus.kind, 'gift');
+  assert.equal(focus.message, 'hola Nova, ¿cómo estás?', 'el mensaje de quien mando el regalo, si lo escribio');
+  assert.deepEqual(focus.gift, { name: 'Rosa', coins: 10, count: 2 });
+});
+
+test('la tarjeta solo acepta fotos https y un comentario trae el ultimo regalo que esa persona mando antes', async () => {
+  reset();
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Corazon', user: { uniqueId: 'luis', nickname: 'Luis', avatar: 'javascript:alert(1)' } }));
+  service._sessions.get(5).queue = []; // el regalo ya se agradecio
+  await service.handleLiveEvent(live('comment', { comment: 'hola Nova, me ves?', user: { uniqueId: 'luis', nickname: 'Luis', avatar: 'http://inseguro.com/a.jpg' }, identity: {} }));
+  await service.tick();
+
+  const focus = said[0].focus;
+  assert.equal(focus.kind, 'comment');
+  assert.equal(focus.avatar, '', 'ni javascript: ni http: se muestran como foto');
+  assert.equal(focus.message, 'hola Nova, me ves?');
+  assert.equal(focus.gift.name, 'Corazon', 'el ultimo regalo de esa persona');
+});
+
+test('una respuesta proactiva (sin nadie a quien responder) no trae tarjeta', async () => {
+  reset();
+  const session = { queue: [], gifters: new Set(), stats: { coins: 0, follows: 0 }, avatars: new Map(), lastGift: new Map() };
+  assert.equal(service.buildFocus(session, []), null);
+  assert.equal(service.buildFocus(session, [{ kind: 'follow', nickname: 'Eva', uniqueId: 'eva' }]).message, 'Empezó a seguirte');
+});
+
+test('un regalo con regla se agradece Y ademas hace la accion especial (agradecimiento primero)', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: [], joke: ['Rosa'], flatter: [] } }));
+  // el modelo solo cuenta el chiste, sin agradecer: el servidor antepone el agradecimiento
+  nextReply = { text: '[risa, saltar] ¿Qué hace una abeja en el gimnasio? ¡Zum-ba!', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(giftEvent('Rosa', 'Camila'));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /^.*Camila.*Rosa.*Zum-ba/s, 'primero el agradecimiento con nombre y regalo, luego el chiste');
+  assert.match(said[0].text, /gracias|thank|obrigad/i);
+});
+
+test('si el modelo ya agradece, no se le agrega un segundo agradecimiento; sin regalos no se toca', () => {
+  const batch = [{ kind: 'gift', nickname: 'Eva', giftName: 'Rosa', special: ['joke'] }];
+  assert.equal(prompt.ensureGiftsThanked('Gracias Eva por la rosa. Un chiste...', batch), 'Gracias Eva por la rosa. Un chiste...');
+  assert.equal(prompt.ensureGiftsThanked('Hola a todos', [{ kind: 'comment' }]), 'Hola a todos');
+});
+
+test('el prompt exige agradecer siempre el regalo y ademas la accion especial', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
+  await service.handleLiveEvent(giftEvent('Rosa', 'Ana'));
+  await service.tick();
+  assert.match(calls[0].system, /todo regalo se agradece SIEMPRE/);
+  assert.match(calls[0].system, /ADEMÁS del agradecimiento/);
+});
+
+// ---------- regalo de solo prioridad: se agradece cuando llega el mensaje ----------
+
+const priorityOnly = { priority: ['Rose'], advice: [], joke: [], flatter: [] };
+
+test('un regalo de solo prioridad NO se agradece al llegar: el agente espera el mensaje de esa persona', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: priorityOnly }));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  await service.tick();
+
+  assert.equal(calls.length, 0, 'no hay respuesta por el regalo');
+  assert.equal(said.length, 0);
+  const session = service._sessions.get(5);
+  assert.equal(session.pendingPriority.size, 1, 'el regalo espera, no se pierde');
+  assert.equal(session.queue.length, 0);
+  assert.ok(visual.some((item) => item.kind === 'gift'), 'la alerta visual del regalo si se muestra');
+});
+
+test('cuando esa persona manda su mensaje, el agente agradece el regalo y responde el mensaje, en una sola intervencion', async () => {
+  reset();
+  db.config.set(5, configRow({ reply_mode: 'mentions', gift_rules: priorityOnly }));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  await service.handleLiveEvent(comment('que bonito el live, saludame', 'ronald')); // filtro "solo menciones": prioridad lo salta
+  await service.tick();
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /tipo="regalo" usuario="ronald" regalo="Rose"/);
+  assert.match(calls[0].user, /tipo="comentario" usuario="ronald" prioridad="si">que bonito el live, saludame/);
+  assert.doesNotMatch(calls[0].user, /accion_especial/);
+  assert.ok(calls[0].user.indexOf('tipo="regalo"') < calls[0].user.indexOf('tipo="comentario"'), 'primero el regalo, luego el mensaje');
+  assert.equal(service._sessions.get(5).pendingPriority.size, 0);
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /gracias|thank/i, 'el agradecimiento se dice junto con el mensaje');
+});
+
+test('si el mensaje ya estaba esperando cuando llega el regalo de prioridad, se atienden juntos al instante', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: priorityOnly }));
+  await service.handleLiveEvent(comment('mira mi pregunta, Nova', 'ronald'));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  const queue = service._sessions.get(5).queue;
+  assert.equal(queue.filter((item) => item.kind === 'gift').length, 1);
+  assert.equal(queue.find((item) => item.kind === 'comment').priority, true);
+  assert.equal(service._sessions.get(5).pendingPriority.size, 0);
+});
+
+test('si la persona nunca escribe, el regalo de prioridad se agradece igual despues de 2 minutos (no se pasa por alto)', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: priorityOnly }));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  const session = service._sessions.get(5);
+  session.pendingPriority.get('ronald').at -= 3 * 60 * 1000; // pasaron 3 minutos
+  await service.tick();
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /tipo="regalo" usuario="ronald" regalo="Rose"/);
+  assert.equal(session.pendingPriority.size, 0);
+  assert.equal(said.length, 1);
+});
+
+test('un regalo con prioridad Y otra regla (chiste, consejo, halago) si se agradece y se atiende de inmediato', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: ['Rose'], advice: [], joke: ['Rose'], flatter: [] } }));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  assert.equal(service._sessions.get(5).pendingPriority.size, 0);
+  await service.tick();
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /accion_especial="chiste"/);
+});
+
+test('el regalo de prueba de prioridad avisa que espera el mensaje (la pagina lo muestra)', async () => {
+  reset();
+  db.config.set(5, configRow({ gift_rules: priorityOnly }));
+  const outcome = await service.injectTest(5, { kind: 'gift', giftName: 'Rose', coins: 1 });
+  assert.deepEqual(outcome, { waiting: true });
+  assert.equal(service._sessions.get(5).queue.length, 0);
+  service._sessions.get(5).lastTestAt = 0;
+  const second = await service.injectTest(5, { kind: 'comment', text: 'ya mande el regalo, Nova' });
+  assert.deepEqual(second, { waiting: false });
+  await service.tick();
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].user, /tipo="regalo"/);
+});
+
+// ---------- imagen descargable de las reglas de regalos ----------
+
+test('el proxy de imagenes de regalos solo acepta https hacia el CDN de TikTok (nada interno)', () => {
+  const proxy = require(path.join(root, 'services', 'giftImageProxy.js'));
+  const ok = [
+    'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/abc.png~tplv-obj.webp',
+    'https://p19-webcast.tiktokcdn-us.com/img/a.webp',
+    'https://sf16-webcast.ibyteimg.com/a.png',
+  ];
+  const bad = [
+    'http://p16-webcast.tiktokcdn.com/a.png', // sin https
+    'https://localhost/a.png',
+    'https://127.0.0.1/a.png',
+    'https://169.254.169.254/latest/meta-data',
+    'https://tiktokcdn.com.evil.com/a.png', // dominio que solo empieza igual
+    'https://evil.com/?https://p16.tiktokcdn.com/a.png',
+    'https://user:pass@p16.tiktokcdn.com/a.png',
+    'https://p16.tiktokcdn.com:8443/a.png',
+    'javascript:alert(1)',
+    '',
+    undefined,
+  ];
+  for (const url of ok) assert.equal(proxy.isAllowedImageUrl(url), true, url);
+  for (const url of bad) assert.equal(proxy.isAllowedImageUrl(url), false, String(url));
+});
+
+test('el proxy devuelve la imagen, rechaza lo que no es imagen o es enorme, y no sigue redirecciones', async () => {
+  const proxy = require(path.join(root, 'services', 'giftImageProxy.js'));
+  const url = 'https://p16-webcast.tiktokcdn.com/img/a.png';
+  const reply = (type, bytes, ok = true) => async (_url, options) => {
+    assert.equal(options.redirect, 'error', 'no sigue redirecciones');
+    return { ok, headers: { get: () => type }, arrayBuffer: async () => new Uint8Array(bytes).buffer };
+  };
+  const good = await proxy.fetchImage(url, reply('image/webp', 100));
+  assert.equal(good.contentType, 'image/webp');
+  assert.equal(good.buffer.length, 100);
+  await assert.rejects(() => proxy.fetchImage(url, reply('text/html', 100)), (e) => e.status === 502);
+  await assert.rejects(() => proxy.fetchImage(url, reply('image/png', 3 * 1024 * 1024)), (e) => e.status === 502);
+  await assert.rejects(() => proxy.fetchImage(url, reply('image/png', 100, false)), (e) => e.status === 502);
+  await assert.rejects(() => proxy.fetchImage('https://evil.com/a.png', reply('image/png', 10)), (e) => e.status === 400);
+});
+
+test('el personaje CJ (estilo San Andreas) se puede elegir y tiene su propia voz', () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  assert.ok(service.CHARACTERS.cj);
+  assert.equal(service.normalizeConfigInput({ character: 'cj' }).character, 'cj');
+  assert.equal(service.normalizeConfigInput({ character: 'inventado' }).character, service.DEFAULTS.character, 'un personaje desconocido se ignora');
+  process.env.ELEVENLABS_VOICE_CJ = 'vozcj';
+  process.env.ELEVENLABS_VOICE_MOCHI = 'vozmochi';
+  assert.equal(voice.voiceIdFor('cj'), 'vozcj');
+  assert.equal(voice.voiceIdFor('mochi'), 'vozmochi');
+  delete process.env.ELEVENLABS_VOICE_CJ;
+  delete process.env.ELEVENLABS_VOICE_MOCHI;
 });

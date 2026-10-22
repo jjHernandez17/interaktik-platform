@@ -23,10 +23,10 @@ const TOKENS_PER_USD = 10000000;
 const MIN_TOKENS_TO_RUN = { 'claude-haiku-5-5': 4000, 'claude-sonnet-5-5': 80000 };
 const AVG_TOKENS_PER_RESPONSE = { haiku: 1500, sonnet: 30000 };
 
-// Recargas: cada dolar de presupuesto da 6 M de tokens = $0.60 de IA real; el resto ($0.40 por dolar) es de la plataforma. Aparte del
-// presupuesto se cobra un costo de transaccion (11 %) que cubre la pasarela. Se pueden ajustar con AI_HOST_TOPUP_TOKENS_PER_USD y
-// AI_HOST_TOPUP_FEE_PERCENT.
-const TOPUP_TOKENS_PER_USD = Math.max(100000, Number(process.env.AI_HOST_TOPUP_TOKENS_PER_USD) || 6000000);
+// Recargas: cada dolar de presupuesto da 9 M de tokens = $0.90 de IA real (texto de Claude y voz de ElevenLabs al costo real); sobre cada
+// $10 de presupuesto la plataforma se queda ~$1.50 despues de la pasarela: se cobran $11.10 ($10 + 11 % de costo de transaccion), la pasarela
+// se lleva ~$0.56 y la IA ~$9.00. Se pueden ajustar con AI_HOST_TOPUP_TOKENS_PER_USD y AI_HOST_TOPUP_FEE_PERCENT.
+const TOPUP_TOKENS_PER_USD = Math.max(100000, Number(process.env.AI_HOST_TOPUP_TOKENS_PER_USD) || 9000000);
 const TOPUP_FEE_PERCENT = Math.min(50, Math.max(0, Number(process.env.AI_HOST_TOPUP_FEE_PERCENT ?? 11)));
 const TOPUP_MIN_USD = 2;
 const TOPUP_MAX_USD = 100;

@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
-  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261104a" />
+  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261109f" />
 </head>
 
 <body class="ah-body">
@@ -49,6 +49,18 @@
 
     <div id="alerts" class="ah-alerts" aria-live="polite"></div>
     <div id="chat" class="ah-chat" aria-hidden="true"></div>
+
+    <!-- a quien le esta respondiendo el agente: foto, nombre, ultimo regalo y su mensaje -->
+    <div id="viewerCard" class="ah-viewer" aria-hidden="true">
+      <div class="ah-viewer-photo"><img id="viewerPhoto" alt="" /><span id="viewerInitial"></span></div>
+      <div class="ah-viewer-main">
+        <div class="ah-viewer-head">
+          <strong id="viewerName" class="ah-viewer-name"></strong>
+          <span id="viewerGift" class="ah-viewer-gift" hidden><img id="viewerGiftImg" alt="" /><b id="viewerGiftCoins"></b></span>
+        </div>
+        <p id="viewerMsg" class="ah-viewer-msg"></p>
+      </div>
+    </div>
 
     <div id="subtitle" class="ah-subtitle" aria-live="polite">
       <span id="subName" class="ah-sub-name">Nova</span>
@@ -209,6 +221,16 @@
           </div>
         </details>
 
+        <details class="ah-sec" data-tone="pink" id="ahGiftSec">
+          <summary><span class="ah-sec-ico" aria-hidden="true">🎁</span><span class="ah-sec-title">Reglas de regalos</span></summary>
+          <p class="pk-hint">Elige qué regalos activan cada acción. Pulsa <b>Agregar regalo</b> y elígelo del catálogo (puedes filtrar por nombre y por monedas).</p>
+          <div id="ahGiftRules" class="ah-gift-rules"></div>
+          <div class="ah-gift-download">
+            <button id="ahGiftDownload" class="btn ghost" type="button">⬇ Descargar imagen de las reglas</button>
+            <span class="pk-hint">PNG con fondo transparente: la imagen de cada regalo, su nombre y lo que hace. Ideal para ponerla en tu live.</span>
+          </div>
+        </details>
+
         <details class="ah-sec" data-tone="blue">
           <summary><span class="ah-sec-ico" aria-hidden="true">🎙️</span><span class="ah-sec-title">Voz</span></summary>
           <div class="ah-grid">
@@ -251,6 +273,20 @@
             <select id="ahModel"></select>
           </label>
           <p class="pk-hint" id="ahModelHint"></p>
+          <div id="ahCostBox" class="ah-costbox" aria-live="polite">
+            <span class="ah-costbox-title">Gasto aproximado por respuesta</span>
+            <div class="ah-cost-rows">
+              <div><span>📜 Instrucciones del agente <small>(reglas y formato)</small></span><b id="ahCostInstr">—</b></div>
+              <div><span>🎭 Tu personalidad y "Sobre ti"</span><b id="ahCostPersona">—</b></div>
+              <div><span>💬 Comentarios del chat y memoria</span><b id="ahCostChat">—</b></div>
+              <div><span>✍️ Respuesta escrita <small id="ahCostReplyNote"></small></span><b id="ahCostReply">—</b></div>
+              <div><span>🎙️ Voz <small id="ahCostVoiceKind"></small></span><b id="ahCostVoice">—</b></div>
+              <div class="ah-cost-total"><span>Total aprox. por respuesta</span><b id="ahCostTotal">—</b></div>
+            </div>
+            <p id="ahCostHour" class="pk-hint"></p>
+            <p id="ahCostLeft" class="pk-hint"></p>
+            <p class="pk-hint">Cambia al mover el modelo, el largo máximo, tu personalidad, la pausa entre respuestas o la voz. Es un promedio con un chat de actividad normal: lo que se descuenta de verdad es el costo real de cada respuesta.</p>
+          </div>
         </details>
 
         <div class="ah-save-row">
@@ -275,7 +311,7 @@
   <script src="js/config.js?v=20260606c"></script>
   <script src="js/runtime.js?v=20261009g"></script>
   <script src="js/dialog.js"></script>
-  <script src="js/ai-character.js?v=20261102a"></script>
+  <script src="js/ai-character.js?v=20261109b"></script>
   <div id="ahTopup" class="ah-modal" data-step="gateway" hidden role="dialog" aria-modal="true" aria-labelledby="ahTopupTitle">
     <div class="ah-modal-card">
       <header class="ah-modal-head">
@@ -325,8 +361,11 @@
       <p id="ahTopupError" class="ah-modal-error" role="alert"></p>
     </div>
   </div>
-  <script src="js/ai-host.js?v=20261104a"></script>
+  <script src="js/ai-host-gifts.js?v=20261108b"></script>
+  <script src="js/ai-host-gifts-image.js?v=20261109a"></script>
+  <script src="js/ai-host.js?v=20261109d"></script>
   <script src="js/ai-host-topup.js?v=20261104a"></script>
+  <script src="js/provider-alerts.js?v=20261106a"></script>
 </body>
 
 </html>

@@ -210,7 +210,265 @@
     },
   };
 
-  const CHARACTERS = { mochi: MOCHI };
+  // ---------------------------------------------------------------------------------------------------------------------
+  // Personaje: CJ (personaje ORIGINAL con el estilo de Los Santos / San Andreas: camiseta verde sin mangas, bandana, cadena y tenis).
+  // No usa arte, modelos ni imagenes de Rockstar: es un dibujo propio hecho en SVG.
+  // ---------------------------------------------------------------------------------------------------------------------
+
+  const CJ_MARKUP = `
+<svg xmlns="${SVG_NS}" viewBox="0 0 400 560" class="cj" role="img" aria-label="CJ, el co-anfitrión">
+  <defs>
+    <clipPath id="cjClipL"><path d="M150 206 Q168 187 186 206 Q168 225 150 206 Z"/></clipPath>
+    <clipPath id="cjClipR"><path d="M214 206 Q232 187 250 206 Q232 225 214 206 Z"/></clipPath>
+    <clipPath id="cjClipHead"><path d="M124 188 C122 128 156 100 200 100 C244 100 278 128 276 188 C276 214 270 236 256 254 C242 272 222 282 200 282 C178 282 158 272 144 254 C130 236 124 214 124 188 Z"/></clipPath>
+    <clipPath id="cjClipShirt"><path d="M116 330 C112 306 134 296 160 292 C170 322 230 322 240 292 C266 296 288 306 284 330 L292 440 C246 460 154 460 108 440 Z"/></clipPath>
+    <clipPath id="cjClipArm"><path d="M-22 -8 C-28 18 -26 40 -17 60 L17 60 C26 40 28 18 22 -8 C10 -14 -10 -14 -22 -8 Z"/></clipPath>
+    <radialGradient id="cjShadow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity=".42"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="cjSkinHead" cx="46%" cy="36%" r="70%"><stop offset="0" stop-color="#c0895f"/><stop offset=".55" stop-color="#a06a44"/><stop offset="1" stop-color="#7a4a2d"/></radialGradient>
+    <linearGradient id="cjSkinArm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5636"/><stop offset=".45" stop-color="#b07848"/><stop offset="1" stop-color="#8a5636"/></linearGradient>
+    <linearGradient id="cjShirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#37b055"/><stop offset=".6" stop-color="#26923f"/><stop offset="1" stop-color="#1a6c2e"/></linearGradient>
+    <linearGradient id="cjJeans" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2c3e63"/><stop offset=".5" stop-color="#40578a"/><stop offset="1" stop-color="#2c3e63"/></linearGradient>
+    <linearGradient id="cjShoe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d7d9e4"/></linearGradient>
+    <linearGradient id="cjBand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="color-mix(in srgb, var(--main) 80%, #fff)"/><stop offset="1" stop-color="color-mix(in srgb, var(--main) 75%, #000)"/></linearGradient>
+    <radialGradient id="cjIris" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#8a5a2e"/><stop offset="1" stop-color="#3b2212"/></radialGradient>
+  </defs>
+  <style>
+    .cj { --main: #2fa24d; --skin: #a06a44; --skin-dark: #7a4a2d; --skin-light: #c0895f; --line: #1c120d; --ink: #17121a; overflow: visible; }
+    .cj .o { stroke: var(--line); stroke-width: 4.5; stroke-linejoin: round; stroke-linecap: round; }
+    .cj .o2 { stroke: var(--line); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .cj .fx { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .cj .ink { fill: var(--ink); } .cj .ink-stroke { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .cj .hidden { display: none; }
+  </style>
+
+  <ellipse cx="200" cy="548" rx="112" ry="13" fill="url(#cjShadow)"/>
+
+  <g id="cjRoot">
+    <g id="cjBody">
+      <!-- ===== piernas: jeans anchos con pliegues ===== -->
+      <path d="M130 440 C124 470 122 504 122 530 L196 530 C198 500 200 470 199 440 Z" fill="url(#cjJeans)" class="o"/>
+      <path d="M201 440 C200 470 202 500 204 530 L278 530 C278 504 276 470 270 440 Z" fill="url(#cjJeans)" class="o"/>
+      <path d="M200 442 L200 528" stroke="#22304f" stroke-width="3" class="fx" opacity=".8"/>
+      <path d="M134 470 C150 476 168 476 190 470 M136 494 C148 500 166 500 188 494 M214 470 C232 476 250 476 266 470 M212 494 C230 500 248 500 264 494" stroke="#22304f" stroke-width="3" class="fx" opacity=".55"/>
+      <path d="M138 450 C144 460 152 464 162 462 M262 450 C256 460 248 464 238 462" stroke="#6f86b8" stroke-width="3" class="fx" opacity=".55"/>
+      <path d="M130 441 C160 449 240 449 270 441" stroke="#22304f" stroke-width="6" class="fx" opacity=".75"/>
+      <path d="M126 520 C150 524 172 524 196 520 M204 520 C228 524 250 524 274 520" stroke="#22304f" stroke-width="4" class="fx" opacity=".6"/>
+
+      <!-- ===== tenis ===== -->
+      <path d="M110 538 C104 516 120 508 146 510 L188 514 C204 522 208 536 200 542 L114 544 Z" fill="url(#cjShoe)" class="o"/>
+      <path d="M110 540 L202 542 L200 550 C176 554 134 554 112 550 Z" fill="#c4c6d4" class="o2"/>
+      <path d="M122 524 C132 520 142 520 150 524 M146 516 L152 524 M158 518 L162 526 M170 520 L174 528" stroke="#2fa24d" stroke-width="4" class="fx"/>
+      <path d="M204 542 L296 538 C302 516 286 508 262 510 L214 514 C198 522 194 536 204 542 Z" fill="url(#cjShoe)" class="o" transform="translate(-2 0) translate(0 0)"/>
+      <path d="M198 542 L290 540 L288 550 C266 554 224 554 200 550 Z" fill="#c4c6d4" class="o2"/>
+      <path d="M278 524 C268 520 258 520 250 524 M254 516 L248 524 M242 518 L238 526 M230 520 L226 528" stroke="#2fa24d" stroke-width="4" class="fx"/>
+
+      <!-- ===== torso ===== -->
+      <path d="M176 270 C178 292 172 300 160 308 L240 308 C228 300 222 292 224 270 Z" fill="url(#cjSkinArm)" class="o"/>
+      <path d="M158 290 C170 332 230 332 242 290 Z" fill="var(--skin)" class="o"/>
+      <path d="M116 330 C112 306 134 296 160 292 C170 322 230 322 240 292 C266 296 288 306 284 330 L292 440 C246 460 154 460 108 440 Z" fill="url(#cjShirt)" class="o"/>
+      <g clip-path="url(#cjClipShirt)">
+        <path d="M104 330 C130 360 130 420 112 470 L96 470 L96 330 Z" fill="#0f4d20" opacity=".35"/>
+        <path d="M296 330 C270 360 270 420 288 470 L304 470 L304 330 Z" fill="#0f4d20" opacity=".35"/>
+        <path d="M150 340 C170 352 230 352 250 340" stroke="#7be08f" stroke-width="5" class="fx" opacity=".35"/>
+        <path d="M150 380 C160 410 156 440 140 462 M250 380 C240 410 244 440 260 462 M200 350 C196 390 202 430 198 470" stroke="#0f4d20" stroke-width="4" class="fx" opacity=".4"/>
+        <path d="M118 440 C170 458 230 458 282 440" stroke="#0f4d20" stroke-width="6" class="fx" opacity=".5"/>
+      </g>
+      <path d="M160 292 C170 322 230 322 240 292" stroke="#14612a" stroke-width="6" class="fx"/>
+      <path d="M118 326 C124 308 140 298 160 292 M282 326 C276 308 260 298 240 292" stroke="#14612a" stroke-width="5" class="fx" opacity=".7"/>
+
+      <!-- cadena de oro -->
+      <path d="M166 296 C174 338 226 338 234 296" stroke="#8a6410" stroke-width="8" class="fx"/>
+      <path d="M166 296 C174 338 226 338 234 296" stroke="#f3cb45" stroke-width="5.5" class="fx" stroke-dasharray="3.5 2"/>
+      <rect x="187" y="332" width="26" height="24" rx="6" fill="#f3cb45" class="o2"/>
+      <path d="M194 340 L206 340 M194 346 L206 346" stroke="#b88a1a" stroke-width="3" class="fx"/>
+      <path d="M192 336 L196 336" stroke="#fff6c8" stroke-width="3" class="fx"/>
+
+      <!-- ===== brazo izquierdo de la pantalla ===== -->
+      <g id="cjArmL" transform="translate(120 330)">
+        <path d="M-22 -8 C-28 18 -26 40 -17 60 L17 60 C26 40 28 18 22 -8 C10 -14 -10 -14 -22 -8 Z" fill="url(#cjSkinArm)" class="o"/>
+        <g clip-path="url(#cjClipArm)"><path d="M-30 -10 C-20 20 -16 44 -20 66 L-34 66 Z" fill="#5e3720" opacity=".35"/><ellipse cx="2" cy="14" rx="8" ry="14" fill="#d9a074" opacity=".35"/></g>
+        <g id="cjForeL" transform="translate(0 60)">
+          <path d="M-17 -3 C-20 18 -16 38 -12 52 L12 52 C16 38 20 18 17 -3 Z" fill="url(#cjSkinArm)" class="o"/>
+          <path d="M-8 6 C-8 20 -6 30 -5 40" stroke="#d9a074" stroke-width="4" class="fx" opacity=".35"/>
+          <rect x="-15" y="33" width="30" height="13" rx="5" fill="#f6f6f8" class="o2"/>
+          <path d="M-16 52 C-24 62 -22 82 -6 88 C8 92 22 82 20 64 C19 56 14 52 12 52 Z" fill="url(#cjSkinArm)" class="o"/>
+          <path d="M-9 78 L-9 88 M0 80 L0 90 M9 78 L9 88" stroke="#5e3720" stroke-width="2.5" class="fx" opacity=".7"/>
+          <path d="M-17 62 C-27 66 -24 78 -16 78" fill="none" class="o2"/>
+        </g>
+      </g>
+      <!-- brazo derecho de la pantalla -->
+      <g id="cjArmR" transform="translate(280 330)">
+        <path d="M-22 -8 C-28 18 -26 40 -17 60 L17 60 C26 40 28 18 22 -8 C10 -14 -10 -14 -22 -8 Z" fill="url(#cjSkinArm)" class="o"/>
+        <g clip-path="url(#cjClipArm)"><path d="M30 -10 C20 20 16 44 20 66 L34 66 Z" fill="#5e3720" opacity=".35"/><ellipse cx="-2" cy="14" rx="8" ry="14" fill="#d9a074" opacity=".35"/></g>
+        <g id="cjForeR" transform="translate(0 60)">
+          <path d="M-17 -3 C-20 18 -16 38 -12 52 L12 52 C16 38 20 18 17 -3 Z" fill="url(#cjSkinArm)" class="o"/>
+          <path d="M8 6 C8 20 6 30 5 40" stroke="#d9a074" stroke-width="4" class="fx" opacity=".35"/>
+          <rect x="-15" y="33" width="30" height="13" rx="5" fill="#f6f6f8" class="o2"/>
+          <path d="M16 52 C24 62 22 82 6 88 C-8 92 -22 82 -20 64 C-19 56 -14 52 -12 52 Z" fill="url(#cjSkinArm)" class="o"/>
+          <path d="M9 78 L9 88 M0 80 L0 90 M-9 78 L-9 88" stroke="#5e3720" stroke-width="2.5" class="fx" opacity=".7"/>
+          <path d="M17 62 C27 66 24 78 16 78" fill="none" class="o2"/>
+        </g>
+      </g>
+    </g>
+
+    <g id="cjHead">
+      <!-- orejas -->
+      <path d="M128 186 C108 176 100 198 106 216 C110 230 124 232 132 222 Z" fill="var(--skin-dark)" class="o"/>
+      <path d="M272 186 C292 176 300 198 294 216 C290 230 276 232 268 222 Z" fill="var(--skin-dark)" class="o"/>
+      <path d="M118 194 C112 200 112 212 118 218 M282 194 C288 200 288 212 282 218" stroke="#4d2c18" stroke-width="3" class="fx" opacity=".6"/>
+
+      <!-- cara -->
+      <path d="M124 188 C122 128 156 100 200 100 C244 100 278 128 276 188 C276 214 270 236 256 254 C242 272 222 282 200 282 C178 282 158 272 144 254 C130 236 124 214 124 188 Z" fill="url(#cjSkinHead)" class="o"/>
+      <g clip-path="url(#cjClipHead)">
+        <path d="M120 200 C126 250 160 286 200 286 L120 290 Z" fill="#5e3720" opacity=".28"/>
+        <path d="M280 200 C274 250 240 286 200 286 L280 290 Z" fill="#5e3720" opacity=".28"/>
+        <ellipse cx="200" cy="130" rx="46" ry="12" fill="#d9a074" opacity=".22"/>
+        <path d="M150 238 C160 252 176 260 200 261 C224 260 240 252 250 238" stroke="#5e3720" stroke-width="3" class="fx" opacity=".25"/>
+        <!-- barba corta -->
+        <path d="M150 248 C158 276 180 286 200 286 C220 286 242 276 250 248 C240 262 222 266 200 266 C178 266 160 262 150 248 Z" fill="#1a1318" opacity=".55"/>
+        <path d="M178 250 C190 246 210 246 222 250 C216 256 184 256 178 250 Z" fill="#1a1318" opacity=".6"/>
+      </g>
+
+      <!-- pelo corto -->
+      <path d="M121 186 C114 112 152 90 200 90 C248 90 286 112 279 186 C272 160 256 142 200 140 C144 142 128 160 121 186 Z" class="ink o2"/>
+      <path d="M136 132 C158 108 194 102 224 110" stroke="#4b4258" stroke-width="4" class="fx" opacity=".55"/>
+      <path d="M126 150 C132 140 140 134 150 130" stroke="#4b4258" stroke-width="3" class="fx" opacity=".4"/>
+      <path d="M122 182 C121 196 124 210 130 220 L134 196 Z" class="ink"/><path d="M278 182 C279 196 276 210 270 220 L266 196 Z" class="ink"/>
+
+      <!-- bandana con nudo -->
+      <path d="M274 170 L314 154 C320 164 318 178 308 186 Z" fill="url(#cjBand)" class="o2"/>
+      <path d="M276 184 L312 204 C304 216 292 214 284 208 Z" fill="url(#cjBand)" class="o2"/>
+      <path d="M120 166 Q200 136 280 166 L282 186 Q200 156 118 186 Z" fill="url(#cjBand)" class="o"/>
+      <circle cx="146" cy="168" r="2.4" fill="#fff" opacity=".7"/><circle cx="166" cy="162" r="2.4" fill="#fff" opacity=".7"/><circle cx="188" cy="158" r="2.4" fill="#fff" opacity=".7"/>
+      <circle cx="212" cy="158" r="2.4" fill="#fff" opacity=".7"/><circle cx="234" cy="162" r="2.4" fill="#fff" opacity=".7"/><circle cx="254" cy="168" r="2.4" fill="#fff" opacity=".7"/>
+      <path d="M122 176 Q200 148 278 176" stroke="#fff" stroke-width="2" stroke-dasharray="3 5" class="fx" opacity=".45"/>
+      <circle cx="278" cy="176" r="9" fill="url(#cjBand)" class="o2"/>
+
+      <!-- ojos -->
+      <g id="cjEyeL">
+        <path d="M150 206 Q168 187 186 206 Q168 225 150 206 Z" fill="#fff"/>
+        <g clip-path="url(#cjClipL)">
+          <g id="cjPupilL"><circle cx="168" cy="207" r="10.5" fill="url(#cjIris)"/><circle cx="168" cy="207" r="5.6" class="ink"/><circle cx="163.5" cy="202.5" r="3.4" fill="#fff"/><circle cx="172" cy="211" r="1.6" fill="#fff" opacity=".7"/></g>
+          <g id="cjHeartL" class="hidden"><path d="M168 220 C156 211 157 200 163 200 C166 200 168 202 168 204 C168 202 170 200 173 200 C179 200 180 211 168 220 Z" fill="#ff4d86"/></g>
+          <rect id="cjLidTopL" x="146" y="184" width="44" height="42" fill="var(--skin)" transform="translate(0 184) scale(1 0) translate(0 -184)"/>
+          <rect id="cjLidBotL" x="146" y="196" width="44" height="32" fill="var(--skin)" transform="translate(0 226) scale(1 0) translate(0 -226)"/>
+        </g>
+        <path d="M148 207 Q168 184 188 207" stroke="var(--line)" stroke-width="4.5" class="fx"/>
+        <path d="M154 216 Q168 226 182 216" stroke="#5e3720" stroke-width="2.5" class="fx" opacity=".5"/>
+      </g>
+      <g id="cjEyeR">
+        <path d="M214 206 Q232 187 250 206 Q232 225 214 206 Z" fill="#fff"/>
+        <g clip-path="url(#cjClipR)">
+          <g id="cjPupilR"><circle cx="232" cy="207" r="10.5" fill="url(#cjIris)"/><circle cx="232" cy="207" r="5.6" class="ink"/><circle cx="227.5" cy="202.5" r="3.4" fill="#fff"/><circle cx="236" cy="211" r="1.6" fill="#fff" opacity=".7"/></g>
+          <g id="cjHeartR" class="hidden"><path d="M232 220 C220 211 221 200 227 200 C230 200 232 202 232 204 C232 202 234 200 237 200 C243 200 244 211 232 220 Z" fill="#ff4d86"/></g>
+          <rect id="cjLidTopR" x="210" y="184" width="44" height="42" fill="var(--skin)" transform="translate(0 184) scale(1 0) translate(0 -184)"/>
+          <rect id="cjLidBotR" x="210" y="196" width="44" height="32" fill="var(--skin)" transform="translate(0 226) scale(1 0) translate(0 -226)"/>
+        </g>
+        <path d="M212 207 Q232 184 252 207" stroke="var(--line)" stroke-width="4.5" class="fx"/>
+        <path d="M218 216 Q232 226 246 216" stroke="#5e3720" stroke-width="2.5" class="fx" opacity=".5"/>
+      </g>
+
+      <!-- cejas -->
+      <g id="cjBrowL" transform="translate(168 186)"><path d="M-21 6 C-14 -6 6 -10 21 -2 L20 4 C6 -2 -12 0 -20 10 Z" class="ink o2"/></g>
+      <g id="cjBrowR" transform="translate(232 186)"><path d="M21 6 C14 -6 -6 -10 -21 -2 L-20 4 C-6 -2 12 0 20 10 Z" class="ink o2"/></g>
+
+      <!-- mejillas y nariz -->
+      <ellipse id="cjBlushL" cx="142" cy="238" rx="16" ry="9" fill="#e0675a" opacity=".2"/>
+      <ellipse id="cjBlushR" cx="258" cy="238" rx="16" ry="9" fill="#e0675a" opacity=".2"/>
+      <path d="M194 208 C192 222 188 232 184 238 C192 248 208 248 216 238 C212 232 208 222 206 208" fill="var(--skin-light)" opacity=".45"/>
+      <path d="M184 238 C192 246 208 246 216 238" stroke="#5e3720" stroke-width="3.5" class="fx"/>
+      <path d="M190 240 Q193 243 196 241 M204 241 Q207 243 210 240" stroke="#2e180c" stroke-width="3" class="fx" opacity=".8"/>
+      <path d="M196 212 C197 224 196 232 194 236" stroke="#e4b184" stroke-width="3" class="fx" opacity=".5"/>
+
+      <!-- boca -->
+      <g id="cjMouth" transform="translate(200 262)">
+        <g id="m-closed"><path d="M-21 0 C-12 -6 -4 -5 0 -3 C4 -5 12 -6 21 0 C12 9 -12 9 -21 0 Z" fill="#8c4a3a" class="o2"/><path d="M-21 0 C-8 3 8 3 21 0" stroke="#3a1a12" stroke-width="2.5" class="fx"/></g>
+        <g id="m-smile" class="hidden"><path d="M-30 -3 C-14 14 14 14 30 -3 C20 -6 -20 -6 -30 -3 Z" fill="#fff" class="o2"/><path d="M-30 -3 C-14 18 14 18 30 -3" stroke="#6e342a" stroke-width="5" class="fx"/></g>
+        <g id="m-open-smile" class="hidden"><path d="M-30 -4 C-16 34 16 34 30 -4 Z" fill="#3a1410" class="o2"/><path d="M-26 -3 L26 -3 C24 6 -24 6 -26 -3 Z" fill="#fff"/><ellipse cx="0" cy="20" rx="13" ry="7" fill="#d9566e"/></g>
+        <g id="m-laugh" class="hidden"><path d="M-34 -6 C-18 46 18 46 34 -6 Z" fill="#3a1410" class="o2"/><path d="M-30 -5 L30 -5 C28 6 -28 6 -30 -5 Z" fill="#fff"/><ellipse cx="0" cy="24" rx="16" ry="9" fill="#d9566e"/></g>
+        <g id="m-o" class="hidden"><ellipse cx="0" cy="8" rx="10" ry="13" fill="#3a1410" class="o2"/><ellipse cx="0" cy="13" rx="5.5" ry="4.5" fill="#d9566e"/></g>
+        <path id="m-flat" class="hidden" d="M-16 6 C-6 4 6 4 16 6" stroke="#3a1a12" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path id="m-smirk" class="hidden" d="M-22 8 C-6 14 10 8 24 -6" stroke="#3a1a12" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path id="m-frown" class="hidden" d="M-21 12 C-8 -2 8 -2 21 12" stroke="#3a1a12" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <g id="m-talk-small" class="hidden"><ellipse cx="0" cy="6" rx="13" ry="6.5" fill="#3a1410" class="o2"/></g>
+        <g id="m-talk-i" class="hidden"><ellipse cx="0" cy="6" rx="20" ry="5.5" fill="#3a1410" class="o2"/><path d="M-16 3 L16 3" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+        <g id="m-talk-o" class="hidden"><ellipse cx="0" cy="8" rx="9" ry="11" fill="#3a1410" class="o2"/></g>
+        <g id="m-talk-a" class="hidden"><ellipse cx="0" cy="10" rx="17" ry="14" fill="#3a1410" class="o2"/><path d="M-13 2 L13 2" stroke="#fff" stroke-width="4" stroke-linecap="round"/><ellipse cx="0" cy="17" rx="9" ry="5" fill="#d9566e"/></g>
+      </g>
+
+      <!-- efectos de la cara -->
+      <g id="cjTears" class="hidden" opacity="0"><path d="M150 226 q-6 14 0 22 q6 -8 0 -22 Z" fill="#7ed0ff"/><path d="M250 226 q-6 14 0 22 q6 -8 0 -22 Z" fill="#7ed0ff"/></g>
+      <g id="cjSparkle" opacity="0"><path d="M92 120 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5 z" fill="#ffe27a"/><path d="M308 112 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4 z" fill="#ffe27a"/></g>
+    </g>
+  </g>
+</svg>`;
+
+  const CJ = {
+    id: 'cj',
+    name: 'CJ',
+    markup: CJ_MARKUP,
+    bind(root) {
+      const parts = {};
+      for (const id of ['cjRoot', 'cjBody', 'cjHead', 'cjArmL', 'cjForeL', 'cjArmR', 'cjForeR', 'cjPupilL', 'cjPupilR', 'cjHeartL', 'cjHeartR',
+        'cjLidTopL', 'cjLidTopR', 'cjLidBotL', 'cjLidBotR', 'cjBrowL', 'cjBrowR', 'cjBlushL', 'cjBlushR', 'cjMouth', 'cjTears', 'cjSparkle']) {
+        parts[id] = q(root, id);
+      }
+      parts.mouths = Object.fromEntries(MOUTHS.map((id) => [id, q(root, id)]));
+      parts.shownMouth = 'm-closed';
+      parts.svg = root.querySelector('svg');
+      return parts;
+    },
+    // el color principal tiñe la bandana (la camiseta verde y los tenis son parte del personaje)
+    setAccent(parts, color) {
+      parts.svg.style.setProperty('--main', String(color).toLowerCase() === '#7c5cff' ? '#2fa24d' : color);
+    },
+    apply(pose, p) {
+      const rot = (deg, cx, cy) => `rotate(${deg.toFixed(2)} ${cx} ${cy})`;
+
+      p.cjRoot.setAttribute('transform', `translate(${pose.rootX.toFixed(1)} ${pose.rootY.toFixed(1)})`);
+      p.cjBody.setAttribute('transform', `translate(200 540) rotate(${pose.bodyRot.toFixed(2)}) scale(${pose.sx.toFixed(3)} ${pose.sy.toFixed(3)}) translate(-200 -540)`);
+      p.cjHead.setAttribute('transform', `translate(${pose.headX.toFixed(1)} ${pose.headY.toFixed(1)}) ${rot(pose.headRot, 200, 290)}`);
+
+      p.cjArmL.setAttribute('transform', `translate(120 330) rotate(${pose.armLsh.toFixed(2)})`);
+      p.cjForeL.setAttribute('transform', `translate(0 60) rotate(${(-pose.armLel).toFixed(2)})`);
+      p.cjArmR.setAttribute('transform', `translate(280 330) rotate(${(-pose.armRsh).toFixed(2)})`);
+      p.cjForeR.setAttribute('transform', `translate(0 60) rotate(${pose.armRel.toFixed(2)})`);
+
+      const px = pose.pupilX * 5;
+      const py = pose.pupilY * 4;
+      p.cjPupilL.setAttribute('transform', `translate(${px.toFixed(2)} ${py.toFixed(2)})`);
+      p.cjPupilR.setAttribute('transform', `translate(${px.toFixed(2)} ${py.toFixed(2)})`);
+      const heart = pose.heartEyes > 0.5;
+      p.cjHeartL.classList.toggle('hidden', !heart);
+      p.cjHeartR.classList.toggle('hidden', !heart);
+      p.cjPupilL.style.opacity = heart ? 0 : 1;
+      p.cjPupilR.style.opacity = heart ? 0 : 1;
+
+      const top = Math.max(0, Math.min(1, pose.lidTop));
+      const bot = Math.max(0, Math.min(1, pose.lidBot));
+      for (const side of ['L', 'R']) {
+        p[`cjLidTop${side}`].setAttribute('transform', `translate(0 184) scale(1 ${top.toFixed(3)}) translate(0 -184)`);
+        p[`cjLidBot${side}`].setAttribute('transform', `translate(0 226) scale(1 ${bot.toFixed(3)}) translate(0 -226)`);
+      }
+
+      p.cjBrowL.setAttribute('transform', `translate(168 ${(186 + pose.browLy).toFixed(1)}) rotate(${pose.browLr.toFixed(1)})`);
+      p.cjBrowR.setAttribute('transform', `translate(232 ${(186 + pose.browRy).toFixed(1)}) rotate(${pose.browRr.toFixed(1)})`);
+
+      p.cjBlushL.setAttribute('opacity', (pose.blush * 0.8).toFixed(2));
+      p.cjBlushR.setAttribute('opacity', (pose.blush * 0.8).toFixed(2));
+      p.cjSparkle.setAttribute('opacity', pose.sparkle.toFixed(2));
+      p.cjTears.classList.toggle('hidden', pose.tears < 0.05);
+      p.cjTears.setAttribute('opacity', pose.tears.toFixed(2));
+
+      if (pose.mouth !== p.shownMouth) {
+        p.mouths[p.shownMouth]?.classList.add('hidden');
+        p.mouths[pose.mouth]?.classList.remove('hidden');
+        p.shownMouth = pose.mouth;
+      }
+    },
+  };
+
+  const CHARACTERS = { mochi: MOCHI, cj: CJ };
 
   // ---------------------------------------------------------------------------------------------------------------------
   // Expresiones (la cara): cada una es un objetivo hacia el que la cara se mueve con suavidad

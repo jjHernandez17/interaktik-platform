@@ -17,6 +17,7 @@ const { hub, emitLiveEvent } = require('./liveHub');
 const { isSuperUserEmail } = require('../middleware/auth');
 const prompt = require('./aiHostPrompt');
 const credit = require('./aiHostCredit');
+const providerAlerts = require('./providerAlerts');
 
 // ---------- ajustes ----------
 
@@ -39,6 +40,12 @@ const MAX_FAILURES = 3;
 const FAILURE_PAUSE_MS = 60 * 1000;
 const DEDUPE_WINDOW_MS = 60 * 1000;
 const TEST_MIN_GAP_MS = 2500;
+const PRIORITY_WINDOW_MS = 5 * 60 * 1000; // quien manda un regalo "de prioridad" tiene prioridad en sus comentarios durante este tiempo
+const STALE_PRIORITY_COMMENT_MS = 3 * 60 * 1000;
+const PRIORITY_WAIT_MS = 2 * 60 * 1000; // un regalo de solo prioridad espera el mensaje de la persona; si no escribe, se agradece igual
+const GIFT_MAX_AGE_MS = 30 * 60 * 1000; // un regalo que no se pudo agradecer se sigue intentando durante este tiempo
+const GIFT_MAX_ATTEMPTS = 6;
+const GIFT_QUEUE_HARD_MAX = 300;
 const OWNER_KEY_PATTERN = /^user:(\d+):/;
 
 const DEFAULTS = {
@@ -57,6 +64,7 @@ const DEFAULTS = {
   proactiveMinutes: 4,
   cadenceSeconds: 8,
   maxChars: 220,
+  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
   model: DEFAULT_MODEL,
   bannedWords: '',
   voiceName: '',
@@ -69,7 +77,7 @@ const DEFAULTS = {
   showChat: true,
 };
 
-const CHARACTERS = { mochi: 'Mochi (gatito alegre)' };
+const CHARACTERS = { mochi: 'Mochi (gatito alegre)', cj: 'CJ (estilo San Andreas)' };
 const BACKGROUNDS = { studio: 'Estudio', sunset: 'Atardecer', neon: 'Neón', night: 'Noche estrellada' };
 
 function badRequest(message) {
@@ -111,6 +119,7 @@ function rowToConfig(row) {
     proactiveMinutes: row.proactive_minutes,
     cadenceSeconds: row.cadence_seconds,
     maxChars: row.max_chars,
+    giftRules: normalizeGiftRules(row.gift_rules),
     model: row.model,
     bannedWords: row.banned_words,
     voiceName: row.voice_name,
@@ -122,6 +131,25 @@ function rowToConfig(row) {
     background: row.background,
     showChat: Boolean(row.show_chat),
   };
+}
+
+// Reglas de regalos: hasta 8 nombres por regla, sin repetidos (aunque cambien mayusculas o tildes)
+function normalizeGiftRules(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const result = {};
+  for (const type of prompt.GIFT_RULE_TYPES) {
+    const seen = new Set();
+    result[type] = [];
+    for (const item of Array.isArray(source[type]) ? source[type] : []) {
+      const name = cleanText(item, 40);
+      const key = prompt.normalizeGiftName(name);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      result[type].push(name);
+      if (result[type].length >= 8) break;
+    }
+  }
+  return result;
 }
 
 // Valida y limpia lo que manda la pagina; lo que no viene se queda como estaba
@@ -151,6 +179,7 @@ function normalizeConfigInput(input = {}, current = DEFAULTS) {
     proactiveMinutes: clampInt(pick('proactiveMinutes'), 1, 30, current.proactiveMinutes),
     cadenceSeconds: clampInt(pick('cadenceSeconds'), 4, 60, current.cadenceSeconds),
     maxChars: clampInt(pick('maxChars'), 80, 400, current.maxChars),
+    giftRules: normalizeGiftRules(pick('giftRules')),
     model,
     bannedWords: cleanText(pick('bannedWords'), 600),
     voiceName: cleanText(pick('voiceName'), 120),
@@ -184,14 +213,14 @@ async function updateConfig(userId, input) {
        thank_gifts = $9, min_gift_coins = $10, greet_followers = $11, greet_viewers = $12, proactive = $13,
        proactive_minutes = $14, cadence_seconds = $15, max_chars = $16, model = $17, banned_words = $18,
        voice_name = $19, voice_rate = $20, voice_pitch = $21, voice_volume = $22, accent_color = $23,
-       character = $24, background = $25, show_chat = $26, updated_at = NOW()
+       character = $24, background = $25, show_chat = $26, gift_rules = $27::jsonb, updated_at = NOW()
      WHERE user_id = $1
      RETURNING *`,
     [userId, next.enabled, next.agentName, next.language, next.tone, next.persona, next.aboutStreamer, next.replyMode,
       next.thankGifts, next.minGiftCoins, next.greetFollowers, next.greetViewers, next.proactive,
       next.proactiveMinutes, next.cadenceSeconds, next.maxChars, next.model, next.bannedWords,
       next.voiceName, next.voiceRate, next.voicePitch, next.voiceVolume, next.accentColor,
-      next.character, next.background, next.showChat],
+      next.character, next.background, next.showChat, JSON.stringify(next.giftRules)],
   );
   configCache.delete(Number(userId));
   return rowToConfig(result.rows[0]);
@@ -313,6 +342,10 @@ function getSession(userId) {
       lastTestAt: 0,
       idleCounter: 0,
       seen: new Map(),
+      priorityUsers: new Map(), // uniqueId -> hasta cuando sus comentarios tienen prioridad
+      pendingPriority: new Map(), // uniqueId -> regalo de "solo prioridad" esperando el mensaje de esa persona
+      avatars: new Map(), // uniqueId -> foto de perfil (para la tarjeta del espectador)
+      lastGift: new Map(), // uniqueId -> ultimo regalo que mando { giftName, coins, count }
       gifters: new Set(),
       stats: { coins: 0, follows: 0 },
       usage: null,
@@ -343,22 +376,24 @@ function status(userId, state, message) {
 
 // ---------- que eventos le interesan al agente ----------
 
-function toEvent(eventName, payload, config) {
+// context.priority: el que escribe mando antes un regalo de "prioridad": su comentario se atiende sin importar el filtro de respuestas
+function toEvent(eventName, payload, config, context = {}) {
   const user = payload.user || {};
-  const base = { nickname: user.nickname || user.uniqueId || '', uniqueId: user.uniqueId || '', at: Date.now() };
+  const base = { nickname: user.nickname || user.uniqueId || '', uniqueId: user.uniqueId || '', avatar: safeImageUrl(user.avatar), at: Date.now() };
 
   if (eventName === 'comment') {
     const text = String(payload.comment || '').trim();
     if (text.length < 2 || text.startsWith('!')) return null; // comandos de juegos
     if (/^[\d\s.,!?¡¿+-]+$/.test(text)) return null; // "1", "2", "???"
     const mention = prompt.mentionsAgent(text, config.agentName);
-    if (config.replyMode === 'mentions' && !mention) return null;
-    if (config.replyMode === 'questions' && !mention && !prompt.looksLikeQuestion(text)) return null;
+    if (!context.priority && config.replyMode === 'mentions' && !mention) return null;
+    if (!context.priority && config.replyMode === 'questions' && !mention && !prompt.looksLikeQuestion(text)) return null;
     return {
       ...base,
       kind: 'comment',
       text,
       mention,
+      ...(context.priority ? { priority: true } : {}),
       question: prompt.looksLikeQuestion(text),
       follower: Boolean(payload.identity?.follower),
       subscriber: Boolean(payload.identity?.subscriber),
@@ -367,11 +402,14 @@ function toEvent(eventName, payload, config) {
   }
 
   if (eventName === 'gift') {
-    if (!config.thankGifts || !payload.repeatEnd) return null;
+    if (!payload.repeatEnd) return null;
     const count = Math.max(1, Math.round(Number(payload.repeatCount) || 1));
     const coins = (Number(payload.diamondCount) || 0) * count;
-    if (coins < config.minGiftCoins) return null;
-    return { ...base, kind: 'gift', giftName: payload.giftName || 'un regalo', count, coins };
+    const giftName = payload.giftName || 'un regalo';
+    // un regalo con regla del streamer siempre se atiende (aunque no agradezca regalos o sea de pocas monedas)
+    const special = prompt.matchGiftRules(config.giftRules, giftName);
+    if (special.length === 0 && (!config.thankGifts || coins < config.minGiftCoins)) return null;
+    return { ...base, kind: 'gift', giftName, count, coins, ...(special.length ? { special } : {}) };
   }
 
   if (eventName === 'follow') return config.greetFollowers ? { ...base, kind: 'follow' } : null;
@@ -380,11 +418,130 @@ function toEvent(eventName, payload, config) {
   return null;
 }
 
+// Un regalo de "prioridad": durante unos minutos los comentarios de quien lo mando van primero (tambien los que ya estaban en la cola)
+// Solo se muestran fotos de https (la foto del espectador sale de TikTok)
+function safeImageUrl(value) {
+  const url = String(value || '').trim();
+  return /^https:\/\//i.test(url) && url.length <= 600 && !/[\s"'<>]/.test(url) ? url : '';
+}
+
+function rememberViewer(session, payload, eventName) {
+  const user = payload.user || {};
+  const key = user.uniqueId;
+  if (!key) return;
+  const avatar = safeImageUrl(user.avatar);
+  if (avatar) session.avatars.set(key, avatar);
+  if (eventName === 'gift') {
+    const count = Math.max(1, Math.round(Number(payload.repeatCount) || 1));
+    session.lastGift.set(key, { giftName: String(payload.giftName || 'un regalo').slice(0, 40), coins: (Number(payload.diamondCount) || 0) * count, count });
+  }
+  for (const map of [session.avatars, session.lastGift]) {
+    while (map.size > 300) map.delete(map.keys().next().value);
+  }
+}
+
+// A quien le contesta el agente (para la tarjeta que sale encima del personaje): foto, nombre, ultimo regalo y su mensaje
+function buildFocus(session, batch) {
+  if (!batch || batch.length === 0) return null;
+  const gifts = batch.filter((item) => item.kind === 'gift');
+  const comments = batch.filter((item) => item.kind === 'comment');
+  const score = (item) => (item.priority ? 10 : 0) + (item.mention ? 6 : 0) + (item.question ? 3 : 0);
+  const main = gifts.find((item) => item.special && item.special.length) || gifts[0] || [...comments].sort((a, b) => score(b) - score(a))[0] || batch[0];
+  if (!main) return null;
+
+  const sameUserComment = comments.find((item) => item.uniqueId === main.uniqueId);
+  let message;
+  if (main.kind === 'comment') message = main.text;
+  else if (main.kind === 'gift') message = (sameUserComment && sameUserComment.text) || `Envió ${main.giftName}${main.count > 1 ? ` x${main.count}` : ''}`;
+  else if (main.kind === 'follow') message = 'Empezó a seguirte';
+  else if (main.kind === 'share') message = 'Compartió el live';
+  else message = 'Entró al live';
+
+  const last = main.kind === 'gift' ? { giftName: main.giftName, coins: main.coins, count: main.count } : session.lastGift.get(main.uniqueId);
+  return {
+    nickname: prompt.sanitizeName(main.nickname || main.uniqueId || 'alguien', 30),
+    avatar: main.avatar || session.avatars.get(main.uniqueId) || '',
+    message: prompt.sanitizeChatText(message, 160),
+    kind: main.kind,
+    gift: last ? { name: last.giftName, coins: last.coins, count: last.count } : null,
+  };
+}
+
+function notePriority(session, event) {
+  if (event.kind !== 'gift' || !event.special || !event.special.includes('priority') || !event.uniqueId) return;
+  session.priorityUsers.set(event.uniqueId, Date.now() + PRIORITY_WINDOW_MS);
+  for (const item of session.queue) {
+    if (item.kind === 'comment' && item.uniqueId === event.uniqueId) item.priority = true;
+  }
+}
+
+// Regalo cuya unica regla es "dar prioridad al mensaje": NO se agradece al llegar; se agradece junto con el mensaje de esa persona
+function isPriorityOnly(event) {
+  return event.kind === 'gift' && Array.isArray(event.special) && event.special.length > 0 && event.special.every((type) => type === 'priority');
+}
+
+// Saca de la espera los regalos de prioridad de esta persona y los pone en la cola (junto a su mensaje)
+function releasePriorityGifts(session, uniqueId) {
+  const pending = session.pendingPriority.get(uniqueId);
+  if (!pending) return false;
+  session.pendingPriority.delete(uniqueId);
+  enqueue(session, pending);
+  return true;
+}
+
+// Los regalos de prioridad cuya persona no escribio a tiempo se agradecen igual (ningun regalo se pasa por alto)
+function flushPriorityGifts(session, now = Date.now()) {
+  for (const [uniqueId, gift] of [...session.pendingPriority]) {
+    if (now - gift.at >= PRIORITY_WAIT_MS) releasePriorityGifts(session, uniqueId);
+  }
+}
+
+// Recibe un evento ya convertido: 'queued' (a la cola), 'deferred' (regalo de prioridad esperando el mensaje) o 'dropped'
+function acceptEvent(session, event) {
+  if (isPriorityOnly(event)) {
+    session.priorityUsers.set(event.uniqueId, Date.now() + PRIORITY_WINDOW_MS);
+    const waiting = session.queue.some((item) => item.kind === 'comment' && item.uniqueId === event.uniqueId);
+    for (const item of session.queue) {
+      if (item.kind === 'comment' && item.uniqueId === event.uniqueId) item.priority = true;
+    }
+    const pending = session.pendingPriority.get(event.uniqueId);
+    if (pending) {
+      pending.count += event.count;
+      pending.coins += event.coins;
+    } else {
+      session.pendingPriority.set(event.uniqueId, event);
+    }
+    if (waiting) releasePriorityGifts(session, event.uniqueId); // su mensaje ya estaba esperando: se atienden juntos
+    return 'deferred';
+  }
+
+  if (event.kind === 'comment' && event.uniqueId) releasePriorityGifts(session, event.uniqueId); // el regalo va primero, luego su mensaje
+  if (!enqueue(session, event)) return 'dropped';
+  notePriority(session, event);
+  return 'queued';
+}
+
+function isPriorityUser(session, uniqueId) {
+  return Boolean(uniqueId) && (session.priorityUsers.get(uniqueId) || 0) > Date.now();
+}
+
 function enqueue(session, event) {
-  const dedupeKey = `${event.kind}|${event.uniqueId}|${event.text || event.giftName || ''}`;
-  const lastSeen = session.seen.get(dedupeKey);
-  if (!event.test && lastSeen && event.at - lastSeen < DEDUPE_WINDOW_MS) return false;
-  session.seen.set(dedupeKey, event.at);
+  // Un regalo NUNCA se descarta como repetido (el filtro de repetidos es solo para comentarios y demas): los regalos ya llegan sin
+  // duplicados desde giftPipeline. Si la misma persona manda el mismo regalo varias veces seguidas y aun esta en cola, se suman.
+  if (event.kind === 'gift') {
+    const same = session.queue.find((item) => item.kind === 'gift' && item.uniqueId === event.uniqueId && item.giftName === event.giftName && !item.attempts);
+    if (same) {
+      same.count += event.count;
+      same.coins += event.coins;
+      session.stats.coins += event.coins;
+      return true;
+    }
+  } else {
+    const dedupeKey = `${event.kind}|${event.uniqueId}|${event.text || event.giftName || ''}`;
+    const lastSeen = session.seen.get(dedupeKey);
+    if (!event.test && lastSeen && event.at - lastSeen < DEDUPE_WINDOW_MS) return false;
+    session.seen.set(dedupeKey, event.at);
+  }
   if (session.seen.size > 400) {
     const cutoff = Date.now() - DEDUPE_WINDOW_MS;
     for (const [key, at] of session.seen) if (at < cutoff) session.seen.delete(key);
@@ -399,21 +556,33 @@ function enqueue(session, event) {
 
   session.queue.push(event);
   while (session.queue.length > QUEUE_MAX) {
-    // se descarta primero lo menos importante: comentarios viejos
-    const index = session.queue.findIndex((item) => item.kind === 'comment' || item.kind === 'member');
-    session.queue.splice(index === -1 ? 0 : index, 1);
+    // se descarta primero lo menos importante: comentarios viejos, luego bienvenidas; los regalos y seguidores no se tocan
+    let index = session.queue.findIndex((item) => item.kind === 'comment' || item.kind === 'member');
+    if (index === -1) index = session.queue.findIndex((item) => item.kind !== 'gift');
+    if (index === -1) {
+      if (session.queue.length <= GIFT_QUEUE_HARD_MAX) break; // solo regalos: se dejan crecer
+      index = 0;
+      logger.error(`[AIHOST] Cola de regalos desbordada para el usuario ${session.userId}: se descarta el mas viejo`);
+    }
+    session.queue.splice(index, 1);
   }
   return true;
 }
 
 // Lo que entra en la siguiente respuesta: regalos y seguidores primero, luego los comentarios mas utiles
 function pickBatch(session, now = Date.now()) {
-  session.queue = session.queue.filter((item) => item.kind !== 'comment' || now - item.at < STALE_COMMENT_MS);
+  const expired = session.queue.filter((item) => item.kind === 'gift' && now - item.at > GIFT_MAX_AGE_MS);
+  if (expired.length) {
+    session.queue = session.queue.filter((item) => !expired.includes(item));
+    logger.error(`[AIHOST] ${expired.length} regalo(s) sin agradecer despues de 30 minutos (usuario ${session.userId}): ${expired.map((g) => `${g.nickname}:${g.giftName}`).join(', ')}`);
+  }
+
+  session.queue = session.queue.filter((item) => item.kind !== 'comment' || now - item.at < (item.priority ? STALE_PRIORITY_COMMENT_MS : STALE_COMMENT_MS));
 
   const gifts = session.queue.filter((item) => item.kind === 'gift').slice(0, 5);
   const follows = session.queue.filter((item) => item.kind === 'follow' || item.kind === 'share').slice(0, 3);
   const members = session.queue.filter((item) => item.kind === 'member').slice(-2);
-  const score = (item) => (item.mention ? 6 : 0) + (item.question ? 3 : 0) + (item.moderator ? 2 : 0) + (item.subscriber ? 1.5 : 0) + (item.follower ? 1 : 0) + (item.at - now) / 60000;
+  const score = (item) => (item.priority ? 10 : 0) + (item.mention ? 6 : 0) + (item.question ? 3 : 0) + (item.moderator ? 2 : 0) + (item.subscriber ? 1.5 : 0) + (item.follower ? 1 : 0) + (item.at - now) / 60000;
   const comments = session.queue
     .filter((item) => item.kind === 'comment')
     .sort((a, b) => score(b) - score(a))
@@ -433,14 +602,15 @@ async function runTurn(session, config, { idle = false } = {}) {
   const client = getClient();
   if (!client) {
     status(userId, 'no_key', 'El servidor no tiene configurada la clave de la IA.');
-    session.queue = [];
+    session.queue = session.queue.filter((item) => item.kind === 'gift'); // los regalos esperan; lo demas se descarta
     return;
   }
 
   if (!session.usage) {
     session.usage = await getUsageToday(userId).catch(() => ({ calls: 0, cap: DAILY_CALLS_CAP() }));
   }
-  if (session.usage.calls >= DAILY_CALLS_CAP()) {
+  // el tope diario frena comentarios y bienvenidas, pero un regalo SIEMPRE se agradece
+  if (session.usage.calls >= DAILY_CALLS_CAP() && !session.queue.some((item) => item.kind === 'gift')) {
     session.queue = [];
     if (!session.limitNotified) {
       session.limitNotified = true;
@@ -462,7 +632,7 @@ async function runTurn(session, config, { idle = false } = {}) {
           status(userId, 'model_fallback', 'Te quedan pocos tokens: el agente cambió a Haiku para que te duren más.');
         }
       } else {
-        session.queue = [];
+        session.queue = session.queue.filter((item) => item.kind === 'gift'); // los regalos esperan a que haya tokens (30 min)
         configCache.delete(Number(userId));
         if (!session.tokensNotified) {
           session.tokensNotified = true;
@@ -480,9 +650,13 @@ async function runTurn(session, config, { idle = false } = {}) {
   session.busy = true;
   session.lastTurnAt = now;
   session.forceNext = false;
+  const fallbackThanks = []; // regalos que agotaron sus reintentos: se agradecen igual con una frase de respaldo
 
   try {
     const bannedWords = prompt.parseBannedWords(config.bannedWords);
+    // un regalo con consejo o chiste necesita mas espacio que el maximo normal
+    const needsRoom = batch.some((item) => item.special && (item.special.includes('advice') || item.special.includes('joke')));
+    const replyMax = needsRoom ? prompt.specialMaxChars(config.maxChars) : config.maxChars;
     const userMessage = prompt.buildTurnMessage({
       events: batch,
       memory: session.memory,
@@ -494,14 +668,26 @@ async function runTurn(session, config, { idle = false } = {}) {
       model,
       system: prompt.buildSystemPrompt(config),
       user: userMessage,
-      maxTokens: Math.max(160, Math.round(config.maxChars / 2.2)),
+      maxTokens: Math.max(160, Math.round(replyMax / 2.2)),
     });
 
     session.failures = 0;
     session.lastError = null;
+    providerAlerts.clear('anthropic');
     const mainKind = idle ? 'idle' : (batch.find((item) => item.kind === 'gift') ? 'gift' : batch.find((item) => item.kind === 'follow' || item.kind === 'share') ? 'follow' : batch.find((item) => item.question) ? 'question' : 'comment');
-    const reply = result.stopReason === 'refusal' ? null : prompt.parseReply(result.text, { maxChars: config.maxChars, bannedWords, fallbackKind: mainKind });
-    const text = reply ? reply.text : null;
+    const reply = result.stopReason === 'refusal' ? null : prompt.parseReply(result.text, { maxChars: replyMax, bannedWords, fallbackKind: mainKind });
+    let spokenReply = reply;
+    // Un regalo nunca se queda sin respuesta: si el modelo dijo [SKIP] o no devolvio nada utilizable, se agradece con una frase de respaldo
+    if (!spokenReply && batch.some((item) => item.kind === 'gift')) {
+      spokenReply = prompt.giftFallbackReply(batch, config);
+      logger.warn(`[AIHOST] El modelo no agradecio un regalo (usuario ${userId}); se usa la frase de respaldo`);
+    }
+    if (spokenReply && batch.some((item) => item.kind === 'gift')) {
+      // todo regalo se agradece (aunque el modelo solo haya hecho la accion especial) y se nombra a quien lo envio
+      const thanked = prompt.ensureGiftsThanked(spokenReply.text, batch, config);
+      spokenReply = { ...spokenReply, text: prompt.ensureGiftersNamed(thanked, batch) };
+    }
+    const text = spokenReply ? spokenReply.text : null;
     const cost = estimateCostUsd(model, result.usage);
     session.usage.calls += 1;
     session.usage.costUsd = (session.usage.costUsd || 0) + cost;
@@ -536,10 +722,11 @@ async function runTurn(session, config, { idle = false } = {}) {
     say(userId, {
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       text,
-      emotion: reply.emotion,
-      action: reply.action,
+      emotion: spokenReply.emotion,
+      action: spokenReply.action,
       to: [...new Set(batch.map((item) => item.nickname).filter(Boolean))].slice(0, 6),
       kinds: [...new Set(batch.map((item) => item.kind))],
+      focus: idle ? null : buildFocus(session, batch),
       idle,
       estimatedMs,
       agentName: config.agentName,
@@ -548,10 +735,18 @@ async function runTurn(session, config, { idle = false } = {}) {
   } catch (error) {
     session.failures += 1;
     session.lastError = String(error?.message || error).slice(0, 200);
+    // sin saldo o clave invalida: se avisa al superusuario
+    const alertKind = providerAlerts.classifyAnthropic(error);
+    if (alertKind) providerAlerts.report('anthropic', alertKind);
     logger.warn(`[AIHOST] Fallo una respuesta (usuario ${userId}, intento ${session.failures})`, error);
-    // un agradecimiento por regalo o seguidor no se pierde por un fallo de red: vuelve a la cola una vez
+    // un regalo no se pierde por un fallo de red o de la IA: vuelve al inicio de la cola y se reintenta (hasta 6 veces); al final, si la IA
+    // sigue sin responder, se agradece con una frase de respaldo (ver mas abajo). Los seguidores se reintentan una vez.
     for (const item of batch) {
-      if ((item.kind === 'gift' || item.kind === 'follow') && !item.retried) {
+      if (item.kind === 'gift') {
+        item.attempts = (item.attempts || 0) + 1;
+        if (item.attempts < GIFT_MAX_ATTEMPTS) session.queue.unshift(item);
+        else fallbackThanks.push(item);
+      } else if (item.kind === 'follow' && !item.retried) {
         item.retried = true;
         session.queue.unshift(item);
       }
@@ -563,12 +758,39 @@ async function runTurn(session, config, { idle = false } = {}) {
     }
   } finally {
     session.busy = false;
+    // regalos cuyos reintentos con la IA se agotaron: se agradecen con la frase de respaldo para que nunca pasen en silencio
+    if (fallbackThanks.length) {
+      try {
+        const reply = prompt.giftFallbackReply(fallbackThanks, config);
+        if (reply) {
+          session.lastSpokeAt = Date.now();
+          session.speakingUntil = Date.now() + prompt.estimateSpeechMs(reply.text, config.voiceRate) + 500;
+          say(userId, {
+            id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+            text: reply.text,
+            emotion: reply.emotion,
+            action: reply.action,
+            to: [...new Set(fallbackThanks.map((item) => item.nickname).filter(Boolean))].slice(0, 6),
+            kinds: ['gift'],
+            focus: buildFocus(session, fallbackThanks),
+            idle: false,
+            estimatedMs: prompt.estimateSpeechMs(reply.text, config.voiceRate),
+            agentName: config.agentName,
+            model: 'respaldo',
+          });
+          logger.error(`[AIHOST] La IA fallo ${GIFT_MAX_ATTEMPTS} veces con un regalo (usuario ${userId}); se agradecio con la frase de respaldo`);
+        }
+      } catch (error) {
+        logger.error('[AIHOST] No se pudo ni agradecer con la frase de respaldo', error);
+      }
+    }
   }
 }
 
 // ---------- bucle ----------
 
 async function tickSession(session, now) {
+  flushPriorityGifts(session, now);
   if (session.busy || now < session.speakingUntil || now < session.pausedUntil) return;
 
   const entry = await loadActiveConfig(session.userId);
@@ -582,7 +804,7 @@ async function tickSession(session, now) {
     session.tokensLeft = entry.entitlement && !entry.entitlement.unlimited ? entry.entitlement.tokensRemaining : null;
   }
 
-  const hasUrgent = session.queue.some((item) => item.kind === 'gift' || item.kind === 'follow');
+  const hasUrgent = session.queue.some((item) => item.kind === 'gift' || item.kind === 'follow' || item.priority);
   const cadenceMs = config.cadenceSeconds * 1000;
   const sinceTurn = now - session.lastTurnAt;
 
@@ -606,7 +828,7 @@ async function tick() {
   try {
     const now = Date.now();
     for (const [userId, session] of sessions) {
-      if (now - session.lastEventAt > SESSION_IDLE_MS && !session.busy) {
+      if (now - session.lastEventAt > SESSION_IDLE_MS && !session.busy && session.pendingPriority.size === 0) {
         sessions.delete(userId);
         continue;
       }
@@ -636,9 +858,10 @@ async function handleLiveEvent({ eventName, payload }) {
   session.lastActivityAt = Date.now();
 
   publishVisualEvent(userId, session, eventName, payload);
+  rememberViewer(session, payload, eventName);
 
-  const event = toEvent(eventName, payload, entry.config);
-  if (event) enqueue(session, event);
+  const event = toEvent(eventName, payload, entry.config, { priority: eventName === 'comment' && isPriorityUser(session, payload.user?.uniqueId) });
+  if (event) acceptEvent(session, event);
 }
 
 // Lo que ve el espectador al instante en la pagina del juego (sin esperar a la IA): cada regalo, seguidor o compartido dispara una
@@ -706,19 +929,25 @@ async function injectTest(userId, { kind = 'comment', text = '', nickname = 'Esp
 
   const base = { nickname: cleanText(nickname, 30) || 'Espectador de prueba', uniqueId: 'prueba', at: Date.now(), test: true };
   let event;
-  if (kind === 'gift') event = { ...base, kind: 'gift', giftName: cleanText(giftName, 40) || 'Rosa', count: 1, coins: clampInt(coins, 1, 100000, 1) };
+  if (kind === 'gift') {
+    const name = cleanText(giftName, 40) || 'Rosa';
+    const special = prompt.matchGiftRules(entry.config.giftRules, name);
+    event = { ...base, kind: 'gift', giftName: name, count: 1, coins: clampInt(coins, 1, 100000, 1), ...(special.length ? { special } : {}) };
+  }
   else if (kind === 'follow') event = { ...base, kind: 'follow' };
   else {
     const cleanComment = cleanText(text, 200);
     if (cleanComment.length < 2) throw badRequest('Escribe un comentario de prueba.');
-    event = { ...base, kind: 'comment', text: cleanComment, mention: prompt.mentionsAgent(cleanComment, entry.config.agentName), question: prompt.looksLikeQuestion(cleanComment) };
+    event = { ...base, kind: 'comment', text: cleanComment, mention: prompt.mentionsAgent(cleanComment, entry.config.agentName), question: prompt.looksLikeQuestion(cleanComment), ...(isPriorityUser(session, base.uniqueId) ? { priority: true } : {}) };
   }
 
   // La prueba funciona aunque el agente este apagado: usa la configuracion guardada
-  enqueue(session, event);
+  if (event.kind === 'gift') session.lastGift.set(event.uniqueId, { giftName: event.giftName, coins: event.coins, count: event.count });
+  const outcome = acceptEvent(session, event);
+  if (outcome === 'deferred') return { waiting: true }; // regalo de prioridad: el agente espera el mensaje de esa persona
   session.forceNext = true;
   session.speakingUntil = 0;
-  return true;
+  return { waiting: false };
 }
 
 function resetMemory(userId) {
@@ -771,6 +1000,7 @@ module.exports = {
   tick,
   toEvent,
   pickBatch,
+  buildFocus,
   setClientForTests,
   CHARACTERS,
   BACKGROUNDS,

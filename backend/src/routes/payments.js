@@ -4,7 +4,6 @@ const express = require('express');
 const { requireAuth, getSessionUserId } = require('../middleware/auth');
 const plansService = require('../services/plansService');
 const accessService = require('../services/accessService');
-const stripeClient = require('../payments/stripeClient');
 const mercadopagoClient = require('../payments/mercadopagoClient');
 const wompiClient = require('../payments/wompiClient');
 const currencyService = require('../services/currencyService');
@@ -18,7 +17,7 @@ const logger = require('../config/logger');
 
 const router = express.Router();
 
-const VALID_GATEWAYS = ['stripe', 'mercadopago', 'wompi'];
+const VALID_GATEWAYS = ['mercadopago', 'wompi'];
 
 // Monedas sin decimales (no manejan centavos): MercadoPago exige que
 // unit_price sea entero para estas, o rechaza la preferencia con
@@ -61,7 +60,6 @@ router.get('/plans', async (req, res) => {
     return res.json({
       plans: plansWithEstimates,
       gateways: {
-        stripe: stripeClient.isConfigured(),
         mercadopago: mercadopagoClient.isConfigured(),
         wompi: wompiClient.isConfigured(),
       },
@@ -102,8 +100,8 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Plan no encontrado.' });
     }
 
-    const gatewayClients = { stripe: stripeClient, mercadopago: mercadopagoClient, wompi: wompiClient };
-    const gatewayNames = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
+    const gatewayClients = { mercadopago: mercadopagoClient, wompi: wompiClient };
+    const gatewayNames = { mercadopago: 'MercadoPago', wompi: 'Wompi' };
     const gatewayClient = gatewayClients[gateway];
 
     if (!gatewayClient.isConfigured()) {
@@ -113,19 +111,20 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
     // El admin solo fija price_usd_cents. Wompi siempre cobra en COP,
     // convertido en vivo desde ese precio base; MercadoPago cobra en la
     // moneda de la cuenta del vendedor (MERCADOPAGO_CURRENCY), tambien
-    // convertida en vivo si no es USD. Stripe cobra directo en USD. La
+    // convertida en vivo si no es USD. La
     // conversion se hace UNA sola vez aca y el mismo numero se usa para lo
     // que se le manda a la pasarela, lo que se guarda en `payments` y lo
     // que sale despues en el recibo.
     let amountForRecord;
     let currencyForRecord;
-    let gatewayCharge = null; // { amount: unidad completa, currency } — wompi/mercadopago
+    let gatewayCharge = null; // { amount: unidad completa, currency }
 
     if (gateway === 'wompi') {
       gatewayCharge = await currencyService.convertUsdCentsToDisplay(plan.price_usd_cents, 'COP');
       currencyForRecord = gatewayCharge.currency;
       amountForRecord = Math.round(gatewayCharge.amount * 100);
-    } else if (gateway === 'mercadopago') {
+    } else {
+      // mercadopago
       const mpCurrency = String(env.MERCADOPAGO_CURRENCY || 'USD').toUpperCase();
       gatewayCharge = mpCurrency === 'USD'
         ? { currency: 'USD', amount: plan.price_usd_cents / 100 }
@@ -137,9 +136,6 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
 
       currencyForRecord = gatewayCharge.currency;
       amountForRecord = Math.round(gatewayCharge.amount * 100);
-    } else {
-      amountForRecord = plan.price_usd_cents;
-      currencyForRecord = 'USD';
     }
 
     const paymentInsert = await pool.query(
@@ -156,17 +152,7 @@ router.post('/payments/checkout', requireAuth, async (req, res) => {
     let checkoutUrl;
     let gatewaySessionId;
 
-    if (gateway === 'stripe') {
-      const session = await stripeClient.createCheckoutSession({
-        plan,
-        paymentId,
-        userEmail: req.session?.user?.email,
-        successUrl,
-        cancelUrl,
-      });
-      checkoutUrl = session.url;
-      gatewaySessionId = session.sessionId;
-    } else if (gateway === 'mercadopago') {
+    if (gateway === 'mercadopago') {
       const preference = await mercadopagoClient.createPreference({
         plan,
         paymentId,
@@ -357,11 +343,6 @@ router.post('/ai-host/topup/checkout', requireAuth, async (req, res) => {
     return res.status(500).json({ error: normalizeError(error) });
   }
 });
-
-// NOTA: el webhook de Stripe NO se registra en este router porque necesita el
-// body crudo (sin pasar por express.json()) para verificar la firma. Se monta
-// aparte en server.js, antes del parser JSON global — ver stripeWebhookHandler
-// exportado al final de este archivo.
 
 // POST /api/payments/webhook/mercadopago
 router.post('/payments/webhook/mercadopago', async (req, res) => {
@@ -590,32 +571,5 @@ async function failPayment(paymentId, gatewayPaymentId) {
   }
 }
 
-// Handler crudo para el webhook de Stripe (requiere el body sin parsear como
-// JSON para poder verificar la firma byte a byte). Se monta directamente en
-// server.js con express.raw(), antes del parser JSON global.
-async function stripeWebhookHandler(req, res) {
-  try {
-    const signature = req.headers['stripe-signature'];
-    const event = stripeClient.constructWebhookEvent(req.body, signature);
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const paymentId = Number(session.metadata?.paymentId);
-
-      if (paymentId) {
-        await confirmPayment(paymentId, session.payment_intent || session.id);
-      } else {
-        logger.warn('[payments] Webhook Stripe sin paymentId en metadata', session.id);
-      }
-    }
-
-    return res.json({ received: true });
-  } catch (error) {
-    logger.error('Error procesando webhook de Stripe', error);
-    return res.status(400).json({ error: 'Webhook invalido.' });
-  }
-}
-
 module.exports = router;
-module.exports.stripeWebhookHandler = stripeWebhookHandler;
 module.exports.confirmPayment = confirmPayment;

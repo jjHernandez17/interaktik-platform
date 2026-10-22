@@ -19,8 +19,6 @@ module.exports = {
   REDIS_URL: process.env.REDIS_URL || null,
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   FRONTEND_URL: process.env.FRONTEND_URL || 'https://www.interaktik.com',
-  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || null,
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || null,
   MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN || null,
   MERCADOPAGO_CURRENCY: process.env.MERCADOPAGO_CURRENCY || 'USD',
   MERCADOPAGO_WEBHOOK_SECRET: process.env.MERCADOPAGO_WEBHOOK_SECRET || null,

@@ -141,7 +141,7 @@ function formatAmount(amountCents, currency) {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
 }
 
-const GATEWAY_LABELS = { stripe: 'Stripe', mercadopago: 'MercadoPago', wompi: 'Wompi' };
+const GATEWAY_LABELS = { mercadopago: 'MercadoPago', wompi: 'Wompi' };
 
 async function sendPaymentReceiptEmail({
   to,

@@ -63,7 +63,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:", "http:"],
       connectSrc: ["'self'", "http://localhost:*", "https://localhost:*"],
-      mediaSrc: ["'self'"],
+      mediaSrc: ["'self'", 'blob:', 'data:'],
       frameSrc: ["'self'"],
       fontSrc: ["'self'"],
       upgradeInsecureRequests: null, // <-- IMPORTANTE: Evita que el navegador convierta HTTP a HTTPS automáticamente
@@ -84,10 +84,6 @@ app.use(cors(getCorsConfig()));
 
 // Handle preflight OPTIONS requests
 app.options('*', cors(getCorsConfig()));
-
-// Webhook de Stripe: necesita el body crudo (sin parsear) para verificar la
-// firma, por eso se monta ANTES del parser JSON global.
-app.post('/api/payments/webhook/stripe', express.raw({ type: 'application/json' }), paymentsRouter.stripeWebhookHandler);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

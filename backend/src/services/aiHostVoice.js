@@ -1,35 +1,45 @@
 // tiktokinteractik/backend/src/services/aiHostVoice.js
 //
-// Voz realista (IA) de los personajes del Co-anfitrion IA, con OpenAI TTS (gpt-4o-mini-tts). Cada personaje tiene su voz y unas
-// instrucciones de estilo (por ejemplo, Mochi suena como un gatito). El navegador pide el audio aqui y lo reproduce; si algo falla
-// (sin clave, sin tokens, error del servicio) la pagina usa la voz del navegador como respaldo.
+// Voz realista (IA) de los personajes del Co-anfitrion IA, con ElevenLabs. Cada personaje tiene su propia voz (un "voice id" de la
+// biblioteca de ElevenLabs): se define con ELEVENLABS_VOICE_<PERSONAJE> (por ejemplo ELEVENLABS_VOICE_MOCHI) o, como respaldo comun,
+// con ELEVENLABS_VOICE_ID. El navegador pide el audio aqui y lo reproduce; si algo falla (sin clave, sin tokens, error del servicio) la
+// pagina usa la "voz sin costo" del navegador.
 //
-// Costo: la API no devuelve "tokens usados" de un audio, asi que se estima por caracteres (~15 caracteres por segundo hablado y unos
-// $0.015 por minuto). Ese costo se descuenta de los mismos tokens del usuario (1 token = $0.0000001). Un texto repetido sale de una
-// cache en memoria y no cuesta nada.
+// Costo: el audio no devuelve "tokens usados", asi que se estima por caracteres (ELEVENLABS_USD_PER_CHAR, segun el plan contratado) y
+// se descuenta de los mismos tokens del usuario (1 token = $0.0000001), pero SOLO cuando la pagina confirma que el audio sono
+// (recibos). Un texto repetido sale de una cache en memoria y no cuesta nada.
 
 'use strict';
 
 const crypto = require('node:crypto');
+const providerAlerts = require('./providerAlerts');
 
-const OPENAI_URL = 'https://api.openai.com/v1/audio/speech';
-const MODEL = process.env.AI_HOST_TTS_MODEL || 'gpt-4o-mini-tts';
-// USD por caracter hablado (con un pequeno margen sobre ~$0.015/min a ~15 caracteres por segundo)
-const COST_USD_PER_CHAR = Number(process.env.AI_HOST_TTS_USD_PER_CHAR) || 0.000017;
+const ELEVEN_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
+const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
+// USD por caracter hablado. Medido con el plan Starter ($6 por 30.000 creditos = $0.0002 por credito): ElevenLabs descuenta ~0.4 creditos
+// por caracter con eleven_multilingual_v2 (35 creditos por 87 caracteres), es decir ~$0.00008 por caracter. Ajustalo si cambias de plan o modelo.
+const COST_USD_PER_CHAR = Number(process.env.ELEVENLABS_USD_PER_CHAR) || 0.00008;
 const MAX_CHARS = 420;
+const TTS_TIMEOUT_MS = 15000;
 
-const VOICE_PROFILES = {
-  mochi: {
-    voice: 'shimmer',
-    instructions:
-      'Eres Mochi, un gatito de caricatura alegre, tierno y juguetón. Voz aguda, dulce y brillante, ritmo animado y cantarín, '
-      + 'con ternura y picardía. Alarga un poquito algunas vocales como un maullido cariñoso ("miaau", "qué lindooo") y suelta '
-      + 'alguna risita suave cuando algo da risa, sin exagerar ni sonar robótico. Habla en el idioma del texto.',
-  },
+// Ajustes de voz por personaje (la voz en si, el "voice id", viene del entorno). stability baja = mas expresiva.
+const CHARACTER_SETTINGS = {
+  mochi: { stability: 0.4, similarity: 0.8, envKey: 'ELEVENLABS_VOICE_MOCHI' },
+  cj: { stability: 0.4, similarity: 0.8, envKey: 'ELEVENLABS_VOICE_CJ' },
 };
-const DEFAULT_PROFILE = {
-  voice: 'coral',
-  instructions: 'Habla de forma natural, cálida y expresiva, como un presentador amable de un live. Habla en el idioma del texto.',
+const DEFAULT_SETTINGS = { stability: 0.45, similarity: 0.8, envKey: null };
+
+// "style" segun la emocion de la frase (la misma etiqueta que mueve la cara del personaje): mas alto = mas actuado
+const EMOTION_STYLE = {
+  neutral: 0.25,
+  feliz: 0.4,
+  emocionado: 0.65,
+  sorprendido: 0.55,
+  pensando: 0.2,
+  risa: 0.55,
+  carino: 0.35,
+  picaro: 0.5,
+  triste: 0.3,
 };
 
 const cache = new Map(); // clave -> Buffer (LRU simple)
@@ -37,12 +47,22 @@ const CACHE_MAX = 60;
 const recent = new Map(); // userId -> [timestamps] para limitar abusos
 const MAX_REQUESTS_PER_MINUTE = 24;
 
-function profileFor(characterId) {
-  return VOICE_PROFILES[characterId] || DEFAULT_PROFILE;
+// Recibos: el audio se genera sin cobrar; los tokens solo se descuentan cuando la pagina confirma que el audio SONO (un solo uso por recibo).
+const receipts = new Map(); // id -> { userId, cost, expires }
+const RECEIPT_TTL_MS = 5 * 60 * 1000;
+
+function settingsFor(characterId) {
+  return CHARACTER_SETTINGS[characterId] || DEFAULT_SETTINGS;
 }
 
-function isConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY);
+// El voice id de este personaje (o el comun de respaldo)
+function voiceIdFor(characterId) {
+  const { envKey } = settingsFor(characterId);
+  return (envKey && process.env[envKey]) || process.env.ELEVENLABS_VOICE_ID || '';
+}
+
+function isConfigured(characterId = 'mochi') {
+  return Boolean(process.env.ELEVENLABS_API_KEY && voiceIdFor(characterId));
 }
 
 function cleanText(text) {
@@ -51,7 +71,7 @@ function cleanText(text) {
 
 function clampSpeed(value) {
   const speed = Number(value);
-  return Number.isFinite(speed) ? Math.min(1.3, Math.max(0.8, speed)) : 1;
+  return Number.isFinite(speed) ? Math.min(1.2, Math.max(0.7, speed)) : 1;
 }
 
 // Cuantos tokens del usuario cuesta decir este texto (estimado)
@@ -59,8 +79,24 @@ function estimateTokens(text, tokensPerUsd) {
   return Math.max(1, Math.ceil(cleanText(text).length * COST_USD_PER_CHAR * tokensPerUsd));
 }
 
-function cacheKey(characterId, text, speed) {
-  return crypto.createHash('sha1').update(`${MODEL}|${characterId}|${speed}|${text}`).digest('hex');
+function cacheKey(voiceId, text, speed, emotion) {
+  return crypto.createHash('sha1').update(`${MODEL}|${voiceId}|${emotion}|${speed}|${text}`).digest('hex');
+}
+
+function createReceipt(userId, cost, now = Date.now()) {
+  for (const [id, receipt] of receipts) if (receipt.expires < now) receipts.delete(id);
+  const id = crypto.randomBytes(12).toString('hex');
+  receipts.set(id, { userId, cost, expires: now + RECEIPT_TTL_MS });
+  return id;
+}
+
+// Devuelve el costo y gasta el recibo, o null si no existe, es de otro usuario, ya se uso o vencio
+function takeReceipt(userId, id, now = Date.now()) {
+  const receipt = receipts.get(String(id || ''));
+  if (!receipt) return null;
+  receipts.delete(String(id));
+  if (receipt.userId !== userId || receipt.expires < now) return null;
+  return receipt.cost;
 }
 
 function allowRequest(userId, now = Date.now()) {
@@ -75,7 +111,7 @@ function allowRequest(userId, now = Date.now()) {
 }
 
 // Devuelve { audio: Buffer, cached: boolean }. `fetchImpl` se puede inyectar para pruebas.
-async function synthesize({ text, characterId, speed, fetchImpl = fetch }) {
+async function synthesize({ text, characterId, speed, emotion, fetchImpl = fetch }) {
   const input = cleanText(text);
   if (!input) {
     const error = new Error('No hay nada que decir.');
@@ -83,35 +119,44 @@ async function synthesize({ text, characterId, speed, fetchImpl = fetch }) {
     throw error;
   }
   const rate = clampSpeed(speed);
-  const key = cacheKey(characterId, input, rate);
+  const mood = Object.prototype.hasOwnProperty.call(EMOTION_STYLE, emotion) ? emotion : 'neutral';
+  const voiceId = voiceIdFor(characterId);
+  const key = cacheKey(voiceId, input, rate, mood);
   if (cache.has(key)) {
     const hit = cache.get(key);
     cache.delete(key);
     cache.set(key, hit);
     return { audio: hit, cached: true };
   }
-  if (!isConfigured()) {
+  if (!isConfigured(characterId)) {
     const error = new Error('La voz con IA todavía no está configurada en el servidor.');
     error.status = 503;
     error.code = 'NO_VOICE_KEY';
     throw error;
   }
 
-  const profile = profileFor(characterId);
-  const response = await fetchImpl(OPENAI_URL, {
+  const settings = settingsFor(characterId);
+  const response = await fetchImpl(`${ELEVEN_URL}/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
+    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({
-      model: MODEL,
-      voice: profile.voice,
-      input,
-      instructions: profile.instructions,
-      response_format: 'mp3',
-      speed: rate,
+      text: input,
+      model_id: MODEL,
+      voice_settings: {
+        stability: settings.stability,
+        similarity_boost: settings.similarity,
+        style: EMOTION_STYLE[mood],
+        use_speaker_boost: true,
+        speed: rate,
+      },
     }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    // sin creditos / sin plan / clave invalida: se avisa al superusuario
+    const kind = providerAlerts.classifyElevenLabs(response.status, detail);
+    if (kind) providerAlerts.report('elevenlabs', kind);
     const error = new Error(`El servicio de voz respondió ${response.status}.`);
     error.status = 502;
     error.detail = detail.slice(0, 300);
@@ -119,6 +164,7 @@ async function synthesize({ text, characterId, speed, fetchImpl = fetch }) {
   }
 
   const audio = Buffer.from(await response.arrayBuffer());
+  providerAlerts.clear('elevenlabs');
   cache.set(key, audio);
   while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   return { audio, cached: false };
@@ -128,13 +174,17 @@ module.exports = {
   MODEL,
   MAX_CHARS,
   COST_USD_PER_CHAR,
-  VOICE_PROFILES,
-  profileFor,
+  EMOTION_STYLE,
+  CHARACTER_SETTINGS,
+  voiceIdFor,
   isConfigured,
   cleanText,
   estimateTokens,
+  createReceipt,
+  takeReceipt,
   allowRequest,
   synthesize,
   _cache: cache,
   _recent: recent,
+  _receipts: receipts,
 };

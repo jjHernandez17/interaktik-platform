@@ -919,11 +919,22 @@ function readCharFields() {
     accentColor: el.accent.value,
     background: el.background.value,
     showChat: el.showChat.checked,
-    giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
     voiceName: el.voice.value,
     voiceRate: Number(el.rate.value),
     voicePitch: Number(el.pitch.value),
     voiceVolume: Number(el.volume.value),
+    giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
+    agentName: el.agentName.value,
+    replyMode: el.replyMode.value,
+    thankGifts: el.thankGifts.checked,
+    minGiftCoins: Number(el.minGift.value),
+    greetFollowers: el.greetFollowers.checked,
+    greetViewers: el.greetViewers.checked,
+    proactive: el.proactive.checked,
+    proactiveMinutes: Number(el.proactiveMinutes.value),
+    cadenceSeconds: Number(el.cadence.value),
+    maxChars: Number(el.maxChars.value),
+    bannedWords: el.banned.value,
   };
 }
 
@@ -935,9 +946,39 @@ function writeCharFields(fields) {
   el.rate.value = fields.voiceRate;
   el.pitch.value = fields.voicePitch;
   el.volume.value = fields.voiceVolume;
+  el.agentName.value = fields.agentName;
+  el.replyMode.value = fields.replyMode;
+  el.thankGifts.checked = fields.thankGifts;
+  el.minGift.value = fields.minGiftCoins;
+  el.greetFollowers.checked = fields.greetFollowers;
+  el.greetViewers.checked = fields.greetViewers;
+  el.proactive.checked = fields.proactive;
+  el.proactiveMinutes.value = fields.proactiveMinutes;
+  el.cadence.value = fields.cadenceSeconds;
+  el.maxChars.value = fields.maxChars;
+  el.banned.value = fields.bannedWords;
   currentConfig = { ...currentConfig, voiceName: fields.voiceName };
   paintSliders();
   fillVoiceSelect();
+  paintCost();
+}
+
+// Cambiar de personaje se guarda al instante (sin pulsar "Guardar cambios"): asi su voz, su nombre y sus reglas ya valen en el live
+// y, al recargar la pagina, sigue el personaje que estaba.
+let characterSaveChain = Promise.resolve();
+function autoSaveCharacter() {
+  characterSaveChain = characterSaveChain.then(async () => {
+    showSaveState('Cambiando de personaje...');
+    try {
+      const data = await api('/config', { method: 'PUT', body: JSON.stringify(readForm()) });
+      currentConfig = { ...currentConfig, character: data.config.character };
+      showSaveState('Personaje cambiado y guardado.', 'ok');
+    } catch (error) {
+      showSaveState('');
+      await showAlert(error.message, 'No se pudo cambiar el personaje');
+    }
+  });
+  return characterSaveChain;
 }
 
 // Al elegir otro personaje: se guardan los ajustes del anterior y se cargan los del nuevo (o los de fabrica si es la primera vez)
@@ -1195,7 +1236,11 @@ function bindEvents() {
   el.speakHere.addEventListener('change', paintCost);
   for (const input of [el.rate, el.pitch, el.volume]) input.addEventListener('input', paintSliders);
   // al elegir otro personaje, el formulario cambia a SUS ajustes (antes de repintar el escenario)
-  el.character_.addEventListener('change', () => switchCharacter(el.character_.value));
+  el.character_.addEventListener('change', () => {
+    const previous = activeCharacter;
+    switchCharacter(el.character_.value);
+    if (activeCharacter !== previous) autoSaveCharacter();
+  });
   for (const input of [el.character_, el.background, el.accent, el.showChat, el.agentName]) {
     input.addEventListener('input', () => { ensureRig(); paintStage(); });
     input.addEventListener('change', () => { ensureRig(); paintStage(); });

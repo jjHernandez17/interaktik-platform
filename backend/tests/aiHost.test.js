@@ -976,8 +976,7 @@ test('cada personaje guarda sus propios ajustes (colores, escenario, reglas de r
   assert.equal(afterSwitch.character, 'cj');
   assert.equal(afterSwitch.accentColor, '#2fa24d');
   assert.deepEqual(afterSwitch.giftRules.advice, ['Heart Me']);
-  assert.equal(afterSwitch.persona, 'Siempre alegre', 'el agente es el mismo para todos');
-  assert.equal(afterSwitch.bannedWords, 'tonto');
+  assert.equal(afterSwitch.persona, 'Siempre alegre', 'la personalidad es la misma para todos los personajes');
 
   const { mochi, cj } = afterSwitch.characterSettings;
   assert.equal(mochi.accentColor, '#ff0000');
@@ -1025,4 +1024,51 @@ test('al cargar la configuracion guardada, el personaje activo siempre trae sus 
   assert.deepEqual(config.characterSettings.cj.giftRules.advice, ['Heart Me']);
   assert.equal(config.characterSettings.mochi.accentColor, '#ff0000');
   assert.deepEqual(config.characterSettings.mochi.giftRules.priority, ['Rose']);
+});
+
+test('cada personaje tiene su propio nombre y su propia seccion "Como se comporta"; idioma, personalidad y modelo son comunes', () => {
+  const next = service.normalizeConfigInput({
+    character: 'cj',
+    language: 'es', tone: 'divertido', persona: 'Habla como de barrio', aboutStreamer: 'Juego GTA', model: 'claude-haiku-5-5', // comunes
+    agentName: 'CJ', replyMode: 'questions', thankGifts: false, minGiftCoins: 50, greetFollowers: false, greetViewers: true,
+    proactive: false, proactiveMinutes: 9, cadenceSeconds: 20, maxChars: 150, bannedWords: 'palabra1, palabra2',
+    characterSettings: {
+      mochi: { agentName: 'Mochi', replyMode: 'all', thankGifts: true, minGiftCoins: 1, greetViewers: false, proactive: true, cadenceSeconds: 8, maxChars: 300, bannedWords: 'tonto' },
+    },
+  }, { ...service.DEFAULTS, character: 'mochi' });
+
+  const { mochi, cj } = next.characterSettings;
+  assert.equal(next.agentName, 'CJ');
+  assert.equal(cj.agentName, 'CJ');
+  assert.equal(mochi.agentName, 'Mochi');
+  assert.equal(cj.replyMode, 'questions');
+  assert.equal(mochi.replyMode, 'all');
+  assert.equal(cj.thankGifts, false);
+  assert.equal(mochi.thankGifts, true);
+  assert.equal(cj.minGiftCoins, 50);
+  assert.equal(cj.greetViewers, true);
+  assert.equal(mochi.greetViewers, false);
+  assert.equal(cj.cadenceSeconds, 20);
+  assert.equal(mochi.cadenceSeconds, 8);
+  assert.equal(cj.maxChars, 150);
+  assert.equal(mochi.maxChars, 300);
+  assert.equal(cj.bannedWords, 'palabra1, palabra2');
+  assert.equal(mochi.bannedWords, 'tonto');
+  // comunes: no se guardan por personaje
+  for (const key of ['language', 'tone', 'persona', 'aboutStreamer', 'model']) {
+    assert.equal(cj[key], undefined, key);
+    assert.equal(mochi[key], undefined, key);
+  }
+  assert.equal(next.persona, 'Habla como de barrio');
+});
+
+test('los personajes nuevos arrancan con su nombre propio y sus valores de fabrica en "Como se comporta"', () => {
+  const defaults = service.characterDefaultsMap();
+  assert.equal(defaults.cj.agentName, 'CJ');
+  assert.equal(defaults.mochi.agentName, 'Mochi');
+  for (const id of ['mochi', 'cj']) {
+    assert.equal(defaults[id].replyMode, 'all');
+    assert.equal(defaults[id].cadenceSeconds, 8);
+    assert.equal(defaults[id].maxChars, 220);
+  }
 });

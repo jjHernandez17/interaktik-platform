@@ -155,22 +155,38 @@ function normalizeGiftRules(value) {
 }
 
 // ---------- ajustes propios de cada personaje ----------
-// Cada personaje tiene sus propios colores, escenario, reglas de regalos y voz. Lo que es del agente de IA (nombre, idioma,
-// personalidad, palabras, modelo...) es comun a todos. Las columnas de arriba siempre guardan los ajustes del personaje ACTIVO.
+// Cada personaje tiene lo suyo: su voz, su nombre, la seccion "Como se comporta", sus reglas de regalos y su aspecto (color, escenario,
+// chat en pantalla). Lo que es comun a todos los personajes: el idioma, la personalidad, "Sobre ti", el modelo de IA y el interruptor
+// de encendido. Las columnas de arriba siempre guardan los ajustes del personaje ACTIVO.
 
 const BASE_CHARACTER_SETTINGS = {
+  // aspecto y voz
   accentColor: '#7c5cff',
   background: 'studio',
   showChat: true,
-  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
   voiceName: '',
   voiceRate: 1,
   voicePitch: 1,
   voiceVolume: 1,
+  // reglas de regalos
+  giftRules: { priority: [], advice: [], joke: [], flatter: [] },
+  // nombre
+  agentName: 'Nova',
+  // como se comporta
+  replyMode: 'all',
+  thankGifts: true,
+  minGiftCoins: 1,
+  greetFollowers: true,
+  greetViewers: false,
+  proactive: true,
+  proactiveMinutes: 4,
+  cadenceSeconds: 8,
+  maxChars: 220,
+  bannedWords: '',
 };
 const CHARACTER_SETTINGS_DEFAULTS = {
-  mochi: {},
-  cj: { accentColor: '#2fa24d', voicePitch: 0.85 },
+  mochi: { agentName: 'Mochi' },
+  cj: { agentName: 'CJ', accentColor: '#2fa24d', voicePitch: 0.85 },
 };
 
 function characterDefaults(characterId) {
@@ -183,16 +199,28 @@ function characterDefaultsMap() {
 
 function normalizeCharacterFields(entry, base) {
   const source = entry && typeof entry === 'object' ? entry : {};
+  const has = (key) => source[key] !== undefined;
   const accent = /^#[0-9a-fA-F]{6}$/.test(String(source.accentColor)) ? String(source.accentColor).toLowerCase() : base.accentColor;
   return {
     accentColor: accent,
     background: BACKGROUNDS[source.background] ? source.background : base.background,
-    showChat: source.showChat === undefined ? base.showChat : Boolean(source.showChat),
-    giftRules: source.giftRules === undefined ? base.giftRules : normalizeGiftRules(source.giftRules),
-    voiceName: source.voiceName === undefined ? base.voiceName : cleanText(source.voiceName, 120),
+    showChat: has('showChat') ? Boolean(source.showChat) : base.showChat,
+    voiceName: has('voiceName') ? cleanText(source.voiceName, 120) : base.voiceName,
     voiceRate: clampNumber(source.voiceRate, 0.6, 1.6, base.voiceRate),
     voicePitch: clampNumber(source.voicePitch, 0.5, 1.8, base.voicePitch),
     voiceVolume: clampNumber(source.voiceVolume, 0, 1, base.voiceVolume),
+    giftRules: has('giftRules') ? normalizeGiftRules(source.giftRules) : base.giftRules,
+    agentName: (has('agentName') ? cleanText(source.agentName, 30).replace(/[<>"]/g, '') : '') || base.agentName,
+    replyMode: prompt.REPLY_MODES.includes(source.replyMode) ? source.replyMode : base.replyMode,
+    thankGifts: has('thankGifts') ? Boolean(source.thankGifts) : base.thankGifts,
+    minGiftCoins: clampInt(source.minGiftCoins, 1, 100000, base.minGiftCoins),
+    greetFollowers: has('greetFollowers') ? Boolean(source.greetFollowers) : base.greetFollowers,
+    greetViewers: has('greetViewers') ? Boolean(source.greetViewers) : base.greetViewers,
+    proactive: has('proactive') ? Boolean(source.proactive) : base.proactive,
+    proactiveMinutes: clampInt(source.proactiveMinutes, 1, 30, base.proactiveMinutes),
+    cadenceSeconds: clampInt(source.cadenceSeconds, 4, 60, base.cadenceSeconds),
+    maxChars: clampInt(source.maxChars, 80, 400, base.maxChars),
+    bannedWords: has('bannedWords') ? cleanText(source.bannedWords, 600) : base.bannedWords,
   };
 }
 
@@ -205,18 +233,11 @@ function normalizeCharacterSettings(value) {
   return result;
 }
 
+const CHARACTER_FIELD_KEYS = Object.keys(BASE_CHARACTER_SETTINGS);
+
 // Los ajustes del personaje activo (los de las columnas de arriba) son los que valen
 function activeCharacterFields(config) {
-  return {
-    accentColor: config.accentColor,
-    background: config.background,
-    showChat: config.showChat,
-    giftRules: config.giftRules,
-    voiceName: config.voiceName,
-    voiceRate: config.voiceRate,
-    voicePitch: config.voicePitch,
-    voiceVolume: config.voiceVolume,
-  };
+  return Object.fromEntries(CHARACTER_FIELD_KEYS.map((key) => [key, config[key]]));
 }
 
 function withActiveCharacter(settings, row) {
@@ -228,11 +249,22 @@ function withActiveCharacter(settings, row) {
         accentColor: row.accent_color,
         background: row.background,
         showChat: Boolean(row.show_chat),
-        giftRules: normalizeGiftRules(row.gift_rules),
         voiceName: row.voice_name,
         voiceRate: Number(row.voice_rate),
         voicePitch: Number(row.voice_pitch),
         voiceVolume: Number(row.voice_volume),
+        giftRules: normalizeGiftRules(row.gift_rules),
+        agentName: row.agent_name,
+        replyMode: row.reply_mode,
+        thankGifts: Boolean(row.thank_gifts),
+        minGiftCoins: row.min_gift_coins,
+        greetFollowers: Boolean(row.greet_followers),
+        greetViewers: Boolean(row.greet_viewers),
+        proactive: Boolean(row.proactive),
+        proactiveMinutes: row.proactive_minutes,
+        cadenceSeconds: row.cadence_seconds,
+        maxChars: row.max_chars,
+        bannedWords: row.banned_words,
       },
       characterDefaults(active),
     ),

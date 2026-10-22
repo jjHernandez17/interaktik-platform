@@ -560,6 +560,7 @@ body.ah-modal-open { overflow: hidden; }
 .ah-gift-rule { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(var(--tone), 0.25); }
 .ah-gift-head { display: flex; gap: 10px; align-items: flex-start; }
 .ah-gift-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; background: rgba(var(--tone), 0.2); font-size: 1rem; }
+.ah-gift-test { margin-left: auto; flex: none; padding: 6px 12px; font-size: 0.78rem; white-space: nowrap; }
 .ah-gift-head strong { display: block; font-size: 0.9rem; }
 .ah-gift-head small { display: block; color: var(--ds-text-muted, #92a0b8); font-size: 0.76rem; line-height: 1.35; }
 .ah-gift-chips { display: flex; flex-wrap: wrap; gap: 6px; }

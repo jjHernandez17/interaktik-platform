@@ -4,7 +4,7 @@
 // (requireAuth); lo que dice el agente le llega a la pagina por /events?gameType=aihost.
 
 const express = require('express');
-const { requireAuth, requireActiveAccess, getSessionUserId } = require('../middleware/auth');
+const { requireAuth, requireActiveAccess, requireSuperUser, getSessionUserId } = require('../middleware/auth');
 const aiHostService = require('../services/aiHostService');
 const aiHostPrompt = require('../services/aiHostPrompt');
 const aiHostCredit = require('../services/aiHostCredit');
@@ -190,6 +190,16 @@ router.post('/ai-host/test', requireAuth, requireActiveAccess, requireAiAccess, 
     return res.json({ success: true, waiting: Boolean(outcome && outcome.waiting) });
   } catch (error) {
     return sendError(res, error, 'Error enviando una prueba al Co-anfitrion IA');
+  }
+});
+
+// Presentacion de la plataforma: el personaje hace publicidad de Interaktik (solo superusuario)
+router.post('/ai-host/promo', requireAuth, requireSuperUser, async (req, res) => {
+  try {
+    const result = await aiHostService.sendPromo(getSessionUserId(req));
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return sendError(res, error, 'Error generando la presentacion de la plataforma');
   }
 });
 

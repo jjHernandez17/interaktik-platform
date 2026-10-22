@@ -128,6 +128,7 @@
         <div class="ah-gift-head">
           <span class="ah-gift-ico" aria-hidden="true">${rule.icon}</span>
           <div><strong>${esc(rule.title)}</strong><small>${esc(rule.help)}</small></div>
+          <button type="button" class="btn ghost ah-gift-test" data-test-rule="${rule.key}" title="Simula que llega un regalo de esta regla">▶ Probar</button>
         </div>
         <div class="ah-gift-chips">${state[rule.key].length
           ? state[rule.key].map((name) => chipMarkup(name, rule.key)).join('')
@@ -169,6 +170,21 @@
   }
 
   root.addEventListener('click', (event) => {
+    // Boton "Probar": simula un regalo de esta regla (el primero de su lista) para ver lo que hace el agente
+    const test = event.target.closest('[data-test-rule]');
+    if (test) {
+      const ruleKey = test.dataset.testRule;
+      const gift = state[ruleKey][0];
+      if (!gift) {
+        const message = 'Primero agrega al menos un regalo a esta regla para poder probarla.';
+        if (typeof window.showAlert === 'function') window.showAlert(message, 'Reglas de regalos');
+        else window.alert(message);
+        return;
+      }
+      document.dispatchEvent(new CustomEvent('ai-host-gift-rule-test', { detail: { rule: ruleKey, gift } }));
+      return;
+    }
+
     const remove = event.target.closest('[data-remove-gift]');
     if (remove) {
       const key = remove.dataset.rule;

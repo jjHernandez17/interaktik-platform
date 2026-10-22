@@ -66,6 +66,7 @@ const el = {
   volumeOut: $('ahVolumeOut'),
   speakHere: $('ahSpeakHere'),
   testVoice: $('ahTestVoiceBtn'),
+  promoBtn: $('ahPromoBtn'),
   voiceMode: $('ahVoiceMode'),
   voiceModeHint: $('ahVoiceModeHint'),
   voiceBrowserField: $('ahVoiceBrowserField'),
@@ -400,11 +401,40 @@ function initVoiceMode() {
 
 // Pide el audio al servidor (con limite de tiempo: si la red o el servicio se cuelgan, se usa la voz sin costo y el agente NO se queda mudo).
 // Devuelve { blob, left } o null. Se lanza apenas llega la frase, asi el audio ya esta listo cuando le toca hablar.
-const AI_VOICE_FETCH_MS = 20000;
+const AI_VOICE_FETCH_MS = 30000;
 let aiVoiceBlockedUntil = 0; // si el servidor dijo "sin clave" o "sin tokens", no se insiste durante 1 minuto
+let aiPlayFailures = 0; // fallos seguidos al REPRODUCIR audio (uno suelto no apaga la voz IA)
 
+// Los audios se piden de a dos a la vez (todas las frases de una presentacion llegan juntas y ElevenLabs limita las peticiones simultaneas)
+let aiFetchActive = 0;
+const aiFetchWaiting = [];
+async function withAiFetchSlot(task) {
+  if (aiFetchActive >= 2) await new Promise((resolve) => aiFetchWaiting.push(resolve));
+  aiFetchActive += 1;
+  try {
+    return await task();
+  } finally {
+    aiFetchActive -= 1;
+    const next = aiFetchWaiting.shift();
+    if (next) next();
+  }
+}
+
+// Un fallo pasajero (demasiadas peticiones, error del servicio, red) se reintenta antes de caer a la voz sin costo: asi un mensaje no empieza con la
+// voz de IA y termina con la del navegador.
 async function fetchAiAudio(text, emotion) {
-  if (Date.now() < aiVoiceBlockedUntil || !userGesture || el.volume.value === '0' || !el.speakHere.checked) return null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const outcome = await withAiFetchSlot(() => fetchAiAudioOnce(text, emotion));
+    if (outcome.audio) return outcome.audio;
+    if (!outcome.retry || attempt === 3) return null;
+    await wait(900 * attempt);
+  }
+  return null;
+}
+
+// { audio } si salio bien; { retry: true } si vale la pena reintentar; { } si no
+async function fetchAiAudioOnce(text, emotion) {
+  if (Date.now() < aiVoiceBlockedUntil || !userGesture || el.volume.value === '0' || !el.speakHere.checked) return {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_VOICE_FETCH_MS);
   try {
@@ -421,20 +451,23 @@ async function fetchAiAudio(text, emotion) {
         aiVoiceProblem = data.code === 'NO_TOKENS'
           ? 'Ya no te quedan tokens para la voz con IA: se usa la voz sin costo.'
           : 'La voz con IA no está disponible: al servidor le falta la clave de voz (ELEVENLABS_API_KEY). Mientras tanto suena la voz sin costo.';
-      } else {
-        aiVoiceProblem = data.error ? `La voz con IA falló (${data.error}). Se usó la voz sin costo.` : '';
+        paintVoiceMode();
+        return {};
       }
+      // pasajero: demasiadas peticiones a la vez, error del servicio de voz o limite por minuto
+      const transient = [429, 500, 502, 503, 504].includes(response.status);
+      aiVoiceProblem = data.error && !transient ? `La voz con IA falló (${data.error}). Se usó la voz sin costo.` : '';
       paintVoiceMode();
-      return null;
+      return transient ? { retry: true } : {};
     }
     const left = response.headers.get('X-Voice-Tokens-Left');
     const receipt = response.headers.get('X-Voice-Receipt') || '';
     const blob = await response.blob();
-    return { blob, left, receipt };
+    return { audio: { blob, left, receipt } };
   } catch (error) {
     aiVoiceProblem = error.name === 'AbortError' ? 'La voz con IA tardó demasiado. Se usó la voz sin costo.' : '';
     paintVoiceMode();
-    return null;
+    return { retry: true };
   } finally {
     clearTimeout(timer);
   }
@@ -497,14 +530,20 @@ async function say(text, estimatedMs, audioData) {
   if (voiceMode() === 'ai' && el.speakHere.checked) {
     try {
       if (audioData) {
-        if (await playAiAudio(audioData, text)) {
+        let played = await playAiAudio(audioData, text);
+        if (!played) played = await playAiAudio(audioData, text); // un fallo suelto de reproduccion se reintenta una vez con el mismo audio
+        if (played) {
+          aiPlayFailures = 0;
           if (aiVoiceProblem) { aiVoiceProblem = ''; paintVoiceMode(); }
           return;
         }
-        // el audio llego pero el navegador no pudo reproducirlo: se deja de pedir audios (cada uno cuesta) hasta que se arregle
-        aiVoiceBlockedUntil = Date.now() + 5 * 60 * 1000;
-        aiVoiceProblem = 'El navegador no pudo reproducir la voz con IA (no se cobró nada). Se usa la voz sin costo; revisa la consola (F12).';
-        paintVoiceMode();
+        // el audio llego pero el navegador no pudo reproducirlo: tras dos frases seguidas asi, se deja de pedir audios (cada uno cuesta)
+        aiPlayFailures += 1;
+        if (aiPlayFailures >= 2) {
+          aiVoiceBlockedUntil = Date.now() + 5 * 60 * 1000;
+          aiVoiceProblem = 'El navegador no pudo reproducir la voz con IA (no se cobró nada). Se usa la voz sin costo; revisa la consola (F12).';
+          paintVoiceMode();
+        }
       }
     } catch (error) {
       // cae a la voz sin costo
@@ -660,7 +699,7 @@ function enqueueTalk(item) {
   if (!item || !item.text) return;
   // si el chat va muy rapido no se acumulan mensajes viejos
   // si el chat va muy rapido se descartan primero las frases normales; una frase que agradece un regalo NUNCA se descarta
-  const isGift = (entry) => Array.isArray(entry.kinds) && entry.kinds.includes('gift');
+  const isGift = (entry) => Array.isArray(entry.kinds) && (entry.kinds.includes('gift') || entry.kinds.includes('promo'));
   if (speech.queue.length >= 3) {
     const droppable = speech.queue.findIndex((entry) => !isGift(entry));
     if (droppable !== -1) speech.queue.splice(droppable, 1);
@@ -926,6 +965,7 @@ function showCost(data) {
 function paintTokens(credit) {
   if (!credit) return;
   creditState = { unlimited: Boolean(credit.unlimited), tokensRemaining: credit.unlimited ? null : Number(credit.tokensRemaining) || 0 };
+  if (el.promoBtn) el.promoBtn.hidden = !credit.unlimited; // solo el superusuario ve el boton (el servidor tambien lo exige)
   if (lastCost) showCost(lastCost);
   if (credit.unlimited) {
     el.statTokens.textContent = '∞';
@@ -1159,11 +1199,28 @@ async function saveConfig(event) {
     const data = await api('/config', { method: 'PUT', body: JSON.stringify(readForm()) });
     applyConfig(data.config);
     showSaveState('Guardado. El agente usa los cambios desde su próxima respuesta.', 'ok');
+    return true;
   } catch (error) {
     showSaveState('');
     await showAlert(error.message, 'No se guardó');
+    return false;
   } finally {
     el.saveBtn.disabled = false;
+  }
+}
+
+// Boton "Probar" de una regla de regalos: primero se guarda lo que hay en pantalla (el servidor prueba con la configuracion guardada, asi
+// la prueba usa la regla tal como esta ahora) y luego llega un regalo de prueba de esa regla.
+let ruleTestBusy = false;
+async function testGiftRule(rule, gift) {
+  if (ruleTestBusy) return;
+  ruleTestBusy = true;
+  try {
+    unlockSpeech();
+    if (!(await saveConfig())) return;
+    await sendTest({ kind: 'gift', giftName: gift, coins: 5 });
+  } finally {
+    ruleTestBusy = false;
   }
 }
 
@@ -1319,6 +1376,19 @@ function bindEvents() {
     input.addEventListener('change', () => { ensureRig(); paintStage(); });
   }
   el.speakHere.addEventListener('change', paintChips);
+  el.promoBtn?.addEventListener('click', async () => {
+    unlockSpeech();
+    el.promoBtn.disabled = true;
+    try {
+      const result = await api('/promo', { method: 'POST' });
+      showNotice(`Presentación de Interaktik en curso${result.parts ? ` (${result.parts} partes${result.source === 'fallback' ? ', guion fijo' : ''})` : ''}.`, 'info');
+    } catch (error) {
+      await showAlert(error.message, 'No se pudo presentar');
+    } finally {
+      setTimeout(() => { el.promoBtn.disabled = false; }, 3000);
+    }
+  });
+  document.addEventListener('ai-host-gift-rule-test', (event) => testGiftRule(event.detail.rule, event.detail.gift));
   initVoiceMode();
   el.testVoice.addEventListener('click', testVoice);
 

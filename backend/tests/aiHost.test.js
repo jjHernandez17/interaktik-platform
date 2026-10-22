@@ -1140,3 +1140,126 @@ test('el respaldo de un regalo con disparo tambien dispara y agradece', () => {
   assert.match(reply.text, /Pablo/);
   assert.match(reply.text, /gracias|Gracias/);
 });
+
+// ---------- presentacion de la plataforma (solo superusuario) ----------
+
+test('la presentacion de Interaktik: la IA la arma en partes, cada una con su emocion y accion, y se dicen en orden', async () => {
+  reset();
+  nextReply = {
+    text: '[feliz, saludar] ¡Hola! Soy Nova.\n|||\n[emocionado, celebrar] Leo el chat y agradezco cada regalo.\n|||\n[sorprendido, senalar] Hay reglas de regalos y varios personajes.\n|||\n[feliz, aplaudir] Y hay muchos juegos más en interaktik.com.',
+    usage: { input_tokens: 1500, output_tokens: 200 }, stopReason: 'end_turn',
+  };
+  const outcome = await service.sendPromo(5);
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+
+  assert.deepEqual(outcome, { parts: 4, source: 'ia' });
+  assert.equal(said.length, 4);
+  assert.deepEqual(said.map((item) => item.emotion), ['feliz', 'emocionado', 'sorprendido', 'feliz']);
+  assert.deepEqual(said.map((item) => item.action), ['saludar', 'celebrar', 'senalar', 'aplaudir']);
+  assert.ok(said.every((item) => item.kinds.includes('promo') && item.focus === null && item.to.length === 0));
+  assert.match(calls[0].user, /interaktik\.com/);
+  assert.match(calls[0].user, /MUCHOS juegos/);
+  assert.match(calls[0].user, /Roblox/);
+  assert.match(calls[0].system, /Eres Nova/, 'habla con la forma de ser del personaje');
+});
+
+test('si la IA falla o no responde, la presentacion usa el guion fijo y menciona la plataforma', async () => {
+  reset();
+  failNext = 5;
+  const outcome = await service.sendPromo(5);
+  failNext = 0;
+  assert.equal(outcome.source, 'fallback');
+  assert.equal(outcome.parts, 4);
+  assert.ok(said.some((item) => /interaktik\.com/i.test(item.text)));
+  assert.ok(said.some((item) => /juegos/i.test(item.text)));
+  assert.match(said[0].text, /Nova/, 'el guion usa el nombre del agente');
+});
+
+test('el guion de CJ habla con su estilo y dispara; el de otros personajes no dispara', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', agent_name: 'CJ' }));
+  failNext = 5;
+  await service.sendPromo(5);
+  failNext = 0;
+  assert.ok(said.some((item) => item.action === 'disparar'));
+  assert.ok(said.some((item) => /parce|mano|homie/i.test(item.text)));
+
+  reset();
+  failNext = 5;
+  await service.sendPromo(5);
+  failNext = 0;
+  assert.ok(said.every((item) => item.action !== 'disparar'));
+});
+
+test('la presentacion siempre nombra a interaktik.com aunque la IA se olvide, y no repite una peticion seguida', async () => {
+  reset();
+  nextReply = { text: '[feliz, saludar] ¡Hola a todos!\n|||\n[feliz, aplaudir] Hay muchos juegos.', usage: { input_tokens: 10, output_tokens: 10 }, stopReason: 'end_turn' };
+  await service.sendPromo(5);
+  assert.match(said[said.length - 1].text, /interaktik\.com/);
+  await assert.rejects(() => service.sendPromo(5), (error) => error.status === 400, 'espera entre presentaciones');
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+});
+
+test('una accion de disparar en la presentacion de otro personaje se cambia por celebrar', () => {
+  const parts = prompt.parsePromoParts('[picaro, disparar] ¡Bang!\n|||\n[feliz, saludar] Visita interaktik.com', { character: 'mochi' });
+  assert.equal(parts[0].action, 'celebrar');
+  const cj = prompt.parsePromoParts('[picaro, disparar] ¡Bang!', { character: 'cj' });
+  assert.equal(cj[0].action, 'disparar');
+});
+
+// ---------- voz de IA: nada de cambiar a la voz del navegador a mitad de un mensaje ----------
+
+test('ElevenLabs responde 429 (demasiadas peticiones a la vez): se reintenta y la frase sale con la voz de IA', async () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  voice._cache.clear();
+  process.env.ELEVENLABS_API_KEY = 'el-test';
+  process.env.ELEVENLABS_VOICE_MOCHI = 'vozmochi';
+  const statuses = [429, 503, 200];
+  let calls429 = 0;
+  const fakeFetch = async () => {
+    const status = statuses[calls429];
+    calls429 += 1;
+    return status === 200
+      ? { ok: true, status, arrayBuffer: async () => new Uint8Array([7, 7]).buffer }
+      : { ok: false, status, text: async () => 'busy' };
+  };
+  const result = await voice.synthesize({ text: 'Una frase de prueba', characterId: 'mochi', fetchImpl: fakeFetch, retryDelayMs: 1 });
+  assert.equal(result.cached, false);
+  assert.equal(calls429, 3, 'dos fallos pasajeros y el tercer intento sale bien');
+  delete process.env.ELEVENLABS_API_KEY;
+  delete process.env.ELEVENLABS_VOICE_MOCHI;
+});
+
+test('un error que no es pasajero (clave invalida, sin plan) no se reintenta', async () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  voice._cache.clear();
+  process.env.ELEVENLABS_API_KEY = 'el-test';
+  process.env.ELEVENLABS_VOICE_MOCHI = 'vozmochi';
+  let calls = 0;
+  const fakeFetch = async () => { calls += 1; return { ok: false, status: 401, text: async () => '{"detail":{"status":"invalid_api_key"}}' }; };
+  await assert.rejects(() => voice.synthesize({ text: 'otra frase distinta', characterId: 'mochi', fetchImpl: fakeFetch, retryDelayMs: 1 }), (error) => error.status === 502);
+  assert.equal(calls, 1);
+  delete process.env.ELEVENLABS_API_KEY;
+  delete process.env.ELEVENLABS_VOICE_MOCHI;
+});
+
+test('varias frases pedidas a la vez no abren mas de 2 peticiones simultaneas a ElevenLabs', async () => {
+  const voice = require(path.join(root, 'services', 'aiHostVoice.js'));
+  voice._cache.clear();
+  process.env.ELEVENLABS_API_KEY = 'el-test';
+  process.env.ELEVENLABS_VOICE_MOCHI = 'vozmochi';
+  let running = 0;
+  let peak = 0;
+  const fakeFetch = async () => {
+    running += 1;
+    peak = Math.max(peak, running);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    running -= 1;
+    return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array([1]).buffer };
+  };
+  await Promise.all(['uno aqui', 'dos aqui', 'tres aqui', 'cuatro aqui', 'cinco aqui'].map((text) => voice.synthesize({ text, characterId: 'mochi', fetchImpl: fakeFetch })));
+  assert.ok(peak <= 2, `maximo simultaneo: ${peak}`);
+  assert.ok(peak >= 1);
+  delete process.env.ELEVENLABS_API_KEY;
+  delete process.env.ELEVENLABS_VOICE_MOCHI;
+});

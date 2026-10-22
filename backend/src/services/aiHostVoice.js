@@ -20,6 +20,28 @@ const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 // por caracter con eleven_multilingual_v2 (35 creditos por 87 caracteres), es decir ~$0.00008 por caracter. Ajustalo si cambias de plan o modelo.
 const COST_USD_PER_CHAR = Number(process.env.ELEVENLABS_USD_PER_CHAR) || 0.00008;
 const MAX_CHARS = 420;
+// ElevenLabs limita cuantas peticiones puede tener abiertas a la vez la cuenta (en los planes pequenos ~3). Si se piden varias frases juntas
+// (por ejemplo las 4 partes de una presentacion), las de mas reciben 429 y esa frase caia a la voz del navegador a mitad de mensaje. Por eso
+// se hacen de a pocas y, si aun asi falla algo pasajero, se reintenta.
+const MAX_CONCURRENT = Math.max(1, Number(process.env.ELEVENLABS_MAX_CONCURRENCY) || 2);
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 3;
+
+let activeRequests = 0;
+const waiting = [];
+async function withSlot(task) {
+  if (activeRequests >= MAX_CONCURRENT) await new Promise((resolve) => waiting.push(resolve));
+  activeRequests += 1;
+  try {
+    return await task();
+  } finally {
+    activeRequests -= 1;
+    const next = waiting.shift();
+    if (next) next();
+  }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TTS_TIMEOUT_MS = 15000;
 
 // Ajustes de voz por personaje (la voz en si, el "voice id", viene del entorno). stability baja = mas expresiva.
@@ -111,7 +133,7 @@ function allowRequest(userId, now = Date.now()) {
 }
 
 // Devuelve { audio: Buffer, cached: boolean }. `fetchImpl` se puede inyectar para pruebas.
-async function synthesize({ text, characterId, speed, emotion, fetchImpl = fetch }) {
+async function synthesize({ text, characterId, speed, emotion, fetchImpl = fetch, retryDelayMs = 700 }) {
   const input = cleanText(text);
   if (!input) {
     const error = new Error('No hay nada que decir.');
@@ -136,22 +158,37 @@ async function synthesize({ text, characterId, speed, emotion, fetchImpl = fetch
   }
 
   const settings = settingsFor(characterId);
-  const response = await fetchImpl(`${ELEVEN_URL}/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+  const body = JSON.stringify({
+    text: input,
+    model_id: MODEL,
+    voice_settings: {
+      stability: settings.stability,
+      similarity_boost: settings.similarity,
+      style: EMOTION_STYLE[mood],
+      use_speaker_boost: true,
+      speed: rate,
+    },
+  });
+  const request = () => fetchImpl(`${ELEVEN_URL}/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
     method: 'POST',
     signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
     headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-    body: JSON.stringify({
-      text: input,
-      model_id: MODEL,
-      voice_settings: {
-        stability: settings.stability,
-        similarity_boost: settings.similarity,
-        style: EMOTION_STYLE[mood],
-        use_speaker_boost: true,
-        speed: rate,
-      },
-    }),
+    body,
   });
+
+  // fallas pasajeras (demasiadas peticiones a la vez, error del servicio o red) se reintentan antes de rendirse
+  let response;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      response = await withSlot(request);
+    } catch (error) {
+      if (attempt === MAX_ATTEMPTS) throw error;
+      await sleep(retryDelayMs * attempt);
+      continue;
+    }
+    if (response.ok || !RETRY_STATUSES.has(response.status) || attempt === MAX_ATTEMPTS) break;
+    await sleep(retryDelayMs * attempt);
+  }
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     // sin creditos / sin plan / clave invalida: se avisa al superusuario

@@ -1087,6 +1087,60 @@ async function injectTest(userId, { kind = 'comment', text = '', nickname = 'Esp
   return { waiting: false };
 }
 
+// Presentacion de la plataforma (solo la pide el superusuario): el personaje habla de lo que puede hacer el Co-anfitrion IA y de los
+// demas juegos de Interaktik. Si la IA no esta disponible, se usa un guion fijo, asi el boton siempre funciona.
+async function sendPromo(userId) {
+  const entry = await loadActiveConfig(userId);
+  if (!entry.config) throw badRequest('Primero guarda la configuración del agente.');
+  const config = entry.config;
+  const session = getSession(userId);
+  if (Date.now() - (session.lastPromoAt || 0) < 15000) throw badRequest('Espera un momento antes de otra presentación.');
+  session.lastPromoAt = Date.now();
+  session.lastEventAt = Date.now();
+
+  let parts = [];
+  let source = 'fallback';
+  const client = getClient();
+  if (client) {
+    try {
+      const result = await client.generate({ model: config.model, system: prompt.buildSystemPrompt(config), user: prompt.promoUserMessage(config), maxTokens: 900 });
+      parts = prompt.parsePromoParts(result.text, config);
+      if (parts.length > 0) {
+        source = 'ia';
+        providerAlerts.clear('anthropic');
+        recordUsage(userId, { usage: result.usage, cost: estimateCostUsd(config.model, result.usage), spoken: true }).catch(() => {});
+      }
+    } catch (error) {
+      logger.warn('[AIHOST] No se pudo generar la presentacion con la IA; se usa el guion fijo', error);
+      const alertKind = providerAlerts.classifyAnthropic(error);
+      if (alertKind) providerAlerts.report('anthropic', alertKind);
+    }
+  }
+  if (parts.length === 0) parts = prompt.promoFallback(config);
+
+  let totalMs = 0;
+  for (const part of parts) {
+    const estimatedMs = prompt.estimateSpeechMs(part.text, config.voiceRate);
+    totalMs += estimatedMs + 500;
+    say(userId, {
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      text: part.text,
+      emotion: part.emotion,
+      action: part.action,
+      to: [],
+      kinds: ['promo'],
+      focus: null,
+      idle: false,
+      estimatedMs,
+      agentName: config.agentName,
+      model: source,
+    });
+  }
+  session.lastSpokeAt = Date.now();
+  session.speakingUntil = Date.now() + totalMs;
+  return { parts: parts.length, source };
+}
+
 function resetMemory(userId) {
   const session = sessions.get(userId);
   if (session) {
@@ -1129,6 +1183,7 @@ module.exports = {
   getStatus,
   getUsageToday,
   injectTest,
+  sendPromo,
   resetMemory,
   estimateCostUsd,
   start,

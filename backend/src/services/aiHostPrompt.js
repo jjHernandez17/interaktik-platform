@@ -186,82 +186,6 @@ function specialMaxChars(maxChars) {
   return Math.min(400, Math.max(Number(maxChars) || 220, 300));
 }
 
-// ---------- presentacion de la plataforma (publicidad de Interaktik) ----------
-// Boton solo para el superusuario: el personaje habla de lo que puede hacer el Co-anfitrion IA y de los demas juegos de interaktik.com.
-
-const PLATFORM_FACTS = [
-  'Interaktik (interaktik.com) es una plataforma de juegos interactivos para lives de TikTok: los espectadores juegan con sus comentarios y sus regalos, y el streamer solo transmite.',
-  'Hay muchos juegos: Snake vs Snake, Boy vs Girl, Dominance, Carrera de Colegas, ¿Dónde está la bola?, Batalla de Reinos, Batalla por rondas, juegos de Roblox (Roblox Dance, Roblox Parkour, Pelea Callejera y Carrera de Fórmula 1), de Minecraft (Survivaltik, Cubecraft, Modo historia) y más, además de overlays y alertas para el live.',
-  'El Co-anfitrión IA (el juego donde estás tú) es un personaje animado con inteligencia artificial que es el centro del live: lee los comentarios del chat y los contesta, agradece cada regalo y a cada nuevo seguidor, conversa con la gente, da consejos de la vida, cuenta chistes, halaga a quien lo apoya y gesticula, baila y celebra.',
-  'El streamer elige el personaje (hoy hay varios, cada uno con su voz, su nombre, su forma de ser y su fondo), escoge qué comentarios se contestan y cada cuánto, y le pone reglas a los regalos: dar prioridad al mensaje de quien lo manda, darle un consejo, contarle un chiste, halagarlo, e incluso hay un personaje que saca un arma de juguete y le dispara a la cámara.',
-  'Tiene voz realista con IA, subtítulos, y se captura fácil en TikTok LIVE Studio. Para empezar se entra a interaktik.com.',
-].join('\n- ');
-
-function promoUserMessage(config) {
-  return [
-    'Esta vez NO hay eventos del chat. Eres la cara de Interaktik y vas a hacerle publicidad a la plataforma, hablándole al público del live, con tu forma de ser de siempre.',
-    '',
-    'Esto es lo que puedes contar (no inventes nada más: ni precios, ni cifras, ni promesas):',
-    `- ${PLATFORM_FACTS}`,
-    '',
-    'Haz una presentación de 4 partes: (1) saluda y di quién eres; (2) cuenta todo lo que puede hacer el Co-anfitrión IA; (3) cuenta lo de las reglas de regalos y los personajes; (4) di que esto es solo uno de MUCHOS juegos de Interaktik, nombra algunos y cierra invitando a entrar a interaktik.com.',
-    `Cada parte empieza con su propia etiqueta [emoción, acción] y tiene máximo ${PROMO_PART_MAX_CHARS} caracteres. Separa las partes con una línea que contenga solo |||. Nada más que las partes.`,
-  ].join('\n');
-}
-
-const PROMO_PART_MAX_CHARS = 260;
-
-// El limpiador de texto quita direcciones web; la de la plataforma si se puede decir
-const protectDomain = (text) => String(text || '').replace(/interaktik\.com/gi, 'interaktikpuntocomx');
-const restoreDomain = (text) => String(text || '').replace(/interaktikpuntocomx/gi, 'interaktik.com');
-
-// Separa la respuesta del modelo en partes listas para decir ({ text, emotion, action })
-function parsePromoParts(raw, config = {}) {
-  const bannedWords = parseBannedWords(config.bannedWords);
-  const pieces = String(raw || '').split(/^\s*\|\|\|\s*$/m);
-  const parts = [];
-  for (const piece of pieces) {
-    const reply = parseReply(protectDomain(piece), { maxChars: PROMO_PART_MAX_CHARS, bannedWords, fallbackKind: 'idle' });
-    if (!reply) continue;
-    reply.text = restoreDomain(reply.text);
-    // la accion de disparar es solo de CJ
-    if (reply.action === 'disparar' && config.character !== 'cj') reply.action = 'celebrar';
-    parts.push(reply);
-    if (parts.length >= 5) break;
-  }
-  if (parts.length > 0 && !parts.some((part) => /interaktik/i.test(part.text))) {
-    const last = parts[parts.length - 1];
-    last.text = `${last.text} Entra a interaktik.com.`.slice(0, PROMO_PART_MAX_CHARS + 40);
-  }
-  return parts;
-}
-
-const PROMO_FALLBACK = {
-  default: [
-    '[feliz, saludar] ¡Hola a todos! Soy {name}, el co-anfitrión con inteligencia artificial de Interaktik, y estoy aquí para ser el centro de tu live.',
-    '[emocionado, celebrar] Leo el chat en vivo, respondo a los espectadores, agradezco cada regalo, cuento chistes, doy consejos de la vida y hasta halago a quien me apoya, ¡y todo con voz y gestos!',
-    '[sorprendido, senalar] Cada regalo puede activar algo distinto: puedo darle prioridad a un mensaje, contar un chiste, dar un consejo o dedicar un halago. El streamer pone las reglas.',
-    '[feliz, aplaudir] Y esto es solo uno de muchos juegos: en Interaktik hay Snake, batallas de reinos, Roblox, Minecraft y mucho más. Entra a interaktik.com.',
-  ],
-  cj: [
-    '[picaro, saludar] ¡Qué más, parceros! Soy {name}, el homie con inteligencia artificial de Interaktik, y vengo a poner a rodar este live.',
-    '[emocionado, celebrar] Leo el chat, les respondo, les agradezco cada regalo, les cuento chistes, les doy consejos de la vida y hasta los alabo si se lo ganan, carajo, ¡y todo con voz y gestos!',
-    '[picaro, disparar] Si me mandan el regalo indicado, saco el fierro y le disparo a la cámara, ¡bang bang! Cada regalo puede hacer algo distinto, el streamer pone las reglas.',
-    '[feliz, aplaudir] Y ojo, que este es solo uno de los juegos: en Interaktik hay Snake, batallas de reinos, Roblox, Minecraft y un montón más. Pásense por interaktik.com, mano.',
-  ],
-};
-
-function promoFallback(config = {}) {
-  const name = sanitizeName(config.agentName || 'Nova', 30) || 'Nova';
-  const script = PROMO_FALLBACK[config.character] || PROMO_FALLBACK.default;
-  return script
-    .map((line) => {
-      const reply = parseReply(protectDomain(line.replace(/\{name\}/g, name)), { maxChars: PROMO_PART_MAX_CHARS + 40, bannedWords: [], fallbackKind: 'idle' });
-      return reply ? { ...reply, text: restoreDomain(reply.text) } : null;
-    })
-    .filter(Boolean);
-}
-
 // ---------- respaldo: un regalo SIEMPRE se agradece ----------
 // Si el modelo responde [SKIP], no devuelve nada utilizable o la llamada falla varias veces, el regalo igual se agradece con una frase lista
 // (con el nombre de quien lo envio y la accion especial que tenga: halago, chiste o consejo).
@@ -511,10 +435,6 @@ module.exports = {
   pickIdlePrompt,
   parseModelOutput,
   estimateSpeechMs,
-  PLATFORM_FACTS,
-  promoUserMessage,
-  parsePromoParts,
-  promoFallback,
   GIFT_RULE_TYPES,
   CHARACTER_ONLY_ACTIONS,
   characterProfile,

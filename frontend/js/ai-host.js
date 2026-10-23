@@ -66,7 +66,6 @@ const el = {
   volumeOut: $('ahVolumeOut'),
   speakHere: $('ahSpeakHere'),
   testVoice: $('ahTestVoiceBtn'),
-  promoBtn: $('ahPromoBtn'),
   voiceMode: $('ahVoiceMode'),
   voiceModeHint: $('ahVoiceModeHint'),
   voiceBrowserField: $('ahVoiceBrowserField'),
@@ -699,7 +698,7 @@ function enqueueTalk(item) {
   if (!item || !item.text) return;
   // si el chat va muy rapido no se acumulan mensajes viejos
   // si el chat va muy rapido se descartan primero las frases normales; una frase que agradece un regalo NUNCA se descarta
-  const isGift = (entry) => Array.isArray(entry.kinds) && (entry.kinds.includes('gift') || entry.kinds.includes('promo'));
+  const isGift = (entry) => Array.isArray(entry.kinds) && entry.kinds.includes('gift');
   if (speech.queue.length >= 3) {
     const droppable = speech.queue.findIndex((entry) => !isGift(entry));
     if (droppable !== -1) speech.queue.splice(droppable, 1);
@@ -965,7 +964,6 @@ function showCost(data) {
 function paintTokens(credit) {
   if (!credit) return;
   creditState = { unlimited: Boolean(credit.unlimited), tokensRemaining: credit.unlimited ? null : Number(credit.tokensRemaining) || 0 };
-  if (el.promoBtn) el.promoBtn.hidden = !credit.unlimited; // solo el superusuario ve el boton (el servidor tambien lo exige)
   if (lastCost) showCost(lastCost);
   if (credit.unlimited) {
     el.statTokens.textContent = '∞';
@@ -1376,18 +1374,6 @@ function bindEvents() {
     input.addEventListener('change', () => { ensureRig(); paintStage(); });
   }
   el.speakHere.addEventListener('change', paintChips);
-  el.promoBtn?.addEventListener('click', async () => {
-    unlockSpeech();
-    el.promoBtn.disabled = true;
-    try {
-      const result = await api('/promo', { method: 'POST' });
-      showNotice(`Presentación de Interaktik en curso${result.parts ? ` (${result.parts} partes${result.source === 'fallback' ? ', guion fijo' : ''})` : ''}.`, 'info');
-    } catch (error) {
-      await showAlert(error.message, 'No se pudo presentar');
-    } finally {
-      setTimeout(() => { el.promoBtn.disabled = false; }, 3000);
-    }
-  });
   document.addEventListener('ai-host-gift-rule-test', (event) => testGiftRule(event.detail.rule, event.detail.gift));
   initVoiceMode();
   el.testVoice.addEventListener('click', testVoice);

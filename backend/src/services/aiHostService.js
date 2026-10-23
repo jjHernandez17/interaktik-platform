@@ -39,6 +39,9 @@ const MEMORY_MAX = 10;
 const MAX_FAILURES = 3;
 const FAILURE_PAUSE_MS = 60 * 1000;
 const DEDUPE_WINDOW_MS = 60 * 1000;
+const SOURCE_SILENCE_MS = 90 * 1000; // si la conexion que alimenta al agente calla este tiempo, puede tomar el relevo otra conexion
+const GIFT_SEEN_TTL_MS = 10 * 60 * 1000;
+const GIFT_SEEN_MAX = 400;
 const TEST_MIN_GAP_MS = 2500;
 const PRIORITY_WINDOW_MS = 5 * 60 * 1000; // quien manda un regalo "de prioridad" tiene prioridad en sus comentarios durante este tiempo
 const STALE_PRIORITY_COMMENT_MS = 3 * 60 * 1000;
@@ -56,6 +59,7 @@ const DEFAULTS = {
   persona: '',
   aboutStreamer: '',
   replyMode: 'all',
+  onlyGifters: false,
   thankGifts: true,
   minGiftCoins: 1,
   greetFollowers: true,
@@ -64,7 +68,7 @@ const DEFAULTS = {
   proactiveMinutes: 4,
   cadenceSeconds: 8,
   maxChars: 220,
-  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [] },
+  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: [], crewSeconds: 30, crewMax: 6 },
   characterSettings: {},
   model: DEFAULT_MODEL,
   bannedWords: '',
@@ -112,6 +116,7 @@ function rowToConfig(row) {
     persona: row.persona,
     aboutStreamer: row.about_streamer,
     replyMode: row.reply_mode,
+    onlyGifters: Boolean(row.only_gifters),
     thankGifts: Boolean(row.thank_gifts),
     minGiftCoins: row.min_gift_coins,
     greetFollowers: Boolean(row.greet_followers),
@@ -137,7 +142,7 @@ function rowToConfig(row) {
 
 // La regla de "sacar el arma y disparar a la camara" es solo de CJ: en cualquier otro personaje se ignora
 function restrictGiftRules(rules, characterId) {
-  return characterId === 'cj' ? rules : { ...rules, shoot: [] };
+  return characterId === 'cj' ? rules : { ...rules, shoot: [], crew: [] };
 }
 
 // Reglas de regalos: hasta 8 nombres por regla, sin repetidos (aunque cambien mayusculas o tildes)
@@ -156,6 +161,10 @@ function normalizeGiftRules(value) {
       if (result[type].length >= 8) break;
     }
   }
+  // cuanto tiempo se queda en pantalla cada pandillero de CJ (5 s a 10 min)
+  result.crewSeconds = clampInt(source.crewSeconds, 5, 600, 30);
+  // cuantos pandilleros caben a la vez en el escenario (los demas esperan su turno en la cola de la pagina)
+  result.crewMax = clampInt(source.crewMax, 1, 10, 6);
   return result;
 }
 
@@ -174,11 +183,12 @@ const BASE_CHARACTER_SETTINGS = {
   voicePitch: 1,
   voiceVolume: 1,
   // reglas de regalos
-  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [] },
+  giftRules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: [], crewSeconds: 30, crewMax: 6 },
   // nombre
   agentName: 'Nova',
   // como se comporta
   replyMode: 'all',
+  onlyGifters: false,
   thankGifts: true,
   minGiftCoins: 1,
   greetFollowers: true,
@@ -217,6 +227,7 @@ function normalizeCharacterFields(entry, base, characterId) {
     giftRules: restrictGiftRules(has('giftRules') ? normalizeGiftRules(source.giftRules) : base.giftRules, characterId),
     agentName: (has('agentName') ? cleanText(source.agentName, 30).replace(/[<>"]/g, '') : '') || base.agentName,
     replyMode: prompt.REPLY_MODES.includes(source.replyMode) ? source.replyMode : base.replyMode,
+    onlyGifters: has('onlyGifters') ? Boolean(source.onlyGifters) : base.onlyGifters,
     thankGifts: has('thankGifts') ? Boolean(source.thankGifts) : base.thankGifts,
     minGiftCoins: clampInt(source.minGiftCoins, 1, 100000, base.minGiftCoins),
     greetFollowers: has('greetFollowers') ? Boolean(source.greetFollowers) : base.greetFollowers,
@@ -261,6 +272,7 @@ function withActiveCharacter(settings, row) {
         giftRules: normalizeGiftRules(row.gift_rules),
         agentName: row.agent_name,
         replyMode: row.reply_mode,
+        onlyGifters: Boolean(row.only_gifters),
         thankGifts: Boolean(row.thank_gifts),
         minGiftCoins: row.min_gift_coins,
         greetFollowers: Boolean(row.greet_followers),
@@ -296,6 +308,7 @@ function normalizeConfigInput(input = {}, current = DEFAULTS) {
     persona: cleanText(pick('persona'), 1200),
     aboutStreamer: cleanText(pick('aboutStreamer'), 1500),
     replyMode,
+    onlyGifters: Boolean(pick('onlyGifters')),
     thankGifts: Boolean(pick('thankGifts')),
     minGiftCoins: clampInt(pick('minGiftCoins'), 1, 100000, current.minGiftCoins),
     greetFollowers: Boolean(pick('greetFollowers')),
@@ -346,14 +359,14 @@ async function updateConfig(userId, input) {
        thank_gifts = $9, min_gift_coins = $10, greet_followers = $11, greet_viewers = $12, proactive = $13,
        proactive_minutes = $14, cadence_seconds = $15, max_chars = $16, model = $17, banned_words = $18,
        voice_name = $19, voice_rate = $20, voice_pitch = $21, voice_volume = $22, accent_color = $23,
-       character = $24, background = $25, show_chat = $26, gift_rules = $27::jsonb, character_settings = $28::jsonb, updated_at = NOW()
+       character = $24, background = $25, show_chat = $26, gift_rules = $27::jsonb, character_settings = $28::jsonb, only_gifters = $29, updated_at = NOW()
      WHERE user_id = $1
      RETURNING *`,
     [userId, next.enabled, next.agentName, next.language, next.tone, next.persona, next.aboutStreamer, next.replyMode,
       next.thankGifts, next.minGiftCoins, next.greetFollowers, next.greetViewers, next.proactive,
       next.proactiveMinutes, next.cadenceSeconds, next.maxChars, next.model, next.bannedWords,
       next.voiceName, next.voiceRate, next.voicePitch, next.voiceVolume, next.accentColor,
-      next.character, next.background, next.showChat, JSON.stringify(next.giftRules), JSON.stringify(next.characterSettings)],
+      next.character, next.background, next.showChat, JSON.stringify(next.giftRules), JSON.stringify(next.characterSettings), next.onlyGifters],
   );
   configCache.delete(Number(userId));
   return rowToConfig(result.rows[0]);
@@ -480,6 +493,9 @@ function getSession(userId) {
       avatars: new Map(), // uniqueId -> foto de perfil (para la tarjeta del espectador)
       lastGift: new Map(), // uniqueId -> ultimo regalo que mando { giftName, coins, count }
       gifters: new Set(),
+      source: null, // { gameType, at }: la conexion de TikTok que alimenta al agente (el streamer puede tener varias abiertas a la vez)
+      seenGifts: new Map(), // identidad del mensaje de TikTok -> cuando se vio (un regalo nunca entra dos veces)
+      giftSenders: new Set(), // uniqueId de quienes han mandado algun regalo en este live (para la opcion "solo responder a quienes enviaron regalos")
       stats: { coins: 0, follows: 0 },
       usage: null,
       limitNotified: false,
@@ -518,6 +534,7 @@ function toEvent(eventName, payload, config, context = {}) {
     const text = String(payload.comment || '').trim();
     if (text.length < 2 || text.startsWith('!')) return null; // comandos de juegos
     if (/^[\d\s.,!?¡¿+-]+$/.test(text)) return null; // "1", "2", "???"
+    if (config.onlyGifters && !context.gifted) return null; // solo se responde a quienes mandaron regalos en este live
     const mention = prompt.mentionsAgent(text, config.agentName);
     if (!context.priority && config.replyMode === 'mentions' && !mention) return null;
     if (!context.priority && config.replyMode === 'questions' && !mention && !prompt.looksLikeQuestion(text)) return null;
@@ -565,6 +582,8 @@ function rememberViewer(session, payload, eventName) {
   const avatar = safeImageUrl(user.avatar);
   if (avatar) session.avatars.set(key, avatar);
   if (eventName === 'gift') {
+    session.giftSenders.add(key);
+    if (session.giftSenders.size > 2000) session.giftSenders.delete(session.giftSenders.values().next().value);
     const count = Math.max(1, Math.round(Number(payload.repeatCount) || 1));
     session.lastGift.set(key, { giftName: String(payload.giftName || 'un regalo').slice(0, 40), coins: (Number(payload.diamondCount) || 0) * count, count });
   }
@@ -787,64 +806,75 @@ async function runTurn(session, config, { idle = false } = {}) {
 
   try {
     const bannedWords = prompt.parseBannedWords(config.bannedWords);
-    // un regalo con consejo o chiste necesita mas espacio que el maximo normal
-    const needsRoom = batch.some((item) => item.special && (item.special.includes('advice') || item.special.includes('joke')));
-    const replyMax = needsRoom ? prompt.specialMaxChars(config.maxChars) : config.maxChars;
-    const userMessage = prompt.buildTurnMessage({
-      events: batch,
-      memory: session.memory,
-      stats: { minutes: (now - session.startedAt) / 60000, coins: session.stats.coins, gifters: session.gifters.size, follows: session.stats.follows },
-      idle: idle ? prompt.pickIdlePrompt(session.idleCounter++) : null,
-    });
+    // Un regalo sin regla solo se agradece con "gracias + nombre" (sin gastar IA); a la IA van los regalos con regla, los comentarios y lo demas
+    const plainGifts = batch.filter((item) => prompt.isPlainGift(item, batch));
+    const modelBatch = batch.filter((item) => !plainGifts.includes(item));
 
-    const result = await client.generate({
-      model,
-      system: prompt.buildSystemPrompt(config),
-      user: userMessage,
-      maxTokens: Math.max(160, Math.round(replyMax / 2.2)),
-    });
+    let spokenReply = null;
+    let result = null;
+    if (idle || modelBatch.length > 0) {
+      // un regalo con consejo o chiste necesita mas espacio que el maximo normal
+      const needsRoom = modelBatch.some((item) => item.special && (item.special.includes('advice') || item.special.includes('joke')));
+      const replyMax = needsRoom ? prompt.specialMaxChars(config.maxChars) : config.maxChars;
+      const userMessage = prompt.buildTurnMessage({
+        events: modelBatch,
+        memory: session.memory,
+        stats: { minutes: (now - session.startedAt) / 60000, coins: session.stats.coins, gifters: session.gifters.size, follows: session.stats.follows },
+        idle: idle ? prompt.pickIdlePrompt(session.idleCounter++) : null,
+      });
 
-    session.failures = 0;
-    session.lastError = null;
-    providerAlerts.clear('anthropic');
-    const mainKind = idle ? 'idle' : (batch.find((item) => item.kind === 'gift') ? 'gift' : batch.find((item) => item.kind === 'follow' || item.kind === 'share') ? 'follow' : batch.find((item) => item.question) ? 'question' : 'comment');
-    const reply = result.stopReason === 'refusal' ? null : prompt.parseReply(result.text, { maxChars: replyMax, bannedWords, fallbackKind: mainKind });
-    let spokenReply = reply;
-    // Un regalo nunca se queda sin respuesta: si el modelo dijo [SKIP] o no devolvio nada utilizable, se agradece con una frase de respaldo
-    if (!spokenReply && batch.some((item) => item.kind === 'gift')) {
-      spokenReply = prompt.giftFallbackReply(batch, config);
-      logger.warn(`[AIHOST] El modelo no agradecio un regalo (usuario ${userId}); se usa la frase de respaldo`);
+      result = await client.generate({
+        model,
+        system: prompt.buildSystemPrompt(config),
+        user: userMessage,
+        maxTokens: Math.max(160, Math.round(replyMax / 2.2)),
+      });
+
+      session.failures = 0;
+      session.lastError = null;
+      providerAlerts.clear('anthropic');
+      const mainKind = idle ? 'idle' : (modelBatch.find((item) => item.kind === 'gift') ? 'gift' : modelBatch.find((item) => item.kind === 'follow' || item.kind === 'share') ? 'follow' : modelBatch.find((item) => item.question) ? 'question' : 'comment');
+      spokenReply = result.stopReason === 'refusal' ? null : prompt.parseReply(result.text, { maxChars: replyMax, bannedWords, fallbackKind: mainKind });
+      // Un regalo con regla nunca se queda sin respuesta: si el modelo dijo [SKIP] o no devolvio nada utilizable, se usa una frase de respaldo
+      if (!spokenReply && modelBatch.some((item) => item.kind === 'gift')) {
+        spokenReply = prompt.giftFallbackReply(modelBatch, config);
+        logger.warn(`[AIHOST] El modelo no respondio a un regalo con regla (usuario ${userId}); se usa la frase de respaldo`);
+      }
     }
-    if (spokenReply && batch.some((item) => item.kind === 'gift')) {
-      // todo regalo se agradece (aunque el modelo solo haya hecho la accion especial) y se nombra a quien lo envio
-      const thanked = prompt.ensureGiftsThanked(spokenReply.text, batch, config);
-      spokenReply = { ...spokenReply, text: prompt.ensureGiftersNamed(thanked, batch) };
+    if (batch.some((item) => item.kind === 'gift')) {
+      // regalo con regla: sin agradecimiento y empezando con el nombre; regalo normal: "gracias + nombre"
+      const shaped = prompt.shapeGiftReply(spokenReply ? spokenReply.text : '', batch, config);
+      if (shaped) spokenReply = { emotion: 'emocionado', action: 'celebrar', ...spokenReply, text: shaped };
     }
     // regalo con la regla de disparo (solo CJ): la animacion siempre es sacar el arma y disparar a la camara
-    if (spokenReply && config.character === 'cj' && batch.some((item) => item.kind === 'gift' && item.special && item.special.includes('shoot'))) {
+    if (spokenReply && config.character === 'cj' && modelBatch.some((item) => item.kind === 'gift' && item.special && item.special.includes('shoot'))) {
       spokenReply = { ...spokenReply, action: 'disparar', emotion: 'picaro' };
     }
     const text = spokenReply ? spokenReply.text : null;
-    const cost = estimateCostUsd(model, result.usage);
-    session.usage.calls += 1;
-    session.usage.costUsd = (session.usage.costUsd || 0) + cost;
-    recordUsage(userId, { usage: result.usage, cost, spoken: Boolean(text) }).catch((error) => logger.warn('[AIHOST] No se pudo guardar el consumo', error));
 
-    // Se descuentan los tokens (una llamada cuenta aunque el agente decida no decir nada)
-    if (!unlimited) {
-      const spent = credit.costToTokens(cost);
-      session.tokensLeft = await credit.consume(userId, spent).catch((error) => {
-        logger.error(`[AIHOST] No se pudieron descontar los tokens del usuario ${userId}`, error);
-        return Math.max(0, (session.tokensLeft ?? 0) - spent);
-      });
-      const granted = session.entitlement?.tokensGranted || 0;
-      if (session.tokensLeft <= 0) {
-        configCache.delete(Number(userId));
-        status(userId, 'tokens', 'Se acabaron tus tokens de IA. Renueva tu plan Mensual o Anual para recibir más.');
-        session.tokensNotified = true;
-      } else if (!session.lowNotified && granted > 0 && session.tokensLeft < granted * credit.LOW_TOKENS_WARNING) {
-        session.lowNotified = true;
-        status(userId, 'low_tokens', 'Te queda menos del 10 % de tus tokens de IA.');
+    // el consumo y los tokens solo cuentan si se llamo a la IA
+    if (result) {
+      const cost = estimateCostUsd(model, result.usage);
+      session.usage.calls += 1;
+      session.usage.costUsd = (session.usage.costUsd || 0) + cost;
+      recordUsage(userId, { usage: result.usage, cost, spoken: Boolean(text) }).catch((error) => logger.warn('[AIHOST] No se pudo guardar el consumo', error));
+
+      // Se descuentan los tokens (una llamada cuenta aunque el agente decida no decir nada)
+      if (!unlimited) {
+        const spent = credit.costToTokens(cost);
+        session.tokensLeft = await credit.consume(userId, spent).catch((error) => {
+          logger.error(`[AIHOST] No se pudieron descontar los tokens del usuario ${userId}`, error);
+          return Math.max(0, (session.tokensLeft ?? 0) - spent);
+        });
+        const granted = session.entitlement?.tokensGranted || 0;
+        if (session.tokensLeft <= 0) {
+          configCache.delete(Number(userId));
+          status(userId, 'tokens', 'Se acabaron tus tokens de IA. Renueva tu plan Mensual o Anual para recibir más.');
+          session.tokensNotified = true;
+        } else if (!session.lowNotified && granted > 0 && session.tokensLeft < granted * credit.LOW_TOKENS_WARNING) {
+          session.lowNotified = true;
+          status(userId, 'low_tokens', 'Te queda menos del 10 % de tus tokens de IA.');
+        }
       }
     }
 
@@ -980,6 +1010,41 @@ async function tick() {
   }
 }
 
+// Una sola conexion alimenta al agente. La del propio juego (aihost) tiene preferencia; si la conexion elegida calla unos minutos,
+// otra puede tomar el relevo.
+function acceptSource(session, gameType) {
+  const now = Date.now();
+  const source = session.source;
+  if (!source || source.gameType === gameType || now - source.at > SOURCE_SILENCE_MS || gameType === 'aihost') {
+    session.source = { gameType, at: now };
+    return true;
+  }
+  logger.info(`[AIHOST] Evento ignorado: llega por "${gameType}" y el agente ya escucha "${source.gameType}" (mismo live, otra conexion)`);
+  return false;
+}
+
+// El mismo mensaje de regalo de TikTok (misma identidad y mismo acumulado) no se procesa dos veces, llegue por la conexion que llegue
+function isRepeatedGift(session, payload) {
+  const now = Date.now();
+  const uid = payload.msgUid;
+  if (uid) {
+    const key = [payload.user?.uniqueId || '', payload.giftId || payload.giftName || '', uid, payload.streakTotal || payload.repeatCount || 1].join('|');
+    if (session.seenGifts.has(key)) {
+      logger.warn(`[AIHOST] Regalo repetido ignorado: @${payload.user?.uniqueId || '?'} ${payload.giftName} (mismo mensaje de TikTok, origen "${payload.gameType}")`);
+      return true;
+    }
+    session.seenGifts.set(key, now);
+    if (session.seenGifts.size > GIFT_SEEN_MAX) {
+      for (const [seenKey, at] of session.seenGifts) {
+        if (now - at > GIFT_SEEN_TTL_MS || session.seenGifts.size > GIFT_SEEN_MAX) session.seenGifts.delete(seenKey);
+        else break;
+      }
+    }
+  }
+  logger.info(`[AIHOST] Regalo recibido: @${payload.user?.uniqueId || '?'} ${payload.giftName} x${payload.repeatCount || 1} (origen "${payload.gameType}")`);
+  return false;
+}
+
 async function handleLiveEvent({ eventName, payload }) {
   if (!payload || !payload.gameType || payload.gameType === 'overlay-test') return;
   if (!['comment', 'gift', 'follow', 'share', 'member'].includes(eventName)) return;
@@ -991,26 +1056,36 @@ async function handleLiveEvent({ eventName, payload }) {
   if (!entry.config || !entry.config.enabled || !entry.hasAccess) return;
 
   const session = getSession(userId);
+  // El streamer puede tener varias conexiones al mismo live abiertas (por ejemplo overlays y este juego): cada una recibe el mismo
+  // regalo o comentario. El agente escucha solo UNA, para que nada llegue doble.
+  if (!acceptSource(session, payload.gameType)) return;
+  if (eventName === 'gift' && isRepeatedGift(session, payload)) return;
   session.lastEventAt = Date.now();
   session.lastActivityAt = Date.now();
 
-  publishVisualEvent(userId, session, eventName, payload);
+  // Regalo de la regla "pandillero" (solo CJ): la pagina hace aparecer un personaje con la foto del espectador
+  const crew = eventName === 'gift' && entry.config.character === 'cj' && prompt.matchGiftRules(entry.config.giftRules, payload.giftName).includes('crew');
+  publishVisualEvent(userId, session, eventName, payload, { crew, crewSeconds: entry.config.giftRules.crewSeconds, crewMax: entry.config.giftRules.crewMax });
   rememberViewer(session, payload, eventName);
 
-  const event = toEvent(eventName, payload, entry.config, { priority: eventName === 'comment' && isPriorityUser(session, payload.user?.uniqueId) });
+  const uniqueId = payload.user?.uniqueId;
+  const event = toEvent(eventName, payload, entry.config, {
+    priority: eventName === 'comment' && isPriorityUser(session, uniqueId),
+    gifted: Boolean(uniqueId) && session.giftSenders.has(uniqueId),
+  });
   if (event) acceptEvent(session, event);
 }
 
 // Lo que ve el espectador al instante en la pagina del juego (sin esperar a la IA): cada regalo, seguidor o compartido dispara una
 // alerta y una reaccion del personaje, y los comentarios se ven en el chat de la pantalla.
-function publishVisualEvent(userId, session, eventName, payload) {
+function publishVisualEvent(userId, session, eventName, payload, { crew = false, crewSeconds = 30, crewMax = 6 } = {}) {
   const user = payload.user || {};
   const who = { nickname: user.nickname || user.uniqueId || 'alguien', uniqueId: user.uniqueId || '' };
 
   if (eventName === 'gift') {
     if (!payload.repeatEnd) return;
     const count = Math.max(1, Math.round(Number(payload.repeatCount) || 1));
-    emitLiveEvent('ai-host-event', { ownerKey: ownerKeyFor(userId), gameType: 'aihost', kind: 'gift', ...who, giftName: String(payload.giftName || 'un regalo').slice(0, 40), count, coins: (Number(payload.diamondCount) || 0) * count, at: Date.now() });
+    emitLiveEvent('ai-host-event', { ownerKey: ownerKeyFor(userId), gameType: 'aihost', kind: 'gift', ...who, giftName: String(payload.giftName || 'un regalo').slice(0, 40), count, coins: (Number(payload.diamondCount) || 0) * count, ...(crew ? { crew: true, crewSeconds, crewMax, avatar: safeImageUrl(user.avatar) } : {}), at: Date.now() });
   } else if (eventName === 'follow' || eventName === 'share') {
     emitLiveEvent('ai-host-event', { ownerKey: ownerKeyFor(userId), gameType: 'aihost', kind: eventName, ...who, at: Date.now() });
   } else if (eventName === 'comment') {
@@ -1064,6 +1139,10 @@ async function injectTest(userId, { kind = 'comment', text = '', nickname = 'Esp
   session.lastActivityAt = Date.now();
   session.pausedUntil = 0;
 
+  if (kind === 'comment' && entry.config.onlyGifters && !session.giftSenders.has('prueba')) {
+    throw badRequest('Tienes activada la opción "Solo responder a quienes enviaron regalos": envía primero un regalo de prueba y luego el mensaje.');
+  }
+
   const base = { nickname: cleanText(nickname, 30) || 'Espectador de prueba', uniqueId: 'prueba', at: Date.now(), test: true };
   let event;
   if (kind === 'gift') {
@@ -1079,7 +1158,14 @@ async function injectTest(userId, { kind = 'comment', text = '', nickname = 'Esp
   }
 
   // La prueba funciona aunque el agente este apagado: usa la configuracion guardada
-  if (event.kind === 'gift') session.lastGift.set(event.uniqueId, { giftName: event.giftName, coins: event.coins, count: event.count });
+  if (event.kind === 'gift') {
+    session.lastGift.set(event.uniqueId, { giftName: event.giftName, coins: event.coins, count: event.count });
+    session.giftSenders.add(event.uniqueId);
+  }
+  if (event.kind === 'gift' && entry.config.character === 'cj' && event.special && event.special.includes('crew')) {
+    // en la prueba cada pulsacion es una persona distinta (sin foto), para ver varios pandilleros a la vez
+    emitLiveEvent('ai-host-event', { ownerKey: ownerKeyFor(userId), gameType: 'aihost', kind: 'gift', nickname: `Prueba ${Math.floor(Math.random() * 90) + 10}`, uniqueId: `prueba-${Date.now()}`, giftName: event.giftName, count: event.count || 1, coins: event.coins, crew: true, crewSeconds: entry.config.giftRules.crewSeconds, crewMax: entry.config.giftRules.crewMax, avatar: '', at: Date.now() });
+  }
   const outcome = acceptEvent(session, event);
   if (outcome === 'deferred') return { waiting: true }; // regalo de prioridad: el agente espera el mensaje de esa persona
   session.forceNext = true;

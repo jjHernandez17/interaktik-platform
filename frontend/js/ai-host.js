@@ -48,6 +48,8 @@ const el = {
   persona: $('ahPersona'),
   about: $('ahAbout'),
   replyMode: $('ahReplyMode'),
+  idleBubble: $('idleBubble'),
+  onlyGifters: $('ahOnlyGifters'),
   thankGifts: $('ahThankGifts'),
   minGift: $('ahMinGift'),
   greetFollowers: $('ahGreetFollowers'),
@@ -304,6 +306,240 @@ function shootFx() {
       setTimeout(() => el.stage.classList.remove('ah-shake'), 260);
     }, delay);
   }
+}
+
+// ---- pandilleros de CJ: uno por cada regalo; entran caminando con flow y llevan la foto de perfil del espectador de cabeza ----
+// row 0 = fila de adelante (al frente de CJ), row 1 = fila de atras (mas chicos, detras de CJ). Caben 10 a la vez.
+const CREW_SLOTS = [
+  { x: 7, row: 0 }, { x: 93, row: 0 }, { x: 29, row: 0 }, { x: 71, row: 0 },
+  { x: 18, row: 1 }, { x: 82, row: 1 }, { x: 40, row: 1 }, { x: 60, row: 1 }, { x: 3, row: 1 }, { x: 97, row: 1 },
+];
+const CREW_PALETTE = [['#d93a3a', '#8f1f1f'], ['#3a6fd9', '#1f3f8f'], ['#8e44d9', '#53208f'], ['#e08a1e', '#8f5008'], ['#1fa5a5', '#0e6666'], ['#d93a8e', '#8f1f55']];
+const CREW_WALK_MS = 2800; // lo que tarda en llegar caminando
+const CREW_STAGGER_MS = 550; // entre un pandillero y el siguiente cuando llegan varios
+const CREW_SHIFT_MS = 1000; // lo que tarda uno de atras en caminar hasta el lugar libre de adelante
+const CREW_LEAVE_GAP_MS = 800; // lo que tarda en irse el que sale antes de que entre el siguiente
+const CREW_MAX_QUEUE = 1000; // tope de seguridad de la cola (muy por encima de cualquier cantidad real de regalos)
+const CREW_QUEUE_TTL_MS = 30 * 60 * 1000;
+const CREW_QUEUE_KEY = 'ahCrewQueue';
+const crewMembers = []; // los que estan en el escenario, en orden de llegada: { node, slot, timer }
+const crewQueue = []; // los que esperan su turno (nadie se descarta): { key, nickname, avatar, seconds, variant, at }
+let crewLimit = 6; // maximo a la vez en el escenario (se configura en la regla)
+let crewPumpTimer = null;
+let crewSeq = 0;
+
+// La cola sobrevive a recargar la pagina (si no es muy vieja)
+function saveCrewQueue() {
+  try { localStorage.setItem(CREW_QUEUE_KEY, JSON.stringify(crewQueue)); } catch (error) { /* sin almacenamiento: la cola vive solo en memoria */ }
+}
+
+function loadCrewQueue() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CREW_QUEUE_KEY) || '[]');
+    const now = Date.now();
+    for (const item of Array.isArray(saved) ? saved : []) {
+      if (item && typeof item === 'object' && now - Number(item.at || 0) < CREW_QUEUE_TTL_MS && crewQueue.length < CREW_MAX_QUEUE) crewQueue.push(item);
+    }
+  } catch (error) { /* cola ilegible: se ignora */ }
+}
+loadCrewQueue();
+
+function shadeHex(hex, amount) {
+  const value = parseInt(hex.slice(1), 16);
+  const mix = (channel) => Math.max(0, Math.min(255, Math.round(channel + (255 - channel) * amount)));
+  const r = mix((value >> 16) & 255);
+  const g = mix((value >> 8) & 255);
+  const b = mix(value & 255);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+// Cuerpo de caricatura (sudadera con capucha, jeans anchos, tenis, cadena y guantes). Las piernas y los brazos son grupos aparte para poder caminar.
+function crewSvg(c1, c2, id) {
+  const light = shadeHex(c1, 0.38);
+  const L = '#1c120d';
+  return `<svg class="crew-svg" viewBox="0 0 140 190" aria-hidden="true">
+  <defs>
+    <linearGradient id="${id}h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="0.55" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>
+    <linearGradient id="${id}j" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a3b60"/><stop offset="0.5" stop-color="#4a6396"/><stop offset="1" stop-color="#2a3b60"/></linearGradient>
+    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d2d5e2"/></linearGradient>
+  </defs>
+  <ellipse cx="70" cy="184" rx="52" ry="6" fill="rgba(0,0,0,0.4)"/>
+
+  <g class="crew-leg crew-leg-l">
+    <path d="M40 100 L67 100 L68 166 L38 166 Z" fill="url(#${id}j)" stroke="${L}" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M44 120 q11 5 22 0 M43 142 q12 5 24 0" stroke="#1d2a47" stroke-width="2.4" fill="none" opacity="0.65"/>
+    <path d="M42 104 q3 28 -2 58" stroke="#7d93c4" stroke-width="2.6" fill="none" opacity="0.5" stroke-linecap="round"/>
+    <path d="M29 170 Q28 157 46 156 L66 158 Q76 165 73 177 L73 181 L29 181 Z" fill="url(#${id}s)" stroke="${L}" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M29 178 h44" stroke="#9aa1b8" stroke-width="3.4"/>
+    <path d="M30 168 Q30 159 41 158" stroke="${c1}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M47 161 l8 3 M54 159 l8 3" stroke="${c1}" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g class="crew-leg crew-leg-r">
+    <path d="M73 100 L100 100 L102 166 L72 166 Z" fill="url(#${id}j)" stroke="${L}" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M74 120 q11 5 22 0 M73 142 q12 5 24 0" stroke="#1d2a47" stroke-width="2.4" fill="none" opacity="0.65"/>
+    <path d="M98 104 q-3 28 2 58" stroke="#7d93c4" stroke-width="2.6" fill="none" opacity="0.5" stroke-linecap="round"/>
+    <path d="M111 170 Q112 157 94 156 L74 158 Q64 165 67 177 L67 181 L111 181 Z" fill="url(#${id}s)" stroke="${L}" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M67 178 h44" stroke="#9aa1b8" stroke-width="3.4"/>
+    <path d="M110 168 Q110 159 99 158" stroke="${c1}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M93 161 l-8 3 M86 159 l-8 3" stroke="${c1}" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <ellipse cx="70" cy="34" rx="33" ry="15" fill="${c2}" stroke="${L}" stroke-width="3"/>
+  <path d="M30 42 Q70 22 110 42 L119 114 Q70 128 21 114 Z" fill="url(#${id}h)" stroke="${L}" stroke-width="3.6" stroke-linejoin="round"/>
+  <path d="M35 56 Q40 88 31 111 M105 56 Q100 88 109 111" stroke="${c2}" stroke-width="6" opacity="0.38" fill="none" stroke-linecap="round"/>
+  <path d="M55 58 Q70 72 85 58" stroke="${light}" stroke-width="4" opacity="0.55" fill="none" stroke-linecap="round"/>
+  <path d="M46 94 Q70 105 94 94 L100 112 Q70 123 40 112 Z" fill="${c2}" opacity="0.55" stroke="${L}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M21 114 Q70 128 119 114" stroke="${c2}" stroke-width="9" fill="none" opacity="0.85"/>
+  <ellipse cx="70" cy="33" rx="20" ry="8.5" fill="#15101c" opacity="0.88"/>
+  <path d="M58 40 L56 68 M82 40 L84 68" stroke="#f6f6f8" stroke-width="2.8" stroke-linecap="round"/>
+  <circle cx="56" cy="70" r="2.6" fill="#f3cb45"/><circle cx="84" cy="70" r="2.6" fill="#f3cb45"/>
+  <path d="M46 46 Q70 92 94 46" stroke="#8a6410" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+  <path d="M46 46 Q70 92 94 46" stroke="#f3cb45" stroke-width="4.2" stroke-dasharray="3 2" fill="none" stroke-linecap="round"/>
+  <rect x="62.5" y="80" width="15" height="15" rx="3.6" fill="#f3cb45" stroke="#8a6410" stroke-width="1.6"/><path d="M66 85 h8 M66 90 h8" stroke="#b88a1a" stroke-width="2"/>
+
+  <g class="crew-arm crew-arm-l">
+    <path d="M28 48 Q12 78 19 106" stroke="${L}" stroke-width="23" stroke-linecap="round" fill="none"/>
+    <path d="M28 48 Q12 78 19 106" stroke="${c1}" stroke-width="17" stroke-linecap="round" fill="none"/>
+    <path d="M24 56 Q17 76 20 94" stroke="${light}" stroke-width="3.4" opacity="0.5" stroke-linecap="round" fill="none"/>
+    <circle cx="19" cy="113" r="10.5" fill="#1b1b22" stroke="${L}" stroke-width="3"/><path d="M13 111 q6 -4 12 0" stroke="#4a4a58" stroke-width="2" fill="none"/>
+  </g>
+  <g class="crew-arm crew-arm-r">
+    <path d="M112 48 Q128 78 121 106" stroke="${L}" stroke-width="23" stroke-linecap="round" fill="none"/>
+    <path d="M112 48 Q128 78 121 106" stroke="${c1}" stroke-width="17" stroke-linecap="round" fill="none"/>
+    <path d="M116 56 Q123 76 120 94" stroke="${light}" stroke-width="3.4" opacity="0.5" stroke-linecap="round" fill="none"/>
+    <circle cx="121" cy="113" r="10.5" fill="#1b1b22" stroke="${L}" stroke-width="3"/><path d="M115 111 q6 -4 12 0" stroke="#4a4a58" stroke-width="2" fill="none"/>
+  </g>
+  <g class="crew-cross">
+    <path d="M30 52 Q40 92 94 91" stroke="${L}" stroke-width="23" stroke-linecap="round" fill="none"/>
+    <path d="M30 52 Q40 92 94 91" stroke="${c1}" stroke-width="17" stroke-linecap="round" fill="none"/>
+    <path d="M110 52 Q100 92 46 91" stroke="${L}" stroke-width="23" stroke-linecap="round" fill="none"/>
+    <path d="M110 52 Q100 92 46 91" stroke="${c1}" stroke-width="17" stroke-linecap="round" fill="none"/>
+    <path d="M36 62 Q45 84 80 84" stroke="${light}" stroke-width="3.2" opacity="0.5" stroke-linecap="round" fill="none"/>
+    <circle cx="94" cy="91" r="10.5" fill="#1b1b22" stroke="${L}" stroke-width="3"/><circle cx="46" cy="91" r="10.5" fill="#1b1b22" stroke="${L}" stroke-width="3"/>
+  </g>
+</svg>`;
+}
+
+function removeCrewMember(member, instant = false) {
+  const index = crewMembers.indexOf(member);
+  if (index !== -1) crewMembers.splice(index, 1);
+  clearTimeout(member.timer);
+  clearTimeout(member.walkTimer);
+  if (instant) { member.node.remove(); return; }
+  // se va caminando hacia el borde por donde entro; cuando sale, entra el siguiente de la cola
+  clearTimeout(member.shiftTimer);
+  member.node.classList.remove('shifting');
+  member.node.classList.add('walking', 'leaving');
+  setTimeout(() => member.node.remove(), 1100);
+  promoteCrew(member.slot);
+  pumpCrew(CREW_LEAVE_GAP_MS);
+}
+
+// Hacia donde sale caminando un pandillero que esta parado en x (el borde del escenario del lado donde esta)
+function crewEdge(x) {
+  return x < 50 ? `${-(x + 24)}cqw` : `${100 - x + 24}cqw`;
+}
+
+// Cuando se va uno de la fila de adelante, el de atras mas cercano (que ya esta parado) camina hasta su lugar
+function promoteCrew(freedSlot) {
+  const place = CREW_SLOTS[freedSlot];
+  if (!place || place.row !== 0) return;
+  const behind = crewMembers.filter((member) => member.row === 1 && member.arrived);
+  if (behind.length === 0) return;
+  behind.sort((a, b) => Math.abs(a.x - place.x) - Math.abs(b.x - place.x));
+  const member = behind[0];
+  const node = member.node;
+  const fromX = member.x;
+  member.slot = freedSlot;
+  member.row = 0;
+  member.x = place.x;
+
+  node.style.left = `${place.x}%`;
+  node.style.setProperty('--from', `${fromX - place.x}cqw`); // empieza donde estaba y camina hasta su nuevo lugar
+  node.style.setProperty('--walk', `${CREW_SHIFT_MS}ms`);
+  node.classList.remove('row1', 'walking');
+  node.classList.add('row0', 'shifting');
+  void node.offsetWidth; // reinicia la animacion de caminar
+  node.classList.add('walking');
+  clearTimeout(member.shiftTimer);
+  member.shiftTimer = setTimeout(() => {
+    node.classList.remove('walking', 'shifting');
+    node.style.setProperty('--from', crewEdge(place.x)); // si se va, sale por el borde de su lugar nuevo
+  }, CREW_SHIFT_MS);
+}
+
+function clearCrew() {
+  for (const member of [...crewMembers]) removeCrewMember(member, true);
+}
+
+// Deja entrar al siguiente de la cola si hay lugar (uno cada CREW_STAGGER_MS). Solo se hace con CJ en pantalla; si se cambia de personaje la cola espera.
+function pumpCrew(delay = 0) {
+  if (crewPumpTimer) return;
+  crewPumpTimer = setTimeout(() => {
+    crewPumpTimer = null;
+    if (crewQueue.length === 0 || !el.stage || (el.character_.value || 'mochi') !== 'cj') return;
+    if (crewMembers.length < crewLimit && addCrewMember(crewQueue[0])) {
+      crewQueue.shift();
+      saveCrewQueue();
+    }
+    if (crewQueue.length > 0 && crewMembers.length < crewLimit) pumpCrew(CREW_STAGGER_MS);
+  }, delay);
+}
+
+function addCrewMember({ key, nickname, avatar, seconds, variant }) {
+  if (!el.stage) return false;
+  const used = new Set(crewMembers.map((member) => member.slot));
+  const slot = CREW_SLOTS.findIndex((_, index) => !used.has(index));
+  if (slot === -1) return false; // sin lugar: se queda en la cola
+  const place = CREW_SLOTS[slot];
+
+  let hash = 0;
+  for (const char of String(key)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const [c1, c2] = CREW_PALETTE[(hash + variant) % CREW_PALETTE.length];
+  crewSeq += 1;
+
+  const name = String(nickname || 'Homie').slice(0, 14);
+  const initial = (name.replace(/[^\p{L}\p{N}]/gu, '')[0] || '?').toUpperCase();
+  const node = document.createElement('div');
+  node.className = `ah-crew walking row${place.row}`;
+  node.style.left = `${place.x}%`;
+  node.style.setProperty('--crew', c1);
+  node.style.setProperty('--crew-dark', c2);
+  node.style.setProperty('--walk', `${CREW_WALK_MS}ms`);
+  // entra desde el borde del escenario del lado donde le toca quedarse
+  node.style.setProperty('--from', crewEdge(place.x));
+  node.style.setProperty('--phase', `${-((hash + variant) % 5) * 0.11}s`);
+  node.innerHTML = `<div class="crew-inner">${crewSvg(c1, c2, `cw${crewSeq}`)}<div class="crew-head"><span class="crew-initial">${escapeHtml(initial)}</span></div></div><div class="crew-name">${escapeHtml(name)}</div>`;
+  if (avatar) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('load', () => node.querySelector('.crew-initial')?.remove());
+    img.addEventListener('error', () => img.remove());
+    img.src = avatar;
+    node.querySelector('.crew-head').appendChild(img);
+  }
+  el.stage.appendChild(node);
+
+  const member = { node, slot, row: place.row, x: place.x, arrived: false };
+  member.walkTimer = setTimeout(() => { member.arrived = true; node.classList.remove('walking'); }, CREW_WALK_MS); // llego: se queda parado con los brazos cruzados
+  member.timer = setTimeout(() => removeCrewMember(member), CREW_WALK_MS + seconds * 1000); // el tiempo en pantalla cuenta desde que llega
+  crewMembers.push(member);
+  return true;
+}
+
+// Un regalo de la regla = un pandillero, cada uno con la foto de quien lo mandó. Hay un maximo a la vez en el escenario: los demas
+// esperan en la cola y entran uno tras otro cuando alguien se va. Ninguno se descarta.
+function spawnCrew({ uniqueId, nickname, avatar, count, crewSeconds, crewMax }) {
+  const total = Math.max(1, Math.min(CREW_MAX_QUEUE, Math.round(Number(count) || 1)));
+  const seconds = Math.max(5, Math.min(600, Number(crewSeconds) || 30));
+  crewLimit = Math.max(1, Math.min(CREW_SLOTS.length, Math.round(Number(crewMax) || crewLimit)));
+  const key = uniqueId || nickname || 'espectador';
+  for (let index = 0; index < total && crewQueue.length < CREW_MAX_QUEUE; index += 1) {
+    crewQueue.push({ key, nickname, avatar, seconds, variant: index, at: Date.now() });
+  }
+  saveCrewQueue();
+  pumpCrew();
 }
 
 function handleEffect(name) {
@@ -637,7 +873,17 @@ function showViewerCard(focus) {
   el.viewerCard.classList.add('visible');
 }
 
+// Cuando el agente no esta hablando, encima de el sale una invitacion a preguntarle
+const IDLE_TEXT = { es: '¡Pregúntame lo que tú quieras!', en: 'Ask me anything you want!', pt: 'Pergunte o que quiser!' };
+
+function setIdleBubble(visible) {
+  if (!el.idleBubble) return;
+  el.idleBubble.textContent = IDLE_TEXT[el.language?.value] || IDLE_TEXT.es;
+  el.idleBubble.classList.toggle('visible', visible);
+}
+
 function showSubtitle(item) {
+  setIdleBubble(false);
   clearTimeout(speech.hideTimer);
   el.subName.textContent = item.agentName || currentConfig?.agentName || 'Nova';
   el.subText.textContent = item.text;
@@ -651,6 +897,7 @@ function hideSubtitle(delayMs = 2200) {
     if (!speech.active) {
       el.subtitle.classList.remove('visible');
       el.viewerCard?.classList.remove('visible');
+      setIdleBubble(true);
     }
   }, delayMs);
 }
@@ -723,6 +970,7 @@ function enqueueTalk(item) {
 // =============================================================================================================================
 
 function showAlertCard(data) {
+  if (data.kind === 'gift') return; // los regalos no llevan notificacion: solo la tarjeta oscura que sale encima del personaje
   const icons = { gift: '🎁', follow: '💜', share: '🔁' };
   const who = escapeHtml(data.nickname || 'Alguien');
   let title;
@@ -865,6 +1113,7 @@ function connectEvents() {
     refreshStatus();
   });
   on('ai-host-event', (payload) => {
+    if (payload.crew) spawnCrew(payload);
     showAlertCard(payload);
     reactToEvent(payload);
   });
@@ -1020,8 +1269,10 @@ function ensureRig() {
   const characterId = el.character_.value || 'mochi';
   if (rig && rig.characterId === characterId) return;
   rig?.destroy();
+  clearCrew();
   rig = window.AiCharacter.create(el.character, { character: characterId, accent: el.accent.value || '#7c5cff', onEffect: handleEffect });
   rig.characterId = characterId;
+  pumpCrew(); // con CJ en pantalla, entran los pandilleros que estaban esperando
 }
 
 // Lo que es propio de cada personaje, tal como esta ahora en el formulario
@@ -1037,6 +1288,7 @@ function readCharFields() {
     giftRules: window.AiHostGiftRules ? window.AiHostGiftRules.get() : undefined,
     agentName: el.agentName.value,
     replyMode: el.replyMode.value,
+    onlyGifters: el.onlyGifters.checked,
     thankGifts: el.thankGifts.checked,
     minGiftCoins: Number(el.minGift.value),
     greetFollowers: el.greetFollowers.checked,
@@ -1059,6 +1311,7 @@ function writeCharFields(fields) {
   el.volume.value = fields.voiceVolume;
   el.agentName.value = fields.agentName;
   el.replyMode.value = fields.replyMode;
+  el.onlyGifters.checked = Boolean(fields.onlyGifters);
   el.thankGifts.checked = fields.thankGifts;
   el.minGift.value = fields.minGiftCoins;
   el.greetFollowers.checked = fields.greetFollowers;
@@ -1117,6 +1370,7 @@ function applyConfig(config) {
   el.persona.value = config.persona;
   el.about.value = config.aboutStreamer;
   el.replyMode.value = config.replyMode;
+  el.onlyGifters.checked = Boolean(config.onlyGifters);
   el.thankGifts.checked = config.thankGifts;
   el.minGift.value = config.minGiftCoins;
   el.greetFollowers.checked = config.greetFollowers;
@@ -1152,6 +1406,7 @@ function readForm() {
     persona: el.persona.value,
     aboutStreamer: el.about.value,
     replyMode: el.replyMode.value,
+    onlyGifters: el.onlyGifters.checked,
     thankGifts: el.thankGifts.checked,
     minGiftCoins: Number(el.minGift.value),
     greetFollowers: el.greetFollowers.checked,
@@ -1358,6 +1613,8 @@ function bindEvents() {
   el.form.addEventListener('submit', saveConfig);
   el.enabled.addEventListener('change', toggleEnabled);
   el.language.addEventListener('change', fillVoiceSelect);
+  el.language.addEventListener('change', () => { if (!speech.active) setIdleBubble(true); });
+  setIdleBubble(true);
   el.model.addEventListener('change', () => { el.modelHint.textContent = MODEL_HINTS[el.model.value] || ''; paintCost(); });
   [el.maxChars, el.persona, el.about, el.cadence, el.agentName, el.replyMode, el.thankGifts, el.greetFollowers, el.greetViewers, el.tone, el.language, el.rate]
     .forEach((field) => field?.addEventListener(field.type === 'checkbox' || field.tagName === 'SELECT' ? 'change' : 'input', paintCost));

@@ -127,7 +127,7 @@ function buildSystemPrompt(config) {
   const actions = ACTIONS.filter((action) => !CHARACTER_ONLY_ACTIONS[action] || CHARACTER_ONLY_ACTIONS[action] === config.character);
 
   const lines = [
-    `Eres ${name}, un personaje de caricatura con inteligencia artificial que es la estrella y co-anfitrión de un live de TikTok: apareces en pantalla en el centro, hablas en voz alta y gesticulas con el cuerpo. Lees lo que pasa en el chat, respondes a los espectadores, agradeces los regalos y a los nuevos seguidores, conversas y das consejos útiles y breves cuando viene al caso.`,
+    `Eres ${name}, un personaje de caricatura con inteligencia artificial que es la estrella y co-anfitrión de un live de TikTok: apareces en pantalla en el centro, hablas en voz alta y gesticulas con el cuerpo. Lees lo que pasa en el chat, respondes a los espectadores, saludas a los nuevos seguidores, conversas y das consejos útiles y breves cuando viene al caso.`,
     '',
     `Idioma: ${language}. Personalidad: ${tone}.`,
     profile ? profile.text : '',
@@ -137,11 +137,11 @@ function buildSystemPrompt(config) {
     'Cómo hablas:',
     `- Lo que escribas se lee en voz alta por la transmisión: máximo ${maxChars} caracteres, frases cortas y naturales, como una persona hablando. Sin emojis, sin markdown, sin listas, sin enlaces, sin hashtags.`,
     '- Nombra a la persona a la que respondes (su nombre tal como aparece) y responde lo que preguntó o dijo. Si hay varios mensajes, atiende lo más importante primero (regalos, preguntas) y puedes juntar a varias personas en una sola frase.',
-    '- Agradece los regalos con entusiasmo y menciona el regalo. Da la bienvenida a quien acaba de seguir. No presiones ni pidas regalos, monedas, dinero, seguidores ni compartidos.',
+    '- Los regalos normales ya se agradecen aparte (un "gracias" con el nombre): tú NO los agradeces. Si un evento de regalo trae accion_especial, NO agradezcas ni menciones el regalo: haz directamente la acción especial. Da la bienvenida a quien acaba de seguir. No presiones ni pidas regalos, monedas, dinero, seguidores ni compartidos.',
     '- Varía tus palabras: no repitas la misma frase de agradecimiento ni el mismo saludo que ya dijiste (revisa la conversación reciente).',
     '- Si preguntan algo que no sabes (precios, horarios, datos personales del streamer que no aparecen arriba), dilo con naturalidad en lugar de inventar.',
     '- Si te preguntan, admite con naturalidad que eres una IA. No menciones qué modelo o empresa está detrás de ti.',
-    '- Si no hay nada que valga la pena decir ahora (spam, mensajes sin sentido, repetidos), responde exactamente: [SKIP]. Pero NUNCA respondas [SKIP] si hay un evento de tipo regalo: todo regalo se agradece siempre, con el nombre de quien lo envió.',
+    '- Si no hay nada que valga la pena decir ahora (spam, mensajes sin sentido, repetidos), responde exactamente: [SKIP]. Pero NUNCA respondas [SKIP] si hay un evento de tipo regalo con accion_especial: esa acción se hace siempre, empezando con el nombre de quien envió el regalo.',
     '',
     ...giftRuleLines(config),
     '',
@@ -155,7 +155,7 @@ function buildSystemPrompt(config) {
     '- No prometas premios, sorteos ni nada que el streamer no haya dicho.',
     '',
     'Formato de respuesta (obligatorio): primero una etiqueta entre corchetes con tu emoción y tu acción, y enseguida el texto que dirás en voz alta. Ejemplo:',
-    '[feliz, saludar] ¡Hola Ana! Gracias por la rosa, eres un sol.',
+    '[feliz, saludar] ¡Hola Ana! Qué bueno verte por aquí.',
     `Emociones: ${EMOTIONS.join(', ')}.`,
     `Acciones: ${actions.join(', ')}.`,
     'Elige lo que mejor acompañe lo que dices: un regalo pide celebrar, saltar o bailar; un seguidor nuevo, saludar; una pregunta, pensar o asentir; un chiste, risa. No repitas siempre la misma acción. Si no hay nada que decir: [SKIP]. Nada más que la etiqueta y el texto.',
@@ -166,8 +166,8 @@ function buildSystemPrompt(config) {
 
 // ---------- reglas de regalos ----------
 
-const GIFT_RULE_TYPES = ['priority', 'advice', 'joke', 'flatter', 'shoot'];
-const GIFT_ACTION_WORDS = { advice: 'consejo', joke: 'chiste', flatter: 'halago', shoot: 'disparo' };
+const GIFT_RULE_TYPES = ['priority', 'advice', 'joke', 'flatter', 'shoot', 'crew'];
+const GIFT_ACTION_WORDS = { advice: 'consejo', joke: 'chiste', flatter: 'halago', shoot: 'disparo', crew: 'pandillero' };
 
 // Para comparar nombres de regalo sin importar mayusculas, tildes, comillas ni espacios raros
 function normalizeGiftName(value) {
@@ -192,24 +192,33 @@ function specialMaxChars(maxChars) {
 
 const FALLBACK_TEXTS = {
   es: {
-    thanks: ['Gracias {name} por el {gift}, qué detalle más lindo.', '{name}, muchísimas gracias por el {gift}, eres un sol.', '¡Wow, {name}! Gracias por el {gift}, me hiciste el día.', '{name}, gracias por el {gift}, qué generoso eres.'],
+    plainThanks: 'Gracias {names}.',
+    and: 'y',
     flatter: ['{name}, qué lindo eres.', '{name}, eres la bestia.', '{name}, tienes un corazón enorme.', '{name}, eres un crack.', '{name}, qué grande eres.'],
     joke: ['¿Qué le dice un jardinero a otro? Disfrutemos mientras podamos.', '¿Por qué los pájaros vuelan al sur? Porque caminando tardarían mucho.', '¿Qué hace una abeja en el gimnasio? ¡Zum-ba!', '¿Cómo se llama el campeón de buceo japonés? Tokofondo.'],
-    shoot: ['¡Bang bang! Eso va por ti, {name}.', '¡Toma, {name}! ¡Pum pum a la cámara!', '{name}, esa bala va con cariño. ¡Bang!'],
+    crew: ['{name}, ¡mira cómo entra tu pandillero con tu cara y todo! ¡Qué flow!', '{name}, ya entró tu homie con tu foto de cabeza, ¡bienvenido a la pandilla!', '{name}, miren ese andar: tu pandillero llegó con swing y con tu cara. ¡Ya eres de la banda!'],
+    crewMany: ['¡{name} trajo a {count} pandilleros con su cara! ¡Llegó toda la banda con flow!', '¡Ojo, que {name} metió a {count} homies a la pandilla, todos con su foto de cabeza!'],
+    shoot: ['{name}, ¡bang bang! Esto va por ti.', '{name}, ¡toma esa! ¡Pum pum a la cámara!', '{name}, esa bala va con cariño. ¡Bang!'],
     advice: ['Un consejo: tómate un ratito cada día para hacer lo que más te gusta, eso recarga la energía.', 'Un consejo: sé constante, los pasos pequeños todos los días llegan lejos.', 'Un consejo: rodéate de personas que te sumen, la gente con la que estás te cambia más de lo que crees.', 'Un consejo: ahorra aunque sea un poquito cada semana, el hábito pesa más que el monto.', 'Un consejo: si hoy fue un mal día, descansa, mañana vuelves a empezar con más fuerza.', 'Un consejo: dile a quien quieres que lo quieres, no esperes a tener una razón especial.', 'Un consejo: no dejes para mañana lo que te da miedo empezar, el primer paso es el más difícil.', 'Un consejo: toma agua, duerme bien y estírate un rato, tu cuerpo te lo agradece.'],
   },
   en: {
-    thanks: ['Thank you {name} for the {gift}, that is so kind.', '{name}, thanks a lot for the {gift}, you are the best.', 'Wow {name}! Thanks for the {gift}, you made my day.'],
+    plainThanks: 'Thanks {names}.',
+    and: 'and',
     flatter: ['{name}, you are awesome.', '{name}, you are a legend.', '{name}, you have a huge heart.'],
     joke: ['Why did the scarecrow win an award? Because he was outstanding in his field.', 'What do you call a fake noodle? An impasta.', 'Why do bees have sticky hair? Because they use honeycombs.'],
-    shoot: ['Bang bang! That one is for you, {name}.', 'Take that, {name}! Pow pow at the camera!'],
+    crew: ['{name}, look at your crew member walk in with your face and everything! What a swagger!', '{name}, your homie just walked in with your photo as his head. Welcome to the gang!'],
+    crewMany: ['{name} brought {count} gangsters with their face! The whole crew just walked in!', 'Watch out, {name} just added {count} homies to the gang, all wearing their photo!'],
+    shoot: ['{name}, bang bang! That one is for you.', '{name}, take that! Pow pow at the camera!'],
     advice: ['A tip: take a little time every day for what you love, it recharges your energy.', 'A tip: be consistent, small steps every day go a long way.', 'A tip: drink water and stretch now and then, your body will thank you.'],
   },
   pt: {
-    thanks: ['Obrigada {name} pelo {gift}, que gesto lindo.', '{name}, muito obrigada pelo {gift}, você é demais.', 'Uau {name}! Obrigada pelo {gift}, você alegrou meu dia.'],
+    plainThanks: 'Obrigada {names}.',
+    and: 'e',
     flatter: ['{name}, você é incrível.', '{name}, você é demais.', '{name}, que coração enorme.'],
     joke: ['Por que o livro de matemática ficou triste? Porque tinha muitos problemas.', 'O que o pato disse para a pata? Vem quá!', 'Qual é o cúmulo da paciência? Esperar o pão ficar sem fermento.'],
-    shoot: ['Pá pá! Essa é pra você, {name}.', 'Toma, {name}! Pum pum na câmera!'],
+    crew: ['{name}, olha o seu parceiro entrando com a sua cara e tudo! Que estilo!', '{name}, seu mano entrou com a sua foto na cabeça. Bem-vindo à gangue!'],
+    crewMany: ['{name} trouxe {count} parceiros com a cara dele! A gangue toda chegou com estilo!', 'Atenção, {name} colocou {count} manos na gangue, todos com a foto dele!'],
+    shoot: ['{name}, pá pá! Essa é pra você.', '{name}, toma! Pum pum na câmera!'],
     advice: ['Uma dica: reserve um tempinho por dia para o que você ama, isso recarrega a energia.', 'Uma dica: seja constante, pequenos passos todo dia levam longe.', 'Uma dica: beba água e se alongue de vez em quando, seu corpo agradece.'],
   },
 };
@@ -218,58 +227,132 @@ function pickFrom(list, seed) {
   return list[Math.abs(Math.floor(seed)) % list.length];
 }
 
+// Un regalo "normal" (sin regla del streamer) solo se agradece con "gracias" y el nombre. Tambien cuenta como normal el regalo que solo
+// tenia la regla de prioridad cuando su dueno no escribio ningun mensaje (no hay nada que priorizar).
+function isPlainGift(item, batch = []) {
+  if (!item || item.kind !== 'gift') return false;
+  const special = item.special || [];
+  if (special.length === 0) return true;
+  if (special.every((type) => type === 'priority')) {
+    return !batch.some((other) => other.kind === 'comment' && other.uniqueId && other.uniqueId === item.uniqueId);
+  }
+  return false;
+}
+
+function gifterName(item) {
+  return sanitizeName(item.nickname || item.uniqueId || 'amigo', 24) || 'amigo';
+}
+
+function joinNames(names, word) {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} ${word} ${names[names.length - 1]}`;
+}
+
+// "Gracias Ana." / "Gracias Ana, Luis y Pedro." para los regalos normales
+function plainThanksText(gifts, config = {}) {
+  const texts = FALLBACK_TEXTS[config.language] || FALLBACK_TEXTS.es;
+  const names = [...new Set((gifts || []).map(gifterName))].slice(0, 3);
+  if (names.length === 0) return '';
+  return texts.plainThanks.replace('{names}', joinNames(names, texts.and));
+}
+
+function lowerFirst(text) {
+  return /^[A-ZÁÉÍÓÚÑ][a-záéíóúñü]/.test(text) ? text[0].toLowerCase() + text.slice(1) : text;
+}
+
+function nameToken(name) {
+  const folded = foldForMatch(name);
+  return folded.split(/[^\p{L}\p{N}]+/u).filter(Boolean)[0] || folded.trim();
+}
+
+// El texto de un regalo con regla empieza con el nombre de quien lo envio: si no es asi, se le antepone
+function startWithGifterName(text, batch) {
+  const names = [...new Set((batch || []).filter((item) => item.kind === 'gift' && !isPlainGift(item, batch)).map(gifterName))];
+  if (names.length === 0) return text;
+  const start = foldForMatch(text).replace(/^[^\p{L}\p{N}]+/u, '');
+  if (names.some((name) => start.startsWith(nameToken(name)))) return text;
+  return `${names.slice(0, 2).join(' y ')}, ${lowerFirst(String(text || '').trim())}`.trim();
+}
+
+const THANKS_WORDS = /gracias|thank|obrigad/i;
+const CREW_WORDS = /pandill|homie|banda|crew|gang|parcero|parceiro|mano\b/i;
+
+// En un regalo con regla el agente no agradece: si el modelo abrio con una frase de gracias se quita (la frase entera si empieza con gracias,
+// o solo la parte de "gracias por ..." si va dentro de otra frase), siempre que quede contenido
+const THANKS_START = /^[\s¡!¿"']*(?:muchas\s+|mil\s+)?(?:gracias|thank|obrigad)/i;
+const THANKS_CLAUSE = /,?\s*(?:muchas\s+|mil\s+)?(?:gracias|thanks?(?:\s+you)?|obrigad[oa])\s+(?:por|for|pel[oa]s?)\b[^.,!?;]*/i;
+
+function dropLeadingThanks(text, batch) {
+  if (!(batch || []).some((item) => item.kind === 'gift' && !isPlainGift(item, batch))) return text;
+  const match = /^([\s\S]*?[.!?])\s+([\s\S]+)$/.exec(String(text || '').trim());
+  if (!match || match[1].length > 120 || !THANKS_WORDS.test(match[1])) return text;
+  if (THANKS_START.test(match[1])) return match[2].length >= 10 ? match[2] : text;
+  const cleaned = match[1].replace(THANKS_CLAUSE, '').replace(/\s+([.!?])/g, '$1').trim();
+  return cleaned && cleaned !== match[1] ? `${cleaned} ${match[2]}` : text;
+}
+
 // Texto de respaldo para un lote que trae regalos. `seed` varia la frase entre un regalo y otro.
 function giftFallbackReply(batch, config = {}, seed = Date.now()) {
-  const gifts = (batch || []).filter((item) => item.kind === 'gift').slice(0, 3);
+  const gifts = (batch || []).filter((item) => item.kind === 'gift');
   if (gifts.length === 0) return null;
   const texts = FALLBACK_TEXTS[config.language] || FALLBACK_TEXTS.es;
 
-  const parts = gifts.map((gift, index) => {
-    const name = sanitizeName(gift.nickname || gift.uniqueId || 'amigo', 24) || 'amigo';
-    const giftName = sanitizeName(gift.giftName || 'regalo', 30) || 'regalo';
+  const plain = gifts.filter((gift) => isPlainGift(gift, batch));
+  const withRules = gifts.filter((gift) => !plain.includes(gift)).slice(0, 3);
+
+  const parts = [];
+  const asPlain = [...plain];
+  const acted = [];
+  withRules.forEach((gift, index) => {
     const special = gift.special || [];
-    const fill = (template) => template.replace(/\{name\}/g, name).replace(/\{gift\}/g, giftName);
-    const pieces = [fill(pickFrom(texts.thanks, seed + index))]; // el agradecimiento va siempre primero
+    const fill = (template) => template.replace(/\{name\}/g, gifterName(gift)).replace(/\{count\}/g, String(Math.max(1, Math.round(Number(gift.count) || 1))));
+    const pieces = [];
     if (special.includes('flatter')) pieces.push(fill(pickFrom(texts.flatter, seed + index)));
     if (special.includes('joke')) pieces.push(pickFrom(texts.joke, seed + index));
     if (special.includes('advice')) pieces.push(pickFrom(texts.advice, seed + index));
     if (special.includes('shoot')) pieces.push(fill(pickFrom(texts.shoot, seed + index)));
-    return pieces.join(' ');
+    if (special.includes('crew')) pieces.push(fill(pickFrom(Number(gift.count) > 1 ? texts.crewMany : texts.crew, seed + index)));
+    if (pieces.length === 0) {
+      asPlain.push(gift); // sin accion que hacer: se agradece, un regalo nunca pasa en silencio
+    } else {
+      parts.push(startWithGifterName(pieces.join(' '), [gift]));
+      acted.push(gift);
+    }
   });
+  const thanks = plainThanksText(asPlain, config);
+  if (thanks) parts.unshift(thanks);
 
-  const first = gifts[0].special || [];
-  const shoots = gifts.some((gift) => (gift.special || []).includes('shoot'));
+  const first = (acted[0] && acted[0].special) || [];
+  const shoots = acted.some((gift) => (gift.special || []).includes('shoot'));
   const emotion = shoots ? 'picaro' : first.includes('joke') ? 'risa' : first.includes('flatter') ? 'carino' : first.includes('advice') ? 'feliz' : 'emocionado';
   const action = shoots ? 'disparar' : first.includes('joke') ? 'saltar' : first.includes('flatter') ? 'corazon' : first.includes('advice') ? 'asentir' : 'celebrar';
   const maxChars = specialMaxChars(config.maxChars);
   return { text: parts.join(' ').slice(0, Math.max(maxChars, 300) + 120), emotion, action };
 }
 
-const THANKS_WORDS = /gracias|thank|obrigad/i;
-
-// Todo regalo se agradece, tenga o no una regla especial: si la frase del modelo no trae ninguna forma de agradecer
-// (por ejemplo solo conto el chiste), se le antepone el agradecimiento con el nombre y el regalo.
-function ensureGiftsThanked(text, batch, config = {}) {
-  const gifts = (batch || []).filter((item) => item.kind === 'gift');
-  if (gifts.length === 0 || THANKS_WORDS.test(String(text || ''))) return text;
+// Un regalo de pandillero: CJ tiene que decir algo del pandillero que entro; si la frase del modelo no lo menciona, se le suma una frase sobre el
+function ensureCrewMentioned(text, batch, config = {}) {
+  const gift = (batch || []).find((item) => item.kind === 'gift' && item.special && item.special.includes('crew'));
+  if (!gift || CREW_WORDS.test(String(text || ''))) return text;
   const texts = FALLBACK_TEXTS[config.language] || FALLBACK_TEXTS.es;
-  const thanks = gifts.slice(0, 2).map((gift, index) => {
-    const name = sanitizeName(gift.nickname || gift.uniqueId || 'amigo', 24) || 'amigo';
-    const giftName = sanitizeName(gift.giftName || 'regalo', 30) || 'regalo';
-    return pickFrom(texts.thanks, Date.now() + index).replace(/\{name\}/g, name).replace(/\{gift\}/g, giftName);
-  });
-  return `${thanks.join(' ')} ${text}`;
+  const count = String(Math.max(1, Math.round(Number(gift.count) || 1)));
+  const line = pickFrom(Number(gift.count) > 1 ? texts.crewMany : texts.crew, Date.now()).replace(/\{name\}/g, gifterName(gift)).replace(/\{count\}/g, count);
+  return `${text} ${line}`;
 }
 
-// Si la frase del modelo no nombra a quien envio un regalo con halago o consejo, se le antepone su nombre (la regla pide nombrarlo)
-function ensureGiftersNamed(text, batch) {
-  const needing = (batch || []).filter((item) => item.kind === 'gift' && item.special && (item.special.includes('flatter') || item.special.includes('advice')));
-  if (needing.length === 0) return text;
-  const folded = foldForMatch(text);
-  const missing = needing
-    .map((item) => sanitizeName(item.nickname || item.uniqueId || '', 24))
-    .filter((name) => name && !folded.includes(foldForMatch(name).split(' ')[0]));
-  return missing.length ? `${missing.slice(0, 2).join(' y ')}, ${text}` : text;
+// El texto final de una respuesta con regalos: los regalos con regla empiezan con el nombre y no se agradecen; los regalos normales
+// se agradecen con "gracias + nombre" al principio.
+function shapeGiftReply(text, batch, config = {}) {
+  const gifts = (batch || []).filter((item) => item.kind === 'gift');
+  if (gifts.length === 0) return text;
+  let result = String(text || '').trim();
+  if (result) {
+    result = dropLeadingThanks(result, batch);
+    result = startWithGifterName(result, batch);
+    result = ensureCrewMentioned(result, batch, config);
+  }
+  const thanks = plainThanksText(gifts.filter((gift) => isPlainGift(gift, batch)), config);
+  return [thanks, result].filter(Boolean).join(' ');
 }
 
 function giftRuleLines(config) {
@@ -278,12 +361,13 @@ function giftRuleLines(config) {
   const active = GIFT_RULE_TYPES.filter(has);
   if (active.length === 0) return [];
 
-  const lines = ['', 'Regalos especiales (los eligió el streamer): todo regalo se agradece SIEMPRE (nombra a quien lo envió y menciona cuál regalo fue) y, ADEMÁS del agradecimiento, haces la acción especial que indique accion_especial. Primero el agradecimiento y luego la acción.'];
-  if (has('priority')) lines.push('- Los comentarios con prioridad="si" son de alguien que mandó un regalo especial: respóndele primero y con atención, antes que a los demás. Ese regalo no se agradeció cuando llegó: llega junto con el mensaje de la persona, así que agradécele el regalo y enseguida responde su mensaje.');
-  if (has('advice')) lines.push('- Si trae accion_especial con consejo: después de agradecerle, dale un consejo breve, útil y positivo. El consejo NO tiene que ser sobre el live ni sobre TikTok: elige cada vez un tema distinto de la vida (ánimo y confianza, amistad y relaciones, estudio o trabajo, dinero y ahorro, salud y descanso, hábitos, metas, superar un mal día, miedos, tiempo con la familia, etc.) y no repitas un tema ni un consejo que ya diste.');
-  if (has('shoot')) lines.push('- Si trae accion_especial con disparo: después de agradecerle, suelta una frase corta y dura con tu estilo (sin amenazas reales) mientras sacas el arma y le disparas a la cámara. Es una animación de videojuego: tú solo di la frase y elige la acción disparar. Ejemplo de tono: "¡Toma esa, parce, por ese regalo! ¡Bang bang!".');
-  if (has('joke')) lines.push('- Si trae chiste: después de agradecerle, cuenta un chiste corto, original y sano (sin groserías, política ni burlas a personas reales).');
-  if (has('flatter')) lines.push('- Si trae halago: después de agradecerle, dile un halago creativo y cálido, distinto cada vez (por ejemplo: "Ronald, qué lindo, muchas gracias" o "Samuel, eres la bestia, papu"). Inventa halagos nuevos: no repitas los ejemplos ni uno que ya dijiste.');
+  const lines = ['', 'Regalos especiales (los eligió el streamer): un evento de regalo con accion_especial NO se agradece: no digas "gracias" ni menciones el regalo. Empieza directamente con la acción especial, y tu frase SIEMPRE empieza con el nombre de quien mandó el regalo (por ejemplo "Ronald, ..."). Los regalos sin accion_especial ya se agradecen aparte: no los menciones.'];
+  if (has('priority')) lines.push('- Los comentarios con prioridad="si" son de alguien que mandó un regalo especial: respóndele primero y con atención, antes que a los demás, y empieza tu frase con su nombre. No le agradezcas el regalo: lo que gana con él es que su mensaje se atienda primero.');
+  if (has('advice')) lines.push('- Si trae accion_especial con consejo: empieza con su nombre y dale un consejo breve, útil y positivo. El consejo NO tiene que ser sobre el live ni sobre TikTok: elige cada vez un tema distinto de la vida (ánimo y confianza, amistad y relaciones, estudio o trabajo, dinero y ahorro, salud y descanso, hábitos, metas, superar un mal día, miedos, tiempo con la familia, etc.) y no repitas un tema ni un consejo que ya diste.');
+  if (has('shoot')) lines.push('- Si trae accion_especial con disparo: empieza con su nombre y suelta una frase corta y dura con tu estilo (sin amenazas reales) mientras sacas el arma y le disparas a la cámara. Es una animación de videojuego: tú solo di la frase y elige la acción disparar. Ejemplo de tono: "Pablo, ¡toma esa, parce! ¡Bang bang!".');
+  if (has('crew')) lines.push('- Si trae accion_especial con pandillero: en la pantalla acaban de entrar caminando con mucho flow tantos pandilleros de tu pandilla como diga cantidad, y cada uno trae de cabeza la foto de perfil de quien mandó el regalo. Empieza con su nombre y dile algo sobre el pandillero (o los pandilleros) que entró: cómo camina, su pose, que trae su cara, y dale la bienvenida a la pandilla. Si son varios, comenta que trajo a toda la banda.');
+  if (has('joke')) lines.push('- Si trae chiste: empieza con su nombre y cuenta un chiste corto, original y sano (sin groserías, política ni burlas a personas reales).');
+  if (has('flatter')) lines.push('- Si trae halago: empieza con su nombre y dile un halago creativo y cálido, distinto cada vez (por ejemplo: "Ronald, qué lindo eres" o "Samuel, eres la bestia, papu"). Inventa halagos nuevos: no repitas los ejemplos ni uno que ya dijiste.');
   if (has('advice') || has('joke')) lines.push(`- Excepción al máximo de caracteres: con un regalo de consejo o chiste puedes usar hasta ${specialMaxChars(config.maxChars)} caracteres.`);
   if (active.filter((type) => type !== 'priority').length > 1) lines.push('- Si un mismo regalo trae varias acciones especiales, hazlas todas en una sola intervención.');
   return lines;
@@ -439,8 +523,11 @@ module.exports = {
   CHARACTER_ONLY_ACTIONS,
   characterProfile,
   giftFallbackReply,
-  ensureGiftsThanked,
-  ensureGiftersNamed,
+  ensureCrewMentioned,
+  isPlainGift,
+  plainThanksText,
+  shapeGiftReply,
+  startWithGifterName,
   normalizeGiftName,
   matchGiftRules,
   specialMaxChars,

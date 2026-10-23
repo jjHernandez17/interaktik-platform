@@ -58,11 +58,11 @@ body.panel-open .ah-stage { --ah-drawer-offset: var(--ah-drawer-w); }
 .ah-stage[data-bg='night'] .ah-bg-floor { top: 72%; background: linear-gradient(180deg, #17306b, #0a1330); border-radius: 50% 50% 0 0 / 12% 12% 0 0; }
 
 /* Fondo propio de CJ: las calles (solo se usa con ese personaje).
-   El escenario toma la forma de la imagen (235 x 288) y se centra en la ventana, asi la imagen se ve completa, sin recortes.
+   El escenario toma la forma de la imagen (1672 x 941, horizontal) y se centra en la ventana, asi la imagen se ve completa, sin recortes.
    Si cambias la imagen por otra de otro tamano, ajusta --img-w y --img-h. */
 .ah-stage[data-bg='calles'] {
-  --img-w: 1133;
-  --img-h: 1388;
+  --img-w: 1672;
+  --img-h: 941;
   --fit-h: min(100dvh, calc((100vw - var(--ah-drawer-offset, 0px)) * var(--img-h) / var(--img-w)));
   inset: auto;
   height: var(--fit-h);
@@ -112,6 +112,9 @@ body.ah-cj-bg::before {
   transform: translateX(-50%);
   filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35));
 }
+
+/* CJ se ve un poco mas pequeno que los demas personajes */
+.ah-stage[data-bg='calles'] .ah-character { width: min(48cqh, 92cqw); bottom: 8cqh; }
 
 .ah-character svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
@@ -171,6 +174,30 @@ body.ah-cj-bg::before {
 }
 
 .ah-subtitle.visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* invitacion a preguntar (encima del personaje, mientras no habla) */
+.ah-idle {
+  position: absolute;
+  left: 50%;
+  top: 3.5cqh;
+  max-width: min(88cqw, 640px);
+  transform: translate(-50%, -10px);
+  padding: 1.6cqh 3cqh;
+  border-radius: 2.6cqh;
+  background: rgba(8, 10, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 1.4cqh 4cqh rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: #f1f5f9;
+  font: 700 clamp(14px, 3cqh, 26px) / 1.25 var(--ds-font-body, system-ui);
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0;
+  transition: opacity 320ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.ah-idle.visible { opacity: 1; transform: translate(-50%, 0); }
 
 /* tarjeta del espectador al que responde el agente (encima del personaje) */
 .ah-viewer {
@@ -372,6 +399,7 @@ body.clean .ah-ui { display: none !important; }
 body.clean { cursor: none; }
 body.clean .ah-drawer { display: none; }
 body.clean .ah-stage { right: 0; }
+body.clean .ah-stage[data-bg='calles'] { --ah-drawer-offset: 0px; }
 
 /* ============================== PANEL ============================== */
 
@@ -544,6 +572,47 @@ body.ah-modal-open { overflow: hidden; }
 .ah-bill .pk-hint { margin: 0; }
 .ah-pay { width: 100%; }
 
+/* pandilleros de CJ: uno por regalo, entran caminando con flow y llevan la foto de perfil del espectador de cabeza */
+.ah-character { z-index: 2; }
+.ah-crew { position: absolute; bottom: 5cqh; width: min(25cqh, 22cqw); aspect-ratio: 25 / 49; z-index: 3; transform: translateX(-50%); transform-origin: 50% 100%; pointer-events: none; animation: ah-crew-appear 260ms ease-out both; }
+.ah-crew.row1 { bottom: 11cqh; scale: 0.86; z-index: 1; }
+.ah-crew.shifting { transition: bottom 1s ease-in-out, scale 1s ease-in-out; }
+.ah-crew.walking { animation: ah-crew-appear 260ms ease-out both, ah-crew-walk var(--walk, 2800ms) cubic-bezier(0.3, 0.6, 0.35, 1) both; }
+.ah-crew.leaving { animation: ah-crew-leave 1000ms ease-in forwards; }
+.ah-crew .crew-inner { position: absolute; inset: 0; transform-origin: 50% 100%; animation: ah-crew-idle 3s ease-in-out infinite alternate; }
+.ah-crew.walking .crew-inner { animation: ah-crew-swagger 1.15s ease-in-out infinite; }
+.ah-crew .crew-svg { position: absolute; left: 0; bottom: 0; width: 100%; aspect-ratio: 140 / 190; overflow: visible; }
+.ah-crew .crew-head { position: absolute; top: 1cqh; left: 50%; width: 80%; aspect-ratio: 1; translate: -50% 0; border-radius: 50%; overflow: hidden; border: 0.6cqh solid #1c120d; background: color-mix(in srgb, var(--crew) 60%, #222); box-shadow: 0 0.8cqh 1.8cqh rgba(0, 0, 0, 0.5); display: grid; place-items: center; transform-origin: 50% 90%; }
+.ah-crew.walking .crew-head { animation: ah-crew-headbob 1.15s ease-in-out infinite; }
+.ah-crew .crew-head img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ah-crew .crew-initial { font-weight: 800; font-size: 8cqh; color: #fff; }
+.ah-crew .crew-name { position: absolute; left: 50%; top: -4.6cqh; translate: -50% 0; max-width: 140%; padding: 0.6cqh 1.8cqh; border-radius: 999px; background: rgba(8, 10, 24, 0.88); border: 1px solid rgba(255, 255, 255, 0.22); color: #fff; font-size: clamp(10px, 2cqh, 16px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* caminar: las piernas y los brazos se mueven en sentidos contrarios; al llegar se queda con los brazos cruzados */
+.ah-crew .crew-leg-l { transform-origin: 53px 100px; }
+.ah-crew .crew-leg-r { transform-origin: 87px 100px; }
+.ah-crew .crew-arm-l { transform-origin: 30px 48px; }
+.ah-crew .crew-arm-r { transform-origin: 110px 48px; }
+.ah-crew.walking .crew-leg-l, .ah-crew.walking .crew-arm-r { animation: ah-crew-step 1.15s ease-in-out infinite; animation-delay: var(--phase, 0s); }
+.ah-crew.walking .crew-leg-r, .ah-crew.walking .crew-arm-l { animation: ah-crew-step 1.15s ease-in-out infinite; animation-delay: calc(var(--phase, 0s) - 0.575s); }
+.ah-crew.walking .crew-cross { display: none; }
+.ah-crew:not(.walking) .crew-arm { display: none; }
+
+@keyframes ah-crew-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ah-crew-walk { from { translate: var(--from, -60cqw) 0; } to { translate: 0 0; } }
+@keyframes ah-crew-leave { to { translate: var(--from, 60cqw) 0; opacity: 0; } }
+/* andar de pandillero: se inclina para un lado, rebota suave y balancea los hombros */
+@keyframes ah-crew-swagger {
+  0%, 100% { rotate: -3deg; translate: 0 0; }
+  25% { rotate: 1deg; translate: 0 -1.7cqh; }
+  50% { rotate: 6deg; translate: 0 0; }
+  75% { rotate: 1deg; translate: 0 -1.7cqh; }
+}
+@keyframes ah-crew-headbob { 0%, 100% { rotate: -5deg; translate: -50% 0; } 50% { rotate: 5deg; translate: -50% -0.8cqh; } }
+@keyframes ah-crew-step { 0%, 100% { rotate: -24deg; } 50% { rotate: 24deg; } }
+@keyframes ah-crew-idle { from { rotate: -1.3deg; translate: 0 0; } to { rotate: 1.3deg; translate: 0 -0.9cqh; } }
+@media (prefers-reduced-motion: reduce) { .ah-crew, .ah-crew .crew-inner, .ah-crew .crew-head, .ah-crew .crew-leg, .ah-crew .crew-arm { animation: none !important; } }
+
 /* disparo de CJ */
 .ah-shot-flash { position: absolute; inset: 0; z-index: 7; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 46%, rgba(255, 244, 190, 0.95), rgba(255, 190, 70, 0.4) 40%, transparent 72%); animation: ah-shot-flash 240ms ease-out forwards; }
 @keyframes ah-shot-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
@@ -560,6 +629,8 @@ body.ah-modal-open { overflow: hidden; }
 .ah-gift-rule { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(var(--tone), 0.25); }
 .ah-gift-head { display: flex; gap: 10px; align-items: flex-start; }
 .ah-gift-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; background: rgba(var(--tone), 0.2); font-size: 1rem; }
+.ah-gift-option { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; color: var(--ds-text-muted, #92a0b8); }
+.ah-gift-option input { width: 84px !important; }
 .ah-gift-test { margin-left: auto; flex: none; padding: 6px 12px; font-size: 0.78rem; white-space: nowrap; }
 .ah-gift-head strong { display: block; font-size: 0.9rem; }
 .ah-gift-head small { display: block; color: var(--ds-text-muted, #92a0b8); font-size: 0.76rem; line-height: 1.35; }

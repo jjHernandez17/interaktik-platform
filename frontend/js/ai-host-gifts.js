@@ -3,13 +3,14 @@
 // Expone window.AiHostGiftRules para que ai-host.js lo lea al guardar (get) y lo llene al cargar (set).
 (function () {
   const RULES = [
-    { key: 'priority', icon: '⭐', title: 'Dar prioridad a su mensaje', help: 'Si mandan este regalo, el agente no lo agradece al momento: espera el mensaje de esa persona, lo agradece entonces y lo responde primero (si no escribe en 2 minutos, lo agradece igual).' },
+    { key: 'priority', icon: '⭐', title: 'Dar prioridad a su mensaje', help: 'Si mandan este regalo, el agente espera el mensaje de esa persona y lo responde primero, empezando con su nombre (si no escribe en 2 minutos, solo le dice «Gracias» y su nombre).' },
     { key: 'advice', icon: '💡', title: 'Mencionarlo y darle un consejo', help: 'El agente dice su nombre y le da un consejo breve y positivo.' },
     { key: 'joke', icon: '😂', title: 'Contarle un chiste', help: 'El agente cuenta un chiste corto y sano.' },
     { key: 'flatter', icon: '💖', title: 'Mencionarlo y halagarlo', help: 'El agente dice su nombre y le dedica un halago creativo, distinto cada vez.' },
-    { key: 'shoot', icon: '🔫', title: 'Sacar el arma y disparar a la cámara', help: 'Solo CJ: lo agradece, saca el arma y le dispara a la cámara (animación de videojuego, con destello, agujeros de bala y sonido).', only: 'cj' },
+    { key: 'crew', icon: '🧑‍🎤', title: 'Invitar a un pandillero con su foto', help: 'Solo CJ: aparece en pantalla un pandillero de caricatura con la foto de perfil de quien mandó el regalo como cabeza, y CJ dice su nombre y le da la bienvenida a la pandilla. Entra un pandillero por cada regalo.', only: 'cj' },
+    { key: 'shoot', icon: '🔫', title: 'Sacar el arma y disparar a la cámara', help: 'Solo CJ: dice su nombre, saca el arma y le dispara a la cámara (animación de videojuego, con destello, agujeros de bala y sonido).', only: 'cj' },
   ];
-  const emptyRules = () => ({ priority: [], advice: [], joke: [], flatter: [], shoot: [] });
+  const emptyRules = () => ({ priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: [], crewSeconds: 30, crewMax: 6 });
   let character = 'mochi'; // la regla de disparo solo se muestra con el personaje CJ
   const visibleRules = () => RULES.filter((rule) => !rule.only || rule.only === character);
   const MAX_PER_RULE = 8;
@@ -130,6 +131,8 @@
           <div><strong>${esc(rule.title)}</strong><small>${esc(rule.help)}</small></div>
           <button type="button" class="btn ghost ah-gift-test" data-test-rule="${rule.key}" title="Simula que llega un regalo de esta regla">▶ Probar</button>
         </div>
+        ${rule.key === 'crew' ? `<label class="ah-gift-option">Tiempo en pantalla de cada pandillero <input type="number" min="5" max="600" step="5" value="${Number(state.crewSeconds) || 30}" data-crew-seconds /> segundos</label>
+        <label class="ah-gift-option">Máximo de pandilleros a la vez en pantalla <input type="number" min="1" max="10" step="1" value="${Number(state.crewMax) || 6}" data-crew-max /> (los demás esperan su turno, ninguno se pierde)</label>` : ''}
         <div class="ah-gift-chips">${state[rule.key].length
           ? state[rule.key].map((name) => chipMarkup(name, rule.key)).join('')
           : '<span class="pk-hint">Ningún regalo: esta acción está desactivada.</span>'}</div>
@@ -214,6 +217,16 @@
   });
 
   root.addEventListener('input', (event) => {
+    if (event.target.matches('[data-crew-max]')) {
+      const max = Number(event.target.value);
+      if (Number.isFinite(max)) state.crewMax = Math.max(1, Math.min(10, Math.round(max)));
+      return;
+    }
+    if (event.target.matches('[data-crew-seconds]')) {
+      const seconds = Number(event.target.value);
+      if (Number.isFinite(seconds)) state.crewSeconds = Math.max(5, Math.min(600, Math.round(seconds)));
+      return;
+    }
     if (event.target.closest('.gift-picker-filters')) refreshPicker(event.target.closest('.ah-gift-rule'));
   });
 
@@ -234,13 +247,15 @@
   window.AiHostGiftRules = {
     get: () => {
       const copy = JSON.parse(JSON.stringify(state));
-      if (character !== 'cj') copy.shoot = []; // el disparo no existe en otros personajes
+      if (character !== 'cj') { copy.shoot = []; copy.crew = []; } // estas reglas solo existen en CJ
       return copy;
     },
     set(rules, characterId) {
       if (characterId) character = characterId;
       state = emptyRules();
       for (const rule of RULES) if (Array.isArray(rules?.[rule.key])) state[rule.key] = rules[rule.key].slice(0, MAX_PER_RULE);
+      state.crewSeconds = Math.max(5, Math.min(600, Number(rules?.crewSeconds) || 30));
+      state.crewMax = Math.max(1, Math.min(10, Number(rules?.crewMax) || 6));
       closeAll();
       render();
       loadCatalog(); // para mostrar la imagen y las monedas de los regalos ya elegidos

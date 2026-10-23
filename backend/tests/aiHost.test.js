@@ -161,20 +161,20 @@ test('modo "solo preguntas" y "solo menciones"', () => {
 
 // ---------- orquestacion ----------
 
-test('un regalo y un comentario se juntan en UNA respuesta que se publica con el nombre de a quien va dirigida', async () => {
+test('un regalo normal y un comentario se juntan en UNA respuesta: "gracias + nombre" y luego la respuesta, y a la IA solo va el comentario', async () => {
   reset();
   await service.handleLiveEvent(comment('hola Nova, ¿qué juegas hoy?', 'ana'));
   await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 3, giftName: 'Rosa', user: { uniqueId: 'luis', nickname: 'Luis' } }));
   await service.tick();
 
   assert.equal(calls.length, 1, 'una sola llamada a la IA');
-  assert.match(calls[0].user, /tipo="regalo" usuario="Luis" regalo="Rosa" cantidad="3" monedas="3"/);
+  assert.doesNotMatch(calls[0].user, /tipo="regalo"/, 'el regalo sin regla no se le pide a la IA');
   assert.match(calls[0].user, /tipo="comentario" usuario="ana">hola Nova, ¿qué juegas hoy\?/);
   assert.equal(calls[0].model, 'claude-haiku-5-5');
   assert.equal(said.length, 1);
   assert.equal(said[0].ownerKey, 'user:5:aihost');
   assert.equal(said[0].gameType, 'aihost');
-  assert.equal(said[0].text, 'Hola Ana, gracias por la rosa.');
+  assert.equal(said[0].text, 'Gracias Luis. Hola Ana, gracias por la rosa.');
   assert.equal(said[0].emotion, 'emocionado');
   assert.equal(said[0].action, 'celebrar');
   assert.deepEqual(said[0].to.sort(), ['Luis', 'ana']);
@@ -184,7 +184,6 @@ test('un regalo y un comentario se juntan en UNA respuesta que se publica con el
   assert.equal(usage.input_tokens, 1200);
   assert.ok(usage.cost_usd > 0 && usage.cost_usd < 0.001, 'unas centesimas de centavo');
 });
-
 test('mientras el agente esta hablando no se pide otra respuesta, y los comentarios esperan su cadencia', async () => {
   reset();
   await service.handleLiveEvent(comment('primer comentario de prueba'));
@@ -209,8 +208,9 @@ test('un streamer con el agente apagado, sin acceso o sin configuracion no gasta
   assert.equal(calls.length, 0);
 });
 
-test('un regalo no se pierde si la IA falla: vuelve a la cola y se agradece despues', async () => {
+test('un regalo con regla no se pierde si la IA falla: vuelve a la cola y se atiende despues', async () => {
   reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: [], joke: ['Leon'], flatter: [] } }));
   failNext = 1;
   await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 10, repeatCount: 1, giftName: 'Leon', user: { uniqueId: 'luis', nickname: 'Luis' } }));
   await service.tick();
@@ -223,6 +223,29 @@ test('un regalo no se pierde si la IA falla: vuelve a la cola y se agradece desp
   assert.equal(said.length, 1);
 });
 
+test('un regalo sin regla se agradece enseguida con "Gracias" y el nombre, sin llamar a la IA ni gastar tokens', async () => {
+  reset();
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 10, repeatCount: 1, giftName: 'Leon', user: { uniqueId: 'luis', nickname: 'Luis' } }));
+  await service.tick();
+  assert.equal(calls.length, 0, 'no se llama a la IA');
+  assert.equal(said.length, 1);
+  assert.equal(said[0].text, 'Gracias Luis.');
+  assert.ok(said[0].kinds.includes('gift'));
+  assert.equal(db.credit.used, 0, 'no se descuentan tokens');
+  assert.equal(service._sessions.get(5).queue.length, 0);
+});
+
+test('varios regalos sin regla en la misma respuesta: "Gracias A, B y C" con cada nombre una sola vez', async () => {
+  reset();
+  await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
+  await service.handleLiveEvent(giftEvent('Leon', 'luis'));
+  await service.handleLiveEvent(giftEvent('Corazon', 'ana'));
+  await service.handleLiveEvent(giftEvent('Galaxia', 'eva'));
+  await service.tick();
+  assert.equal(calls.length, 0);
+  assert.equal(said.length, 1);
+  assert.equal(said[0].text, 'Gracias ana, luis y eva.');
+});
 test('el tope diario detiene las respuestas y avisa una sola vez', async () => {
   reset();
   process.env.AI_HOST_DAILY_CALLS = '50';
@@ -625,12 +648,11 @@ test('un regalo con regla activa las acciones, aunque sea de pocas monedas o no 
 
 test('sin reglas el prompt no trae el bloque de regalos especiales', async () => {
   reset();
-  await service.handleLiveEvent(giftEvent('Rosa'));
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás hoy?'));
   await service.tick();
   assert.doesNotMatch(calls[0].system, /Regalos especiales/);
   assert.doesNotMatch(calls[0].user, /accion_especial/);
 });
-
 test('regalo de prioridad: sus comentarios van primero, saltan el filtro de respuestas y se marcan en el prompt', async () => {
   reset();
   db.config.set(5, configRow({ reply_mode: 'mentions', gift_rules: { priority: ['Rose'], advice: [], joke: [], flatter: [] } }));
@@ -663,27 +685,28 @@ const spokenFor = (name) => said.find((item) => item.kinds.includes('gift') && i
 
 test('el mismo regalo de la misma persona dos veces seguidas no se descarta como repetido: se suman', async () => {
   reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
   await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
   await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
   const queued = service._sessions.get(5).queue.filter((item) => item.kind === 'gift');
   assert.equal(queued.length, 1);
-  assert.equal(queued[0].count, 2, 'se agradecen juntos, no se pierde ninguno');
+  assert.equal(queued[0].count, 2, 'se atienden juntos, no se pierde ninguno');
   await service.tick();
   assert.match(calls[0].user, /cantidad="2"/);
 });
-
-test('si la IA responde [SKIP] a un regalo, igual se agradece con una frase de respaldo (con el nombre)', async () => {
+test('si la IA responde [SKIP] a un regalo con regla, igual se hace la accion con una frase de respaldo (empieza con el nombre)', async () => {
   reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: [], joke: ['Rosa'], flatter: [] } }));
   nextReply = { text: '[SKIP]', usage: { input_tokens: 800, output_tokens: 5 }, stopReason: 'end_turn' };
   await service.handleLiveEvent(giftEvent('Rosa', 'Ronald'));
   await service.tick();
   nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
-  assert.equal(said.length, 1, 'el regalo se agradecio');
-  assert.match(said[0].text, /Ronald/);
+  assert.equal(said.length, 1, 'el regalo se atendio');
+  assert.match(said[0].text, /^Ronald, /);
+  assert.doesNotMatch(said[0].text, /gracias/i);
   assert.ok(said[0].kinds.includes('gift'));
 });
-
-test('un regalo de halago, chiste o consejo siempre nombra a quien lo envio (si el modelo no lo hizo, se antepone)', async () => {
+test('un regalo de halago, chiste o consejo empieza con el nombre de quien lo envio (si el modelo no lo hizo, se antepone) y no agradece', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
   nextReply = { text: '[feliz, asentir] Un buen consejo es descansar bien.', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
@@ -691,12 +714,12 @@ test('un regalo de halago, chiste o consejo siempre nombra a quien lo envio (si 
   await service.tick();
   nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
   assert.equal(said.length, 1);
-  assert.match(said[0].text, /Samuel/);
-  assert.match(said[0].text, /gracias/i, 'el regalo tambien se agradece');
+  assert.equal(said[0].text, 'Samuel, un buen consejo es descansar bien.');
+  assert.doesNotMatch(said[0].text, /gracias/i, 'el regalo con regla no se agradece');
 });
-
-test('si la IA falla una y otra vez con un regalo, se reintenta y al final se agradece con la frase de respaldo', async () => {
+test('si la IA falla una y otra vez con un regalo con regla, se reintenta y al final se atiende con la frase de respaldo', async () => {
   reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
   await service.handleLiveEvent(giftEvent('Rosa', 'Lucia'));
   failNext = 100;
   const session = () => service._sessions.get(5);
@@ -707,12 +730,12 @@ test('si la IA falla una y otra vez con un regalo, se reintenta y al final se ag
     await service.tick();
   }
   failNext = 0;
-  assert.equal(said.length, 1, 'el regalo se agradecio aunque la IA no respondio');
-  assert.match(said[0].text, /Lucia/);
+  assert.equal(said.length, 1, 'el regalo se atendio aunque la IA no respondio');
+  assert.match(said[0].text, /^Lucia, /);
+  assert.doesNotMatch(said[0].text, /gracias/i);
   assert.equal(said[0].model, 'respaldo');
   assert.equal(session().queue.filter((item) => item.kind === 'gift').length, 0);
 });
-
 test('el tope diario de respuestas y la falta de tokens no borran los regalos de la cola', async () => {
   reset();
   // tope diario alcanzado: los comentarios se frenan, el regalo igual se agradece
@@ -790,34 +813,63 @@ test('una respuesta proactiva (sin nadie a quien responder) no trae tarjeta', as
   assert.equal(service.buildFocus(session, [{ kind: 'follow', nickname: 'Eva', uniqueId: 'eva' }]).message, 'Empezó a seguirte');
 });
 
-test('un regalo con regla se agradece Y ademas hace la accion especial (agradecimiento primero)', async () => {
+test('un regalo con regla NO se agradece: empieza con el nombre y hace la accion especial', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: { priority: [], advice: [], joke: ['Rosa'], flatter: [] } }));
-  // el modelo solo cuenta el chiste, sin agradecer: el servidor antepone el agradecimiento
+  // el modelo solo cuenta el chiste: el servidor antepone el nombre
   nextReply = { text: '[risa, saltar] ¿Qué hace una abeja en el gimnasio? ¡Zum-ba!', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
   await service.handleLiveEvent(giftEvent('Rosa', 'Camila'));
   await service.tick();
-  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
   assert.equal(said.length, 1);
-  assert.match(said[0].text, /^.*Camila.*Rosa.*Zum-ba/s, 'primero el agradecimiento con nombre y regalo, luego el chiste');
-  assert.match(said[0].text, /gracias|thank|obrigad/i);
+  assert.match(said[0].text, /^Camila, .*Zum-ba/s, 'primero el nombre, luego el chiste');
+  assert.doesNotMatch(said[0].text, /gracias|thank|obrigad/i);
+
+  // si el modelo agradecio sin querer, ese agradecimiento se quita
+  reset();
+  db.config.set(5, configRow({ gift_rules: { priority: [], advice: [], joke: ['Rosa'], flatter: [] } }));
+  nextReply = { text: '[risa, saltar] ¡Gracias Camila por la rosa! ¿Qué hace una abeja en el gimnasio? ¡Zum-ba!', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(giftEvent('Rosa', 'Camila'));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+  assert.doesNotMatch(said[0].text, /gracias/i);
+  assert.match(said[0].text, /^Camila, .*Zum-ba/s);
+});
+test('el texto de un regalo: sin agradecimiento y con el nombre al inicio; los regalos normales solo "gracias + nombre"; sin regalos no se toca', () => {
+  const rule = [{ kind: 'gift', nickname: 'Eva', giftName: 'Rosa', special: ['joke'] }];
+  assert.equal(prompt.shapeGiftReply('Eva, un chiste: ¿qué hace una abeja?', rule), 'Eva, un chiste: ¿qué hace una abeja?', 'ya empieza con el nombre');
+  assert.equal(prompt.shapeGiftReply('¡Eva! Un chiste para ti.', rule), '¡Eva! Un chiste para ti.', 'los signos de apertura no cuentan');
+  assert.equal(prompt.shapeGiftReply('Gracias Eva por la rosa. Un chiste para ti.', rule), 'Eva, un chiste para ti.');
+  assert.equal(prompt.shapeGiftReply('Toma este chiste: la abeja.', rule), 'Eva, toma este chiste: la abeja.');
+  assert.equal(prompt.shapeGiftReply('Hola a todos', [{ kind: 'comment' }]), 'Hola a todos');
+
+  const plain = [{ kind: 'gift', nickname: 'Eva', giftName: 'Rosa' }, { kind: 'gift', nickname: 'Luis', giftName: 'Leon' }];
+  assert.equal(prompt.shapeGiftReply('', plain), 'Gracias Eva y Luis.');
+  assert.equal(prompt.shapeGiftReply('Hola Ana', plain), 'Gracias Eva y Luis. Hola Ana');
+  assert.equal(prompt.plainThanksText(plain, { language: 'en' }), 'Thanks Eva and Luis.');
+  assert.equal(prompt.plainThanksText(plain, { language: 'pt' }), 'Obrigada Eva e Luis.');
+
+  const mixed = [...plain, { kind: 'gift', nickname: 'Pablo', giftName: 'Rose', special: ['advice'] }];
+  assert.equal(prompt.shapeGiftReply('Un consejo: descansa bien.', mixed), 'Gracias Eva y Luis. Pablo, un consejo: descansa bien.');
 });
 
-test('si el modelo ya agradece, no se le agrega un segundo agradecimiento; sin regalos no se toca', () => {
-  const batch = [{ kind: 'gift', nickname: 'Eva', giftName: 'Rosa', special: ['joke'] }];
-  assert.equal(prompt.ensureGiftsThanked('Gracias Eva por la rosa. Un chiste...', batch), 'Gracias Eva por la rosa. Un chiste...');
-  assert.equal(prompt.ensureGiftsThanked('Hola a todos', [{ kind: 'comment' }]), 'Hola a todos');
+test('un regalo que solo tenia la regla de prioridad cuenta como normal si su dueno no escribio; si escribio, se atiende con su mensaje', () => {
+  const gift = { kind: 'gift', nickname: 'Ronald', uniqueId: 'ronald', special: ['priority'] };
+  assert.equal(prompt.isPlainGift(gift, [gift]), true);
+  assert.equal(prompt.isPlainGift(gift, [gift, { kind: 'comment', uniqueId: 'ronald' }]), false);
+  assert.equal(prompt.isPlainGift({ ...gift, special: ['priority', 'joke'] }, [gift]), false);
+  assert.equal(prompt.isPlainGift({ kind: 'gift', nickname: 'x' }, []), true);
+  assert.equal(prompt.isPlainGift({ kind: 'comment' }, []), false);
 });
-
-test('el prompt exige agradecer siempre el regalo y ademas la accion especial', async () => {
+test('el prompt manda NO agradecer el regalo con regla, empezar con el nombre y hacer la accion especial', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: { priority: [], advice: ['Rosa'], joke: [], flatter: [] } }));
   await service.handleLiveEvent(giftEvent('Rosa', 'Ana'));
   await service.tick();
-  assert.match(calls[0].system, /todo regalo se agradece SIEMPRE/);
-  assert.match(calls[0].system, /ADEMÁS del agradecimiento/);
+  assert.match(calls[0].system, /NO se agradece/);
+  assert.match(calls[0].system, /SIEMPRE empieza con el nombre/);
+  assert.match(calls[0].system, /empieza con su nombre y dale un consejo/);
+  assert.doesNotMatch(calls[0].system, /todo regalo se agradece SIEMPRE/);
 });
-
 // ---------- regalo de solo prioridad: se agradece cuando llega el mensaje ----------
 
 const priorityOnly = { priority: ['Rose'], advice: [], joke: [], flatter: [] };
@@ -836,12 +888,14 @@ test('un regalo de solo prioridad NO se agradece al llegar: el agente espera el 
   assert.ok(visual.some((item) => item.kind === 'gift'), 'la alerta visual del regalo si se muestra');
 });
 
-test('cuando esa persona manda su mensaje, el agente agradece el regalo y responde el mensaje, en una sola intervencion', async () => {
+test('cuando esa persona manda su mensaje, el agente responde el mensaje empezando con su nombre (sin agradecer), en una sola intervencion', async () => {
   reset();
   db.config.set(5, configRow({ reply_mode: 'mentions', gift_rules: priorityOnly }));
+  nextReply = { text: '[feliz, saludar] Qué bueno tenerte por aquí, aquí estoy contigo.', usage: { input_tokens: 800, output_tokens: 20 }, stopReason: 'end_turn' };
   await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
   await service.handleLiveEvent(comment('que bonito el live, saludame', 'ronald')); // filtro "solo menciones": prioridad lo salta
   await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
 
   assert.equal(calls.length, 1);
   assert.match(calls[0].user, /tipo="regalo" usuario="ronald" regalo="Rose"/);
@@ -850,9 +904,9 @@ test('cuando esa persona manda su mensaje, el agente agradece el regalo y respon
   assert.ok(calls[0].user.indexOf('tipo="regalo"') < calls[0].user.indexOf('tipo="comentario"'), 'primero el regalo, luego el mensaje');
   assert.equal(service._sessions.get(5).pendingPriority.size, 0);
   assert.equal(said.length, 1);
-  assert.match(said[0].text, /gracias|thank/i, 'el agradecimiento se dice junto con el mensaje');
+  assert.match(said[0].text, /^ronald, /i, 'empieza con el nombre');
+  assert.doesNotMatch(said[0].text, /gracias|thank/i, 'el regalo de prioridad no se agradece');
 });
-
 test('si el mensaje ya estaba esperando cuando llega el regalo de prioridad, se atienden juntos al instante', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: priorityOnly }));
@@ -864,7 +918,7 @@ test('si el mensaje ya estaba esperando cuando llega el regalo de prioridad, se 
   assert.equal(service._sessions.get(5).pendingPriority.size, 0);
 });
 
-test('si la persona nunca escribe, el regalo de prioridad se agradece igual despues de 2 minutos (no se pasa por alto)', async () => {
+test('si la persona nunca escribe, el regalo de prioridad se agradece como uno normal despues de 2 minutos (no se pasa por alto)', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: priorityOnly }));
   await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
@@ -872,12 +926,11 @@ test('si la persona nunca escribe, el regalo de prioridad se agradece igual desp
   session.pendingPriority.get('ronald').at -= 3 * 60 * 1000; // pasaron 3 minutos
   await service.tick();
 
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].user, /tipo="regalo" usuario="ronald" regalo="Rose"/);
+  assert.equal(calls.length, 0, 'sin mensaje no hay nada que priorizar: solo "gracias + nombre"');
   assert.equal(session.pendingPriority.size, 0);
   assert.equal(said.length, 1);
+  assert.equal(said[0].text, 'Gracias ronald.');
 });
-
 test('un regalo con prioridad Y otra regla (chiste, consejo, halago) si se agradece y se atiende de inmediato', async () => {
   reset();
   db.config.set(5, configRow({ gift_rules: { priority: ['Rose'], advice: [], joke: ['Rose'], flatter: [] } }));
@@ -1002,14 +1055,14 @@ test('los ajustes por personaje se limpian: personajes que no existen y valores 
   assert.equal(next.characterSettings.cj.accentColor, service.characterDefaultsMap().cj.accentColor, 'color invalido: queda el de fabrica del personaje');
   assert.equal(next.characterSettings.cj.background, 'studio');
   assert.equal(next.characterSettings.cj.voiceRate, 1.6, 'la velocidad se limita');
-  assert.deepEqual(next.characterSettings.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [] });
+  assert.deepEqual(next.characterSettings.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: [], crewSeconds: 30, crewMax: 6 });
 });
 
 test('un personaje que nunca se configuro arranca con sus ajustes de fabrica, distintos a los de otro', () => {
   const defaults = service.characterDefaultsMap();
   assert.ok(defaults.mochi && defaults.cj);
   assert.notEqual(defaults.cj.accentColor, defaults.mochi.accentColor);
-  assert.deepEqual(defaults.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [] });
+  assert.deepEqual(defaults.cj.giftRules, { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: [], crewSeconds: 30, crewMax: 6 });
 });
 
 test('al cargar la configuracion guardada, el personaje activo siempre trae sus ajustes actuales', async () => {
@@ -1118,7 +1171,7 @@ test('la regla de "sacar el arma y disparar a la camara" solo existe en CJ', () 
   assert.deepEqual(mochi.characterSettings.cj.giftRules.shoot, ['Rose'], 'la de CJ se conserva aunque el activo sea otro');
 });
 
-test('un regalo con la regla de disparo: la animacion es sacar el arma y disparar, y el prompt lo pide (agradecimiento primero)', async () => {
+test('un regalo con la regla de disparo: la animacion es sacar el arma y disparar, sin agradecer y empezando con el nombre', async () => {
   reset();
   db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: ['Rose'] } }));
   nextReply = { text: '[feliz, saludar] Toma esa, parce, gracias por la rosa. ¡Bang bang!', usage: { input_tokens: 900, output_tokens: 30 }, stopReason: 'end_turn' };
@@ -1131,16 +1184,15 @@ test('un regalo con la regla de disparo: la animacion es sacar el arma y dispara
   assert.equal(said.length, 1);
   assert.equal(said[0].action, 'disparar', 'siempre dispara, aunque el modelo eligiera otra accion');
   assert.equal(said[0].emotion, 'picaro');
-  assert.match(said[0].text, /gracias/i);
+  assert.match(said[0].text, /^Pablo, /);
+  assert.doesNotMatch(said[0].text, /gracias/i);
 });
-
-test('el respaldo de un regalo con disparo tambien dispara y agradece', () => {
+test('el respaldo de un regalo con disparo tambien dispara y empieza con el nombre (sin agradecer)', () => {
   const reply = prompt.giftFallbackReply([{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', special: ['shoot'] }], { language: 'es', maxChars: 220 }, 1);
   assert.equal(reply.action, 'disparar');
-  assert.match(reply.text, /Pablo/);
-  assert.match(reply.text, /gracias|Gracias/);
+  assert.match(reply.text, /^Pablo, /);
+  assert.doesNotMatch(reply.text, /gracias/i);
 });
-
 // ---------- voz de IA: nada de cambiar a la voz del navegador a mitad de un mensaje ----------
 
 test('ElevenLabs responde 429 (demasiadas peticiones a la vez): se reintenta y la frase sale con la voz de IA', async () => {
@@ -1196,4 +1248,245 @@ test('varias frases pedidas a la vez no abren mas de 2 peticiones simultaneas a 
   assert.ok(peak >= 1);
   delete process.env.ELEVENLABS_API_KEY;
   delete process.env.ELEVENLABS_VOICE_MOCHI;
+});
+
+// ---------- pandillero con la foto del espectador (solo CJ) ----------
+
+const crewRules = { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: ['Rose'] };
+
+test('la regla del pandillero solo existe en CJ', () => {
+  const cj = service.normalizeConfigInput({ character: 'cj', giftRules: crewRules }, { ...service.DEFAULTS });
+  assert.deepEqual(cj.giftRules.crew, ['Rose']);
+  const mochi = service.normalizeConfigInput({ character: 'mochi', giftRules: crewRules }, { ...service.DEFAULTS });
+  assert.deepEqual(mochi.giftRules.crew, [], 'otros personajes no pueden tenerla');
+});
+
+test('un regalo con la regla del pandillero avisa a la pagina con la foto del espectador (solo con CJ)', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: crewRules }));
+  const avatar = 'https://p16.tiktokcdn.com/avatar/pablo.jpg';
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo', avatar } }));
+  const event = visual.find((item) => item.eventName === 'ai-host-event' && item.kind === 'gift');
+  assert.equal(event.crew, true);
+  assert.equal(event.avatar, avatar);
+  assert.equal(event.uniqueId, 'pablo');
+  assert.equal(event.nickname, 'Pablo');
+
+  // un regalo que no esta en la regla no hace aparecer a nadie
+  visual.length = 0;
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Otro', user: { uniqueId: 'ana', nickname: 'Ana', avatar } }));
+  assert.equal(visual.find((item) => item.kind === 'gift').crew, undefined);
+
+  // con otro personaje activo la regla no hace nada aunque estuviera guardada
+  reset();
+  db.config.set(5, configRow({ character: 'mochi', gift_rules: crewRules }));
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo', avatar } }));
+  assert.equal(visual.find((item) => item.kind === 'gift').crew, undefined);
+});
+
+test('la foto del pandillero solo acepta https (nada de javascript: ni http:)', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: crewRules }));
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Rose', user: { uniqueId: 'x', nickname: 'X', avatar: 'javascript:alert(1)' } }));
+  assert.equal(visual.find((item) => item.kind === 'gift').avatar, '');
+});
+
+test('el regalo del pandillero se agradece y el agente le da la bienvenida a la pandilla (prompt y respaldo)', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: crewRules }));
+  await service.handleLiveEvent(giftEvent('Rose', 'Pablo'));
+  await service.tick();
+  assert.match(calls[0].user, /accion_especial="pandillero"/);
+  assert.match(calls[0].system, /accion_especial con pandillero/);
+  assert.match(calls[0].system, /bienvenida a la pandilla/);
+  const reply = prompt.giftFallbackReply([{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', special: ['crew'] }], { language: 'es', maxChars: 220 }, 1);
+  assert.match(reply.text, /Pablo/);
+  assert.match(reply.text, /pandilla|homie|banda/i);
+});
+
+test('el regalo de prueba de la regla del pandillero tambien hace aparecer al personaje', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: crewRules }));
+  await service.injectTest(5, { kind: 'gift', giftName: 'Rose', coins: 5 });
+  const event = visual.find((item) => item.eventName === 'ai-host-event' && item.crew);
+  assert.ok(event, 'la prueba muestra al pandillero');
+  assert.match(event.nickname, /^Prueba /);
+});
+
+// ---------- pandilleros: cantidad, tiempo en pantalla y lo que dice CJ ----------
+
+test('el tiempo en pantalla del pandillero es configurable (5 s a 10 min, 30 s por defecto) y viaja a la pagina', async () => {
+  assert.equal(service.normalizeConfigInput({ giftRules: { crew: ['Rose'] } }, { ...service.DEFAULTS }).giftRules.crewSeconds, 30);
+  assert.equal(service.normalizeConfigInput({ giftRules: { crewSeconds: 90 } }, { ...service.DEFAULTS }).giftRules.crewSeconds, 90);
+  assert.equal(service.normalizeConfigInput({ giftRules: { crewSeconds: 1 } }, { ...service.DEFAULTS }).giftRules.crewSeconds, 5);
+  assert.equal(service.normalizeConfigInput({ giftRules: { crewSeconds: 99999 } }, { ...service.DEFAULTS }).giftRules.crewSeconds, 600);
+  assert.equal(service.normalizeConfigInput({ giftRules: { crewSeconds: 'abc' } }, { ...service.DEFAULTS }).giftRules.crewSeconds, 30);
+
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: ['Rose'], crewSeconds: 75 } }));
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 1, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo' } }));
+  assert.equal(visual.find((item) => item.kind === 'gift').crewSeconds, 75);
+});
+
+test('si una persona manda varios regalos de la regla, el aviso trae la cantidad (un pandillero por regalo)', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: ['Rose'], crewSeconds: 30 } }));
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 5, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo' } }));
+  const event = visual.find((item) => item.kind === 'gift');
+  assert.equal(event.crew, true);
+  assert.equal(event.count, 5);
+});
+
+test('CJ siempre dice algo del pandillero que entro (si el modelo no lo hizo, se le suma), y con varios menciona cuantos', () => {
+  const one = [{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', count: 1, special: ['crew'] }];
+  const many = [{ kind: 'gift', nickname: 'Pablo', giftName: 'Rose', count: 4, special: ['crew'] }];
+  const sinMencion = prompt.ensureCrewMentioned('Gracias Pablo por la rosa.', one, { language: 'es' });
+  assert.match(sinMencion, /Pablo/);
+  assert.match(sinMencion, /pandillero|homie|pandilla/i);
+  assert.match(prompt.ensureCrewMentioned('Gracias Pablo.', many, { language: 'es' }), /4/);
+  assert.equal(prompt.ensureCrewMentioned('Gracias Pablo, bienvenido a la pandilla, homie.', one, { language: 'es' }), 'Gracias Pablo, bienvenido a la pandilla, homie.', 'si ya lo menciono, no se repite');
+  assert.equal(prompt.ensureCrewMentioned('Gracias.', [{ kind: 'gift', nickname: 'Ana', special: ['joke'] }], {}), 'Gracias.', 'sin regla de pandillero no se toca');
+  const fallback = prompt.giftFallbackReply(many, { language: 'es', maxChars: 220 }, 1);
+  assert.match(fallback.text, /4/);
+});
+
+test('el prompt del pandillero pide comentar como camina, su pose y su cara, y cuantos entraron', async () => {
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: ['Rose'], crewSeconds: 30 } }));
+  nextReply = { text: '[picaro, saludar] Gracias Pablo por la rosa.', usage: { input_tokens: 900, output_tokens: 20 }, stopReason: 'end_turn' };
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 3, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo' } }));
+  await service.tick();
+  nextReply = { text: '[emocionado, celebrar] Hola Ana, gracias por la rosa.', usage: { input_tokens: 1200, output_tokens: 40, cache_read_input_tokens: 0 }, stopReason: 'end_turn' };
+  assert.match(calls[0].system, /cómo camina/);
+  assert.match(calls[0].system, /cantidad/);
+  assert.match(calls[0].user, /cantidad="3"/);
+  assert.match(said[0].text, /pandillero|homie|pandilla|banda/i, 'CJ habla del pandillero aunque el modelo no lo hiciera');
+});
+
+// ---------- solo responder a quienes enviaron regalos ----------
+
+test('con "solo responder a quienes enviaron regalos" el chat de los demas se ignora y el de quien mando un regalo se atiende', async () => {
+  reset();
+  db.config.set(5, configRow({ only_gifters: true }));
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás?', 'pedro'));
+  assert.equal(service._sessions.get(5).queue.length, 0, 'quien no mando regalos no se atiende');
+
+  await service.handleLiveEvent(giftEvent('Rosa', 'ana'));
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás?', 'ana'));
+  await service.handleLiveEvent(comment('hola Nova, ¿qué tal?', 'pedro'));
+  const queued = service._sessions.get(5).queue.filter((item) => item.kind === 'comment');
+  assert.deepEqual(queued.map((item) => item.uniqueId), ['ana']);
+
+  await service.tick();
+  assert.match(calls[0].user, /usuario="ana"/);
+  assert.doesNotMatch(calls[0].user, /usuario="pedro"/);
+  assert.match(said[0].text, /^Gracias ana\./, 'el regalo normal igual se agradece');
+});
+
+test('sin esa opcion se responde a todos (valor por defecto); los seguidores y regalos no dependen de ella', async () => {
+  reset();
+  assert.equal(service.DEFAULTS.onlyGifters, false);
+  await service.handleLiveEvent(comment('hola Nova, ¿cómo estás?', 'pedro'));
+  assert.equal(service._sessions.get(5).queue.length, 1);
+
+  reset();
+  db.config.set(5, configRow({ only_gifters: true }));
+  await service.handleLiveEvent(live('follow', { user: { uniqueId: 'eva', nickname: 'Eva' } }));
+  assert.equal(service._sessions.get(5).queue.filter((item) => item.kind === 'follow').length, 1, 'la bienvenida a seguidores sigue su propio ajuste');
+});
+
+test('quien manda un regalo de prioridad tambien cuenta como "que envio regalos"', async () => {
+  reset();
+  db.config.set(5, configRow({ only_gifters: true, gift_rules: priorityOnly }));
+  await service.handleLiveEvent(giftEvent('Rose', 'ronald'));
+  await service.handleLiveEvent(comment('hola Nova, saludame', 'ronald'));
+  assert.equal(service._sessions.get(5).queue.filter((item) => item.kind === 'comment').length, 1);
+});
+
+test('"solo responder a quienes enviaron regalos" es un ajuste de cada personaje y se guarda con los demas', () => {
+  const next = service.normalizeConfigInput({
+    character: 'cj', onlyGifters: true,
+    characterSettings: { mochi: { onlyGifters: false }, cj: { onlyGifters: true } },
+  });
+  assert.equal(next.onlyGifters, true);
+  assert.equal(next.characterSettings.cj.onlyGifters, true);
+  assert.equal(next.characterSettings.mochi.onlyGifters, false);
+  assert.equal(service.normalizeConfigInput({}).onlyGifters, false);
+  assert.equal(service.normalizeConfigInput({}, { ...service.DEFAULTS, onlyGifters: true }).onlyGifters, true, 'si la pagina no lo manda se queda lo guardado');
+});
+
+test('la prueba de un comentario con esa opcion pide primero un regalo de prueba', async () => {
+  reset();
+  db.config.set(5, configRow({ only_gifters: true }));
+  await assert.rejects(() => service.injectTest(5, { kind: 'comment', text: 'hola Nova, ¿me oyes?' }), /Solo responder a quienes enviaron regalos/);
+  service._sessions.get(5).lastTestAt = 0;
+  await service.injectTest(5, { kind: 'gift', giftName: 'Rosa', coins: 1 });
+  service._sessions.get(5).lastTestAt = 0;
+  await service.injectTest(5, { kind: 'comment', text: 'hola Nova, ¿me oyes?' });
+  assert.ok(service._sessions.get(5).giftSenders.has('prueba'));
+});
+
+// ---------- un regalo nunca entra doble (varias conexiones al mismo live) ----------
+
+const giftVia = (gameType, extra = {}) => live('gift', { gameType, repeatEnd: true, diamondCount: 1, repeatCount: 1, streakTotal: 1, giftId: 7, giftName: 'gg', msgUid: 'm1|t1|', user: { uniqueId: 'ana', nickname: 'Ana' }, ...extra });
+
+test('el mismo regalo que llega por dos conexiones del mismo live (overlay y juego) entra UNA sola vez', async () => {
+  reset();
+  await service.handleLiveEvent(giftVia('overlay'));
+  await service.handleLiveEvent(giftVia('aihost')); // el juego tiene preferencia: pasa el filtro de conexion, pero es el mismo mensaje de TikTok
+  const gifts = service._sessions.get(5).queue.filter((item) => item.kind === 'gift');
+  assert.equal(gifts.length, 1);
+  assert.equal(gifts[0].count, 1, 'un solo regalo, no dos');
+  assert.equal(visual.filter((item) => item.kind === 'gift').length, 1, 'tampoco la alerta de la pantalla sale doble');
+  await service.tick();
+  assert.equal(said.length, 1);
+  assert.equal(said[0].text, 'Gracias Ana.');
+});
+
+test('con dos conexiones abiertas el agente escucha solo una: lo que llega por la otra se ignora (regalos sin identidad y comentarios)', async () => {
+  reset();
+  await service.handleLiveEvent(giftVia('overlay', { msgUid: undefined }));
+  await service.handleLiveEvent(giftVia('snake', { msgUid: undefined }));
+  await service.handleLiveEvent(live('comment', { gameType: 'overlay', comment: 'hola Nova, ¿cómo estás?', user: { uniqueId: 'pedro', nickname: 'Pedro' }, identity: {} }));
+  await service.handleLiveEvent(live('comment', { gameType: 'snake', comment: 'hola Nova, ¿cómo estás?', user: { uniqueId: 'pedro', nickname: 'Pedro' }, identity: {} }));
+  const queue = service._sessions.get(5).queue;
+  assert.equal(queue.filter((item) => item.kind === 'gift').length, 1);
+  assert.equal(queue.filter((item) => item.kind === 'comment').length, 1);
+  assert.equal(service._sessions.get(5).source.gameType, 'overlay');
+});
+
+test('dos regalos distintos de la misma persona (mensajes distintos de TikTok) se cuentan los dos', async () => {
+  reset();
+  await service.handleLiveEvent(giftVia('aihost', { msgUid: 'm1|t1|' }));
+  await service.handleLiveEvent(giftVia('aihost', { msgUid: 'm2|t2|' }));
+  const gifts = service._sessions.get(5).queue.filter((item) => item.kind === 'gift');
+  assert.equal(gifts.length, 1);
+  assert.equal(gifts[0].count, 2, 'se suman: la persona mando dos');
+});
+
+test('si la conexion elegida calla un buen rato, otra conexion del mismo live puede tomar el relevo', async () => {
+  reset();
+  await service.handleLiveEvent(giftVia('overlay', { msgUid: 'a|1|' }));
+  await service.handleLiveEvent(giftVia('snake', { msgUid: 'b|2|', user: { uniqueId: 'luis', nickname: 'Luis' } }));
+  assert.equal(service._sessions.get(5).queue.filter((item) => item.kind === 'gift').length, 1, 'la segunda conexion se ignora');
+  service._sessions.get(5).source.at -= 5 * 60 * 1000; // la conexion elegida lleva 5 minutos callada
+  await service.handleLiveEvent(giftVia('snake', { msgUid: 'c|3|', user: { uniqueId: 'eva', nickname: 'Eva' } }));
+  assert.equal(service._sessions.get(5).queue.filter((item) => item.kind === 'gift').length, 2, 'toma el relevo');
+  assert.equal(service._sessions.get(5).source.gameType, 'snake');
+});
+
+test('el maximo de pandilleros a la vez es configurable (1 a 10, 6 por defecto) y viaja a la pagina junto con la cantidad', async () => {
+  const max = (rules) => service.normalizeConfigInput({ giftRules: rules }, { ...service.DEFAULTS }).giftRules.crewMax;
+  assert.equal(max({ crew: ['Rose'] }), 6);
+  assert.equal(max({ crewMax: 3 }), 3);
+  assert.equal(max({ crewMax: 0 }), 1);
+  assert.equal(max({ crewMax: 50 }), 10);
+  assert.equal(max({ crewMax: 'abc' }), 6);
+
+  reset();
+  db.config.set(5, configRow({ character: 'cj', gift_rules: { priority: [], advice: [], joke: [], flatter: [], shoot: [], crew: ['Rose'], crewSeconds: 40, crewMax: 4 } }));
+  await service.handleLiveEvent(live('gift', { repeatEnd: true, diamondCount: 1, repeatCount: 25, giftName: 'Rose', user: { uniqueId: 'pablo', nickname: 'Pablo' } }));
+  const alert = visual.find((item) => item.kind === 'gift');
+  assert.equal(alert.crewMax, 4);
+  assert.equal(alert.count, 25, 'la pagina recibe la cantidad completa: los que no caben esperan en su cola, ninguno se descarta');
 });

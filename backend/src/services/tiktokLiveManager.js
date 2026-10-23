@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const env = require('../config/env');
 const tiktokService = require('./tiktokService');
 const { emitLiveEvent } = require('./liveHub');
-const { createGiftPipeline } = require('./giftPipeline');
+const { createGiftPipeline, readGiftMessage } = require('./giftPipeline');
 const robloxDanceService = require('./robloxDanceService');
 const robloxParkourService = require('./robloxParkourService');
 const robloxFightersService = require('./robloxFightersService');
@@ -272,6 +272,14 @@ function scheduleReconnect({ gameType, uniqueId, userId, sessionId, ownerKey }, 
   reconnectTimers.set(ownerKey, timer);
 }
 
+function safeGiftUid(data) {
+  try {
+    return readGiftMessage(data).uid || '';
+  } catch (error) {
+    return '';
+  }
+}
+
 // Entrega un regalo ya normalizado (ver giftPipeline.js) a la pagina del juego y a los servicios del servidor
 function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
   // Si por algun dato raro no se puede armar el regalo completo, igual se entrega con lo basico: nunca se pierde por eso
@@ -298,6 +306,8 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
     repeatEnd: true,
     streakTotal: chunk.streakTotal,
     deliveredAs: chunk.reason,
+    // Identidad del mensaje de TikTok: si el mismo regalo llega por dos conexiones del mismo streamer, el Co-anfitrion IA lo reconoce
+    msgUid: safeGiftUid(data),
   };
 
   logger.info(

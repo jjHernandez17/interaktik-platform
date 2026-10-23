@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/design-system.css" />
   <link rel="stylesheet" href="assets/css/roblox-parkour.css?v=20261002e" />
-  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261112a" />
+  <link rel="stylesheet" href="assets/css/ai-host.css?v=20261118d" />
 </head>
 
 <body class="ah-body">
@@ -50,6 +50,9 @@
     <div id="alerts" class="ah-alerts" aria-live="polite"></div>
     <div id="chat" class="ah-chat" aria-hidden="true"></div>
 
+    <!-- mensaje de invitacion mientras el agente no esta hablando -->
+    <div id="idleBubble" class="ah-idle visible" aria-hidden="true">¡Pregúntame lo que tú quieras!</div>
+
     <!-- a quien le esta respondiendo el agente: foto, nombre, ultimo regalo y su mensaje -->
     <div id="viewerCard" class="ah-viewer" aria-hidden="true">
       <div class="ah-viewer-photo"><img id="viewerPhoto" alt="" /><span id="viewerInitial"></span></div>
@@ -75,7 +78,7 @@
     <header class="ah-drawer-head">
       <a class="ah-back" href="platform.html">← Volver</a>
       <h1>Co-anfitrión IA</h1>
-      <p class="pk-hint">Un personaje de caricatura con IA que es el centro de tu live: lee el chat, responde, agradece regalos, gesticula y baila.</p>
+      <p class="pk-hint">Un personaje de caricatura con IA que es el centro de tu live: lee el chat, responde, reacciona a los regalos, gesticula y baila.</p>
       <label class="ah-switch">
         <input id="ahEnabled" type="checkbox" />
         <span class="ah-switch-track"><span class="ah-switch-thumb"></span></span>
@@ -196,6 +199,7 @@
                 <option value="mentions">Solo cuando dicen su nombre</option>
               </select>
             </label>
+            <label class="ah-check ah-span2"><input id="ahOnlyGifters" type="checkbox" /><span>Solo responder a quienes enviaron regalos (ignora el chat de los demás)</span></label>
             <div class="ah-toggle-row ah-span2">
               <label class="ah-check"><input id="ahThankGifts" type="checkbox" /><span>Agradecer regalos</span></label>
               <label class="ah-inline">desde <input id="ahMinGift" type="number" min="1" max="100000" /> monedas</label>
@@ -223,7 +227,7 @@
 
         <details class="ah-sec" data-tone="pink" id="ahGiftSec">
           <summary><span class="ah-sec-ico" aria-hidden="true">🎁</span><span class="ah-sec-title">Reglas de regalos</span></summary>
-          <p class="pk-hint">Elige qué regalos activan cada acción. Pulsa <b>Agregar regalo</b> y elígelo del catálogo (puedes filtrar por nombre y por monedas).</p>
+          <p class="pk-hint">Elige qué regalos activan cada acción. Pulsa <b>Agregar regalo</b> y elígelo del catálogo (puedes filtrar por nombre y por monedas). Un regalo de estas reglas no se agradece: el agente empieza con el nombre de quien lo mandó y hace la acción. Cualquier otro regalo solo recibe «Gracias» y el nombre.</p>
           <div id="ahGiftRules" class="ah-gift-rules"></div>
           <div class="ah-gift-download">
             <button id="ahGiftDownload" class="btn ghost" type="button">⬇ Descargar imagen de las reglas</button>
@@ -361,9 +365,9 @@
       <p id="ahTopupError" class="ah-modal-error" role="alert"></p>
     </div>
   </div>
-  <script src="js/ai-host-gifts.js?v=20261112a"></script>
-  <script src="js/ai-host-gifts-image.js?v=20261111a"></script>
-  <script src="js/ai-host.js?v=20261115a"></script>
+  <script src="js/ai-host-gifts.js?v=20261118b"></script>
+  <script src="js/ai-host-gifts-image.js?v=20261116a"></script>
+  <script src="js/ai-host.js?v=20261118d"></script>
   <script src="js/ai-host-topup.js?v=20261104a"></script>
   <script src="js/provider-alerts.js?v=20261106a"></script>
 </body>

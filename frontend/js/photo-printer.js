@@ -48,6 +48,9 @@ let liveEventsSource = null;
 let saveTimeout = null;
 let giftCatalog = [];
 let giftCatalogState = 'idle'; // idle | loading | ready | error
+let giftCatalogSource = ''; // live | saved | file-cache: de donde salio el catalogo que se muestra
+let giftCatalogLoadedAt = 0;
+let giftCatalogRefreshing = false;
 const seenGiftEvents = new Set();
 const queue = [];
 let printing = false;
@@ -518,19 +521,62 @@ function findGift(name) {
   return key ? giftCatalog.find((gift) => norm(gift.name) === key) || null : null;
 }
 
-async function loadGiftCatalog() {
-  if (giftCatalogState === 'loading' || giftCatalogState === 'ready') return;
-  giftCatalogState = 'loading';
+// El catalogo cambia segun la situacion: sin conexion es el guardado (o la lista base del servidor); conectado al live es el
+// catalogo REAL y completo de TikTok. Por eso se junta todo (el del live manda) en vez de quedarse con lo primero que llego.
+const CATALOG_RANK = { 'file-cache': 1, saved: 2, live: 3 };
+
+// Se junta por id: hay regalos distintos con el mismo nombre (por ejemplo "Balloons" de 10 y de 200 monedas) y no deben fundirse
+function catalogKey(gift) {
+  return gift.id ? `id:${gift.id}` : `name:${norm(gift.name)}`;
+}
+
+function mergeCatalog(incoming, source) {
+  const merged = new Map(giftCatalog.map((gift) => [catalogKey(gift), gift]));
+  for (const gift of incoming) {
+    const key = catalogKey(gift);
+    const previous = merged.get(key);
+    merged.set(key, previous ? { ...previous, ...gift, imageUrl: gift.imageUrl || previous.imageUrl } : gift);
+  }
+  giftCatalog = [...merged.values()].sort((a, b) => a.diamondCount - b.diamondCount || a.name.localeCompare(b.name));
+  if ((CATALOG_RANK[source] || 0) >= (CATALOG_RANK[giftCatalogSource] || 0)) giftCatalogSource = source || giftCatalogSource;
+}
+
+function applyCatalog(raw, source) {
+  const incoming = sanitizeCatalog(raw);
+  if (incoming.length === 0) return false;
+  mergeCatalog(incoming, source);
+  giftCatalogState = 'ready';
+  giftCatalogLoadedAt = Date.now();
+  renderGiftRules();
+  return true;
+}
+
+async function loadGiftCatalog({ force = false } = {}) {
+  if (giftCatalogRefreshing) return;
+  if (giftCatalogState === 'ready' && !force) return;
+  giftCatalogRefreshing = true;
+  if (giftCatalogState !== 'ready') giftCatalogState = 'loading';
   try {
     const response = await fetch('/api/gifts?gameType=photoprinter');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catálogo.');
-    giftCatalog = sanitizeCatalog(data.gifts);
+    mergeCatalog(sanitizeCatalog(data.gifts), data.source);
     giftCatalogState = 'ready';
+    giftCatalogLoadedAt = Date.now();
   } catch (error) {
-    giftCatalogState = 'error';
+    if (giftCatalogState !== 'ready') giftCatalogState = 'error';
+  } finally {
+    giftCatalogRefreshing = false;
   }
   renderGiftRules();
+}
+
+function giftCatalogNote() {
+  if (giftCatalogState !== 'ready') return '';
+  const total = `${giftCatalog.length} regalos`;
+  if (giftCatalogSource === 'live') return `${total} · catálogo en vivo de TikTok`;
+  if (giftCatalogSource === 'saved') return `${total} · catálogo guardado de tu último live. Conéctate al live para cargar todos los regalos actuales.`;
+  return `${total} · catálogo base. Conéctate al live para cargar todos los regalos actuales de TikTok.`;
 }
 
 // Un regalo (real o de prueba): siempre suma monedas a quien lo mando; imprime si esta en las reglas (o si es de prueba)
@@ -605,6 +651,7 @@ function pickerMarkup() {
           </div>
         </div>
         <div class="gift-picker-list"></div>
+        <p class="gift-picker-note" data-gift-note></p>
       </div>
     </div>`;
 }
@@ -641,6 +688,8 @@ function pickerListMarkup() {
 function refreshPickerList() {
   const list = ppGiftPickerHost.querySelector('.gift-picker-list');
   if (list) list.innerHTML = pickerListMarkup();
+  const note = ppGiftPickerHost.querySelector('[data-gift-note]');
+  if (note) note.textContent = giftCatalogNote();
 }
 
 function renderGiftRules() {
@@ -699,6 +748,8 @@ function bindGiftRulesUI() {
       panel.classList.toggle('hidden', !open);
       toggle.classList.toggle('open', open);
       if (open) {
+        // al abrir se refresca el catalogo si fallo o si ya paso un rato (por si te conectaste al live despues)
+        if (giftCatalogState === 'error' || Date.now() - giftCatalogLoadedAt > 20000) loadGiftCatalog({ force: true });
         refreshPickerList();
         picker.querySelector('.gift-picker-filter-name').focus();
       }
@@ -859,6 +910,19 @@ function connectToEvents() {
     const payload = JSON.parse(event.data);
     isConnected = payload.status === 'connected';
     setConnectionStatus(payload.status || 'disconnected', payload.message || '', payload.error || '');
+    if (payload.status === 'connected') {
+      applyCatalog(payload.availableGifts, 'live');
+      if (Date.now() - giftCatalogLoadedAt > 8000) loadGiftCatalog({ force: true });
+    }
+  });
+
+  // el servidor manda el catalogo completo del live apenas se conecta
+  liveEventsSource.addEventListener('giftCatalog', (event) => {
+    try {
+      applyCatalog(JSON.parse(event.data).gifts, 'live');
+    } catch (error) {
+      console.error('[PhotoPrinter] Error leyendo el catálogo de regalos:', error.message);
+    }
   });
 
   liveEventsSource.addEventListener('gift', (event) => {
@@ -886,6 +950,7 @@ async function restoreTiktokConnection() {
         isConnected = true;
         setConnectionStatus('connected', info.message || '', '');
         connectToEvents();
+        loadGiftCatalog({ force: true });
       });
     } else {
       ppUsername.value = '';
@@ -914,7 +979,12 @@ ppConnectLiveBtn?.addEventListener('click', async (event) => {
     if (!response.ok) throw new Error(payload.error || 'No se pudo conectar a TikTok Live');
     isConnected = payload.status === 'connected';
     setConnectionStatus(payload.status || 'connected', payload.message || '', payload.error || '');
-    if (isConnected) connectToEvents();
+    if (isConnected) {
+      connectToEvents();
+      // al conectar, el servidor ya tiene el catalogo completo y real del live
+      applyCatalog(payload.availableGifts, 'live');
+      loadGiftCatalog({ force: true });
+    }
   } catch (error) {
     setConnectionStatus('error', '', error.message);
   }

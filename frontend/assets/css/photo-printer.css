@@ -765,3 +765,15 @@ body.pp-clean .pp-stage:hover .pp-exit-clean {
 .gift-picker-note:empty {
   display: none;
 }
+
+.pp-rules-export {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 6px;
+}
+
+.pp-rules-export .hint {
+  margin: 0;
+}

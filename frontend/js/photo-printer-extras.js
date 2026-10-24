@@ -197,7 +197,134 @@ function bindTopDonorUI() {
   });
 }
 
+// ======================================================================================================================
+// Descargar las reglas de regalo como imagen PNG (fondo transparente, tres columnas) para ponerla en el live
+// ======================================================================================================================
+
+function wrapRuleText(g, text, maxWidth) {
+  const words = String(text).split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && g.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Dibuja cada regla (imagen del regalo, nombre y lo que hace) en 3 columnas, sin ningun fondo. El texto lleva contorno oscuro
+// para que se lea sobre cualquier video.
+async function renderRulesCanvas() {
+  const rules = state.giftRules.map((name) => ({ name, gift: findGift(name), effect: ppGiftEffect(name) }));
+  if (state.anyGift) rules.push({ name: 'Cualquier otro regalo', gift: null, effect: state.defaultEffect, any: true });
+  if (rules.length === 0) return null;
+
+  const COLS = 3;
+  const CELL_W = 640;
+  const CELL_H = 150;
+  const PAD = 24;
+  const ICON = 112;
+  const rows = Math.ceil(rules.length / COLS);
+  const canvas = document.createElement('canvas');
+  canvas.width = PAD * 2 + COLS * CELL_W;
+  canvas.height = PAD * 2 + rows * CELL_H;
+  const g = canvas.getContext('2d'); // sin fillRect de fondo: queda transparente
+
+  if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(() => {});
+  const images = await Promise.all(rules.map((rule) => (rule.gift && safeImageUrl(rule.gift.imageUrl) ? loadCanvasImage(rule.gift.imageUrl, 6000) : null)));
+  const FONT_FAMILY = '"Poppins", "Segoe UI", system-ui, -apple-system, sans-serif';
+
+  const outlined = (text, x, y) => {
+    g.lineJoin = 'round';
+    g.lineWidth = 7;
+    g.strokeStyle = 'rgba(8, 10, 24, 0.92)';
+    g.strokeText(text, x, y);
+    g.fillText(text, x, y);
+  };
+
+  rules.forEach((rule, index) => {
+    // se llena por columnas: la primera de arriba a abajo, luego la segunda y la tercera
+    const col = Math.floor(index / rows);
+    const row = index % rows;
+    const x = PAD + col * CELL_W;
+    const y = PAD + row * CELL_H;
+    const iconY = y + (CELL_H - ICON) / 2;
+
+    g.save();
+    g.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    g.shadowBlur = 12;
+    g.shadowOffsetY = 3;
+    if (images[index]) {
+      g.drawImage(images[index], x + 8, iconY, ICON, ICON);
+    } else {
+      // sin imagen: un circulo con la inicial (o una estrella para "cualquier regalo")
+      const gradient = g.createLinearGradient(x, iconY, x + ICON, iconY + ICON);
+      gradient.addColorStop(0, '#7c5cff');
+      gradient.addColorStop(1, '#12b8ff');
+      g.fillStyle = gradient;
+      g.beginPath();
+      g.arc(x + 8 + ICON / 2, iconY + ICON / 2, ICON / 2 - 6, 0, Math.PI * 2);
+      g.fill();
+      g.shadowColor = 'transparent';
+      g.fillStyle = '#fff';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = `800 52px ${FONT_FAMILY}`;
+      g.fillText(rule.any ? '★' : rule.name.charAt(0).toUpperCase(), x + 8 + ICON / 2, iconY + ICON / 2 + 3);
+    }
+    g.restore();
+
+    const textX = x + ICON + 30;
+    const textW = CELL_W - ICON - 54;
+    g.textAlign = 'left';
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#ffffff';
+    g.font = `800 36px ${FONT_FAMILY}`;
+    outlined(ppLooks.fitText(g, rule.name, textW), textX, y + 62);
+
+    const effect = ppLooks.EFFECTS.find((item) => item.id === rule.effect) || ppLooks.EFFECTS[0];
+    g.fillStyle = '#ffd25e';
+    g.font = `700 25px ${FONT_FAMILY}`;
+    wrapRuleText(g, effect.action, textW).slice(0, 2).forEach((line, i) => outlined(line, textX, y + 100 + i * 30));
+  });
+  return canvas;
+}
+
+async function downloadRulesPng() {
+  const button = document.getElementById('ppDownloadRules');
+  if (state.giftRules.length === 0 && !state.anyGift) {
+    showAppAlert('Primero agrega regalos a las reglas para poder descargarlas.', 'Descargar reglas');
+    return;
+  }
+  button.disabled = true;
+  try {
+    const canvas = await renderRulesCanvas();
+    if (!canvas) return;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('No se pudo crear la imagen.');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reglas-de-regalos.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (error) {
+    showAppAlert(error.message || 'No se pudo descargar la imagen.', 'Descargar reglas');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function bindExtrasUI() {
   bindEffectsUI();
   bindTopDonorUI();
+  document.getElementById('ppDownloadRules')?.addEventListener('click', downloadRulesPng);
 }

@@ -27,7 +27,7 @@
   const CHOICES = {
     color: [['inherit', 'Sin cambio'], ['color', 'Color normal'], ['bw', 'Blanco y negro'], ['sepia', 'Sepia'], ['duotone', 'Dos tonos neón'], ['halftone', 'Puntitos (cómic)'], ['sketch', 'Dibujo a lápiz']],
     paper: [['inherit', 'Sin cambio']].concat(Object.keys(PAPER_THEMES).map((key) => [key, PAPER_THEMES[key].label])),
-    frame: [['inherit', 'Sin cambio'], ['rounded', 'Cuadrada'], ['circle', 'Redonda'], ['polaroid', 'Polaroid'], ['gold', 'Dorado'], ['neon', 'Neón'], ['film', 'Tira de película'], ['stamp', 'Estampilla'], ['wanted', 'Se busca'], ['id', 'Carnet'], ['hearts', 'Corazones'], ['cutout', 'Recortada (sin fondo)'], ['fire', 'Fuego'], ['snakes', 'Serpientes'], ['thorns', 'Rosas con espinas'], ['ice', 'Hielo'], ['lightning', 'Rayos']],
+    frame: [['inherit', 'Sin cambio'], ['rounded', 'Cuadrada'], ['circle', 'Redonda'], ['polaroid', 'Polaroid'], ['gold', 'Dorado'], ['neon', 'Neón'], ['film', 'Tira de película'], ['stamp', 'Estampilla'], ['wanted', 'Se busca'], ['id', 'Carnet'], ['hearts', 'Corazones'], ['fire', 'Fuego'], ['snakes', 'Serpientes'], ['thorns', 'Rosas con espinas'], ['ice', 'Hielo'], ['lightning', 'Rayos']],
     size: [['inherit', 'Sin cambio'], ['small', 'Pequeña'], ['normal', 'Normal'], ['large', 'Grande'], ['huge', 'Enorme']],
     stamp: [['inherit', 'Sin cambio'], ['none', 'Sin sello'], ['vip', 'VIP'], ['top', 'TOP'], ['beauty', 'BELLEZA'], ['new', 'NUEVO'], ['love', 'LOVE'], ['fire', '¡FUEGO!']],
     sound: [['inherit', 'Sin cambio'], ['default', 'Campanita'], ['bell', 'Campana doble'], ['fanfare', 'Fanfarria'], ['coin', 'Moneda']],
@@ -79,17 +79,17 @@
 
   // Las reglas de regalo son FIJAS: no se editan, solo se elige cual le toca a cada regalo.
   const EFFECTS = [
-    { id: 'none', label: 'Sin efecto (impresión normal)', style: {} },
-    { id: 'wanted', short: 'Se busca', label: 'Cartel de "Se busca"', style: { frame: 'wanted' } },
-    { id: 'top', short: 'TOP', label: 'Sello TOP (rojo)', style: { stamp: 'top' } },
-    { id: 'beauty', short: 'Belleza', label: 'Sello Belleza (rojo)', style: { stamp: 'beauty' } },
-    { id: 'fire', short: 'Fuego', label: 'Marco de fuego', style: { frame: 'fire' } },
-    { id: 'snakes', short: 'Serpientes', label: 'Marco de serpientes', style: { frame: 'snakes' } },
-    { id: 'thorns', short: 'Rosas', label: 'Marco de rosas con espinas', style: { frame: 'thorns' } },
-    { id: 'ice', short: 'Hielo', label: 'Marco de hielo', style: { frame: 'ice' } },
-    { id: 'lightning', short: 'Rayos', label: 'Marco de rayos', style: { frame: 'lightning' } },
-    { id: 'kiss', short: 'Beso', label: 'El personaje la toma, le da un beso y a los 1,3 s va a la pared', style: { kiss: true } },
-    { id: 'tear', short: 'Rasgar', label: 'El personaje la toma y la rasga a la mitad', style: { tear: true } },
+    { id: 'none', action: 'Imprime tu foto de perfil', label: 'Sin efecto (impresión normal)', style: {} },
+    { id: 'wanted', short: 'Se busca', action: 'Tu foto en un cartel de "Se busca"', label: 'Cartel de "Se busca"', style: { frame: 'wanted' } },
+    { id: 'top', short: 'TOP', action: 'Tu foto con el sello TOP', label: 'Sello TOP (rojo)', style: { stamp: 'top' } },
+    { id: 'beauty', short: 'Belleza', action: 'Tu foto con el sello de Belleza', label: 'Sello Belleza (rojo)', style: { stamp: 'beauty' } },
+    { id: 'fire', short: 'Fuego', action: 'Tu foto con un marco de fuego', label: 'Marco de fuego', style: { frame: 'fire' } },
+    { id: 'snakes', short: 'Serpientes', action: 'Tu foto con un marco de serpientes', label: 'Marco de serpientes', style: { frame: 'snakes' } },
+    { id: 'thorns', short: 'Rosas', action: 'Tu foto con un marco de rosas y espinas', label: 'Marco de rosas con espinas', style: { frame: 'thorns' } },
+    { id: 'ice', short: 'Hielo', action: 'Tu foto con un marco de hielo', label: 'Marco de hielo', style: { frame: 'ice' } },
+    { id: 'lightning', short: 'Rayos', action: 'Tu foto con un marco de rayos', label: 'Marco de rayos', style: { frame: 'lightning' } },
+    { id: 'kiss', short: 'Beso', action: 'Te dan un beso en tu foto, con labial rojo', label: 'El personaje la toma, le da un beso y a los 1,3 s va a la pared', style: { kiss: true } },
+    { id: 'tear', short: 'Rasgar', action: 'Rasgan tu foto a la mitad', label: 'El personaje la toma y la rasga a la mitad', style: { tear: true } },
   ];
   const EFFECT_IDS = EFFECTS.map((effect) => effect.id);
 
@@ -447,197 +447,6 @@
       return base;
     }
     return base;
-  }
-
-  // ---------------------------------------------------------------- recorte del fondo de la foto
-
-  // Quita el fondo de una foto: desde los bordes avanza por todo lo que se parece (colores lisos o degradados suaves) y se
-  // detiene donde hay un cambio brusco, que es el contorno de la persona. Funciona muy bien con fondos lisos; con fondos
-  // complicados el recorte es imperfecto, y si sale algo absurdo (casi todo o casi nada) devuelve ok = false.
-  function removeBackground(img, px) {
-    const base = coverCanvas(img, px);
-    const g = base.getContext('2d');
-    let imageData;
-    try {
-      imageData = g.getImageData(0, 0, px, px);
-    } catch (error) {
-      return { canvas: base, ok: false };
-    }
-    const d = imageData.data;
-    const total = px * px;
-    const STEP = 26; // cambio maximo entre vecinos para seguir siendo "fondo"
-    const DRIFT = 120; // cuanto se puede alejar del color del borde donde empezo
-    const SEED = 150; // los bordes que no se parecen al fondo (un brazo, el pelo) no cuentan como inicio
-
-    let mr = 0;
-    let mg = 0;
-    let mb = 0;
-    let count = 0;
-    const border = [];
-    for (let i = 0; i < px; i += 1) border.push(i, (px - 1) * px + i, i * px, i * px + px - 1);
-    for (const index of border) {
-      mr += d[index * 4];
-      mg += d[index * 4 + 1];
-      mb += d[index * 4 + 2];
-      count += 1;
-    }
-    mr /= count;
-    mg /= count;
-    mb /= count;
-
-    const visited = new Uint8Array(total);
-    const originR = new Uint8Array(total);
-    const originG = new Uint8Array(total);
-    const originB = new Uint8Array(total);
-    const stack = [];
-    // el fondo se reconoce por el color de las cuatro esquinas (sirve tambien para fondos con degradado)
-    const corners = [[0, 0], [px - 8, 0], [0, px - 8], [px - 8, px - 8]].map(([cx0, cy0]) => {
-      let cr = 0;
-      let cg = 0;
-      let cb = 0;
-      for (let yy = 0; yy < 8; yy += 1) {
-        for (let xx = 0; xx < 8; xx += 1) {
-          const at = ((cy0 + yy) * px + cx0 + xx) * 4;
-          cr += d[at];
-          cg += d[at + 1];
-          cb += d[at + 2];
-        }
-      }
-      return [cr / 64, cg / 64, cb / 64];
-    });
-    for (const index of border) {
-      if (visited[index]) continue;
-      const r = d[index * 4];
-      const gr = d[index * 4 + 1];
-      const b = d[index * 4 + 2];
-      const nearest = Math.min(Math.abs(r - mr) + Math.abs(gr - mg) + Math.abs(b - mb), ...corners.map((corner) => Math.abs(r - corner[0]) + Math.abs(gr - corner[1]) + Math.abs(b - corner[2])));
-      if (nearest > SEED) continue;
-      visited[index] = 1;
-      originR[index] = r;
-      originG[index] = gr;
-      originB[index] = b;
-      stack.push(index);
-    }
-    const neighbors = [1, -1, px, -px];
-    while (stack.length) {
-      const i = stack.pop();
-      const x = i % px;
-      const y = (i - x) / px;
-      const r = d[i * 4];
-      const gr = d[i * 4 + 1];
-      const b = d[i * 4 + 2];
-      for (let k = 0; k < 4; k += 1) {
-        if ((k === 0 && x === px - 1) || (k === 1 && x === 0) || (k === 2 && y === px - 1) || (k === 3 && y === 0)) continue;
-        const j = i + neighbors[k];
-        if (visited[j]) continue;
-        const jr = d[j * 4];
-        const jg = d[j * 4 + 1];
-        const jb = d[j * 4 + 2];
-        if (Math.abs(jr - r) + Math.abs(jg - gr) + Math.abs(jb - b) > STEP) continue;
-        if (Math.abs(jr - originR[i]) + Math.abs(jg - originG[i]) + Math.abs(jb - originB[i]) > DRIFT) continue;
-        visited[j] = 1;
-        originR[j] = originR[i];
-        originG[j] = originG[i];
-        originB[j] = originB[i];
-        stack.push(j);
-      }
-    }
-
-    // restos sueltos del fondo (un rincon aislado, una mota) se descartan: solo se queda lo grande y conectado
-    const label = new Int32Array(total);
-    const sizes = [0];
-    for (let start = 0; start < total; start += 1) {
-      if (visited[start] || label[start]) continue;
-      const id = sizes.length;
-      let size = 0;
-      const pending = [start];
-      label[start] = id;
-      while (pending.length) {
-        const i = pending.pop();
-        size += 1;
-        const x = i % px;
-        const y = (i - x) / px;
-        for (let k = 0; k < 4; k += 1) {
-          if ((k === 0 && x === px - 1) || (k === 1 && x === 0) || (k === 2 && y === px - 1) || (k === 3 && y === 0)) continue;
-          const j = i + neighbors[k];
-          if (visited[j] || label[j]) continue;
-          label[j] = id;
-          pending.push(j);
-        }
-      }
-      sizes.push(size);
-    }
-    const largest = Math.max(...sizes);
-    for (let i = 0; i < total; i += 1) {
-      if (!visited[i] && sizes[label[i]] < largest * 0.25) visited[i] = 1;
-    }
-
-    let removed = 0;
-    const alpha = new Float32Array(total);
-    for (let i = 0; i < total; i += 1) {
-      if (visited[i]) removed += 1;
-      else alpha[i] = 255;
-    }
-    const fraction = removed / total;
-    if (fraction < 0.04 || fraction > 0.88) return { canvas: base, ok: false };
-
-    // contorno suave: dos pasadas de desenfoque sobre la transparencia
-    let source = alpha;
-    for (let pass = 0; pass < 2; pass += 1) {
-      const blurred = new Float32Array(total);
-      for (let y = 0; y < px; y += 1) {
-        for (let x = 0; x < px; x += 1) {
-          let sum = 0;
-          let n = 0;
-          for (let dy = -1; dy <= 1; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              const xx = x + dx;
-              const yy = y + dy;
-              if (xx < 0 || yy < 0 || xx >= px || yy >= px) continue;
-              sum += source[yy * px + xx];
-              n += 1;
-            }
-          }
-          blurred[y * px + x] = sum / n;
-        }
-      }
-      source = blurred;
-    }
-    let minX = px;
-    let minY = px;
-    let maxX = 0;
-    let maxY = 0;
-    for (let i = 0; i < total; i += 1) {
-      const a = Math.max(0, Math.min(255, (source[i] - 40) * 1.35));
-      d[i * 4 + 3] = a;
-      if (a > 40) {
-        const x = i % px;
-        const y = (i - x) / px;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-    g.putImageData(imageData, 0, 0);
-
-    // se recorta al sujeto para que llene el cuadro
-    const side = Math.max(maxX - minX, maxY - minY) * 1.06 + 4;
-    const out = newCanvas(px, px);
-    const og = out.getContext('2d');
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    og.drawImage(base, cx - side / 2, cy - side / 2, side, side, 0, 0, px, px);
-    return { canvas: out, ok: true };
-  }
-
-  // deja pasar solo lo que tiene el recorte (para los colores que dibujan una imagen nueva)
-  function applyMask(photo, mask) {
-    const g = photo.getContext('2d');
-    g.save();
-    g.globalCompositeOperation = 'destination-in';
-    g.drawImage(mask, 0, 0, photo.width, photo.height);
-    g.restore();
   }
 
   // ---------------------------------------------------------------- marcos creativos (fuego, serpientes, rosas con espinas, hielo, rayos)
@@ -1312,26 +1121,6 @@
         g.fillRect(bx, barTop, bw, size * 0.12);
         bx += bw + 1.5 + random() * 3;
       }
-    } else if (frame === 'cutout') {
-      // calcomania: la persona recortada con un borde blanco grueso y sombra, sin marco ni fondo
-      const edge = size * 0.03;
-      const silhouette = newCanvas(size, size);
-      const sg = silhouette.getContext('2d');
-      sg.drawImage(photo, edge, edge, size - edge * 2, size - edge * 2);
-      sg.globalCompositeOperation = 'source-in';
-      sg.fillStyle = '#ffffff';
-      sg.fillRect(0, 0, size, size);
-      const outline = newCanvas(size, size);
-      const og = outline.getContext('2d');
-      for (let i = 0; i < 28; i += 1) {
-        const angle = (i / 28) * Math.PI * 2;
-        og.drawImage(silhouette, Math.cos(angle) * edge, Math.sin(angle) * edge);
-        og.drawImage(silhouette, Math.cos(angle) * edge * 0.55, Math.sin(angle) * edge * 0.55);
-      }
-      frameShadow(g, 16, 5, 0.34);
-      g.drawImage(outline, x, y);
-      g.shadowColor = 'transparent';
-      g.drawImage(photo, x + edge, y + edge, size - edge * 2, size - edge * 2);
     } else if (frame === 'fire') {
       frameFire(g, photo, x, y, size, job);
     } else if (frame === 'snakes') {
@@ -1606,18 +1395,9 @@
     const customPaper = style.paper && style.paper !== 'inherit' && PAPER_THEMES[style.paper];
     const paperKey = customPaper ? style.paper : (PAPER_THEMES[options.paper] ? options.paper : 'white');
     const theme = PAPER_THEMES[paperKey];
-    let frame = style.frame && style.frame !== 'inherit' ? style.frame : options.shape || 'rounded';
+    const frame = style.frame && style.frame !== 'inherit' ? style.frame : options.shape || 'rounded';
     const size = SIZES[style.size] || SIZES.normal;
     const photoPx = Math.min(420, Math.round(size * 1.1));
-    // "recortada": se le quita el fondo a la foto; si no se pudo recortar, se imprime con marco normal
-    let cutout = null;
-    if (frame === 'cutout') {
-      cutout = removeBackground(img, photoPx);
-      if (!cutout.ok) {
-        cutout = null;
-        frame = 'rounded';
-      }
-    }
     const frameH = Math.round(size * (FRAME_RATIO[frame] || 1));
     const showName = options.showName !== false && job.nickname;
     const showGift = options.showGift !== false && job.giftName && !style.ribbon;
@@ -1630,8 +1410,7 @@
     const g = c.getContext('2d');
     if (customPaper) fillPaper(g, W, h, paperKey);
 
-    const photo = treatPhoto(cutout ? cutout.canvas : img, style.color, photoPx);
-    if (cutout) applyMask(photo, cutout.canvas);
+    const photo = treatPhoto(img, style.color, photoPx);
     const x = (W - size) / 2;
     const y = 26;
     drawFrame(g, photo, x, y, size, frame, job);
@@ -1687,7 +1466,6 @@
     effectStyle,
     renderBlock,
     drawFold,
-    removeBackground,
     drawKissMark,
     hashText,
     drawCrown,

@@ -14,7 +14,6 @@ const ppCamLabel = document.getElementById('ppCamLabel');
 
 const ppTestBtn = document.getElementById('ppTestBtn');
 const ppLogoBtn = document.getElementById('ppLogoBtn');
-const ppCutoutBtn = document.getElementById('ppCutoutBtn');
 const ppClearBtn = document.getElementById('ppClearBtn');
 const ppCleanBtn = document.getElementById('ppCleanBtn');
 const ppExitCleanBtn = document.getElementById('ppExitCleanBtn');
@@ -580,7 +579,7 @@ function giftCatalogNote() {
 }
 
 // Un regalo (real o de prueba): siempre suma monedas a quien lo mando; imprime si esta en las reglas (o si es de prueba)
-function processGift(payload, { force = false, test = false, cutout = false, effect = '' } = {}) {
+function processGift(payload, { force = false, test = false, effect = '' } = {}) {
   const giftName = String(payload.giftName || '').trim();
   if (!giftName) return;
   const user = payload.user || {};
@@ -593,7 +592,7 @@ function processGift(payload, { force = false, test = false, cutout = false, eff
   registerDonation({ key: donorKey, nickname, avatar: user.avatar || '', coins, test });
   if (!force && !giftQualifies(giftName, coins)) return;
 
-  // la regla fija del regalo (o la que se pidio en una prueba); "sin fondo" recorta la foto por encima de cualquier marco
+  // la regla fija del regalo (o la que se pidio en una prueba)
   const baseStyle = effect ? ppLooks.effectStyle(effect) : resolveJobStyle(giftName);
   enqueue({
     nickname,
@@ -601,7 +600,7 @@ function processGift(payload, { force = false, test = false, cutout = false, eff
     giftName,
     count,
     coins,
-    style: cutout ? { ...baseStyle, frame: 'cutout' } : baseStyle,
+    style: baseStyle,
     isTop: Boolean(state.options.topMedal && donorKey && donorKey === currentTopDonorKey()),
   });
 }
@@ -1015,16 +1014,16 @@ const TEST_COINS = [1, 5, 30, 99, 299, 999, 1999, 4999];
 // La prueba pasa por el mismo camino que un regalo real (su regla fija y el top donador), pero no se guarda el top.
 // El selector de al lado permite probar cualquier regla sin tener que asignarla a un regalo.
 
-function runTest({ effect = '', cutout = false } = {}) {
+function runTest({ effect = '' } = {}) {
   printerSound.unlock();
   const name = TEST_NAMES[Math.floor(Math.random() * TEST_NAMES.length)];
   const giftName = state.giftRules.length ? state.giftRules[Math.floor(Math.random() * state.giftRules.length)] : 'Rose';
   processGift({
     user: { nickname: name, uniqueId: name.toLowerCase(), avatar: makeCartoonAvatar(`${name}-${Date.now()}`) },
     giftName,
-    repeatCount: !cutout && Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 9) : 1,
+    repeatCount: Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 9) : 1,
     diamondCount: TEST_COINS[Math.floor(Math.random() * TEST_COINS.length)],
-  }, { force: true, test: true, cutout, effect });
+  }, { force: true, test: true, effect });
 }
 
 // "Imprimir de prueba": un regalo de tu lista con la regla que le toca
@@ -1035,9 +1034,6 @@ document.getElementById('ppRuleTests')?.addEventListener('click', (event) => {
   const button = event.target.closest('[data-test-effect]');
   if (button) runTest({ effect: button.dataset.testEffect });
 });
-
-// Foto de prueba con los estilos de las reglas de regalo, pero recortada y sin su fondo (calcomania con borde blanco)
-ppCutoutBtn?.addEventListener('click', () => runTest({ cutout: true }));
 
 // El logo de Interaktik (misma imagen que el icono de la pagina) como foto de prueba. Se pasa a data URL cuadrada y chica para
 // que el 3D lo use igual que cualquier avatar.

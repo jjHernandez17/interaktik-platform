@@ -8,6 +8,7 @@ const snakeService = require('../services/snakeService');
 const raceService = require('../services/raceService');
 const shellGameService = require('../services/shellGameService');
 const boyVsGirlService = require('../services/boyVsGirlService');
+const photoPrinterService = require('../services/photoPrinterService');
 const { normalizeError } = require('../utils/normalize');
 const logger = require('../config/logger');
 
@@ -194,6 +195,34 @@ router.post('/boy-vs-girl/state', requireAuth, requireActiveAccess, async (req, 
     return res.json({ success: true, updated_at: saved.updated_at });
   } catch (error) {
     logger.error('Error saving boy vs girl state', error);
+    return res.status(500).json({ error: normalizeError(error), details: error?.message });
+  }
+});
+
+// Impresora de fotos: reglas de regalos y opciones de la impresora
+router.get('/photo-printer/state', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    return res.json(await photoPrinterService.loadPhotoPrinterState(userId));
+  } catch (error) {
+    logger.error('Error loading photo printer state', error);
+    return res.status(500).json({ error: normalizeError(error) });
+  }
+});
+
+router.post('/photo-printer/state', requireAuth, requireActiveAccess, async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    const saved = await photoPrinterService.savePhotoPrinterState(userId, req.body || {});
+    return res.json({ success: true, updated_at: saved.updated_at });
+  } catch (error) {
+    logger.error('Error saving photo printer state', error);
     return res.status(500).json({ error: normalizeError(error), details: error?.message });
   }
 });

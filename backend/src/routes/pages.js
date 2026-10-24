@@ -695,6 +695,32 @@ router.get('/boy-vs-girl.js', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, '../../../frontend/js/boy-vs-girl.js'));
 });
 
+// Impresora de fotos
+router.get(['/photo-printer', '/photo-printer.html'], requireAuthPage, async (req, res) => {
+  try {
+    if (!(await requireEnabledGame(req, res, 'photoprinter'))) return;
+    if (!(await requireActiveAccessPage(req, res))) return;
+    if (!shouldServeBackendPages()) {
+      return redirectFrontendPage(res, '/photo-printer.html', 'Impresora de fotos page request in production');
+    }
+
+    const apiBaseUrl = getApiBaseUrl(req);
+    const html = await injectApiBaseUrl(path.join(__dirname, '../../../frontend/photo-printer.html'), apiBaseUrl);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading game');
+  }
+});
+
+router.get('/photo-printer.css', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/assets/css/photo-printer.css'));
+});
+
+router.get('/photo-printer.js', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../../frontend/js/photo-printer.js'));
+});
+
 // Batalla de Reinos
 router.get(['/kingdoms', '/kingdoms.html'], requireAuthPage, async (req, res) => {
   try {

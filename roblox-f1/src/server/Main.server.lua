@@ -41,6 +41,8 @@ local stateValue = ensure(ReplicatedStorage, "StringValue", "F1State")
 local remotes = ensure(ReplicatedStorage, "Folder", "F1Remotes")
 local snapRemote = ensure(remotes, "RemoteEvent", "Snap")
 local feedRemote = ensure(remotes, "RemoteEvent", "Feed")
+local controlRemote = ensure(remotes, "RemoteEvent", "Control")
+local powerRemote = ensure(remotes, "RemoteEvent", "Power")
 
 local clientTemplate = script:FindFirstChild("Client")
 local function giveClient(player)
@@ -77,6 +79,7 @@ Race.init({
 	state = stateValue,
 	snap = snapRemote,
 	feed = feedRemote,
+	power = powerRemote,
 	onRaceEnd = function(raceId, results)
 		-- en modo demostracion los corredores son bots: no se guarda nada en el ranking
 		if not Race.isDemo() then
@@ -146,6 +149,66 @@ for _, player in ipairs(Players:GetPlayers()) do
 	end
 end
 
+-- ---------- controles del streamer (boton INICIAR y menu de opciones del juego) ----------
+
+local DataStoreService = game:GetService("DataStoreService")
+local optionsStore = nil
+pcall(function()
+	optionsStore = DataStoreService:GetDataStore("F1Options")
+end)
+
+-- Las opciones se recuerdan entre sesiones (si el juego tiene acceso a DataStore); si no, valen hasta cerrar el servidor
+local function saveOptions()
+	if not optionsStore then
+		return
+	end
+	local maxRacers, countdownSec, cameraMode, laps = Race.getOptions()
+	task.spawn(function()
+		pcall(function()
+			optionsStore:SetAsync("options", { maxRacers = maxRacers, countdownSec = countdownSec, cameraMode = cameraMode, laps = laps })
+		end)
+	end)
+end
+
+task.spawn(function()
+	if not optionsStore then
+		return
+	end
+	local ok, data = pcall(function()
+		return optionsStore:GetAsync("options")
+	end)
+	if ok and type(data) == "table" then
+		Race.setOptions(data.maxRacers, data.countdownSec, data.laps)
+		Race.setCamera(data.cameraMode)
+	end
+end)
+
+local lastControlAt = {}
+controlRemote.OnServerEvent:Connect(function(player, action, a, b, c)
+	-- solo el streamer (el primer jugador, o cualquiera dentro de Studio) maneja la carrera
+	if player ~= owner and not RunService:IsStudio() then
+		return
+	end
+	local t = os.clock()
+	if (lastControlAt[player] or 0) > t - 0.3 then
+		return
+	end
+	lastControlAt[player] = t
+	if action == "start" then
+		Race.start()
+	elseif action == "options" then
+		Race.setOptions(a, b, c)
+		saveOptions()
+	elseif action == "camera" then
+		Race.setCamera(a)
+		saveOptions()
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	lastControlAt[player] = nil
+end)
+
 -- ---------- conexion con Interaktik (sesion y cola de espectadores/regalos) ----------
 
 task.spawn(function()
@@ -210,7 +273,7 @@ local function handleItem(item)
 				Race.join(target, item.nickname or target)
 			end
 		end
-		Race.applyEffect(target, item.power, item.seconds, item.nickname)
+		Race.applyEffect(target, item.power, item.seconds, item.nickname, item.uniqueId)
 	end
 end
 

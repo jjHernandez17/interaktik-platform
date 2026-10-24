@@ -1,0 +1,754 @@
+/* Interaktik — Impresora de fotos (construido sobre design-system.css) */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(18, 184, 255, 0.14), transparent 32%),
+    radial-gradient(circle at 8% 100%, rgba(255, 61, 154, 0.13), transparent 34%),
+    var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+
+.back-menu-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface-solid);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.back-menu-btn:hover {
+  border-color: var(--ds-primary);
+  transform: translateX(-2px);
+}
+
+.pp-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 88px 0 60px;
+  display: grid;
+  gap: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--ds-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-family: var(--ds-font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+}
+
+h3 {
+  margin: 0 0 6px;
+  font-family: var(--ds-font-display);
+  font-size: 1.15rem;
+}
+
+h3.pp-sub {
+  margin-top: 26px;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--ds-text-muted);
+  line-height: 1.65;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(19, 24, 38, 0.94), rgba(13, 17, 28, 0.92));
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-md);
+  padding: 24px;
+}
+
+.connection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.status-badge.unlinked,
+.status-badge.disconnected {
+  color: var(--ds-text-muted);
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.status-badge.connecting {
+  color: var(--ds-warning);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.status-badge.connected {
+  color: var(--ds-success);
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.status-badge.error {
+  color: var(--ds-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.connection-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connection-form input {
+  flex: 1 1 220px;
+  font-family: var(--ds-font-body);
+  font-size: 0.95rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 12px 14px;
+}
+
+.hint {
+  margin: 12px 0 0;
+  color: var(--ds-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+kbd {
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.8em;
+}
+
+/* ====================================================== ESCENARIO ====================================================== */
+
+.pp-stage-card {
+  overflow: hidden;
+}
+
+.pp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.pp-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pp-stage {
+  position: relative;
+  height: clamp(560px, 80vh, 820px);
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+  isolation: isolate;
+  container-type: size;
+  border: 1px solid var(--ds-border);
+  background: #0c1020;
+}
+
+
+.pp-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(60% 45% at 50% 100%, rgba(255, 61, 154, 0.2), transparent 70%),
+    radial-gradient(70% 55% at 50% 0%, rgba(18, 184, 255, 0.18), transparent 70%),
+    linear-gradient(180deg, #0d1226 0%, #151a33 55%, #0a0d1c 100%);
+}
+
+.pp-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, transparent, #000 40%, transparent);
+}
+
+/* el 3D (Three.js) ocupa todo el escenario */
+.pp-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: pan-y; /* en el celular: el dedo gira la cabeza en horizontal y la pagina sigue haciendo scroll vertical */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pp-canvas.is-dragging {
+  cursor: grabbing;
+}
+
+/* vineta suave: oscurece las esquinas como un lente real */
+.pp-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(120% 95% at 50% 52%, transparent 58%, rgba(4, 5, 14, 0.5) 100%);
+}
+
+.pp-cam-btn {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 28px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(12, 16, 32, 0.72);
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.pp-cam-btn:hover {
+  background: rgba(30, 38, 70, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.pp-cam-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34e07a;
+  box-shadow: 0 0 8px rgba(52, 224, 122, 0.8);
+}
+
+.pp-cam-btn.is-manual .pp-cam-dot {
+  background: #ffb02e;
+  box-shadow: 0 0 8px rgba(255, 176, 46, 0.8);
+}
+
+body.pp-clean .pp-cam-btn {
+  display: none;
+}
+
+.pp-no3d {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  max-width: 80%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--ds-text-muted);
+  line-height: 1.5;
+}
+
+.pp-queue-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(12, 16, 32, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.86rem;
+  backdrop-filter: blur(4px);
+}
+
+.pp-exit-clean {
+  display: none;
+}
+
+/* ------------------------------------------------------ modo transmision (solo el escenario) ------------------------------------------------------ */
+
+body.pp-clean {
+  overflow: hidden;
+}
+
+body.pp-clean .back-menu-btn,
+body.pp-clean .pp-hero,
+body.pp-clean .connection-card,
+body.pp-clean .pp-config-card,
+body.pp-clean .pp-toolbar,
+body.pp-clean .pp-rule-tests,
+body.pp-clean .page-loader {
+  display: none !important;
+}
+
+body.pp-clean .pp-stage-card {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #0c1020;
+}
+
+body.pp-clean .pp-stage {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+body.pp-clean .pp-exit-clean {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(12, 16, 32, 0.7);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+body.pp-clean .pp-stage:hover .pp-exit-clean {
+  opacity: 0.8;
+}
+
+/* ====================================================== CONFIGURACION ====================================================== */
+
+.pp-gift-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.pp-gift-chips .muted {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.88rem;
+}
+
+.pp-gift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px 4px 5px;
+  border-radius: 999px;
+  background: rgba(124, 92, 255, 0.16);
+  border: 1px solid rgba(124, 92, 255, 0.4);
+  font-size: 0.84rem;
+}
+
+.pp-gift-chip img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pp-gift-chip-coins {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pp-gift-chip-coins::before {
+  content: '🪙 ';
+  font-size: 0.7rem;
+}
+
+.pp-gift-chip button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0 4px;
+}
+
+.pp-gift-chip button:hover {
+  opacity: 1;
+}
+
+.pp-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.pp-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ds-primary);
+}
+
+.pp-options {
+  display: grid;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.pp-option {
+  display: grid;
+  gap: 8px;
+}
+
+.pp-option-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ds-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pp-option-checks {
+  gap: 0;
+}
+
+.pp-segmented {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(4, 8, 16, 0.5);
+  border: 1px solid var(--ds-border);
+}
+
+.pp-segmented button {
+  border: 0;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-body);
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.pp-segmented button.active {
+  background: var(--ds-primary);
+  color: #fff;
+}
+
+.pp-swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pp-swatches button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: var(--sw);
+  box-shadow: 0 0 0 1px var(--ds-border-strong);
+  cursor: pointer;
+  transition: transform 140ms ease;
+}
+
+.pp-swatches button:hover {
+  transform: scale(1.08);
+}
+
+.pp-swatches button.active {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* ====================================================== SELECTOR DE REGALOS (imagen + monedas + filtro) ====================================================== */
+
+.gift-picker {
+  position: relative;
+  max-width: 460px;
+}
+
+.gift-picker-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--ds-font-body);
+  font-size: 0.92rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.gift-picker-toggle.open {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-selected.placeholder {
+  color: var(--ds-text-muted);
+}
+
+.gift-picker-chevron {
+  flex-shrink: 0;
+  color: var(--ds-text-muted);
+  transition: transform 160ms ease;
+}
+
+.gift-picker-toggle.open .gift-picker-chevron {
+  transform: rotate(180deg);
+}
+
+.gift-picker-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  width: max(100%, 340px);
+  background: var(--ds-surface-solid);
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-lg);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.gift-picker-panel.hidden {
+  display: none;
+}
+
+.gift-picker-filters {
+  display: grid;
+  gap: 8px;
+}
+
+.gift-picker-filters input {
+  font-family: var(--ds-font-body);
+  font-size: 0.86rem;
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  background: rgba(4, 8, 16, 0.5);
+  border-radius: var(--ds-radius-md);
+  padding: 9px 12px;
+}
+
+.gift-picker-filters input:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 3px var(--ds-primary-soft);
+}
+
+.gift-picker-coins-filter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.gift-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.gift-picker-list .muted {
+  margin: 8px 4px;
+  font-size: 0.86rem;
+  color: var(--ds-text-muted);
+}
+
+.gift-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  font-size: 0.86rem;
+  color: var(--ds-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.gift-picker-item:hover {
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-border);
+}
+
+.gift-picker-item.selected {
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary);
+}
+
+.gift-picker-item-image {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.gift-picker-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gift-picker-item-coins {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ds-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .pp-shell {
+    padding-top: 78px;
+  }
+
+  .card {
+    padding: 18px;
+  }
+}
+
+
+/* ====================================================== REGLAS FIJAS Y TOP DONADOR ====================================================== */
+
+.pp-gift-chip.has-effect {
+  background: rgba(18, 184, 255, 0.16);
+  border-color: rgba(18, 184, 255, 0.55);
+}
+
+.pp-effect-select {
+  max-width: 230px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--ds-border);
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.pp-gift-chip .pp-effect-select {
+  max-width: 190px;
+}
+
+.pp-field-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.88rem;
+}
+
+.pp-donor-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pp-donor-row .hint {
+  margin: 0;
+}
+
+/* un boton de prueba por cada regla, junto al escenario */
+.pp-rule-tests {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.pp-rule-tests-label {
+  color: var(--ds-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pp-rule-test {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+}

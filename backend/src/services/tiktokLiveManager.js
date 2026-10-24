@@ -369,13 +369,14 @@ function deliverGift({ gameType, ownerKey, userId, chunk, data }) {
 function normalizeGameType(value) {
   const gameType = String(value || 'app').trim().toLowerCase();
 
-  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'robloxfighters', 'roblox-fighters', 'robloxf1', 'roblox-f1', 'aihost', 'ai-host', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'overlay'].includes(gameType)) {
+  if (['app', 'race', 'snake', 'snake-vs-snake', 'dominance', 'roblox', 'roblox-dance', 'robloxparkour', 'roblox-parkour', 'robloxfighters', 'roblox-fighters', 'robloxf1', 'roblox-f1', 'aihost', 'ai-host', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'photoprinter', 'photo-printer', 'overlay'].includes(gameType)) {
     if (gameType === 'snake-vs-snake') return 'snake';
     if (gameType === 'roblox-dance') return 'roblox';
     if (gameType === 'roblox-parkour') return 'robloxparkour';
     if (gameType === 'roblox-fighters') return 'robloxfighters';
     if (gameType === 'roblox-f1') return 'robloxf1';
     if (gameType === 'ai-host') return 'aihost';
+    if (gameType === 'photo-printer') return 'photoprinter';
     return gameType;
   }
 
@@ -412,6 +413,7 @@ function inferGameTypeFromRequest(req) {
   if (referer.includes('kingdoms')) return 'kingdoms';
   if (referer.includes('shell-game')) return 'shellgame';
   if (referer.includes('boy-vs-girl')) return 'boyvsgirl';
+  if (referer.includes('photo-printer')) return 'photoprinter';
   if (referer.includes('race')) return 'race';
   if (referer.includes('dominance')) return 'dominance';
   if (referer.includes('app')) return 'app';

@@ -29,18 +29,22 @@ Config.MinRacers = 2
 Config.Laps = 3
 Config.LobbySec = 30 -- tiempo para que los espectadores se unan
 Config.CountdownSec = 5
-Config.ResultsSec = 14
+Config.ResultsSec = 22 -- resultados: los carros frenan poco a poco y a los 5 s sube el podio con los 3 primeros
 Config.FinishWaitSec = 25 -- tras llegar el ganador, los demas tienen este tiempo para terminar
 Config.MaxRaceSec = 600
+Config.MinFinishers = 5 -- la carrera no termina hasta que lleguen a la meta al menos estos pilotos (o todos, si corren menos)
+Config.FinishGraceSec = 6 -- con esos pilotos ya en la meta, los demas tienen este tiempo para llegar
 
 -- Fisica simple (studs/segundo)
-Config.BaseSpeed = 140
+Config.BaseSpeed = 200
 Config.CruiseSpeed = 55 -- despues de cruzar la meta
-Config.Accel = 55
+Config.CoastBrake = 40 -- al terminar la carrera todos frenan con esta fuerza (studs/s2) hasta detenerse
+Config.Accel = 80
 Config.Brake = 22
 Config.LaneChangeSpeed = 16
 Config.CarLateralGap = 11 -- si dos carros estan a menos de esto de lado, se estorban
 Config.TurboMul = 1.35
+Config.CameraMode = "auto" -- "auto" | "manual": modo de camara (se cambia en el menu del juego)
 Config.SlowMul = 0.5
 
 -- Poderes (regalos): segundos por defecto

@@ -701,6 +701,73 @@ function sanitizeBoyVsGirlState(payload) {
   };
 }
 
+// ---------- Impresora de fotos ----------
+const PHOTOPRINTER_SPEEDS = ['slow', 'normal', 'fast', 'turbo'];
+const PHOTOPRINTER_PAPERS = ['white', 'cream', 'kraft', 'pink', 'mint', 'blue'];
+const PHOTOPRINTER_SHAPES = ['rounded', 'circle', 'polaroid'];
+const PHOTOPRINTER_MAX_GIFTS = 40;
+
+// Nombres de regalo sin repetidos (aunque cambien mayusculas o tildes), con tope
+function sanitizePhotoPrinterGiftRules(value) {
+  const seen = new Set();
+  const names = [];
+  for (const item of Array.isArray(value) ? value : []) {
+    const name = String(item ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 40);
+    const key = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+    if (names.length >= PHOTOPRINTER_MAX_GIFTS) break;
+  }
+  return names;
+}
+
+function defaultPhotoPrinterOptions() {
+  return { speed: 'normal', paper: 'white', shape: 'rounded', showName: true, showGift: true, sound: true, topDonor: true, topMedal: true };
+}
+
+// Reglas de regalo FIJAS: no se editan, solo se elige cual le toca a cada regalo ('none' = impresion normal)
+const PHOTOPRINTER_EFFECTS = ['none', 'wanted', 'top', 'beauty', 'fire', 'snakes', 'thorns', 'ice', 'lightning', 'kiss', 'tear'];
+
+function normalizePhotoPrinterName(text) {
+  return String(text ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Regla por regalo: solo de regalos que estan en la lista (bajo el nombre tal como esta en la lista); 'none' no se guarda
+function sanitizePhotoPrinterGiftEffects(value, giftRules) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const byKey = new Map(Object.entries(source).map(([name, effect]) => [normalizePhotoPrinterName(name), effect]));
+  const result = {};
+  for (const name of giftRules) {
+    const effect = byKey.get(normalizePhotoPrinterName(name));
+    if (PHOTOPRINTER_EFFECTS.includes(effect) && effect !== 'none') result[name] = effect;
+  }
+  return result;
+}
+
+function sanitizePhotoPrinterState(payload) {
+  const defaults = defaultPhotoPrinterOptions();
+  const options = payload?.options && typeof payload.options === 'object' ? payload.options : {};
+  const flag = (key) => (options[key] === undefined ? defaults[key] : Boolean(options[key]));
+  const giftRules = sanitizePhotoPrinterGiftRules(payload?.giftRules);
+  return {
+    giftRules,
+    anyGift: Boolean(payload?.anyGift),
+    giftEffects: sanitizePhotoPrinterGiftEffects(payload?.giftEffects, giftRules),
+    defaultEffect: PHOTOPRINTER_EFFECTS.includes(payload?.defaultEffect) ? payload.defaultEffect : 'none',
+    options: {
+      speed: PHOTOPRINTER_SPEEDS.includes(options.speed) ? options.speed : defaults.speed,
+      paper: PHOTOPRINTER_PAPERS.includes(options.paper) ? options.paper : defaults.paper,
+      shape: PHOTOPRINTER_SHAPES.includes(options.shape) ? options.shape : defaults.shape,
+      showName: flag('showName'),
+      showGift: flag('showGift'),
+      sound: flag('sound'),
+      topDonor: flag('topDonor'),
+      topMedal: flag('topMedal'),
+    },
+  };
+}
+
 function sanitizeShellGameState(payload) {
   const cupCount = Math.max(SHELLGAME_MIN_CUPS, Math.min(SHELLGAME_MAX_CUPS, Math.round(Number(payload?.cupCount) || SHELLGAME_MIN_CUPS)));
   const mode = SHELLGAME_VALID_MODES.includes(payload?.mode) ? payload.mode : 'gift_rules';
@@ -948,6 +1015,8 @@ module.exports = {
   sanitizeDominanceGameState,
   sanitizeShellGameState,
   sanitizeBoyVsGirlState,
+  sanitizePhotoPrinterState,
+  defaultPhotoPrinterOptions,
   sanitizeOverlayState,
   sanitizeJoinKeyword,
 };

@@ -19,6 +19,7 @@ local raceId = 0
 local rosterVersion = 0
 local raceStart = 0
 local firstFinishAt = nil
+local quotaAt = nil -- cuando llegaron a la meta los pilotos minimos (Config.MinFinishers)
 local finishCount = 0
 local demo = true
 local statusText = ""
@@ -27,6 +28,7 @@ local lastLeaderFeedAt = -math.huge
 local laneChangeCount = 0
 local pending = {} -- poderes que llegaron fuera de la carrera: se aplican en cuanto se pone en verde
 local pendingSettings = nil
+local pendingLaps, lapsFromMenu = nil, false -- vueltas por aplicar en la siguiente parrilla / elegidas en el menu del juego
 local joinKeyword = "unirme"
 local finalStandings = {}
 local lights = {}
@@ -93,7 +95,7 @@ local function addRacer(id, name, robloxUserId)
 		latVel = 0,
 		dist = dist,
 		speed = 0,
-		base = rng:NextNumber(0.97, 1.03),
+		base = 1, -- todos corren a la misma velocidad: solo los poderes la cambian
 		seed = rng:NextNumber(0, 100),
 		cool = 0,
 		turboUntil = 0,
@@ -129,30 +131,34 @@ end
 
 -- ---------- fases ----------
 
-local function startLobby()
-	if pendingSettings then
-		Config.Laps = pendingSettings.laps
-		Config.LobbySec = pendingSettings.lobbySec
-		pendingSettings = nil
-	end
-	phase = "lobby"
-	phaseEndsAt = now() + Config.LobbySec
-	finalStandings = {}
-	firstFinishAt = nil
-	finishCount = 0
-	lastLeaderId = nil
-	setLights(0, false)
-
-	-- los que esperaban entran primero
-	local pending = waitlist
+-- Pasa de la lista de espera a la parrilla a los que caben
+local function fillFromWaitlist()
+	local waiting = waitlist
 	waitlist = {}
-	for _, entry in ipairs(pending) do
+	for _, entry in ipairs(waiting) do
 		if #racers < Config.MaxRacers and not byId[entry.id] then
 			addRacer(entry.id, entry.name, entry.robloxUserId)
 		else
 			table.insert(waitlist, entry)
 		end
 	end
+end
+
+local function startLobby()
+	if pendingLaps then
+		Config.Laps = pendingLaps
+		pendingLaps = nil
+	end
+	phase = "lobby" -- la parrilla espera hasta que el streamer pulse INICIAR (Race.start)
+	phaseEndsAt = now()
+	finalStandings = {}
+	firstFinishAt = nil
+	quotaAt = nil
+	finishCount = 0
+	lastLeaderId = nil
+	setLights(0, false)
+
+	fillFromWaitlist() -- los que esperaban entran primero
 	nextBotAt = now() + 1.5
 end
 
@@ -180,6 +186,7 @@ local function finishRace()
 		racer.place = racer.place or place
 		table.insert(finalStandings, {
 			id = racer.id,
+			slot = racer.slot,
 			name = racer.name,
 			place = place,
 			finished = racer.finished,
@@ -188,6 +195,17 @@ local function finishRace()
 	end
 	if list[1] then
 		feed("🏆 ¡" .. list[1].name .. " gana la carrera!", "good")
+	end
+	-- el top 3: solo cuentan los que llegaron a la meta
+	local podium = {}
+	for place = 1, 3 do
+		local entry = finalStandings[place]
+		if entry and entry.finished then
+			table.insert(podium, ({ "🥇 ", "🥈 ", "🥉 " })[place] .. entry.name)
+		end
+	end
+	if #podium > 0 then
+		feed("🏆 Podio: " .. table.concat(podium, " · "), "good")
 	end
 	if env.onRaceEnd then
 		task.spawn(env.onRaceEnd, raceId, finalStandings)
@@ -224,22 +242,33 @@ local function findRacer(query)
 	return nil
 end
 
-local function applyNow(racer, kind, seconds, by)
+local function applyNow(racer, kind, seconds, by, senderId)
 	local t = now()
 	local sender = by and (by .. " → ") or ""
+	-- aviso a los clientes: la camara automatica enfoca a quien tiro el poder (si no corre, al carro que lo recibe) y sale la barra del poder
+	local function announce(duration)
+		if env and env.power then
+			local thrower = senderId and byId[tostring(senderId)]
+			env.power:FireAllClients((thrower or racer).slot, kind, duration, by, thrower ~= nil, racer.slot)
+		end
+	end
 
 	if kind == "turbo" then
 		racer.turboUntil = math.max(racer.turboUntil, t) + seconds
+		announce(seconds)
 		feed("🚀 " .. sender .. racer.name .. " recibe TURBO", "good")
 	elseif kind == "slow" then
 		if racer.shieldUntil > t then
+			announce(0) -- el escudo lo bloqueo
 			feed("🛡️ El escudo de " .. racer.name .. " bloqueó el ataque", "info")
 			return true
 		end
 		racer.slowUntil = math.max(racer.slowUntil, t) + seconds
+		announce(seconds)
 		feed("🛢️ " .. sender .. racer.name .. " se resbala con aceite", "bad")
 	elseif kind == "shield" then
 		racer.shieldUntil = math.max(racer.shieldUntil, t) + seconds
+		announce(seconds)
 		feed("🛡️ " .. sender .. racer.name .. " activa un ESCUDO", "good")
 	else
 		return false
@@ -258,11 +287,11 @@ end
 
 -- Un regalo que llega antes de que empiece la carrera (o para alguien que espera la siguiente) no se pierde: se guarda y se
 -- aplica en cuanto se pone en verde.
-local function queuePending(query, kind, seconds, by)
+local function queuePending(query, kind, seconds, by, senderId)
 	if #pending >= 200 then
 		table.remove(pending, 1)
 	end
-	table.insert(pending, { query = query, kind = kind, seconds = seconds, by = by, at = now() })
+	table.insert(pending, { query = query, kind = kind, seconds = seconds, by = by, senderId = senderId, at = now() })
 end
 
 local function flushPending()
@@ -270,7 +299,7 @@ local function flushPending()
 	for _, entry in ipairs(pending) do
 		local racer = findRacer(entry.query)
 		if racer and not racer.finished then
-			applyNow(racer, entry.kind, entry.seconds, entry.by)
+			applyNow(racer, entry.kind, entry.seconds, entry.by, entry.senderId)
 		elseif isWaiting(entry.query) and now() - entry.at < 600 then
 			table.insert(keep, entry)
 		end
@@ -279,21 +308,21 @@ local function flushPending()
 end
 
 -- kind: "turbo" | "slow" | "shield". query: id del corredor, "leader", "last" o "random".
-function Race.applyEffect(query, kind, seconds, by)
+function Race.applyEffect(query, kind, seconds, by, senderId)
 	if kind ~= "turbo" and kind ~= "slow" and kind ~= "shield" then
 		return false, "Poder no valido"
 	end
 	seconds = math.clamp(tonumber(seconds) or 5, 1, 60)
 
 	if phase ~= "racing" then
-		queuePending(query, kind, seconds, by)
+		queuePending(query, kind, seconds, by, senderId)
 		return true, "queued"
 	end
 
 	local racer = findRacer(query)
 	if not racer then
 		if isWaiting(query) then
-			queuePending(query, kind, seconds, by)
+			queuePending(query, kind, seconds, by, senderId)
 			return true, "queued"
 		end
 		return false, "Corredor no encontrado"
@@ -301,7 +330,7 @@ function Race.applyEffect(query, kind, seconds, by)
 	if racer.finished then
 		return false, "Ya termino"
 	end
-	return applyNow(racer, kind, seconds, by)
+	return applyNow(racer, kind, seconds, by, senderId)
 end
 
 function Race.has(id)
@@ -393,13 +422,12 @@ local function stepRacing(dt)
 
 	for idx, racer in ipairs(order) do
 		if racer.finished then
-			racer.speed += math.clamp(Config.BaseSpeed * racer.base - racer.speed, -Config.Brake * dt, Config.Accel * dt)
+			-- al cruzar la meta frena poco a poco hasta una velocidad de paseo
+			racer.speed += math.clamp(Config.CruiseSpeed - racer.speed, -Config.Brake * dt, Config.Accel * dt)
 		else
 			-- la velocidad no depende de la curva: nadie frena en ningun momento
+			-- todos los carros corren exactamente a la misma velocidad; solo los poderes (turbo, aceite) la cambian
 			local target = Config.BaseSpeed * racer.base
-			local gap = leaderDist - racer.dist
-			target *= 1 + math.clamp(gap / 900, 0, 0.04) - (idx == 1 and 0.01 or 0)
-			target *= 1 + 0.02 * math.noise(t * 0.15, racer.seed)
 			if racer.turboUntil > t then
 				target *= Config.TurboMul
 			end
@@ -417,7 +445,7 @@ local function stepRacing(dt)
 				if ahead > 48 then
 					break
 				end
-				if ahead >= 0 and math.abs(other.lateral - racer.lateral) < Config.CarLateralGap and other.speed < racer.speed + 4 then
+				if ahead >= 0 and math.abs(other.lateral - racer.lateral) < Config.CarLateralGap and other.speed < racer.speed - 1 then
 					blocker = other
 					break
 				end
@@ -463,9 +491,8 @@ local function stepRacing(dt)
 		local wantedVel = math.clamp((goal - racer.lateral) * 2.4, -Config.LaneChangeSpeed, Config.LaneChangeSpeed)
 		racer.latVel += math.clamp(wantedVel - racer.latVel, -45 * dt, 45 * dt)
 		racer.lateral += racer.latVel * dt
-		-- speed es velocidad real sobre el suelo: en una curva el carril de afuera recorre mas, asi que avanza menos "metros de eje"
-		local denominator = math.max(0.35, 1 + Path.curvatureAt(racer.dist) * racer.lateral)
-		racer.dist += racer.speed * dt / denominator
+		-- todos avanzan lo mismo por el eje de la pista sin importar su carril: con la misma velocidad llegan juntos y nadie gana por ir por dentro
+		racer.dist += racer.speed * dt
 
 		if not racer.finished and racer.dist >= totalDist then
 			racer.finished = true
@@ -495,8 +522,41 @@ local function stepRacing(dt)
 			break
 		end
 	end
-	if allDone or (firstFinishAt and t - firstFinishAt > Config.FinishWaitSec) or t - raceStart > Config.MaxRaceSec then
+	-- termina cuando llegaron todos o, como minimo, los primeros 5 (para que haya un top 3 de verdad) y pasaron unos segundos
+	local needed = math.min(Config.MinFinishers, #racers)
+	if finishCount >= needed and not quotaAt then
+		quotaAt = t
+	end
+	if allDone or (quotaAt and t - quotaAt > Config.FinishGraceSec) or t - raceStart > Config.MaxRaceSec then
 		finishRace()
+	end
+end
+
+-- Al terminar la carrera los carros no se congelan: siguen avanzando y frenan poco a poco hasta detenerse (sin alcanzar al de adelante)
+local function stepResults(dt)
+	local order = table.clone(racers)
+	table.sort(order, function(a, b)
+		return a.dist > b.dist
+	end)
+	for idx, racer in ipairs(order) do
+		racer.speed = math.max(0, racer.speed - Config.CoastBrake * dt)
+		for k = idx - 1, math.max(1, idx - 4), -1 do
+			local other = order[k]
+			local ahead = other.dist - racer.dist
+			if ahead > 40 then
+				break
+			end
+			if ahead >= 0 and math.abs(other.lateral - racer.lateral) < Config.CarLateralGap then
+				racer.speed = math.min(racer.speed, math.max(0, other.speed + (ahead - 20) * 1.5))
+				break
+			end
+		end
+		racer.dist += racer.speed * dt
+
+		local goal = laneCenter(racer.lane)
+		local wantedVel = math.clamp((goal - racer.lateral) * 2.4, -Config.LaneChangeSpeed, Config.LaneChangeSpeed)
+		racer.latVel += math.clamp(wantedVel - racer.latVel, -45 * dt, 45 * dt)
+		racer.lateral += racer.latVel * dt
 	end
 end
 
@@ -518,7 +578,7 @@ local function publish()
 	if phase == "results" then
 		for i = 1, math.min(10, #finalStandings) do
 			local r = finalStandings[i]
-			table.insert(results, { n = r.name, p = r.place, f = r.finished, t = r.time and math.floor(r.time * 10) / 10 or nil })
+			table.insert(results, { n = r.name, p = r.place, f = r.finished, i = r.slot, t = r.time and math.floor(r.time * 10) / 10 or nil })
 		end
 	end
 
@@ -529,6 +589,9 @@ local function publish()
 		laps = Config.Laps,
 		n = #racers,
 		max = Config.MaxRacers,
+		min = Config.MinRacers,
+		cd = Config.CountdownSec,
+		cam = Config.CameraMode,
 		wait = #waitlist,
 		rid = raceId,
 		rv = rosterVersion,
@@ -573,27 +636,22 @@ function Race.step(dt)
 	local t = now()
 
 	if phase == "lobby" then
-		if demo and #racers < Config.DemoBots and t >= nextBotAt then
+		if demo and #racers < math.min(Config.DemoBots, Config.MaxRacers) and t >= nextBotAt then
 			nextBotAt = t + 1.2
 			local index = #racers + 1
 			Race.join("bot" .. index, BOT_NAMES[(index - 1) % #BOT_NAMES + 1])
 		end
-		if t >= phaseEndsAt then
-			if #racers >= Config.MinRacers then
-				startCountdown()
-			else
-				phaseEndsAt = t + 8
-			end
-		end
+		-- la carrera no empieza sola: el streamer pulsa INICIAR (Race.start) y arranca la cuenta de preparacion
 	elseif phase == "countdown" then
 		local left = phaseEndsAt - t
-		setLights(math.clamp(Config.CountdownSec - math.ceil(left) + 1, 0, #lights), false)
+		setLights(math.clamp(#lights - math.ceil(left) + 1, 0, #lights), false) -- las luces se encienden en los ultimos segundos
 		if left <= 0 then
 			startRacing()
 		end
 	elseif phase == "racing" then
 		stepRacing(dt)
 	elseif phase == "results" then
+		stepResults(dt)
 		if t >= phaseEndsAt then
 			clearRacers()
 			startLobby()
@@ -622,16 +680,65 @@ function Race.setDemo(value)
 	end
 end
 
--- Ajustes de la pagina de Interaktik (vueltas, segundos de parrilla, palabra para unirse). Se aplican en la siguiente parrilla.
+-- Ajustes de la pagina de Interaktik (vueltas y palabra para unirse). Si el streamer eligio las vueltas en el menu del juego, valen esas.
 function Race.configure(settings)
 	if type(settings) ~= "table" then
 		return
 	end
 	joinKeyword = tostring(settings.joinKeyword or "unirme")
-	pendingSettings = {
-		laps = math.clamp(math.floor(tonumber(settings.laps) or Config.Laps), 1, 10),
-		lobbySec = math.clamp(math.floor(tonumber(settings.lobbySeconds) or Config.LobbySec), 10, 120),
-	}
+	if not lapsFromMenu then
+		Race.setLaps(settings.laps, false)
+	end
+end
+
+-- El streamer pulso INICIAR: empieza la cuenta de preparacion (solo desde la parrilla y con los pilotos minimos)
+function Race.start()
+	if phase ~= "lobby" then
+		return false, "phase"
+	end
+	if #racers < Config.MinRacers then
+		feed("⚠️ Se necesitan al menos " .. Config.MinRacers .. " pilotos para empezar", "bad")
+		return false, "min"
+	end
+	startCountdown()
+	return true
+end
+
+-- Vueltas de la carrera: fuera de la carrera se aplican ya; si hay una en curso, desde la siguiente parrilla
+function Race.setLaps(value, fromMenu)
+	local laps = math.clamp(math.floor(tonumber(value) or Config.Laps), 1, 10)
+	if fromMenu then
+		lapsFromMenu = true
+	end
+	if phase == "racing" or phase == "results" then
+		pendingLaps = laps
+	else
+		Config.Laps = laps
+		pendingLaps = nil
+	end
+end
+
+-- Opciones del menu del juego: maximo de pilotos, segundos de la cuenta de preparacion y vueltas
+function Race.setOptions(maxRacers, countdownSec, laps)
+	Config.MaxRacers = math.clamp(math.floor(tonumber(maxRacers) or Config.MaxRacers), Config.MinRacers, 20)
+	Config.CountdownSec = math.clamp(math.floor(tonumber(countdownSec) or Config.CountdownSec), 3, 120)
+	if laps ~= nil then
+		Race.setLaps(laps, true)
+	end
+	if phase == "lobby" then
+		fillFromWaitlist() -- si ahora caben mas, entran los que esperaban
+	end
+	publish()
+end
+
+function Race.getOptions()
+	return Config.MaxRacers, Config.CountdownSec, Config.CameraMode, Config.Laps
+end
+
+-- Modo de camara del menu del juego: "auto" o "manual"
+function Race.setCamera(mode)
+	Config.CameraMode = mode == "manual" and "manual" or "auto"
+	publish()
 end
 
 function Race.setStatus(text)

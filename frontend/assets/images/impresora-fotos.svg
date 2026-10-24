@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Impresora de fotos">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101734"/>
+      <stop offset="0.6" stop-color="#1b2150"/>
+      <stop offset="1" stop-color="#0a0e22"/>
+    </linearGradient>
+    <radialGradient id="glowPink" cx="50%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#ff3d9a" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ff3d9a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="50%" cy="0%" r="70%">
+      <stop offset="0" stop-color="#12b8ff" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#12b8ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1f4f9"/>
+      <stop offset="0.45" stop-color="#d4dae6"/>
+      <stop offset="1" stop-color="#aab3c6"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbfcfe"/>
+      <stop offset="1" stop-color="#dce2ed"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#12b8ff"/>
+      <stop offset="0.55" stop-color="#ff3d9a"/>
+      <stop offset="1" stop-color="#ffd400"/>
+    </linearGradient>
+    <linearGradient id="face1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7cf29a"/><stop offset="1" stop-color="#1fd8c8"/></linearGradient>
+    <linearGradient id="face2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffa37a"/><stop offset="1" stop-color="#f3d23c"/></linearGradient>
+    <linearGradient id="face3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b58cff"/><stop offset="1" stop-color="#5ad1ff"/></linearGradient>
+    <clipPath id="paperClip"><rect x="560" y="0" width="480" height="640"/></clipPath>
+    <pattern id="holes" width="22" height="34" patternUnits="userSpaceOnUse"><circle cx="11" cy="16" r="4.2" fill="#3a2f22" fill-opacity="0.55"/></pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glowBlue)"/>
+  <rect width="1600" height="900" fill="url(#glowPink)"/>
+
+  <!-- hoja infinita -->
+  <g clip-path="url(#paperClip)">
+    <rect x="560" y="-20" width="480" height="700" fill="#fbfbf8"/>
+    <rect x="560" y="-20" width="22" height="700" fill="url(#holes)"/>
+    <rect x="1018" y="-20" width="22" height="700" fill="url(#holes)"/>
+    <rect x="560" y="-20" width="480" height="700" fill="none" stroke="#000" stroke-opacity="0.12" stroke-width="2"/>
+
+    <!-- foto 1 (la que sale ahora, a medias) -->
+    <g transform="translate(610 392)">
+      <rect width="380" height="270" rx="22" fill="url(#face1)"/>
+      <ellipse cx="190" cy="372" rx="170" ry="130" fill="#8a2fc2"/>
+      <ellipse cx="190" cy="170" rx="92" ry="102" fill="#7a3f1d"/>
+      <ellipse cx="190" cy="186" rx="78" ry="90" fill="#e2b585"/>
+      <path d="M110 150 q80 -78 160 0 q-6 -50 -80 -56 q-74 6 -80 56z" fill="#7a3f1d"/>
+      <ellipse cx="160" cy="190" rx="13" ry="16" fill="#fff"/><ellipse cx="220" cy="190" rx="13" ry="16" fill="#fff"/>
+      <circle cx="162" cy="193" r="7" fill="#20232f"/><circle cx="222" cy="193" r="7" fill="#20232f"/>
+    </g>
+
+    <!-- foto 2 -->
+    <g transform="translate(610 104)">
+      <rect width="380" height="250" rx="22" fill="url(#face2)"/>
+      <circle cx="190" cy="140" r="86" fill="#e8c9a0"/>
+      <path d="M104 130 q86 -100 172 0 q-20 -42 -86 -46 q-66 4 -86 46z" fill="#c8322b"/>
+      <circle cx="160" cy="146" r="12" fill="#fff"/><circle cx="220" cy="146" r="12" fill="#fff"/>
+      <circle cx="162" cy="149" r="6" fill="#20232f"/><circle cx="222" cy="149" r="6" fill="#20232f"/>
+      <path d="M160 190 q30 26 60 0" fill="none" stroke="#7a2f2f" stroke-width="7" stroke-linecap="round"/>
+    </g>
+    <text x="800" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="42" fill="#1d2230">Valentina</text>
+
+    <!-- foto 3, apenas asomando por arriba -->
+    <g transform="translate(610 -150)">
+      <rect width="380" height="250" rx="22" fill="url(#face3)"/>
+    </g>
+    <rect x="560" y="0" width="480" height="70" fill="#0d1226" opacity="0.0"/>
+  </g>
+
+  <!-- cabezal de tinta -->
+  <rect x="540" y="636" width="520" height="8" rx="4" fill="#fff" fill-opacity="0.35"/>
+  <rect x="600" y="632" width="94" height="14" rx="6" fill="url(#ink)"/>
+  <rect x="600" y="632" width="94" height="14" rx="6" fill="#ff3d9a" opacity="0.45" filter="url(#soft)"/>
+
+  <!-- impresora -->
+  <ellipse cx="800" cy="888" rx="420" ry="22" fill="#000" opacity="0.5" filter="url(#soft)"/>
+  <rect x="380" y="640" width="840" height="236" rx="38" fill="url(#body)"/>
+  <rect x="380" y="640" width="840" height="82" rx="38" fill="url(#top)"/>
+  <rect x="380" y="696" width="840" height="26" fill="url(#top)"/>
+  <rect x="380" y="722" width="840" height="3" fill="#3c4664" fill-opacity="0.25"/>
+  <rect x="535" y="650" width="530" height="26" rx="13" fill="#0f121a"/>
+  <rect x="535" y="663" width="530" height="14" rx="7" fill="#161a26"/>
+  <rect x="450" y="752" width="320" height="86" rx="14" fill="#0b2015"/>
+  <text x="474" y="788" font-family="ui-monospace, Consolas, monospace" font-weight="800" font-size="26" letter-spacing="4" fill="#7dffb0">IMPRIMIENDO</text>
+  <text x="474" y="820" font-family="ui-monospace, Consolas, monospace" font-size="21" fill="#7dffb0" fill-opacity="0.85">Valentina</text>
+  <circle cx="1090" cy="770" r="11" fill="#34e07a"/><circle cx="1128" cy="770" r="11" fill="#ffb02e"/>
+  <rect x="1050" y="806" width="36" height="14" rx="5" fill="#12b8ff"/><rect x="1094" y="806" width="36" height="14" rx="5" fill="#ff3d9a"/>
+  <rect x="1138" y="806" width="36" height="14" rx="5" fill="#ffd400"/><rect x="1182" y="806" width="14" height="14" rx="5" fill="#262a35" opacity="0"/>
+  <text x="450" y="860" font-family="system-ui, sans-serif" font-weight="700" font-size="18" letter-spacing="6" fill="#6b7692">INTERAKTIK PHOTO PRINT</text>
+  <!-- borde de la ranura: la hoja entra por aqui -->
+    <path d="M535 660 H1065 V667 a7 7 0 0 1 -7 7 H542 a7 7 0 0 1 -7 -7 Z" fill="#0b0d14"/>
+</svg>

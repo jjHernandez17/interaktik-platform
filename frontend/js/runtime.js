@@ -278,7 +278,7 @@
   const GAME_LABELS = {
     app: 'Torres', race: 'Carrera', snake: 'Snake vs Snake', dominance: 'Dominance', shellgame: 'Dónde está la bola',
     boyvsgirl: 'Chicos vs Chicas', kingdoms: 'Battle of Kingdoms', gta: 'GTA V', gtarampa: 'Montaña Imposible',
-    minecraft: 'Minecraft', minecraftcubo: 'Cubecraft', roblox: 'Roblox', robloxparkour: 'Roblox Parkour', robloxfighters: 'Pelea Callejera', robloxf1: 'Carrera de Fórmula 1', aihost: 'Co-anfitrión IA',
+    minecraft: 'Minecraft', minecraftcubo: 'Cubecraft', roblox: 'Roblox', robloxparkour: 'Roblox Parkour', robloxfighters: 'Pelea Callejera', robloxf1: 'Carrera de Fórmula 1', aihost: 'Co-anfitrión IA', photoprinter: 'Impresora de fotos',
     overlay: 'Overlays',
   };
   const LIVE_GONE_STATES = ['disconnected', 'error', 'live_off'];
@@ -541,7 +541,7 @@
   // Las paginas de juego piden su clave firmada nada mas cargar (si no la tenian guardada de otra visita)
   const PAGE_GAME_TYPES = [
     ['snake-vs-snake', 'snake'], ['gta-rampa', 'gtarampa'], ['minecraft-cubo', 'minecraftcubo'], ['roblox-dance', 'roblox'],
-    ['roblox-parkour', 'robloxparkour'], ['roblox-fighters', 'robloxfighters'], ['roblox-f1', 'robloxf1'], ['ai-host', 'aihost'], ['shell-game', 'shellgame'], ['boy-vs-girl', 'boyvsgirl'], ['kingdoms', 'kingdoms'],
+    ['roblox-parkour', 'robloxparkour'], ['roblox-fighters', 'robloxfighters'], ['roblox-f1', 'robloxf1'], ['ai-host', 'aihost'], ['shell-game', 'shellgame'], ['boy-vs-girl', 'boyvsgirl'], ['photo-printer', 'photoprinter'], ['kingdoms', 'kingdoms'],
     ['dominance', 'dominance'], ['race', 'race'], ['gta', 'gta'], ['minecraft', 'minecraft'], ['app', 'app'],
   ];
 

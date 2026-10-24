@@ -317,6 +317,7 @@ const GAME_LABELS = {
   gta: 'Modo historia',
   gtarampa: 'Montaña Imposible',
   kingdoms: 'Batalla de Reinos',
+  photoprinter: 'Impresora de fotos',
 };
 
 let currentUser = null;
@@ -377,6 +378,7 @@ function gameTypeFromHref(href = '') {
   if (href.includes('kingdoms')) return 'kingdoms';
   if (href.includes('shell-game')) return 'shellgame';
   if (href.includes('boy-vs-girl')) return 'boyvsgirl';
+  if (href.includes('photo-printer')) return 'photoprinter';
   if (href.includes('race')) return 'race';
   if (href.includes('dominance')) return 'dominance';
   if (href.includes('app')) return 'app';
@@ -1426,7 +1428,7 @@ if (overlayConnectionForm) {
 // backend/src/routes/admin.js) — vincular desde aca escribe el mismo usuario
 // en la conexion de cada uno, para que "un solo usuario de TikTok para toda
 // la plataforma" sea real sin tener que migrar la tabla por-juego del backend.
-const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'robloxf1', 'aihost', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl'];
+const ALL_GAME_TYPES = ['app', 'snake', 'race', 'dominance', 'roblox', 'robloxparkour', 'robloxfighters', 'robloxf1', 'aihost', 'minecraft', 'minecraftcubo', 'gta', 'gtarampa', 'kingdoms', 'shellgame', 'boyvsgirl', 'photoprinter'];
 
 // Una vez vinculado, el usuario de TikTok no se puede cambiar desde aqui:
 // el campo y el boton "Vincular" quedan bloqueados.
